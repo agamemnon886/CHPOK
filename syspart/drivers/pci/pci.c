@@ -108,7 +108,7 @@ int pci_write_config_byte(struct pci_dev *dev, int where, uint8_t val)
     out_8((void *) (bridge.cfg_data) + (where & 3), val);
 #else
     outl(PCI_CONFIG_ADDRESS, addr);
-    outb(val, PCI_CONFIG_DATA + (where & 3));
+    outb(PCI_CONFIG_DATA + (where & 3), val);
 #endif
     return OK;
 }
@@ -123,7 +123,7 @@ int pci_write_config_word(struct pci_dev *dev, int where, uint16_t val)
     out_le16((void *) (bridge.cfg_data) + (where & 3), val);
 #else
     outl(PCI_CONFIG_ADDRESS, addr);
-    outw(val, PCI_CONFIG_DATA + (where & 2));
+    outw(PCI_CONFIG_DATA + (where & 2), val);
 #endif
     return OK;
 }

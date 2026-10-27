@@ -38,7 +38,7 @@ if arch_env.get('jdeveloper'):
     import yaml
     
     def parse_yaml(source, env):
-        return yaml.load(file(source[0].path, "r"))
+        return yaml.load(open(source[0].path, "r"), Loader=yaml.SafeLoader)
     
     arch_env.TemplateRender(
         target = exception_sources,

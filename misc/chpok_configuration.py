@@ -246,8 +246,12 @@ class Partition:
     __slots__ = [
         "arch", # Value propagated from 'Configuration' object.
         "name",
+        "part_id",
 
         "is_system",
+
+        "period",
+        "duration",
 
         # Requested size of the heap.
         #
@@ -271,7 +275,13 @@ class Partition:
         "ports_queueing_system", # list of queuing ports with non-empty protocol set
         "ports_sampling_system", # list of sampling ports with non-empty protocol set
 
-        "part_index" # index of the partition in the array. Filled automatically. part_index+1 is used as PID
+        "part_index", # index of the partition in the array. Filled automatically. part_index+1 is used as PID
+
+        # Internal
+        "port_names_map",
+        "memory_blocks_map",
+        "total_time",
+        "has_periodic_processing_start",
     ]
 
     def __init__(self, arch, part_id, name):
@@ -515,7 +525,7 @@ class QueueingPort(Port):
 
 class Channel:
     __metaclass__ = abc.ABCMeta
-    __slots__ = ["src", "dst"]
+    __slots__ = ["src", "dst", "max_message_size"]
 
     def __init__(self, src, dst, max_message_size):
         self.max_message_size = max_message_size
@@ -654,11 +664,14 @@ class Memory_block:
     __slots__ = [
         "name",
         "size",
+        "actual_size",
         "str_size",
         "virt_addr",
         "phys_addr",
         "cache_policy",
-        "system_access"
+        "system_access",
+        "access",
+        "tlb_entries_count",
     ]
 
     def __init__(self, name, size, conf):
@@ -692,12 +705,15 @@ class Configuration:
     error_ids_all = error_ids
 
     __slots__ = [
+        "arch",
+        "module_hm_table",
         "partitions",
         "slots", # time windows
         "channels_queueing", # queueing port channels (connections)
         "channels_sampling", # sampling port channels (connections)
         "network", # NetworkConfiguration object (or None)
-        "memory_blocks"
+        "memory_blocks",
+        "memory_blocks_tlb_entries_count",
 
         "spaces", # Array of 'Space' objects.
 
@@ -706,6 +722,18 @@ class Configuration:
         # it's used by test runner as a sign that POK
         # can be terminated
         "test_support_print_when_all_threads_stopped",
+
+        "major_frame",
+
+        # For internal usage
+        "partition_names_map",
+        "partition_ids_map",
+        "next_partition_id",
+
+        "memory_blocks_names",
+
+        "next_channel_id_sampling",
+        "next_channel_id_queueing",
     ]
 
     def __init__(self, arch):

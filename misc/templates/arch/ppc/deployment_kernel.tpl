@@ -35,7 +35,7 @@ int ja_spaces_n = {{conf.spaces | length}};
 struct tlb_entry jet_tlb_entries[] = {
     {%for mblock in conf.memory_blocks%}
     // {{mblock.name}}
-    {%for pid, access_right in mblock.access.iteritems() %}
+    {%for pid, access_right in mblock.access.items() %}
     {
         .virt_addr = {{"0x%x" | format(mblock.virt_addr)}},
         .phys_addr = {{"0x%x" | format(mblock.phys_addr)}},

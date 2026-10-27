@@ -30,7 +30,7 @@
 
 typedef struct {{component.name}}_state {
  {% if component.state_struct %}
-  {%for name, type in component.state_struct.iteritems()%}
+  {%for name, type in component.state_struct.items()%}
     {{type}} {{name}};
   {% endfor %}
  {% endif %}

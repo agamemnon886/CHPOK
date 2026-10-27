@@ -50,7 +50,7 @@ def get_interfaces_config(cwd):
 
     interfaces_dict = {}
     for config_file in config_list:
-        config = yaml.load(open(config_file))
+        config = yaml.load(open(config_file), Loader=yaml.SafeLoader)
         for interface in config:
             interfaces_dict[interface['name']] = interface
 
@@ -66,7 +66,7 @@ def generate_interfaces():
 
     for config_file in config_list:
         path_without_ext = os.path.splitext(config_file)[0]
-        config = yaml.load(open(config_file))
+        config = yaml.load(open(config_file), Loader=yaml.SafeLoader)
         for interface in config:
             jinja_env = {'interface': interface}
             gen_file = interface['name'] + '_gen.h'
@@ -84,7 +84,7 @@ def generate_component_files():
     for cwd in COMPONENTS_DIRS:
         cwd_path = os.path.join(COMPONENTS_PATH, cwd)
         cur_config_file = os.path.join(cwd_path, CONFIG)
-        cur_config = yaml.load(open(cur_config_file))
+        cur_config = yaml.load(open(cur_config_file), Loader=yaml.SafeLoader)
         interfaces =  get_interfaces_config(INTERFACES_DIR)
         for component in cur_config:
             jinja_env = {

@@ -165,7 +165,7 @@ if libpok_env.get('jdeveloper'):
             source = source[0]
 
         with open(source.path) as f:
-            defs = yaml.load(f)
+            defs = yaml.load(f, Loader=yaml.SafeLoader)
 
         return dict(locale = C99Locale(defs['name'], defs))
 

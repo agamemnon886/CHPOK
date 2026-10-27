@@ -28,7 +28,7 @@ import jinja2
 
 # Helper: prints error message with appropriate prefix.
 def print_error(message):
-    print "Error: %s\n" % message
+    print("Error: %s\n" % message)
 
 def format_title(title, target, source, env):
     """
@@ -88,7 +88,7 @@ def CopyWithTitle(target, source, env):
             with open(source[0].path, 'r') as src_file:
                 shutil.copyfileobj(src_file, dest_file)
     except Exception as e:
-        print_error("Failed to copy file: %s" % e.message)
+        print_error("Failed to copy file: %s" % str(e))
 
 
 class ParseContext:
@@ -120,7 +120,7 @@ class TemplateLoader(jinja2.BaseLoader):
                 raise jinja2.TemplateNotFound(template,
                     message = "Couldn't find template '" + template + "' under '" + self.path + "'")
         mtime = os.path.getmtime(filename)
-        with file(filename) as f:
+        with open(filename, 'rb') as f:
             source = f.read().decode('utf-8')
         # Update list of used templates.
         if self.used is not None:
@@ -197,10 +197,10 @@ def template_render_action(target, source, env):
                     for f in used_list:
                         deps_file.write("%s: %s\n" % (target_single.abspath, f))
         except jinja2.TemplateError as e:
-            print "Error while rendering templates: " + e.message
+            print("Error while rendering templates: " + str(e))
             return 1
         except RuntimeError as e:
-            print "Error while interpret template data: " + e.message
+            print("Error while interpret template data: " + str(e))
             return 1
 
 # Pseudo builder(method).
@@ -328,7 +328,7 @@ def syscall_build_action(target, source, env):
     try:
         template = jinja_env.get_template(template_main)
     except jinja2.TemplateError as e:
-        print_error("Failed to load main template: %s\n" % e.message)
+        print_error("Failed to load main template: %s\n" % str(e))
         return 1
     # Parse input and produce output
     input_path = source[0].path
@@ -405,7 +405,7 @@ def syscall_build_action(target, source, env):
         try:
             output_f.write(template.render(sd = sd))
         except jinja2.TemplateError as e:
-            print_error("Failed to render syscall definition at %s: %s" % (pc.syscall_lineno, e.message))
+            print_error("Failed to render syscall definition at %s: %s" % (pc.syscall_lineno, str(e)))
             return 1
 
         syscall_string = None

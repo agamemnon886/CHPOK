@@ -23,14 +23,14 @@ struct port_ops{
         void __{{i.type}}_init__({{i.type}}*);
         void __{{i.type}}_activity__({{i.type}}*);
         {% if i.name in port_array_dict %}
-         {% for port, size in port_array_dict[i.name].iteritems() %}
+         {% for port, size in port_array_dict[i.name].items() %}
             struct port_ops {{i.name}}_array_for_{{port}}[{{size + 1}}];
          {% endfor %}
         {% endif %}
         {{i.type}} {{i.name}} = {
             {% if i.state %}
             .state = {
-              {% for name, val in i.state.iteritems()%}
+              {% for name, val in i.state.items()%}
                 .{{name}} = {{val}},
               {% endfor %}
             },
@@ -38,7 +38,7 @@ struct port_ops{
 
             {% if i.name in port_array_dict %}
             .out = {
-             {% for port, size in port_array_dict[i.name].iteritems() %}
+             {% for port, size in port_array_dict[i.name].items() %}
                 .{{port}} = (void *){{i.name}}_array_for_{{port}},
              {% endfor %}
             }

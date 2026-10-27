@@ -43,7 +43,7 @@ try:
     Import('env')
 except:
     boards = ['e500mc', 'e500_highmem', 'p3041', 'x86-qemu']
-    default_board = 'e500mc'
+    default_board = 'x86-qemu'
 
     vars = Variables()
     vars.AddVariables(
@@ -141,7 +141,12 @@ print(env['PREFIX'])
 # These depend only on prefix
 env['AR']      = env['PREFIX'] + 'ar'
 env['CC']      = env['PREFIX'] + 'gcc -m32'
-env['LINK']    = env['PREFIX'] + 'ld -m elf_i386'
+
+arch_link_emulation_dict = {
+    'ppc':    'elf32ppclinux',
+    'x86':    'elf_i386'
+}
+env['LINK']    = env['PREFIX'] + 'ld -m ' + arch_link_emulation_dict[env['ARCH']]
 env['OBJCOPY'] = env['PREFIX'] + 'objcopy'
 env['OBJDUMP'] = env['PREFIX'] + 'objdump'
 env['RANLIB']  = env['PREFIX'] + 'ranlib'
@@ -195,13 +200,24 @@ bsp_qemu_dict = {
     'e500mc':          ' -M ppce500 -cpu e500',
     'e500_highmem':    ' -M ppce500 -cpu e500',
     'p3041':           ' -M ppce500 -cpu e500mc',
-    'x86-qemu':        ''
+    # -vga none: without it, QEMU's default machine auto-attaches a VGA
+    # adapter at PCI slot 00:02.0, which conflicts with syspart's
+    # statically-configured PCI slots (e.g. the network device is
+    # hardcoded to 00:02.0 in examples' depl.c), silently shifting
+    # every device after it and breaking PCI I/O.
+    'x86-qemu':        ' -vga none'
 }
 env.Append(QEMU_FLAGS = bsp_qemu_dict[env['BSP']])
 
 env.Append(QEMU_FLAGS = ' -m 1G -serial /dev/stdout -kernel '+env['BUILD_DIR']+'pok.elf')
 
 #env.Append(QEMU_FLAGS = ' -display none')
+
+# Extra flags appended to every 'run*' target below, e.g. for headless
+# environments: QEMU_EXTRA_FLAGS='-display none' scons ... run-tap
+if 'QEMU_EXTRA_FLAGS' in os.environ:
+    env.Append(QEMU_FLAGS = ' ' + os.environ['QEMU_EXTRA_FLAGS'])
+
 env.Command('run_cmd', [], env['QEMU']+env['QEMU_FLAGS'])
 env.Alias('run', 'run_cmd')
 

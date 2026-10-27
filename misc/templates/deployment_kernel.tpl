@@ -278,7 +278,7 @@ struct memory_block jet_memory_blocks[] = {
         .virt_addr = 0x{{'%x'%mblock.virt_addr}},
         .size = {{mblock.actual_size}},
         .pid_to_rights = {
-            {%for pid, access_right in mblock.access.iteritems() %}
+            {%for pid, access_right in mblock.access.items() %}
                 [{{pid}}] = MB_CONFIG_{{access_right}},
             {%endfor%}
         }

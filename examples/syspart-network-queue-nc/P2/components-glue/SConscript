@@ -58,7 +58,7 @@ def get_port_arrays_dict(config):
     return res_dict
 
 def get_glue_definitions(source, env):
-    config = yaml.load(open(source[0].abspath))
+    config = yaml.load(open(source[0].abspath), Loader=yaml.SafeLoader)
     return { 'components': config['components'],
         'links': config['links'],
         'port_array_dict': get_port_arrays_dict(config)

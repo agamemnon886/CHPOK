@@ -32,7 +32,7 @@
 })
 
 #define outw(port, data)                                        \
-  asm volatile ("outw %0,%w1"					\
+  asm volatile ("outw %w0,%w1"					\
                 :						\
 		:"a" (data),"d" (port))
 

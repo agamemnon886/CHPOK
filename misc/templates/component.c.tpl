@@ -62,7 +62,7 @@
 void __{{component.name}}_init__({{component.name}} *self)
 {
     {% for p in component.in_ports %}
-        {% for i_func, comp_func in p.implementation.iteritems() %}
+        {% for i_func, comp_func in p.implementation.items() %}
             self->in.{{p.name}}.ops.{{i_func}} = __wrapper_{{comp_func}};
         {% endfor %}
     {% endfor %}
