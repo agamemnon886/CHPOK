@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: loads 64-bit ELF images;
+ * skips segments which are not PT_LOAD.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /**
@@ -75,10 +81,10 @@ void jet_loader_elf_load   (uint8_t elf_id,
 
     const char* elf_start = &__archive2_begin + elf_offset;
 
-    Elf32_Ehdr*  elf_header;
-    Elf32_Phdr*  elf_phdr;
+    Elf_Ehdr*  elf_header;
+    Elf_Phdr*  elf_phdr;
 
-    elf_header = (Elf32_Ehdr*)elf_start;
+    elf_header = (Elf_Ehdr*)elf_start;
 
     if (elf_header->e_ident[0] != 0x7f ||
          elf_header->e_ident[1] != 'E' ||
@@ -91,13 +97,16 @@ void jet_loader_elf_load   (uint8_t elf_id,
 
     *entry = (void (*)(void)) elf_header->e_entry;
 
-    elf_phdr = (Elf32_Phdr*)(elf_start + elf_header->e_phoff);
+    elf_phdr = (Elf_Phdr*)(elf_start + elf_header->e_phoff);
 
     // First cycle: determine the last virtual address in the elf
     char* elf_end_user = space_layout.user_addr;
 
     for (int i = 0; i < elf_header->e_phnum; ++i)
     {
+        // Only PT_LOAD segments occupy memory (e.g. PT_GNU_STACK has p_vaddr 0).
+        if (elf_phdr[i].p_type != PT_LOAD) continue;
+
         char* user_dest = (char *)elf_phdr[i].p_vaddr;
         size_t filesz = elf_phdr[i].p_filesz;
         size_t memsz = elf_phdr[i].p_memsz;
@@ -135,6 +144,9 @@ void jet_loader_elf_load   (uint8_t elf_id,
 
     for (int i = 0; i < elf_header->e_phnum; ++i)
     {
+        // Only PT_LOAD segments occupy memory (e.g. PT_GNU_STACK has p_vaddr 0).
+        if (elf_phdr[i].p_type != PT_LOAD) continue;
+
         char* user_dest = (char *)elf_phdr[i].p_vaddr;
         size_t filesz = elf_phdr[i].p_filesz;
         size_t memsz = elf_phdr[i].p_memsz;

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,9 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: comment update for 64-bit
+ * targets.
  */
 
 #include "printf_emitter.h"
@@ -239,8 +243,8 @@ void printf_emitter(emit_character_t emit_character, void *private_data,
     const char* format, va_list arg)
 {
     /* 
-     * For some reason, we cannot pass reference to our 'va_list' argument
-     * on PPC.
+     * Where va_list is an array type (e.g. x86_64), our 'va_list' argument
+     * is really a pointer, so we cannot pass a reference to it.
      * 
      * Because of that we create our copy of the arg.
      * 

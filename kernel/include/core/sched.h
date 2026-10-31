@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: added
+ * pok_partition_return_user_fp().
  */
 
 
@@ -230,6 +234,19 @@ void pok_partition_jump_user(void (* __user entry)(void),
  * all pending callbacks for partition are triggered.
  */
 void pok_partition_return_user(void);
+
+/*
+ * Restore floating point registers of the current thread, if the last
+ * thread which used them is another one.
+ *
+ * Should be called (with preemption disabled) just before returning
+ * to user space, whenever the thread to return to may differ from the
+ * one which entered the kernel (e.g. on return from interrupt after
+ * a partition switch).
+ *
+ * Called by pok_partition_return_user().
+ */
+void pok_partition_return_user_fp(void);
 
 /** 
  * Restart current partition.

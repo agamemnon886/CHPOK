@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,17 +12,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: removed PowerPC support.
  */
 
 #ifndef __VBE_H__
 #define __VBE_H__
 
 #define VBE_DISPI_IOPORT_INDEX 0x01CE
-#ifdef __PPC__
-#define VBE_DISPI_IOPORT_DATA 0x01D0
-#else
 #define VBE_DISPI_IOPORT_DATA 0x01CF
-#endif
 
 enum {
     VBE_DISPI_INDEX_ID,

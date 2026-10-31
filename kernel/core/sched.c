@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: FP context restore is moved
+ * into pok_partition_return_user_fp(), which is also called on return
+ * from interrupts.
  */
 
 #include <config.h>
@@ -499,9 +504,13 @@ static void pok_partition_return_user_common(void)
 
 void pok_partition_return_user(void)
 {
-    pok_partition_t* part = current_partition;
-
     pok_partition_return_user_common();
+    pok_partition_return_user_fp();
+}
+
+void pok_partition_return_user_fp(void)
+{
+    pok_partition_t* part = current_partition;
 
     assert(part->fp_store_current);
 

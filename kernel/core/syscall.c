@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2013-2014, 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,12 +15,14 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: removed the
+ * POK_SYSCALL_GET_BSP_INFO syscall (PowerPC only).
  */
 
 #include <config.h>
 
 #include <asp/arch.h>
-#include <asp/bsp_common.h>
 #include <types.h>
 #include <libc.h>
 #include <ioports.h>
@@ -179,10 +182,6 @@ static inline pok_ret_t pok_core_syscall_internal (const pok_syscall_id_t       
          break;
       case POK_SYSCALL_MEM_PHYS_TO_VIRT:
          return pok_phys_to_virt(args->arg1);
-         break;
-
-      case POK_SYSCALL_GET_BSP_INFO:
-         return pok_bsp_get_info((void* __user)args->arg1);
          break;
 
       SYSCALL_ENTRY(POK_SYSCALL_MEMORY_BLOCK_GET_STATUS)

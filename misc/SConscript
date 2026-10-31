@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -14,6 +15,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 # See the GNU General Public License version 3 for more details.
+#
+# Modified by Kirill Brazhnikov, 2026-10-31: replaced the x86 (32-bit)
+# target with x86_64, added arm64, removed PowerPC.
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -42,8 +46,8 @@ def print_cmd_line(s, target, src, env):
 try:
     Import('env')
 except:
-    boards = ['e500mc', 'e500_highmem', 'p3041', 'x86-qemu']
-    default_board = 'x86-qemu'
+    boards = ['x86_64-qemu', 'arm64-qemu']
+    default_board = 'x86_64-qemu'
 
     vars = Variables()
     vars.AddVariables(
@@ -89,10 +93,8 @@ env['MAX_PART_SIZE'] = 40 * 2**20
 
 # Architecture-dependent parameters
 bsp_arch_dict = {
-    'e500mc':          'ppc',
-    'e500_highmem':    'ppc',
-    'p3041':           'ppc',
-    'x86-qemu':        'x86'
+    'x86_64-qemu':     'x86_64',
+    'arm64-qemu':      'arm64'
 }
 env['ARCH'] = bsp_arch_dict[env['BSP']]
 
@@ -109,18 +111,18 @@ env['LIBPOK_CPPPATH'] = [
 
 
 arch_prefix_dict = {
-    'ppc':    'powerpc-linux-gnu-',
-    'x86':    ''
+    'x86_64': '',
+    'arm64':  'aarch64-linux-gnu-'
 }
 
 arch_gdb_dict = {
-    'ppc':    'powerpc-elf-gdb',
-    'x86':    'gdb'
+    'x86_64': 'gdb',
+    'arm64':  'gdb-multiarch'
 }
 
 arch_qemu_dict = {
-    'ppc':    'qemu-system-ppc',
-    'x86':    'qemu-system-i386'
+    'x86_64': 'qemu-system-x86_64',
+    'arm64':  'qemu-system-aarch64'
 }
 
 tools_dict = {
@@ -140,11 +142,11 @@ for tool in tools:
 print(env['PREFIX'])
 # These depend only on prefix
 env['AR']      = env['PREFIX'] + 'ar'
-env['CC']      = env['PREFIX'] + 'gcc -m32'
+env['CC']      = env['PREFIX'] + 'gcc'
 
 arch_link_emulation_dict = {
-    'ppc':    'elf32ppclinux',
-    'x86':    'elf_i386'
+    'x86_64': 'elf_x86_64',
+    'arm64':  'aarch64elf'
 }
 env['LINK']    = env['PREFIX'] + 'ld -m ' + arch_link_emulation_dict[env['ARCH']]
 env['OBJCOPY'] = env['PREFIX'] + 'objcopy'
@@ -158,54 +160,62 @@ env['CFLAGS'] = '-std=gnu99 -iwithprefix include -Wall -Wuninitialized -ffreesta
 env.Append(CFLAGS = cflags)
 
 cflags_arch_dict = {
-    'ppc':    ' -mregnames',
-    'x86':    ''
+    # Kernel and partitions are linked below 2 GiB (default code model).
+    # The gdb server is 32-bit only, so it is disabled on x86_64.
+    'x86_64': ' -fno-pie -fno-pic -fno-stack-protector -DPOK_DISABLE_GDB',
+    # Debian's aarch64 gcc defaults to PIE and to outline atomics (the
+    # latter need libc's getauxval); neither fits a freestanding build.
+    # The gdb server is 32-bit only, so it is disabled on arm64.
+    'arm64':  ' -fno-pie -fno-pic -mno-outline-atomics -fno-stack-protector -DPOK_DISABLE_GDB'
 }
 env.Append(CFLAGS = cflags_arch_dict[env['ARCH']])
 
 env['ASFLAGS'] = env['CFLAGS']
 
 bsp_cpu_dict = {
-    'e500mc':          ' -mcpu=8540',
-    'e500_highmem':    ' -mcpu=8540',
-    'p3041':           ' -mcpu=e500mc',
-    'x86-qemu':        ''
+    'x86_64-qemu':     '',
+    'arm64-qemu':      ' -mcpu=cortex-a53'
 }
 env.Append(CFLAGS = bsp_cpu_dict[env['BSP']])
 
 # Additional compile flags for kernel-only
 arch_kernel_flags_dict = {
-    'ppc':    '-msoft-float',
+    # The kernel doesn't save SSE registers on entry (only when switching
+    # user threads), so it must not use them. Interrupts in the kernel
+    # are taken on the same stack, so there is no red zone.
+    'x86_64': '-mgeneral-regs-only -mno-red-zone',
+    # The kernel doesn't save FP/SIMD registers on entry (only when
+    # switching user threads), so it must not use them. Early boot code
+    # runs with the MMU off, where unaligned accesses fault.
+    'arm64':  '-mgeneral-regs-only -mstrict-align',
 }
 
 env['CFLAGS_KERNEL'] = arch_kernel_flags_dict.get(env['ARCH'], "")
 
 # ldscript for kernel.
 arch_kernel_ldscript_dict = {
-    'ppc': env['POK_PATH'] + '/kernel/arch/ppc/ldscripts/kernel.lds',
-    'x86': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/kernel.lds'
+    'x86_64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/kernel.lds',
+    'arm64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/kernel.lds'
 }
 
 env['LDSCRIPT_KERNEL'] = arch_kernel_ldscript_dict.get(env['ARCH'])
 
 # ldscript for partitions.
 arch_partition_ldscript_dict = {
-    'ppc': env['POK_PATH'] + '/kernel/arch/ppc/ldscripts/partition.lds',
-    'x86': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/partition.lds'
+    'x86_64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/partition.lds',
+    'arm64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/partition.lds'
 }
 
 env['LDSCRIPT_PARTITION'] = arch_partition_ldscript_dict.get(env['ARCH'])
 
 bsp_qemu_dict = {
-    'e500mc':          ' -M ppce500 -cpu e500',
-    'e500_highmem':    ' -M ppce500 -cpu e500',
-    'p3041':           ' -M ppce500 -cpu e500mc',
     # -vga none: without it, QEMU's default machine auto-attaches a VGA
     # adapter at PCI slot 00:02.0, which conflicts with syspart's
     # statically-configured PCI slots (e.g. the network device is
     # hardcoded to 00:02.0 in examples' depl.c), silently shifting
     # every device after it and breaking PCI I/O.
-    'x86-qemu':        ' -vga none'
+    'x86_64-qemu':     ' -vga none',
+    'arm64-qemu':      ' -M virt -cpu cortex-a53'
 }
 env.Append(QEMU_FLAGS = bsp_qemu_dict[env['BSP']])
 

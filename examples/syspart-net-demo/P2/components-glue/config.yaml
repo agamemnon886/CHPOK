@@ -1,3 +1,5 @@
+# Modified by Kirill Brazhnikov, 2026-10-31: removed the commented-out
+# DTSEC (PowerPC) network device.
 components:
     - name: arinc_sender_1
       type: ARINC_SENDER
@@ -30,11 +32,6 @@ components:
          pci_bus: 0
          pci_dev: 2
          pci_fn: 0
-
-    #- name: net_dev_1
-    #  type: DTSEC_NET_DEV
-    #  state:
-    #      dtsec_num: 3
 
     - name: arp_answerer_1
       type: ARP_ANSWERER

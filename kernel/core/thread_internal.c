@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: printf format fix for
+ * 64-bit targets.
  */
 
 #include "thread_internal.h"
@@ -174,7 +178,7 @@ static void thread_deadline_occured(uint16_t handler_id)
 {
     pok_thread_t* thread = &current_partition_arinc->threads[handler_id];
     printf_debug("[%lld] Deadline miss occured for thread %s (Id: %d, Part: %d)\n",
-                 jet_system_time(), thread->name,
+                 (long long)jet_system_time(), thread->name,
                  (int)(thread - current_partition_arinc->threads),
              current_partition->partition_id);
     pok_thread_emit_deadline_missed(thread);

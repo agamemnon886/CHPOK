@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,8 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: removed PowerPC support.
  */
 
 #include <pci.h>
@@ -21,24 +24,11 @@
 #include <ioports.h>
 #include <stdio.h>
 
-#include <bsp.h>
 #include "pci_internal.h"
 
 #include <string.h>
 
 #define OK 0
-
-#ifdef __PPC__
-struct pci_bridge bridge;
-uint32_t ccsrbar_base;
-
-struct legacy_io {
-    uint32_t virt_addr;
-    uint64_t phys_addr; //system physical addr
-    // uint32_t pci_addr; always zero
-} legacy_io;
-
-#endif
 
 #ifdef PCI_DEBUG
 static char *get_pci_class_name(int classcode) {
@@ -58,13 +48,8 @@ int pci_read_config_byte(struct pci_dev *dev, int where, uint8_t *val)
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
 
-#ifdef __PPC__
-    out_be32((uint32_t *) bridge.cfg_addr, addr);
-    *val = in_8((void *) (bridge.cfg_data) + (where & 3));
-#else
     outl(PCI_CONFIG_ADDRESS, addr);
     *val = inb(PCI_CONFIG_DATA + (where & 3));
-#endif
     return OK;
 }
 
@@ -73,13 +58,8 @@ int pci_read_config_word(struct pci_dev *dev, int where, uint16_t *val)
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
 
-#ifdef __PPC__
-    out_be32((uint32_t *) bridge.cfg_addr, addr);
-    *val = in_le16((void *) (bridge.cfg_data) + (where & 3));
-#else
     outl(PCI_CONFIG_ADDRESS, addr);
     *val = inw(PCI_CONFIG_DATA + (where & 2));
-#endif
     return OK;
 }
 
@@ -88,13 +68,8 @@ int pci_read_config_dword(struct pci_dev *dev, int where, uint32_t *val)
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
 
-#ifdef __PPC__
-    out_be32((uint32_t *) bridge.cfg_addr, addr);
-    *val = in_le32((void *) bridge.cfg_data + (where & 3));
-#else
     outl(PCI_CONFIG_ADDRESS, addr);
     *val = inl(PCI_CONFIG_DATA);
-#endif
     return OK;
 }
 
@@ -103,13 +78,8 @@ int pci_write_config_byte(struct pci_dev *dev, int where, uint8_t val)
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
 
-#ifdef __PPC__
-    out_be32((uint32_t *) bridge.cfg_addr, addr);
-    out_8((void *) (bridge.cfg_data) + (where & 3), val);
-#else
     outl(PCI_CONFIG_ADDRESS, addr);
     outb(PCI_CONFIG_DATA + (where & 3), val);
-#endif
     return OK;
 }
 
@@ -118,13 +88,8 @@ int pci_write_config_word(struct pci_dev *dev, int where, uint16_t val)
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
 
-#ifdef __PPC__
-    out_be32((uint32_t *) bridge.cfg_addr, addr);
-    out_le16((void *) (bridge.cfg_data) + (where & 3), val);
-#else
     outl(PCI_CONFIG_ADDRESS, addr);
     outw(PCI_CONFIG_DATA + (where & 2), val);
-#endif
     return OK;
 }
 
@@ -133,13 +98,8 @@ int pci_write_config_dword(struct pci_dev *dev, int where, uint32_t val)
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
 
-#ifdef __PPC__
-    out_be32((uint32_t *) bridge.cfg_addr, addr);
-    out_le32((void *) (bridge.cfg_data) + (where & 3), val);
-#else
     outl(PCI_CONFIG_ADDRESS, addr);
     outl(PCI_CONFIG_DATA, val);
-#endif
     return OK;
 }
 
@@ -320,9 +280,6 @@ void pci_list()
 
                 if (res->pci_addr) {
                     printf("0x%llx ", res->pci_addr);
-#ifdef __PPC__
-                    printf("(addr = 0x%x) ", res->addr);
-#endif
                 } else {
                     printf("_ ");
 
@@ -339,188 +296,11 @@ void pci_list()
 uintptr_t pci_convert_legacy_port(struct pci_dev *dev, uint16_t port)
 {
     (void) dev;
-#ifdef __PPC__
-    return legacy_io.virt_addr + port;
-#else
     return port;
-#endif
 }
-
-#define PEX1_PEXOTAR0  0xc00
-#define PEX1_PEXOTEAR0 0xc04
-#define PEX1_PEXOWAR0  0xc10
-
-#define PEX1_PEXOTAR1  0xc20
-#define PEX1_PEXOTEAR1 0xc24
-#define PEX1_PEXOWBAR1 0xc28
-#define PEX1_PEXOWAR1  0xc30
-
-#define PEX_SHIFT      0x20
-
-#define PEX1_PEXOTAR2  0xc40
-#define PEX1_PEXOWBAR2 0xc48
-#define PEX1_PEXOWAR2  0xc50
-
-#define PEX1_PEXITAR3  0xd80
-#define PEX1_PEXIWBAR3 0xd8c
-
-#define WAR_EN         0x80000000
-#define WAR_RTT_IO     0x00080000
-#define WAR_RTT_MEM    0x00040000
-#define WAR_WTT_IO     0x00008000
-#define WAR_WTT_MEM    0x00004000
-#define WAR_OWS_8K     0xC
-#define WAR_OWS_256M   0x1b
-#define WAR_OWS_4G     0x1f
-
-#ifdef __PPC__
-//TODO move to fsl_pci.h
-/* PCI/PCI Express outbound window reg */
-struct pci_outbound_window_regs {
-    uint32_t potar;  /* 0x.0 - Outbound translation address register */
-    uint32_t potear; /* 0x.4 - Outbound translation extended address register */
-    uint32_t powbar; /* 0x.8 - Outbound window base address register */
-    uint8_t  pad1[4];
-    uint32_t powar;  /* 0x.10 - Outbound window attributes register */
-    uint8_t  pad2[12];
-};
-
-/* PCI/PCI Express inbound window reg */
-struct pci_inbound_window_regs {
-    uint32_t pitar;  /* 0x.0 - Inbound translation address register */
-    uint8_t  pad1[4];
-    uint32_t piwbar; /* 0x.8 - Inbound window base address register */
-    uint32_t piwbear; /* 0x.c - Inbound window base extended address register */
-    uint32_t piwar;  /* 0x.10 - Inbound window attributes register */
-    uint8_t  pad2[12];
-};
-
-struct pci_atmu_windows {
-    /* PCI/PCI Express outbound window 0-4
-     * Window 0 is the default window and is the only window enabled upon reset.
-     * The default outbound register set is used when a transaction misses
-     * in all of the other outbound windows.
-     */
-    struct pci_outbound_window_regs pow[5];
-    uint8_t pad1[96];
-    struct pci_inbound_window_regs pmit;   /* 0xd00 - 0xd9c Inbound MSI */
-    uint8_t pad2[96];
-    /* PCI/PCI Express inbound window 3-0
-     * inbound window 1 supports only a 32-bit base address and does not
-     * define an inbound window base extended address register.
-     */
-    struct pci_inbound_window_regs piw[4];
-};
-
-void pci_ATMU_windows_clear()
-{
-    struct pci_atmu_windows *atmu = (struct pci_atmu_windows *)(bridge.cfg_addr + PEX1_PEXOTAR0);
-//FIXME
-    struct pci_atmu_windows *atmu2 = (struct pci_atmu_windows *)(ccsrbar_base + 0x201000 + PEX1_PEXOTAR0);
-
-    for(int i = 1; i < 5; i++) {
-        out_be32(&atmu->pow[i].powar, 0);
-        out_be32(&atmu2->pow[i].powar, 0);
-    }
-    for(int i = 1; i < 4; i++) {
-        out_be32(&atmu->piw[i].piwar, 0);
-        out_be32(&atmu2->piw[i].piwar, 0);
-    }
-}
-
-void pci_ATMU_windows_list()
-{
-#ifdef PCI_DEBUG
-    struct pci_atmu_windows *atmu = (struct pci_atmu_windows *)(bridge.cfg_addr + PEX1_PEXOTAR0);
-
-    printf("ATMU:\n");
-    printf("   outbound windows:\n");
-    for (int i = 0; i < 5; i++) {
-        printf("\t window %d   %lx -> %lx:%lx [%lx]\n", i,
-                atmu->pow[i].powbar,
-                atmu->pow[i].potear, atmu->pow[i].potar,
-                atmu->pow[i].powar);
-    }
-    printf("   MSI window\n");
-    printf("\t window %lx -> %lx:%lx [%lx]\n",
-            atmu->pmit.pitar,
-            atmu->pmit.piwbar, atmu->pmit.piwbear,
-            atmu->pmit.piwar);
-    printf("   inbound windows:\n");
-    for (int i = 0; i < 4; i++) {
-        printf("\t window %d   %lx -> %lx:%lx [%lx]\n", i,
-                atmu->piw[i].pitar,
-                atmu->piw[i].piwbar, atmu->piw[i].piwbear,
-                atmu->piw[i].piwar);
-    }
-#endif
-}
-
-struct LAW_regs {
-    uint32_t barh;
-    uint32_t barl;
-    uint32_t ar;
-    uint32_t pad;
-};
-
-void LAW_list()
-{
-#ifdef PCI_DEBUG
-    //FIXME
-    struct LAW_regs *law = (struct LAW_regs *)(ccsrbar_base + 0xC00);
-
-    //law[6].barl = 0x40000000;
-    asm("isync");
-    printf("LAW (local access windows):\n");
-
-    for (int i = 0; i < 32; i++) {
-        printf("\t law %d  %lx:%lx [%lx]\n", i,
-                law[i].barh,
-                law[i].barl,
-                law[i].ar);
-    }
-
-#endif
-}
-
-#endif
 
 void pci_init()
 {
-#ifdef __PPC__
-    pok_bsp_t pok_bsp;
-    pok_bsp_get_info(&pok_bsp);
-    bridge = pok_bsp.pci_bridge;
-    ccsrbar_base = (uint32_t) pok_bsp.ccsrbar_base;
-
-    //TODO add pci_bridge too?
-    //static uint32_t bar0_addr = 0x1001;
-    //const uint32_t BAR0_SIZE = 0x100;
-
-    printf("bridge cfg_addr: %p cfg_data: %p\n",
-            (void *)bridge.cfg_addr, (void *)bridge.cfg_data);
-
-    legacy_io.virt_addr = 0xe1000000;
-    legacy_io.phys_addr = 0xe1000000;
-    //legacy_io.phys_addr = 0;
-
-    struct pci_atmu_windows *atmu = (struct pci_atmu_windows *)(bridge.cfg_addr + PEX1_PEXOTAR0);
-
-    atmu->pow[1].powbar = legacy_io.phys_addr>>12;
-    atmu->pow[1].potar = 0;
-    atmu->pow[1].potear = 0;
-    atmu->pow[1].powar = WAR_EN|WAR_RTT_IO|WAR_WTT_IO|WAR_OWS_8K;
-
-    atmu->pow[2].powbar = 0x80000000 >> 12;
-    atmu->pow[2].potar =  0x80000000 >> 12;
-    atmu->pow[2].potear = 0;
-    atmu->pow[2].powar = WAR_EN|WAR_RTT_IO|WAR_WTT_IO|WAR_OWS_256M;
-
-    pci_ATMU_windows_list();
-
-    LAW_list();
-#endif
-
     //printf("PCI enumeration:\n");
     //pci_enumerate();
 

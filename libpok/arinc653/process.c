@@ -15,6 +15,7 @@
  * copyright and license notice:
  *
  *  Copyright (C) 2013-2014 Maxim Malkov, ISPRAS <malkov@ispras.ru>
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +31,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Created by julien on Thu Jan 15 23:34:13 2009
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: lock level is passed with
+ * the type the kernel expects (64-bit support).
  */
 
 #include <config.h>
@@ -289,7 +293,10 @@ void DELAYED_START(
 
 void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_code)
 {
-    pok_ret_t ret = pok_partition_inc_lock_level((int32_t*)LOCK_LEVEL);
+    // LOCK_LEVEL_TYPE may be wider than int32_t (e.g. on arm64).
+    int32_t lock_level = (int32_t)*LOCK_LEVEL;
+    pok_ret_t ret = pok_partition_inc_lock_level(&lock_level);
+    *LOCK_LEVEL = lock_level;
     switch (ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION);
@@ -300,7 +307,10 @@ void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_code
 
 void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_code)
 {
-    pok_ret_t ret = pok_partition_dec_lock_level((int32_t*)LOCK_LEVEL);
+    // LOCK_LEVEL_TYPE may be wider than int32_t (e.g. on arm64).
+    int32_t lock_level = (int32_t)*LOCK_LEVEL;
+    pok_ret_t ret = pok_partition_dec_lock_level(&lock_level);
+    *LOCK_LEVEL = lock_level;
     switch (ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION);

@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Tue Sep  8 07:39:08 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: syscall arguments are
+ * passed as uintptr_t (64-bit support).
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
@@ -27,7 +33,7 @@
 
 pok_ret_t pok_port_virtual_get_global (const pok_port_id_t local, pok_port_id_t* global)
 {
-   return (pok_syscall2 (POK_SYSCALL_MIDDLEWARE_VIRTUAL_GET_GLOBAL, (uint32_t) local, (uint32_t) global));
+   return (pok_syscall2 (POK_SYSCALL_MIDDLEWARE_VIRTUAL_GET_GLOBAL, (uintptr_t) local, (uintptr_t) global));
 }
 
 #endif

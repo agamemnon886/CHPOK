@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,9 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: message length is passed
+ * with the type the kernel expects (64-bit support).
  */
 
 #include <config.h>
@@ -130,7 +134,10 @@ void RECEIVE_QUEUING_MESSAGE (
        return;
    }
    
-   core_ret = pok_port_queuing_receive (QUEUING_PORT_ID - 1, &TIME_OUT, MESSAGE_ADDR, (pok_port_size_t*)LENGTH);
+   // MESSAGE_SIZE_TYPE may be wider than pok_port_size_t (e.g. on arm64).
+   pok_port_size_t length = (pok_port_size_t)*LENGTH;
+   core_ret = pok_port_queuing_receive (QUEUING_PORT_ID - 1, &TIME_OUT, MESSAGE_ADDR, &length);
+   *LENGTH = length;
 
    switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: printf format fix for
+ * 64-bit targets.
  */
 
 #include <net/byteorder.h>
@@ -38,7 +42,7 @@ ret_t receive_packet(ROUTER *self, const char *payload, size_t payload_size, uin
     int idx = get_ip_port_index(&self->state, ip, port);
 
     if (idx < 0) {
-        printf(C_NAME"packet not for us (from %ld.%ld.%ld.%ld:%d)\n", IP_PRINT(ip), port);
+        printf(C_NAME"packet not for us (from %u.%u.%u.%u:%d)\n", IP_PRINT(ip), port);
         return EINVAL;
     }
     ROUTER_call_portArray_handle_by_index(idx, self, payload, payload_size);

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: thread-safe output:
+ * per-stream lock and per-call output buffer.
  */
 
 #include "stream.h"
@@ -66,6 +70,57 @@ void stdio_stream_complete_operation(struct stdio_stream* stream)
     }
 }
 
+void stdio_operation_begin(struct stdio_operation* op, struct stdio_stream* stream)
+{
+    op->stream = stream;
+    op->pos = 0;
+    op->bytes_written = 0;
+}
+
+/*
+ * Write collected characters into the stream.
+ *
+ * The stream's buffer is flushed (in non-buffered mode) before the lock
+ * is released, so other process never sees our characters in it.
+ */
+static void stdio_operation_write(struct stdio_operation* op)
+{
+    struct stdio_stream* stream = op->stream;
+
+    msection_enter(&stream->lock);
+
+    for(size_t i = 0; i < op->pos; i++) {
+        stdio_stream_emit_character(op->buffer[i], stream);
+    }
+    stdio_stream_complete_operation(stream);
+
+    msection_leave(&stream->lock);
+
+    op->pos = 0;
+}
+
+void stdio_operation_emit_character(int c, void* _op)
+{
+    struct stdio_operation* op = _op;
+
+    if(op->pos == sizeof(op->buffer)) {
+        // Long output: write it by chunks.
+        stdio_operation_write(op);
+    }
+
+    op->buffer[op->pos++] = (char)c;
+    op->bytes_written++;
+}
+
+size_t stdio_operation_end(struct stdio_operation* op)
+{
+    if(op->pos > 0) {
+        stdio_operation_write(op);
+    }
+
+    return op->bytes_written;
+}
+
 /*
  * Write bytes into the console.
  * 
@@ -94,6 +149,7 @@ static struct stdio_stream console_stream = {
     .s_ops = &console_stream_ops,
     .buffer_pos = 0,
     .bytes_written = 0,
+    .lock = STDIO_STREAM_LOCK_INIT,
 };
 
 FILE* stderr = &console_stream;

@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -14,6 +15,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 # See the GNU General Public License version 3 for more details.
+#
+# Modified by Kirill Brazhnikov, 2026-10-31: partition sizes are size_t;
+# deployment.c is built with the kernel-only compiler flags.
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -109,6 +113,8 @@ env.TemplateRender(
 pok_env = env.Clone()
 
 env.Append(CPPPATH = env['KERNEL_CPPPATH'])
+# deployment.c is linked into the kernel (see boards/SConscript).
+env.Append(CFLAGS = ' ' + env['CFLAGS_KERNEL'])
 
 env.Program(target = env['BUILD_DIR']+'kernel.lo', source = [
 env['POK_PATH']+'/build/'+env['BSP']+'/kernel/core.lo',
@@ -125,7 +131,7 @@ def merge_partitions(target, source, env):
 def create_sizes_c(target, source, env):
     with open(str(target[0]), 'w') as sizes:
         sizes.write('#include <types.h>\n')
-        sizes.write('uint32_t pok_elf_sizes[] = {\n')
+        sizes.write('size_t pok_elf_sizes[] = {\n')
         for s in source:
             part_size = os.path.getsize(str(s))
             if part_size > pok_env['MAX_PART_SIZE']:

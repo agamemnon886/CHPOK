@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -15,6 +16,9 @@
 #
 # See the GNU General Public License version 3 for more details.
 #
+# Modified by Kirill Brazhnikov, 2026-10-31: removed the ppc_dtsec
+# component (PowerPC only).
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import os
@@ -26,8 +30,7 @@ COMPONENTS_DIRS = [
         'udp_ip',
         'mac',
         'virtio',
-        'arp',
-        'ppc_dtsec'
+        'arp'
         ]
 COMPONENTS_PATH = os.path.join(syspart_env["POK_PATH"], "syspart/components")
 CONFIG = "config.yaml"
