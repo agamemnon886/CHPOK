@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <libc.h>
 #include <cons.h>
 
@@ -9,7 +13,7 @@
 */
 
 
-static int
+static int32_t
 serial_proc_data(void) //Read data from DUART (1 word)
 {
     if (!data_to_read_0())
@@ -29,7 +33,7 @@ static struct {
 static void
 cons_intr() //read all elements from DUART
 {
-    int c;
+    int32_t c;
 
     while ((c = serial_proc_data()) != -1) {
         if (c == 0)
@@ -41,10 +45,10 @@ cons_intr() //read all elements from DUART
 }
 
 // return the next input character from the console, or 0 if none waiting
-int
+int32_t
 cons_getc(void) //Get 1 element from cons
 {
-    int c;
+    int32_t c;
 
     cons_intr();
 
@@ -62,7 +66,7 @@ cons_getc(void) //Get 1 element from cons
 int
 getchar(void)
 {
-    int c;
+    int32_t c;
     
     while ((c = cons_getc()) == 0){
 //#ifdef POK_ARCH_X86

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <stdio.h>
@@ -22,12 +27,12 @@
 
 #include <msection.h>
 
-static int completion = 0;
+static int32_t completion = 0;
 
 static struct msection section;
 static struct msection_wq waitqueue;
 
-volatile int some_work;
+volatile int32_t some_work;
 
 static void notify_process(void)
 {

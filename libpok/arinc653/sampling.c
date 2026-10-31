@@ -18,6 +18,11 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: message length is passed
  * with the type the kernel expects (64-bit support).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: CREATE_SAMPLING_PORT accepts
+ * any positive refresh period, rejects MAX_MESSAGE_SIZE values above
+ * SYSTEM_LIMIT_MESSAGE_SIZE (they were truncated before the kernel
+ * compared them) and sets SAMPLING_PORT_ID only on success.
  */
 
 #include <config.h>
@@ -47,7 +52,14 @@ void CREATE_SAMPLING_PORT (
 	 pok_port_id_t        core_id;
 	 pok_ret_t            core_ret;
 
-	 if (MAX_MESSAGE_SIZE <= 0 || REFRESH_PERIOD < 0)
+	 /*
+	  * MAX_MESSAGE_SIZE is wider than the kernel's pok_port_size_t on 64-bit
+	  * targets, so check its range here: a truncated value could match the
+	  * configured size. INFINITE_TIME_VALUE (-1) and other negative
+	  * refresh periods are out of range; the kernel also rejects 0.
+	  */
+	 if (MAX_MESSAGE_SIZE <= 0 || MAX_MESSAGE_SIZE > SYSTEM_LIMIT_MESSAGE_SIZE
+		 || REFRESH_PERIOD < 0)
 		 {
 			 *RETURN_CODE = INVALID_CONFIG;
 			 return ;
@@ -68,25 +80,18 @@ void CREATE_SAMPLING_PORT (
 				 return;
 	 }
 
-     /* 
-      * We treat refresh period which is more than MAX_INT32 of milliseconds as invalid.
-      * 
-      * TODO: Why? This is not implied by ARINC.
-      */
-     if(REFRESH_PERIOD > (((uint64_t)1 << 32) - 1) * 1000000)
-     {
-         *RETURN_CODE = INVALID_CONFIG;
-         return;
-     }
-
+     // SYSTEM_TIME_TYPE and pok_time_t are both int64_t.
      core_ret = pok_port_sampling_create (SAMPLING_PORT_NAME, MAX_MESSAGE_SIZE, core_direction, &REFRESH_PERIOD, &core_id);
 
-	 *SAMPLING_PORT_ID = core_id + 1;
+	 if (core_ret == POK_ERRNO_OK)
+		 *SAMPLING_PORT_ID = core_id + 1;
 
    switch (core_ret) {
       MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
       // For this function any error in parameter is treated as INVALID_CONFIG
       MAP_ERROR(POK_ERRNO_EINVAL, INVALID_CONFIG);
+      // No sampling port with this name is configured for the partition.
+      MAP_ERROR(POK_ERRNO_UNAVAILABLE, INVALID_CONFIG);
       MAP_ERROR(POK_ERRNO_EXISTS, NO_ACTION);
       MAP_ERROR(POK_ERRNO_MODE, INVALID_MODE);
       MAP_ERROR_DEFAULT(INVALID_CONFIG); // random error status, should never happen

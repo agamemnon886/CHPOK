@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,10 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include "syspart_config.h"
@@ -51,14 +56,14 @@
     outb_inverse((inb((dev)->addr + NE2000_CR) &                          \
                 ~(NE2000_CR_PS0 | NE2000_CR_PS1)) | ((page) << 6), (dev)->addr)
 
-static int ne2000_write(
+static int32_t ne2000_write(
         const s_ne2000_dev *dev,
         const void         *buf,
-        unsigned short     count,
-        unsigned short     offset)
+        uint16_t           count,
+        uint16_t           offset)
 {
     const char* p = NULL;
-    int ret = count;
+    int32_t ret = count;
 
     // Sets RD2 (abort/complete remote DMA)
     outb_inverse((inb(dev->addr + NE2000_CR) & ~(NE2000_CR_RD0 | NE2000_CR_RD1)) |
@@ -83,12 +88,12 @@ static int ne2000_write(
     return (ret);
 }
 
-static int ne2000_read_header(
+static int32_t ne2000_read_header(
         const s_ne2000_dev *dev,
         s_ne2000_header    *hdr,
-        unsigned short      offset)
+        uint16_t            offset)
 {
-    int count = sizeof(s_ne2000_header);
+    int32_t count = sizeof(s_ne2000_header);
     // Sets RD2 (abort/complete remote DMA)
     outb_inverse((inb((dev)->addr + NE2000_CR) & ~(NE2000_CR_RD0 | NE2000_CR_RD1)) |
             NE2000_CR_RD2, (dev)->addr);
@@ -111,14 +116,14 @@ static int ne2000_read_header(
 
     return count;
 }
-static int ne2000_read(
+static int32_t ne2000_read(
         const s_ne2000_dev *dev,
         void               *buf,
-        unsigned short      count,
-        unsigned short      offset)
+        uint16_t            count,
+        uint16_t            offset)
 {
     char* p = NULL;
-    int ret = count;
+    int32_t ret = count;
 
     // Sets RD2 (abort/complete remote DMA)
     outb_inverse((inb((dev)->addr + NE2000_CR) & ~(NE2000_CR_RD0 | NE2000_CR_RD1)) |
@@ -151,10 +156,10 @@ static int ne2000_read(
  */
 void rtl8029_polling(pok_netdevice_t * netdev)
 {
-    unsigned char state; // ISR state
+    uint8_t state; // ISR state
     s_ne2000_header  ne2000_hdr;     // ne2000 packet header
-    unsigned short   offset;         // dma offset
-    unsigned char    start, end;     // pointers for the ring buffer
+    uint16_t         offset;         // dma offset
+    uint8_t          start, end;     // pointers for the ring buffer
     pok_packet_t     recv_packet;
 
     s_ne2000_dev *drv_info = netdev->info;
@@ -174,7 +179,7 @@ void rtl8029_polling(pok_netdevice_t * netdev)
     /* This register is used to prevent overwrite of the receive buffer ring.
        It is typically used as a pointer indicating the last receive buffer
        page the host has read.*/
-    unsigned tmp = inb(drv_info->addr + NE2000_BNRY);
+    uint32_t tmp = inb(drv_info->addr + NE2000_BNRY);
     start = tmp + 1;
 
     /* This register points to the page address of the first receive
@@ -193,7 +198,7 @@ void rtl8029_polling(pok_netdevice_t * netdev)
 
     ne2000_read(drv_info, &recv_packet,
             ne2000_hdr.size - sizeof(s_ne2000_header), offset);
-    unsigned packet_len = ne2000_hdr.size - sizeof(s_ne2000_header);
+    uint32_t packet_len = ne2000_hdr.size - sizeof(s_ne2000_header);
 
     if (ne2000_hdr.size == NE2000_ETH_DATA_MINLEN) {
         // NIC add trailing zeros to packets shorter than 64 bytes. They should be ignored
@@ -229,7 +234,7 @@ POLL_END:
  *  Seeks and registers PCI interface, set configuration and fills the
  *  dev structure.
  */
-static int rtl8029_init (struct pci_dev *pci_dev, s_ne2000_dev *drv_info)
+static int32_t rtl8029_init (struct pci_dev *pci_dev, s_ne2000_dev *drv_info)
 {
     // dev.pci.vendorid = 0x10ec;
     // dev.pci.deviceid = 0x8029;
@@ -237,8 +242,8 @@ static int rtl8029_init (struct pci_dev *pci_dev, s_ne2000_dev *drv_info)
 
     drv_info->addr = pci_dev->ioaddr;
 
-    unsigned char i = 0;
-    unsigned char buf[6 * 2]; // used for MAC address
+    uint8_t i = 0;
+    uint8_t buf[6 * 2]; // used for MAC address
 
     NE2000_SELECT_PAGE(drv_info, 0);
 
@@ -325,7 +330,7 @@ static pok_bool_t send_frame_gather(
     char *buf = sg_list[0].buffer;
     size_t buf_len = sg_list[0].size;
 
-    unsigned char state; // ISR state
+    uint8_t state; // ISR state
 
     ne2000_write(drv_info, buf, buf_len, NE2000_TXBUF * 256);
 
@@ -400,7 +405,7 @@ static const pok_network_driver_ops_t driver_ops = {
 
 static pok_bool_t probe_device(struct pci_dev *pci_dev)
 {
-    static int dev_count = 0;
+    static int32_t dev_count = 0;
     s_ne2000_dev *drv_info =  smalloc(sizeof(*drv_info));
     rtl8029_init(pci_dev, drv_info);
 

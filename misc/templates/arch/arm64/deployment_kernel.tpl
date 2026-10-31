@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * misc/templates/arch/x86/deployment_kernel.tpl for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
+ * the generated code are replaced with the fixed-width types from
+ * <stdint.h>.
  */
 
 #include <arch/deployment.h>
@@ -32,4 +36,4 @@ struct ja_arm64_space ja_spaces[{{conf.spaces | length}}] =
 {%endfor%}
 };
 
-int ja_spaces_n = {{conf.spaces | length}};
+int32_t ja_spaces_n = {{conf.spaces | length}};

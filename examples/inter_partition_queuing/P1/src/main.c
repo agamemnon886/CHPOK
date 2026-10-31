@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <arinc653/buffer.h>
@@ -14,12 +18,12 @@ static void first_process(void)
     RETURN_CODE_TYPE ret;
 
     struct {
-        unsigned x;
+        uint32_t x;
         char message[32];
-        unsigned y;
+        uint32_t y;
     } __attribute__((packed)) msg;
 
-    unsigned last_x = 0;
+    uint32_t last_x = 0;
 
     while (1) {
         MESSAGE_SIZE_TYPE len;
@@ -43,7 +47,7 @@ static void first_process(void)
     }
 }
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;

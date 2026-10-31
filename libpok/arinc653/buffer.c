@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -37,7 +42,7 @@ static size_t nbuffers_used = 0;
 /* Find buffer by name (in UPPERCASE). Returns NULL if not found. */
 static struct arinc_buffer* find_buffer(const char* name)
 {
-   for(int i = 0; i < nbuffers_used; i++)
+   for(int32_t i = 0; i < nbuffers_used; i++)
    {
       struct arinc_buffer* buffer = &arinc_buffers[i];
       if(strncasecmp(buffer->buffer_name, name, MAX_NAME_LENGTH) == 0)
@@ -115,12 +120,12 @@ void CREATE_BUFFER (
 
    buffer->max_message_size = MAX_MESSAGE_SIZE;
    // Optimize messages for copiing.
-   buffer->message_stride = ALIGN(buffer->max_message_size, __alignof__(int));
+   buffer->message_stride = ALIGN(buffer->max_message_size, __alignof__(int32_t));
    buffer->max_nb_message = MAX_NB_MESSAGE;
 
    arinc_allocator_state astate = arinc_allocator_get_state();
 
-   buffer->messages = arinc_alloc(buffer->message_stride * buffer->max_nb_message, __alignof__(int));
+   buffer->messages = arinc_alloc(buffer->message_stride * buffer->max_nb_message, __alignof__(int32_t));
    buffer->messages_size = arinc_alloc(buffer->max_nb_message * sizeof(*buffer->messages_size),
       __alignof__(*buffer->messages_size));
 

@@ -34,6 +34,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: lock level is passed with
  * the type the kernel expects (64-bit support).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: CREATE_PROCESS checks the
+ * BASE_PRIORITY range before narrowing it to the kernel's 8-bit type, so an
+ * out-of-range priority returns INVALID_PARAM instead of wrapping around.
  */
 
 #include <config.h>
@@ -151,6 +155,12 @@ void CREATE_PROCESS (
 
     if (attributes->NAME[0] == '\0') {
         // empty names are not allowed
+        *return_code = INVALID_PARAM;
+        return;
+    }
+
+    if (attributes->BASE_PRIORITY < MIN_PRIORITY_VALUE ||
+        attributes->BASE_PRIORITY > MAX_PRIORITY_VALUE) {
         *return_code = INVALID_PARAM;
         return;
     }

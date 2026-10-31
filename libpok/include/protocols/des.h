@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Mon Nov 30 20:42:30 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #ifndef __LIBPOK_PROTOCOLS_DES_H__
@@ -36,7 +43,7 @@
 
 #include <types.h>
 
-#define pok_protocols_des_data_t unsigned long long
+#define pok_protocols_des_data_t uint64_t
 
 #ifdef POK_NEEDS_PROTOCOLS_DES
 /**

@@ -6,6 +6,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,6 +17,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
+ * the generated code are replaced with the fixed-width types from
+ * <stdint.h>.
  */
 
 #ifndef __ARINC_SENDER_GEN_H__
@@ -29,14 +34,14 @@
     #include <interfaces/preallocated_sender_gen.h>
 
 typedef struct ARINC_SENDER_state {
-    PORT_DIRECTION_TYPE port_direction;
-    MESSAGE_RANGE_TYPE q_port_max_nb_messages;
-    sys_port_data_t * port_buffer;
-    MESSAGE_SIZE_TYPE port_max_message_size;
-    unsigned overhead;
     NAME_TYPE port_name;
-    int is_queuing_port;
+    PORT_DIRECTION_TYPE port_direction;
+    uint32_t overhead;
+    MESSAGE_SIZE_TYPE port_max_message_size;
+    int32_t is_queuing_port;
+    MESSAGE_RANGE_TYPE q_port_max_nb_messages;
     APEX_INTEGER port_id;
+    sys_port_data_t * port_buffer;
 }ARINC_SENDER_state;
 
 typedef struct {

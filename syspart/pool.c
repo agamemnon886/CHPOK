@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <mem.h>
@@ -18,12 +23,12 @@
 #include <pool.h>
 
 
-static struct pool_elem *get_pool_elem(struct pool *pool, int idx)
+static struct pool_elem *get_pool_elem(struct pool *pool, int32_t idx)
 {
     return (struct pool_elem *) (&pool->data[idx * pool->stride]);
 }
 
-struct pool *jet_pool_create(size_t elem_size, int num)
+struct pool *jet_pool_create(size_t elem_size, int32_t num)
 {
     struct pool *pool;
     struct pool_elem *elem;
@@ -32,11 +37,11 @@ struct pool *jet_pool_create(size_t elem_size, int num)
 
     pool->elem_size = elem_size;
     pool->num = num;
-    pool->stride = ALIGN_UP(pool->elem_size + sizeof(struct pool_elem), sizeof(unsigned long));
+    pool->stride = ALIGN_UP(pool->elem_size + sizeof(struct pool_elem), sizeof(uintptr_t));
     pool->data = smalloc(pool->stride*num);
     pool->free_elem_idx = 0;
 
-    for (int i = 0; i < num - 1; i++) {
+    for (int32_t i = 0; i < num - 1; i++) {
        elem = get_pool_elem(pool, i);
        elem->next_free_idx = i + 1;
        elem->idx = i;

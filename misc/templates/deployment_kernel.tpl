@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the module HM table comes
+ * from the configuration (Module_HM_Table) instead of always SHUTDOWN.
  */
 
 #include <config.h>
@@ -22,7 +26,8 @@
 
 /*********************** HM module tables *****************************/
 /*
- * HM module selector.
+ * HM module selector (System_HM_Table): bit N is 0 if the error is a
+ * module level error in system state N.
  */
 pok_error_level_selector_t pok_hm_module_selector = {
     .levels = {
@@ -33,9 +38,9 @@ pok_error_level_selector_t pok_hm_module_selector = {
 };
 
 /*
- * HM module table.
- * 
- * SHUTDOWN for all errors.
+ * HM module table (Module_HM_Table).
+ *
+ * SHUTDOWN for errors the configuration doesn't list.
  */
 pok_error_module_action_table_t pok_hm_module_table = {
     .actions = {

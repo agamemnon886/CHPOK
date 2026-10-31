@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <net/byteorder.h>
@@ -58,8 +63,8 @@ ret_t arp_receive(ARP_ANSWERER *self, const char *data, size_t len)
         printf(C_NAME"wrong arp packet\n");
         return EINVAL; // This is not an ARP request.
     }
-    int found = 0;
-    for (int i=0; i<self->state.good_ips_len; i++) {
+    int32_t found = 0;
+    for (int32_t i=0; i<self->state.good_ips_len; i++) {
         if (arp_packet->tpa == hton32(self->state.good_ips[i])) {
             found = 1;
             break;
@@ -71,7 +76,7 @@ ret_t arp_receive(ARP_ANSWERER *self, const char *data, size_t len)
     }
     printf("ARP_ANSWERER: we have received a request for our MAC.\n");
 
-    int i;
+    int32_t i;
     for (i = 0; i < ETH_ALEN; i++) {
         arp_answer_buffer.arp_answer.sha[i] = self->state.src_mac[i];
         arp_answer_buffer.arp_answer.tha[i] = arp_packet->sha[i];

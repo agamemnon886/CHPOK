@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/interrupt.c to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -51,7 +54,7 @@ static idt_entry_t pok_idt[IDT_SIZE] __attribute__((aligned(16)));
 extern void (* const ja_interrupt_stubs[IRQ_VECTOR_LAST + 1])(void);
 void ja_interrupt_stub_syscall(void);
 
-static void idt_set_gate(unsigned index, void (*entry)(void), int dpl)
+static void idt_set_gate(uint32_t index, void (*entry)(void), int32_t dpl)
 {
    uint64_t offset = (uint64_t)entry;
 
@@ -70,7 +73,7 @@ void ja_idt_init(void)
 
    memset(pok_idt, 0, sizeof(pok_idt));
 
-   for (unsigned i = 0; i <= IRQ_VECTOR_LAST; i++)
+   for (uint32_t i = 0; i <= IRQ_VECTOR_LAST; i++)
       idt_set_gate(i, ja_interrupt_stubs[i], 0);
 
    // The only gate user space may use.
@@ -125,7 +128,7 @@ static void dump_registers(const interrupt_frame* frame)
 
 static void process_exception(interrupt_frame* frame, pok_bool_t from_user)
 {
-   unsigned vector = frame->vector;
+   uint32_t vector = frame->vector;
    const char* name = exceptions[vector].name ? exceptions[vector].name : "reserved";
    pok_error_id_t error_id = exceptions[vector].name ?
       exceptions[vector].error_id : POK_ERROR_ID_UNHANDLED_INT;

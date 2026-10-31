@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 /*
@@ -58,7 +63,7 @@ void pok_copy_name_to_user(char* to, const char* name)
 {
     pok_bool_t null_found = FALSE;
 
-    for(int i = 0; !null_found && (i < MAX_NAME_LENGTH); i++)
+    for(int32_t i = 0; !null_found && (i < MAX_NAME_LENGTH); i++)
     {
         to[i] = name[i];
         if(name[i] == '\0') null_found = TRUE;

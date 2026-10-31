@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <stdio.h>
@@ -24,7 +29,7 @@ static BUFFER_ID_TYPE global_buffer_id;
 static void first_process(void)
 {
     RETURN_CODE_TYPE ret;
-    int i = 0;
+    int32_t i = 0;
     while (1) {
         SEND_BUFFER(global_buffer_id, (MESSAGE_ADDR_TYPE) &i, sizeof(i), 0, &ret);
         if (ret != NO_ERROR) {
@@ -40,7 +45,7 @@ static void second_process(void)
 {
     RETURN_CODE_TYPE ret;
     while (1) {
-        int i;
+        int32_t i;
         MESSAGE_SIZE_TYPE len;
 
         RECEIVE_BUFFER(global_buffer_id, INFINITE_TIME_VALUE, (MESSAGE_ADDR_TYPE) &i, &len, &ret);
@@ -56,7 +61,7 @@ static void second_process(void)
 
  
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     BUFFER_ID_TYPE id;
@@ -70,7 +75,7 @@ static int real_main(void)
     };
 
     // create buffer
-    CREATE_BUFFER("foo", sizeof(int), 10, FIFO, &id, &ret);
+    CREATE_BUFFER("foo", sizeof(int32_t), 10, FIFO, &id, &ret);
     if (ret != NO_ERROR) {
         printf("error creating a buffer: %d\n", (int) ret);
         return 1;

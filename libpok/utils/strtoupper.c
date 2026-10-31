@@ -1,6 +1,10 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <utils.h>
 
-int chr_toupper(int c)
+int32_t chr_toupper(int32_t c)
 {
   if (c >= 'a' && c <= 'z') return 'A' + c - 'a';
 
@@ -9,7 +13,7 @@ int chr_toupper(int c)
 
 void strtoupper(char* s)
 {
-  int i=0;
+  int32_t i=0;
   while(s[i]){
      s[i]=chr_toupper(s[i]);
      i++;

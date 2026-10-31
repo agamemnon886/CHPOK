@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
+ * the generated code are replaced with the fixed-width types from
+ * <stdint.h>.
  */
 
 #include <lib/common.h>
@@ -35,7 +40,7 @@
 {% for p in component.out_ports %}
  {% if p.is_array %}
   {% for i_func in interfaces[p.type].functions %}
-      {{i_func.return_type}} {{component.name}}_call_{{p.name}}_{{i_func.name}}_by_index(int idx, {{component.name}} *self{{args(i_func)}})
+      {{i_func.return_type}} {{component.name}}_call_{{p.name}}_{{i_func.name}}_by_index(int32_t idx, {{component.name}} *self{{args(i_func)}})
       {
          if (self->out.{{p.name}}[idx].ops == NULL) {
              printf("WRONG CONFIG: out port {{p.name}} of component {{component.name}} was not initialized\n");

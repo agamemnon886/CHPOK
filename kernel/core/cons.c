@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -156,10 +161,10 @@ pok_bool_t pok_cons_write_1 (const char* s,
  * If no character has been read in the last `data_to_read_*` call,
  * or character is already consumed by `read_serial_*`, this is -1.
  */
-static int char_to_read_main = -1;
-static int char_to_read_debug = -1;
+static int32_t char_to_read_main = -1;
+static int32_t char_to_read_debug = -1;
 
-int data_to_read_0(void)
+int32_t data_to_read_0(void)
 {
    if(char_to_read_main != -1) return 1;
 
@@ -173,9 +178,9 @@ int data_to_read_0(void)
    return 0;
 }
 
-int read_serial_0(void)
+int32_t read_serial_0(void)
 {
-   int res = data_to_read_0();
+   int32_t res = data_to_read_0();
    if(res != -1)
    {
       res = char_to_read_main;
@@ -185,7 +190,7 @@ int read_serial_0(void)
    return res;
 }
 
-int data_to_read_1(void)
+int32_t data_to_read_1(void)
 {
    if(char_to_read_debug != -1) return 1;
 
@@ -198,9 +203,9 @@ int data_to_read_1(void)
 
    return 0;
 }
-int read_serial_1(void)
+int32_t read_serial_1(void)
 {
-   int res = data_to_read_1();
+   int32_t res = data_to_read_1();
    if(res != -1)
    {
       res = char_to_read_debug;

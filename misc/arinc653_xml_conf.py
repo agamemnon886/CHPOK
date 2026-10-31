@@ -15,6 +15,14 @@
 #
 # See the GNU General Public License version 3 for more details.
 #
+# Modified by Kirill Brazhnikov, 2026-10-31: parses the optional
+# System_HM_Table and Module_HM_Table (ARINC 653 Part 1), so the system
+# integrator can choose error levels and module recovery actions.
+#
+# Modified by Kirill Brazhnikov, 2026-10-31: the partition identifier is
+# taken from the Identifier attribute of <Definition> (it was ignored and
+# partitions were numbered from 0).
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import ipaddr
@@ -99,8 +107,10 @@ class ArincConfigParser:
 
         conf = chpok_configuration.Configuration(self.arch)
 
-        for part_root in root.find("Partitions").findall("Partition"):
-            self.parse_partition(conf, part_root)
+        part_roots = root.find("Partitions").findall("Partition")
+        part_ids = self.parse_partition_ids(part_roots)
+        for part_root, part_id in zip(part_roots, part_ids):
+            self.parse_partition(conf, part_root, part_id)
 
         self.parse_schedule(conf, root.find("Schedule"))
 
@@ -115,16 +125,56 @@ class ArincConfigParser:
             for mem_block_root in mem_blocks.findall("Memory_Block"):
                 self.parse_memory_block(conf, mem_block_root)
 
-        # Use some default value for module HM table.
-        module_error_level_selector_per_state = {error_id: 1 for error_id in conf.error_ids_all }
+        # Default module HM table: errors in the error handler and in
+        # processes are partition level, errors in other states are module
+        # level and shut the module down. Each state gets its own dict, so
+        # System_HM_Table can change one state without affecting another.
         for s in ['ERROR_HANDLER', 'USER']:
-            conf.module_hm_table.level_selector[s] = module_error_level_selector_per_state
+            conf.module_hm_table.level_selector[s] = {
+                error_id: 1 for error_id in conf.error_ids_all }
+
+        self.parse_system_hm(conf, root.find("System_HM_Table"))
+        self.parse_module_hm(conf, root.find("Module_HM_Table"))
 
         conf.validate()
 
         return conf
 
-    def parse_partition(self, conf, part_root):
+    def parse_partition_ids(self, part_roots):
+        """
+        Partition identifiers (reported by GET_PARTITION_STATUS): the
+        Identifier attribute of <Definition>, or, if it is absent, the
+        lowest identifier from 1 that no other partition uses.
+        """
+        given = []
+        for part_root in part_roots:
+            definition = part_root.find("Definition")
+            ident = definition.attrib.get("Identifier")
+            if ident is not None:
+                ident = int(ident)
+                if ident < 0 or ident > 0x7fffffff:
+                    raise ValueError("Partition '%s': Identifier %d is out of range"
+                        % (definition.attrib["Name"], ident))
+            given.append(ident)
+
+        used = set(i for i in given if i is not None)
+        ids = []
+        next_id = 1
+        for ident in given:
+            if ident is None:
+                while next_id in used:
+                    next_id += 1
+                ident = next_id
+                used.add(ident)
+            ids.append(ident)
+        return ids
+
+    def parse_partition(self, conf, part_root, part_id=None):
+        # A single partition parsed on its own (for its user-space
+        # deployment) has no other partitions to take identifiers from.
+        if part_id is None:
+            part_id = self.parse_partition_ids([part_root])[0]
+
         part_name = part_root.find("Definition").attrib["Name"]
 
         memory_size = parse_bytes(part_root.find("Memory").attrib["Bytes"])
@@ -132,7 +182,8 @@ class ArincConfigParser:
 
         # FIXME support partition period, which is simply a fixed attribute
         #       with no real meaning (except it can be introspected)
-        part = conf.add_partition(part_name, memory_size)
+        # Two partitions with the same Identifier are rejected here.
+        part = conf.add_partition(part_name, memory_size, part_id)
 
         part.is_system = False
         if "System" in part_root.find("Definition").attrib:
@@ -291,6 +342,76 @@ class ArincConfigParser:
             mblock.set_kernel_access(mroot.attrib["KernelAccess"])
 
         print("found memblock", mblock)
+
+    # SystemState and ErrorIdentifier in System_HM_Table and Module_HM_Table
+    # are implementation-defined in ARINC 653; JetOS uses its own names
+    # without the POK_SYSTEM_STATE_ / POK_ERROR_ID_ prefix, e.g.
+    # SystemState="USER", ErrorIdentifier="MEMORY_VIOLATION".
+    def parse_hm_system_state(self, conf, state_root):
+        state = state_root.attrib["SystemState"]
+        if state not in conf.system_states_all:
+            raise ValueError("Unknown SystemState '%s', expected one of: %s"
+                % (state, ", ".join(conf.system_states_all)))
+        return state
+
+    def parse_hm_error_id(self, conf, entry_root):
+        error_id = entry_root.attrib["ErrorIdentifier"]
+        if error_id not in conf.error_ids_all:
+            raise ValueError("Unknown ErrorIdentifier '%s', expected one of: %s"
+                % (error_id, ", ".join(conf.error_ids_all)))
+        return error_id
+
+    def parse_system_hm(self, conf, root):
+        """
+        Optional System_HM_Table: the level of each error in each system
+        state. ErrorLevel MODULE makes the error a module level error
+        (handled by Module_HM_Table); PARTITION and PROCESS leave it to the
+        partition, whose HM_Table chooses between the two.
+        """
+        if root is None:
+            return
+
+        level_selector = conf.module_hm_table.level_selector
+
+        for state_root in root.findall("System_State_Entry"):
+            state = self.parse_hm_system_state(conf, state_root)
+            levels = level_selector.setdefault(state, {})
+
+            for x in state_root.findall("Error_ID_Level"):
+                error_id = self.parse_hm_error_id(conf, x)
+                level = x.attrib["ErrorLevel"]
+                if level == "MODULE":
+                    levels[error_id] = 0
+                elif level in ("PARTITION", "PROCESS"):
+                    levels[error_id] = 1
+                else:
+                    raise ValueError("Unknown ErrorLevel '%s' (expected MODULE, PARTITION or PROCESS)" % level)
+
+    def parse_module_hm(self, conf, root):
+        """
+        Optional Module_HM_Table: recovery action for each module level
+        error in each system state: IGNORE, SHUTDOWN (stop the module) or
+        RESET (restart the module; partitions then report start condition
+        HM_MODULE_RESTART). Unlisted errors keep the default, SHUTDOWN.
+        """
+        if root is None:
+            return
+
+        if "ModuleCallback" in root.attrib:
+            raise ValueError("Module_HM_Table: ModuleCallback (HM callback) is not supported")
+
+        actions = conf.module_hm_table.actions
+
+        for state_root in root.findall("System_State_Entry"):
+            state = self.parse_hm_system_state(conf, state_root)
+            state_actions = actions.setdefault(state, {})
+
+            for x in state_root.findall("Error_ID_Action"):
+                error_id = self.parse_hm_error_id(conf, x)
+                action = x.attrib["Action"]
+                if action not in ("IGNORE", "SHUTDOWN", "RESET"):
+                    raise ValueError("Unknown module Action '%s' (expected IGNORE, SHUTDOWN or RESET)" % action)
+                state_actions[error_id] = action
 
     def parse_hm(self, table, root):
         if root is None:

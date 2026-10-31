@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,12 +12,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the module-level RESET
+ * action gives every partition start condition HM_MODULE_RESTART; module
+ * RESET and SHUTDOWN are reported on the console.
  */
 
 
 #include <core/error.h>
 #include <core/sched.h>
+#include <core/partition.h>
 #include <asp/arch.h>
+#include <cons.h>
 
 // TODO: this should be modified somewhere
 pok_system_state_t kernel_state = POK_SYSTEM_STATE_INIT_PARTOS;
@@ -29,8 +36,17 @@ static pok_error_module_action_t get_module_action(
     return table->actions[system_state][error_id];
 }
 
+// Callback for for_each_partition: the partition restarts by module HM.
+static void set_hm_module_restart(pok_partition_t* part)
+{
+    part->start_condition = POK_START_CONDITION_HM_MODULE_RESTART;
+}
+
 static void perform_module_action(pok_error_module_action_t action)
 {
+    static const char msg_reset[] = "[KERNEL] Module HM: restarting module\n";
+    static const char msg_shutdown[] = "[KERNEL] Module HM: shutting down module\n";
+
     if(action == POK_ERROR_MODULE_ACTION_IGNORE) return;
 
     ja_preempt_disable();
@@ -38,12 +54,18 @@ static void perform_module_action(pok_error_module_action_t action)
     switch(action) {
 
     case POK_ERROR_MODULE_ACTION_RESET:
+        pok_cons_write(msg_reset, sizeof(msg_reset) - 1);
+        /*
+         * Software restart: every partition is reloaded and starts in
+         * COLD_START mode (see pok_partition_reset()). Its start condition
+         * is reported by GET_PARTITION_STATUS.
+         */
+        for_each_partition(&set_hm_module_restart);
         pok_sched_restart();
-        // TODO: Reset module
         break;
 
     case POK_ERROR_MODULE_ACTION_SHUTDOWN:
-        // TODO: Shutdown module
+        pok_cons_write(msg_shutdown, sizeof(msg_shutdown) - 1);
         ja_inf_loop();
         break;
 

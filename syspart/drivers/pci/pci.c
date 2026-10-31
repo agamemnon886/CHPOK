@@ -17,6 +17,10 @@
  * Copyright (c) 2007-2009 POK team
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: removed PowerPC support.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <pci.h>
@@ -31,8 +35,8 @@
 #define OK 0
 
 #ifdef PCI_DEBUG
-static char *get_pci_class_name(int classcode) {
-    int i = 0;
+static char *get_pci_class_name(int32_t classcode) {
+    int32_t i = 0;
     while (pci_classnames[i].name != NULL) {
         if (pci_classnames[i].classcode == (classcode & 0xFFFF00))
             return pci_classnames[i].name;
@@ -43,7 +47,7 @@ static char *get_pci_class_name(int classcode) {
 #endif
 
 
-int pci_read_config_byte(struct pci_dev *dev, int where, uint8_t *val)
+int32_t pci_read_config_byte(struct pci_dev *dev, int32_t where, uint8_t *val)
 {
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
@@ -53,7 +57,7 @@ int pci_read_config_byte(struct pci_dev *dev, int where, uint8_t *val)
     return OK;
 }
 
-int pci_read_config_word(struct pci_dev *dev, int where, uint16_t *val)
+int32_t pci_read_config_word(struct pci_dev *dev, int32_t where, uint16_t *val)
 {
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
@@ -63,7 +67,7 @@ int pci_read_config_word(struct pci_dev *dev, int where, uint16_t *val)
     return OK;
 }
 
-int pci_read_config_dword(struct pci_dev *dev, int where, uint32_t *val)
+int32_t pci_read_config_dword(struct pci_dev *dev, int32_t where, uint32_t *val)
 {
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
@@ -73,7 +77,7 @@ int pci_read_config_dword(struct pci_dev *dev, int where, uint32_t *val)
     return OK;
 }
 
-int pci_write_config_byte(struct pci_dev *dev, int where, uint8_t val)
+int32_t pci_write_config_byte(struct pci_dev *dev, int32_t where, uint8_t val)
 {
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
@@ -83,7 +87,7 @@ int pci_write_config_byte(struct pci_dev *dev, int where, uint8_t val)
     return OK;
 }
 
-int pci_write_config_word(struct pci_dev *dev, int where, uint16_t val)
+int32_t pci_write_config_word(struct pci_dev *dev, int32_t where, uint16_t val)
 {
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
@@ -93,7 +97,7 @@ int pci_write_config_word(struct pci_dev *dev, int where, uint16_t val)
     return OK;
 }
 
-int pci_write_config_dword(struct pci_dev *dev, int where, uint32_t val)
+int32_t pci_write_config_dword(struct pci_dev *dev, int32_t where, uint32_t val)
 {
     uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
         (dev->fn << 8) | (where & 0xfc);
@@ -109,7 +113,7 @@ static uintptr_t get_resource_addr_from_config(uint8_t bus, uint8_t dev, uint8_t
 {
     //TODO optimize this linear search
     struct pci_dev_config *d;
-    for (int i = 0; i < pci_configs_nb; i++) {
+    for (int32_t i = 0; i < pci_configs_nb; i++) {
         d = &pci_configs[i];
         if (d->bus == bus && d->dev == dev && d->fn == fn)
             return d->resources[idx].addr;
@@ -131,7 +135,7 @@ static void pci_fill_resource(struct pci_dev *dev, enum PCI_RESOURCE_INDEX res_i
     //       Address register is for I/O and bits 16-31 returned zero upon read."
     // 4. 64 bits bars
     //
-    int reg;
+    int32_t reg;
     uint32_t val, size, mask;
 
     struct pci_resource *resource = &dev->resources[res_idx];
@@ -198,7 +202,7 @@ void pci_get_dev_by_bdf(uint8_t bus, uint8_t dev, uint8_t fn, struct pci_dev *pc
     if (pci_dev->hdr_type != 0)
         return;
 
-    for (int i = 0; i < PCI_NUM_RESOURCES; i++) {
+    for (int32_t i = 0; i < PCI_NUM_RESOURCES; i++) {
         pci_fill_resource(pci_dev, i);
     }
 
@@ -208,9 +212,9 @@ void pci_list()
 {
 #ifdef PCI_DEBUG
     struct pci_dev pci_dev;
-    for (unsigned int bus = 0; bus < PCI_BUS_MAX; bus++)
-      for (unsigned int dev = 0; dev < PCI_DEV_MAX; dev++)
-        for (unsigned int fn = 0; fn < PCI_FN_MAX; fn++)
+    for (uint32_t bus = 0; bus < PCI_BUS_MAX; bus++)
+      for (uint32_t dev = 0; dev < PCI_DEV_MAX; dev++)
+        for (uint32_t fn = 0; fn < PCI_FN_MAX; fn++)
         {
             pci_get_dev_by_bdf(bus, dev, fn, &pci_dev);
 
@@ -258,7 +262,7 @@ void pci_list()
                 continue;
             }
 
-            for (int i = 0; i < PCI_NUM_RESOURCES; i++) {
+            for (int32_t i = 0; i < PCI_NUM_RESOURCES; i++) {
                 struct pci_resource *res = &pci_dev.resources[i];
                 if (res->size == 0)
                     continue;
@@ -306,7 +310,7 @@ void pci_init()
 
     printf("PCI initialization using configuration:\n");
 
-    for (int i = 0; i < pci_configs_nb; i++) {
+    for (int32_t i = 0; i < pci_configs_nb; i++) {
         struct pci_dev_config *dev_config = &pci_configs[i];
         struct pci_dev pci_dev;
 
@@ -330,8 +334,8 @@ void pci_init()
             printf("OK\n");
         }
 
-        int command = 0;
-        for (int i = 0; i < PCI_RESOURCE_ROM; i++) {
+        int32_t command = 0;
+        for (int32_t i = 0; i < PCI_RESOURCE_ROM; i++) {
             if (dev_config->resources[i].pci_addr == 0)
                 continue;
 

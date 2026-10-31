@@ -11,7 +11,13 @@
  *
  *                                      Copyright (c) 2007-2009 POK team 
  *
- * Created by julien on Thu Jan 15 23:34:13 2009 
+ * Created by julien on Thu Jan 15 23:34:13 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: added NUM_CORES_TYPE and
+ * the NUM_ASSIGNED_CORES field of PARTITION_STATUS_TYPE (ARINC 653P1-4).
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -41,6 +47,8 @@ typedef enum
    HM_PARTITION_RESTART  = 3
 } START_CONDITION_TYPE;
 
+typedef   APEX_UNSIGNED    NUM_CORES_TYPE;
+
 typedef struct {
    PARTITION_ID_TYPE     IDENTIFIER;
    SYSTEM_TIME_TYPE      PERIOD;
@@ -48,6 +56,7 @@ typedef struct {
    LOCK_LEVEL_TYPE       LOCK_LEVEL;
    OPERATING_MODE_TYPE   OPERATING_MODE;
    START_CONDITION_TYPE  START_CONDITION;
+   NUM_CORES_TYPE        NUM_ASSIGNED_CORES;
 } PARTITION_STATUS_TYPE;
 
 extern void GET_PARTITION_STATUS (

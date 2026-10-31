@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: sampling message validity
+ * is computed without overflow, so any positive refresh period works.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the sampling read syscall
+ * checks the validity pointer (it checked the length pointer twice).
  */
 
 #include <core/port.h>
@@ -610,7 +617,7 @@ pok_ret_t pok_port_sampling_read(
     if(!k_len) return POK_ERRNO_EFAULT;
 
     pok_bool_t* __kuser k_valid = jet_user_to_kernel_typed(valid);
-    if(!k_len) return POK_ERRNO_EFAULT;
+    if(!k_valid) return POK_ERRNO_EFAULT;
 
     pok_preemption_local_disable();
 
@@ -623,8 +630,13 @@ pok_ret_t pok_port_sampling_read(
         *k_len = (pok_port_size_t)message_size;
 
         pok_time_t current_time = jet_system_time();
+        /*
+         * Message age is compared with the refresh period instead of
+         * computing ts + refresh_period, which overflows for large
+         * periods. ts is never later than current_time.
+         */
         port_sampling->last_message_validity =
-            ((ts + port_sampling->refresh_period) >= current_time)
+            ((current_time - ts) <= port_sampling->refresh_period)
             ? TRUE: FALSE;
         ret = POK_ERRNO_OK;
     }

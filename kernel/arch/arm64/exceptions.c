@@ -51,7 +51,7 @@
 
 static void dump_registers(const interrupt_frame* frame)
 {
-    for (int i = 0; i < 31; i += 2) {
+    for (int32_t i = 0; i < 31; i += 2) {
         if (i == 30)
             printf("x30 = 0x%016lx\n", (unsigned long)frame->x[30]);
         else
@@ -65,7 +65,7 @@ static void dump_registers(const interrupt_frame* frame)
 }
 
 /* Map exception class of a synchronous exception to an ARINC error. */
-static pok_error_id_t error_id_for(unsigned ec)
+static pok_error_id_t error_id_for(uint32_t ec)
 {
     switch (ec) {
     case EC_IABORT_LOWER:
@@ -98,7 +98,7 @@ static void return_user(void)
 void ja_exception_sync_user(interrupt_frame* frame)
 {
     uint64_t esr = read_sysreg(esr_el1);
-    unsigned ec = (esr >> 26) & 0x3f;
+    uint32_t ec = (esr >> 26) & 0x3f;
 
     if (ec == EC_SVC64) {
         process_syscall(frame);
@@ -117,7 +117,7 @@ void ja_exception_sync_user(interrupt_frame* frame)
 void ja_exception_sync_kernel(interrupt_frame* frame)
 {
     uint64_t esr = read_sysreg(esr_el1);
-    unsigned ec = (esr >> 26) & 0x3f;
+    uint32_t ec = (esr >> 26) & 0x3f;
 
     printf("[KERNEL] Exception in kernel: ESR=0x%lx FAR=0x%lx ELR=0x%lx\n",
         (unsigned long)esr, (unsigned long)read_sysreg(far_el1),
@@ -141,7 +141,7 @@ void ja_exception_irq_user(interrupt_frame* frame)
     return_user();
 }
 
-void ja_exception_unexpected(interrupt_frame* frame, int kind)
+void ja_exception_unexpected(interrupt_frame* frame, int32_t kind)
 {
     static const char* const names[] = {
         "exception with SP_EL0 in kernel",

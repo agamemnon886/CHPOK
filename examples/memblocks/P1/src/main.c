@@ -1,3 +1,10 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: MEMORY_BLOCK_SIZE is printed
+ * with a format matching its 32-bit type.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <arinc653/queueing.h>
@@ -12,8 +19,8 @@ static void first_process(void)
 {
     RETURN_CODE_TYPE ret;
 
-    int i = 0;
-    int status = 1; //non-zero means 'ready'
+    int32_t i = 0;
+    int32_t status = 1; //non-zero means 'ready'
     while (1) {
         snprintf(mb0addr, 1000, "hello %d", i);
 
@@ -29,7 +36,7 @@ static void first_process(void)
 }
 
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;
@@ -78,7 +85,7 @@ static int real_main(void)
     printf("P1 memblock: %s %p [0x%lx]\n",
             status.MEMORY_BLOCK_MODE == MB_READ? "MB_READ": "MB_READ_WRITE",
             status.MEMORY_BLOCK_ADDR,
-            status.MEMORY_BLOCK_SIZE);
+            (unsigned long) status.MEMORY_BLOCK_SIZE);
     mb0addr = status.MEMORY_BLOCK_ADDR;
 
 

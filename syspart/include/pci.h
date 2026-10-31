@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,6 +18,10 @@
  * Copyright 1994, Drew Eckhardt
  * Copyright 1997--1999 Martin Mares <mj@ucw.cz>
  *
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 
@@ -162,12 +167,12 @@ void pci_init(void);
 void pci_list(void);
 
 //result == 0 means no error
-int pci_read_config_byte(struct pci_dev *dev, int where, uint8_t *val);
-int pci_read_config_word(struct pci_dev *dev, int where, uint16_t *val);
-int pci_read_config_dword(struct pci_dev *dev, int where, uint32_t *val);
-int pci_write_config_byte(struct pci_dev *dev, int where, uint8_t val);
-int pci_write_config_word(struct pci_dev *dev, int where, uint16_t val);
-int pci_write_config_dword(struct pci_dev *dev, int where, uint32_t val);
+int32_t pci_read_config_byte(struct pci_dev *dev, int32_t where, uint8_t *val);
+int32_t pci_read_config_word(struct pci_dev *dev, int32_t where, uint16_t *val);
+int32_t pci_read_config_dword(struct pci_dev *dev, int32_t where, uint32_t *val);
+int32_t pci_write_config_byte(struct pci_dev *dev, int32_t where, uint8_t val);
+int32_t pci_write_config_word(struct pci_dev *dev, int32_t where, uint16_t val);
+int32_t pci_write_config_dword(struct pci_dev *dev, int32_t where, uint32_t val);
 
 
 /*

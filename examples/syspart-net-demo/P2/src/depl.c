@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 #include <pci_config.h>
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
@@ -42,4 +47,4 @@ struct pci_dev_config pci_configs[] = {
     },
 };
 
-unsigned pci_configs_nb = ARRAY_SIZE(pci_configs);
+uint32_t pci_configs_nb = ARRAY_SIZE(pci_configs);

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,9 +15,14 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 # ifndef __POK__PCI_INTERNAL_H__
 # define __POK__PCI_INTERNAL_H__
+#include <stdint.h>
 
 
 /* 
@@ -24,7 +30,7 @@
  * Copyright (C) 2002 Michael Ringgaard. All rights reserved.
  */
 const struct {
-    int classcode;
+    int32_t classcode;
     char *name;
 } pci_classnames[] = {
     {0x0000, "Non-VGA unclassified device"},

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 #include <stdio.h>
 #include <string.h>
@@ -60,10 +65,10 @@ static void first_process(void)
     while (1) {
         RECEIVE_QUEUING_MESSAGE(QP2, SECOND, (MESSAGE_ADDR_TYPE) BIG_ARRAY, &len, &ret);
         if (ret == NO_ERROR) {
-            int COUNT = BIG_ARRAY[0];
+            int32_t COUNT = BIG_ARRAY[0];
             printf("START. sending %d\n", COUNT);
 
-            for (int i = 0; i < COUNT; i++) {
+            for (int32_t i = 0; i < COUNT; i++) {
                 //if (i%10 == 0)
                 //    printf("P1: sending %d packet\n", i);
                 BIG_ARRAY[0] = i;
@@ -88,7 +93,7 @@ static void first_process(void)
 }
 
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;

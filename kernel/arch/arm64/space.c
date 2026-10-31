@@ -18,6 +18,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * kernel/arch/x86/space.c for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 /*
@@ -178,7 +182,7 @@ static void memory_blocks_init(uintptr_t phys_start)
         memset((void*)phys, 0, size);
         phys_start = phys + size;
 
-        for (int space_id = 1; space_id <= ja_spaces_n && space_id < MAX_PID; space_id++)
+        for (int32_t space_id = 1; space_id <= ja_spaces_n && space_id < MAX_PID; space_id++)
         {
             enum mb_config_rights rights = mblock->pid_to_rights[space_id];
             if (rights == MB_CONFIG_NO_ACCESS) continue;
@@ -258,7 +262,7 @@ void ja_space_init(void)
 
     kernel_ttbr0 = (uint64_t)l1_table_create();
 
-    for(int i = 0; i < ja_spaces_n; i++)
+    for(int32_t i = 0; i < ja_spaces_n; i++)
     {
         struct ja_arm64_space* space = &ja_spaces[i];
 

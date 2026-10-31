@@ -1,10 +1,14 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 /* GIMP RGBA C-Source image dump (Airplane_clipart.c) */
 
 const struct {
-  unsigned int 	 width;
-  unsigned int 	 height;
-  unsigned int 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  unsigned char	 pixel_data[300 * 94 * 4 + 1];
+  uint32_t 	 width;
+  uint32_t 	 height;
+  uint32_t 	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
+  uint8_t	 pixel_data[300 * 94 * 4 + 1];
 } gimp_image = {
   300, 94, 4,
   "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"

@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/alloc.c to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <asp/alloc.h>
@@ -27,7 +31,7 @@
 extern char __pok_end[];
 static char *heap_end = __pok_end;
 
-void *ja_mem_alloc_aligned (size_t size, unsigned int alignment)
+void *ja_mem_alloc_aligned (size_t size, uint32_t alignment)
 {
   char *res;
 
@@ -41,9 +45,9 @@ void *ja_mem_alloc_aligned (size_t size, unsigned int alignment)
   return res;
 }
 
-unsigned int ja_mem_get_alignment (size_t size)
+uint32_t ja_mem_get_alignment (size_t size)
 {
-  unsigned int alignment = 1;
+  uint32_t alignment = 1;
 
   // The largest power of 2 not greater than the size, up to 16 (long double).
   while (alignment < 16 && alignment * 2 <= size)
@@ -60,7 +64,7 @@ jet_stack_t pok_stack_alloc(uint32_t stack_size)
      * This is needed because we need aligned stack head, not only stack
      * tail. The System V ABI requires 16-byte stack alignment.
      */
-    const unsigned int alignment = 16;
+    const uint32_t alignment = 16;
     uint32_t stack_size_real = ALIGN_VAL(stack_size, alignment);
 
     char* stack_tail = ja_mem_alloc_aligned(stack_size_real, alignment);

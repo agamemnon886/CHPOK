@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,14 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: a partition restarted by
+ * the health monitor gets start condition HM_PARTITION_RESTART; added
+ * pok_error_report_application_message() for REPORT_APPLICATION_MESSAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: RAISE_APPLICATION_ERROR
+ * accepts an empty message (LENGTH 0) instead of silently ignoring the
+ * request.
  */
 
 #include <config.h>
@@ -109,6 +118,9 @@ static void take_fixed_action(pok_error_action_t action, pok_error_id_t error_id
         const char *msg = get_error_description(error_id);
         pok_cons_write(msg, strlen(msg));
         pok_cons_write("\n", 1);
+
+        // Reported by GET_PARTITION_STATUS after the restart.
+        part->base_part.start_condition = POK_START_CONDITION_HM_PARTITION_RESTART;
     }
     /****************************************/
 
@@ -328,13 +340,17 @@ pok_ret_t pok_error_raise_application_error (const char* __user msg, size_t msg_
     pok_system_state_t partition_state;
     const char* __kuser k_msg;
 
-    if (msg_size > POK_ERROR_MAX_MSG_SIZE || msg_size == 0) {
+    if (msg_size > POK_ERROR_MAX_MSG_SIZE) {
         return POK_ERRNO_EINVAL;
     }
 
-    k_msg = jet_user_to_kernel_ro(msg, msg_size);
-
-    if (!k_msg) return POK_ERRNO_EFAULT;
+    if (msg_size > 0) {
+        k_msg = jet_user_to_kernel_ro(msg, msg_size);
+        if (!k_msg) return POK_ERRNO_EFAULT;
+    } else {
+        // An empty message is valid; GET_ERROR_STATUS reports LENGTH 0.
+        k_msg = "";
+    }
 
     if(thread == part->thread_error)
     {
@@ -357,6 +373,37 @@ pok_ret_t pok_error_raise_application_error (const char* __user msg, size_t msg_
     pok_preemption_local_disable();
 
     thread_emit_sync_error(thread, POK_ERROR_ID_APPLICATION_ERROR, NULL);
+
+    pok_preemption_local_enable();
+
+    return POK_ERRNO_OK;
+}
+
+pok_ret_t pok_error_report_application_message (const char* __user msg, size_t msg_size)
+{
+    static const char prefix[] = "[HM] Application message from partition ";
+    pok_partition_arinc_t* part = current_partition_arinc;
+    const char* __kuser k_msg = NULL;
+
+    if (msg_size > POK_ERROR_MAX_MSG_SIZE) {
+        return POK_ERRNO_EINVAL;
+    }
+
+    // An empty message is valid; don't touch user memory for it.
+    if (msg_size > 0) {
+        k_msg = jet_user_to_kernel_ro(msg, msg_size);
+        if (!k_msg) return POK_ERRNO_EFAULT;
+    }
+
+    // Keep the record on one line even if other partitions print.
+    pok_preemption_local_disable();
+
+    pok_cons_write(prefix, sizeof(prefix) - 1);
+    pok_cons_write(part->base_part.name, strlen(part->base_part.name));
+    pok_cons_write(": ", 2);
+    if (msg_size > 0)
+        pok_cons_write(k_msg, msg_size);
+    pok_cons_write("\n", 1);
 
     pok_preemption_local_enable();
 

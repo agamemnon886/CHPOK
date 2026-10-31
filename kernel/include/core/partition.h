@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2013-2014, 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,10 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 
@@ -60,7 +65,7 @@ struct pok_partition_sched_operations
      * NOTE: Called (possibly) outside of partition's timeslot, so
      * 'current_partition' doesn't correspond to given partition.
      */
-    int (*get_number_of_threads)(struct _pok_partition* part);
+    int32_t (*get_number_of_threads)(struct _pok_partition* part);
 
     /*
      * Return index of current thread within partition.
@@ -72,14 +77,14 @@ struct pok_partition_sched_operations
      * NOTE: Called (possibly) outside of partition's timeslot, so
      * 'current_partition' doesn't correspond to given partition.
      */
-    int (*get_current_thread_index)(struct _pok_partition* part);
+    int32_t (*get_current_thread_index)(struct _pok_partition* part);
 
     /*
      * Return 0 if thread with given index exists. Fill 'private' with
      * value, which will be passed for callbacks below.
      */
-    int (*get_thread_at_index)(struct _pok_partition* part,
-        int index, void** private);
+    int32_t (*get_thread_at_index)(struct _pok_partition* part,
+        int32_t index, void** private);
 
     /*
      * Get information about thread with given index.
@@ -89,7 +94,7 @@ struct pok_partition_sched_operations
      * NOTE: Called (possibly) outside of partition's timeslot, so
      * 'current_partition' doesn't correspond to given partition.
      */
-    void (*get_thread_info)(struct _pok_partition* part, int index, void* private,
+    void (*get_thread_info)(struct _pok_partition* part, int32_t index, void* private,
         print_cb_t print_cb, void* cb_data);
 
     /*
@@ -99,7 +104,7 @@ struct pok_partition_sched_operations
      *
      * TODO: naming is bad.
      */
-    struct jet_interrupt_context* (*get_thread_registers)(struct _pok_partition* part, int index, void* private);
+    struct jet_interrupt_context* (*get_thread_registers)(struct _pok_partition* part, int32_t index, void* private);
 #endif /* POK_NEEDS_GDB */
 };
 

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 
@@ -47,7 +52,7 @@ static void pok_network_thread_init(void)
 
 int atoi(char * s)
 {
-    int i, n;
+    int32_t i, n;
     n = 0;
     for (i = 0; s[i] >= '0' && s[i] <= '9'; ++i)
         n = 10 * n + (s[i] - '0');
@@ -80,29 +85,29 @@ static uint8_t partition_pause_get(pok_partition_id_t id)
 
 pok_bool_t want_to_exit=FALSE; 
 
-int mon_help(int argc, char **argv);
+int32_t mon_help(int32_t argc, char **argv);
 
-int help_about(int argc,char **argv);
+int32_t help_about(int32_t argc,char **argv);
 
-int print_partition(int argc, char **argv); // List of partition
+int32_t print_partition(int32_t argc, char **argv); // List of partition
 
-int pause_N(int argc, char **argv);// pause partition N. 
+int32_t pause_N(int32_t argc, char **argv);// pause partition N. 
 
-int resume_N(int argc, char **argv); // continue partition N
+int32_t resume_N(int32_t argc, char **argv); // continue partition N
 
-int restart_N(int argc, char **argv); // restart pertition N
+int32_t restart_N(int32_t argc, char **argv); // restart pertition N
 
-int exit_from_monitor(int argc, char **argv); //exit from monitor
+int32_t exit_from_monitor(int32_t argc, char **argv); //exit from monitor
 
-int cpu_reset(int argc, char **argv); //cpu reset
+int32_t cpu_reset(int32_t argc, char **argv); //cpu reset
 
-int info_partition(int argc,char ** argv);
+int32_t info_partition(int32_t argc,char ** argv);
 
 struct Command {
     const char *name;
     const char *argc;
     const char *desc;
-    int (*func)(int argc, char** argv);
+    int32_t (*func)(int32_t argc, char** argv);
 };
 
 static struct Command commands[] = {
@@ -121,14 +126,14 @@ static struct Command commands[] = {
  * Implementations of monitor commands
  */
 
-int
-mon_help(int argc, char **argv)
+int32_t
+mon_help(int32_t argc, char **argv)
 {
     if (argc > 1){
         printf("Too many arguments for help!\n");
         return 0;
     }
-    int i;
+    int32_t i;
     (void) argc;
     (void) argv;
     for (i = 0; i < NCOMMANDS; i++)
@@ -136,8 +141,8 @@ mon_help(int argc, char **argv)
     return 0;
 }
 
-int 
-help_about(int argc,char **argv)
+int32_t 
+help_about(int32_t argc,char **argv)
 {
     if (argc > 2){
         printf("Too many arguments for help_about!\n");
@@ -147,7 +152,7 @@ help_about(int argc,char **argv)
         printf("Missing parameter - Name of command!\n");
         return 0;
     }    
-    for (int i = 0; i < NCOMMANDS; i++) {
+    for (int32_t i = 0; i < NCOMMANDS; i++) {
         if (strcmp(argv[1], commands[i].name) == 0){
             printf("%s\n",commands[i].desc);
             return 0;            
@@ -157,8 +162,8 @@ help_about(int argc,char **argv)
     return 0;
 }
 
-int 
-print_partition(int argc, char **argv){
+int32_t 
+print_partition(int32_t argc, char **argv){
 
     if (argc > 1){
         printf("Too many arguments for ps!\n");
@@ -170,7 +175,7 @@ print_partition(int argc, char **argv){
     else 
         printf("There is %d partition:\n", pok_partitions_arinc_n);
    
-    for (int i = 0 ; i < pok_partitions_arinc_n ; i++){
+    for (int32_t i = 0 ; i < pok_partitions_arinc_n ; i++){
         pok_partition_arinc_t* part = &pok_partitions_arinc[i];
         printf("Partition %d: %s", i, part->base_part.name);
         printf("\n");    
@@ -181,7 +186,7 @@ print_partition(int argc, char **argv){
     return 0;
 }
 
-int info_partition(int argc,char **argv){
+int32_t info_partition(int32_t argc,char **argv){
     if (argc > 2){
         printf("Too many arguments for info_partition!\n");
         return 0;
@@ -191,7 +196,7 @@ int info_partition(int argc,char **argv){
         return 0;
     }    
 
-    int number=0;
+    int32_t number=0;
     number=atoi(argv[1]);
     if (number >= pok_partitions_arinc_n) {
         printf("There is no such partition!\n");
@@ -226,8 +231,8 @@ int info_partition(int argc,char **argv){
     return 0;
 }
 
-int 
-pause_N(int argc, char **argv){
+int32_t 
+pause_N(int32_t argc, char **argv){
     if (argc > 2){
         printf("Too many arguments for pause!\n");
         return 0;
@@ -236,7 +241,7 @@ pause_N(int argc, char **argv){
         printf("Missing parameter - Number of partition!\n");
         return 0;
     }    
-    int number=0;
+    int32_t number=0;
     number=atoi(argv[1]);
     if (number >= pok_partitions_arinc_n) {
         printf("There is no such partition!\n");
@@ -249,8 +254,8 @@ pause_N(int argc, char **argv){
     return 0;
 }
 
-int 
-resume_N(int argc, char **argv){
+int32_t 
+resume_N(int32_t argc, char **argv){
 
     if (argc > 2){
         printf("Too many arguments for resume!\n");
@@ -261,7 +266,7 @@ resume_N(int argc, char **argv){
         return 0;
     }    
 
-    int number=0;
+    int32_t number=0;
     number=atoi(argv[1]);
     if (number >= pok_partitions_arinc_n) {
         printf("There is no such partition!\n");
@@ -273,8 +278,8 @@ resume_N(int argc, char **argv){
     return 0;
 }
 
-int 
-restart_N(int argc, char **argv){
+int32_t 
+restart_N(int32_t argc, char **argv){
 
     if (argc > 2){
         printf("Too many arguments for restart!\n");
@@ -285,7 +290,7 @@ restart_N(int argc, char **argv){
         return 0;
     }    
 
-    int number=0;
+    int32_t number=0;
     number=atoi(argv[1]);
     if (number >= pok_partitions_arinc_n) {
         printf("There is no such partition!\n");
@@ -300,8 +305,8 @@ restart_N(int argc, char **argv){
     return 0;
 }
 
-int 
-exit_from_monitor(int argc, char **argv){
+int32_t 
+exit_from_monitor(int32_t argc, char **argv){
 
     (void) argc;
     (void) argv;
@@ -310,7 +315,7 @@ exit_from_monitor(int argc, char **argv){
 
 }
 
-int cpu_reset(int argc, char **argv)
+int32_t cpu_reset(int32_t argc, char **argv)
 {
     (void) argc;
     (void) argv;
@@ -329,12 +334,12 @@ int cpu_reset(int argc, char **argv)
 #define WHITESPACE "\t\r\n "
 #define MAXARGS 16
 
-static int
+static int32_t
 runcmd(char *buf) 
 {
-    int argc;
+    int32_t argc;
     char *argv[MAXARGS];
-    int i;
+    int32_t i;
 
     // Parse the command buffer into whitespace-separated arguments
     argc = 0;
@@ -389,7 +394,7 @@ monitor()
 
 void monitor_start_func(void)
 {
-    for (int i=0; i < pok_partitions_arinc_n; i++){
+    for (int32_t i=0; i < pok_partitions_arinc_n; i++){
         partition_pause_set(i, 1);
     }
     for (;;) {
@@ -398,7 +403,7 @@ void monitor_start_func(void)
              * Set all partitions on pause
              */
             pok_preemption_disable();
-            for (int i=0; i < pok_partitions_arinc_n; i++){
+            for (int32_t i=0; i < pok_partitions_arinc_n; i++){
                 pok_partition_arinc_t* part = &pok_partitions_arinc[i];
                 if (!part->base_part.is_paused){ 
                     partition_pause_set(i, 0);
@@ -410,7 +415,7 @@ void monitor_start_func(void)
             monitor();
 
             pok_preemption_disable();
-            for (int i=0; i < pok_partitions_arinc_n; i++){
+            for (int32_t i=0; i < pok_partitions_arinc_n; i++){
                 if (!partition_pause_get(i)){ 
                     pok_partitions_arinc[i].base_part.is_paused=FALSE;
                 }

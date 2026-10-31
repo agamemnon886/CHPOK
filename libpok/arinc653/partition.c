@@ -11,7 +11,14 @@
  *
  *                                      Copyright (c) 2007-2009 POK team 
  *
- * Created by julien on Thu Jan 15 23:34:13 2009 
+ * Created by julien on Thu Jan 15 23:34:13 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: GET_PARTITION_STATUS
+ * converts the start condition to START_CONDITION_TYPE explicitly and
+ * fills NUM_ASSIGNED_CORES.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -50,7 +57,18 @@ void GET_PARTITION_STATUS (PARTITION_STATUS_TYPE *partition_status,
   }
 #undef MAP
 
-  partition_status->START_CONDITION = core_status.start_condition; // TODO proper conversion
+#define MAP(from, to) case (from): partition_status->START_CONDITION = (to); break
+  switch (core_status.start_condition) {
+    MAP(POK_START_CONDITION_PARTITION_RESTART, PARTITION_RESTART);
+    MAP(POK_START_CONDITION_HM_MODULE_RESTART, HM_MODULE_RESTART);
+    MAP(POK_START_CONDITION_HM_PARTITION_RESTART, HM_PARTITION_RESTART);
+    MAP(POK_START_CONDITION_NORMAL_START, NORMAL_START);
+    default: partition_status->START_CONDITION = NORMAL_START; break;
+  }
+#undef MAP
+
+  // The kernel is single-core: each partition runs on one core.
+  partition_status->NUM_ASSIGNED_CORES = 1;
 
   *return_code = NO_ERROR;
 }

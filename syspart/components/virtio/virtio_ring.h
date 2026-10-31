@@ -30,7 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright Rusty Russell IBM Corporation 2007. */
+ * Copyright Rusty Russell IBM Corporation 2007.
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types
+ * (unsigned, unsigned long) are replaced with the fixed-width types
+ * from <stdint.h>. */
 
 #include <types.h>
 
@@ -92,7 +97,7 @@ struct vring_used {
 };
 
 struct vring {
-	unsigned int num;
+	uint32_t num;
 
 	struct vring_desc *desc;
 
@@ -130,17 +135,17 @@ struct vring {
 #define vring_used_event(vr) ((vr)->avail->ring[(vr)->num])
 #define vring_avail_event(vr) (*(uint16_t *)&(vr)->used->ring[(vr)->num])
 
-static inline void vring_init(struct vring *vr, unsigned int num, void *p,
-			      unsigned long align)
+static inline void vring_init(struct vring *vr, uint32_t num, void *p,
+			      uintptr_t align)
 {
 	vr->num = num;
 	vr->desc = p;
 	vr->avail = p + num*sizeof(struct vring_desc);
-	vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + sizeof(uint16_t)
+	vr->used = (void *)(((uintptr_t)&vr->avail->ring[num] + sizeof(uint16_t)
 		+ align-1) & ~(align - 1));
 }
 
-static inline unsigned vring_size(unsigned int num, unsigned long align)
+static inline uint32_t vring_size(uint32_t num, uintptr_t align)
 {
 	return ((sizeof(struct vring_desc) * num + sizeof(uint16_t) * (3 + num)
 		 + align - 1) & ~(align - 1))
@@ -151,7 +156,7 @@ static inline unsigned vring_size(unsigned int num, unsigned long align)
 /* Assuming a given event_idx value from the other size, if
  * we have just incremented index from old to new_idx,
  * should we trigger an event? */
-static inline int vring_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old)
+static inline int32_t vring_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old)
 {
 	/* Note: Xen has similar logic for notification hold-off
 	 * in include/xen/interface/io/ring.h with req_event and req_prod

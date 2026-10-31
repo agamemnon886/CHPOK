@@ -31,7 +31,7 @@
 #define FALSE  0
 #define TRUE   1
 //typedef int bool_t;
-typedef int pok_bool_t;
+typedef int32_t pok_bool_t;
 
 typedef uint32_t pok_port_size_t;
 typedef uint8_t pok_port_direction_t;

@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <libc.h>
 
 
@@ -8,7 +12,7 @@ static char buf[BUFLEN];
 
 struct buff {
     char buf[BUFLEN];
-    int size;
+    int32_t size;
     pok_bool_t head;
     pok_bool_t tail;
 };
@@ -21,18 +25,18 @@ pok_bool_t more_than_2_in_MEM = FALSE;
 
 struct buff buffers[BUFMEM];
 
-int current_buf_number = -1;       //Current number in buffers that we have printed on the screen
+int32_t current_buf_number = -1;       //Current number in buffers that we have printed on the screen
 
-int number_of_last_buf = -1;          //Position in buf memory of the last written buf
+int32_t number_of_last_buf = -1;          //Position in buf memory of the last written buf
 
-void buf_transfer(char *buf1,char *buf2,int j){
+void buf_transfer(char *buf1,char *buf2,int32_t j){
     memset(buf2, 0, BUFLEN);
-    for (int i = 0; i <= j; i++){
+    for (int32_t i = 0; i <= j; i++){
         buf2[i] = buf1[i];
     }
 }
 
-int upper_number_in_mem(int mem){
+int32_t upper_number_in_mem(int32_t mem){
     if (buffers[mem].tail) 
         return mem;
     if (mem > 0)
@@ -40,22 +44,22 @@ int upper_number_in_mem(int mem){
     return BUFMEM - 1;
 }
 
-int lower_number_in_mem(int mem){
+int32_t lower_number_in_mem(int32_t mem){
     if (buffers[mem].head)
         return mem;
     return (mem + 1) % BUFMEM;
 }
 
-void clear_console(int lenght){
+void clear_console(int32_t lenght){
     printf("%c", '\r'); 
-    for (int j = 0; j <= lenght + 1; j++)
+    for (int32_t j = 0; j <= lenght + 1; j++)
         printf(" ");
 }
-void update_console(char * buf,int end,const char * prompt){
+void update_console(char * buf,int32_t end,const char * prompt){
     clear_console(end+strlen(prompt));
     printf("%c", '\r');
     printf("%s", prompt);
-    for (int j = 0; j < end; j++){
+    for (int32_t j = 0; j < end; j++){
         printf("%c", buf[j]);
     }
 }
@@ -68,8 +72,8 @@ readline(const char *prompt)
     
     if (prompt != NULL)
         printf("%s", prompt);
-    int i = 0;
-    int c = 0;  
+    int32_t i = 0;
+    int32_t c = 0;  
     while (1) {
         c = getchar();
         if (c < 0) {
@@ -87,7 +91,7 @@ readline(const char *prompt)
                     if (c == '\r'  || c == '\n' ){//if c=Enter or end of string
                         printf("\n");
                         if (number_of_last_buf != -1){
-                            int prev=number_of_last_buf;
+                            int32_t prev=number_of_last_buf;
                             number_of_last_buf = (number_of_last_buf + 1) % BUFMEM;
                             current_buf_number = BUFMEM;
                             if (more_than_2_in_MEM){
@@ -142,7 +146,7 @@ readline(const char *prompt)
         }  else if (c == '\r'  || c == '\n' ) {//if c=Enter or end of string
             printf("\n");
             if (number_of_last_buf != -1){
-                int prev=number_of_last_buf;
+                int32_t prev=number_of_last_buf;
                 number_of_last_buf = (number_of_last_buf + 1) % BUFMEM;
                 current_buf_number = BUFMEM;
                 if (more_than_2_in_MEM){

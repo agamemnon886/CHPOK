@@ -1,0 +1,80 @@
+Health monitoring example
+=========================
+
+Shows three ARINC 653 services and how a partition learns why it was
+started:
+
+  GET_PARTITION_STATUS        partition identifier, period, duration, lock
+                              level, operating mode, start condition and
+                              number of cores.
+  REPORT_APPLICATION_MESSAGE  sends a message to the health monitor, which
+                              logs it with the partition name; the process
+                              continues.
+  CREATE_SAMPLING_PORT        creates a sampling port; the arguments must
+                              match the configuration, and the refresh
+                              period decides when a message is INVALID.
+
+Partitions
+----------
+
+P1 (writer) is started three times. Each time it calls GET_PARTITION_STATUS
+and acts on the start condition:
+
+  NORMAL_START          the module has just started. P1 reports a 4-byte
+                        status code (REPORT_APPLICATION_MESSAGE sends exactly
+                        LENGTH bytes; no NUL is needed) and restarts itself
+                        with SET_PARTITION_MODE(COLD_START).
+  PARTITION_RESTART     P1 restarted itself. It raises an application error;
+                        P1 has no error handler process, so the health
+                        monitor applies the HM table in P1/config.xml:
+                        APPLICATION_ERROR -> COLD_START.
+  HM_PARTITION_RESTART  the health monitor restarted P1. It first calls
+                        CREATE_SAMPLING_PORT with a size that doesn't match
+                        the configuration (INVALID_CONFIG), then with the
+                        right one, and starts a writer process that writes
+                        six readings to SP_OUT, one every 500 ms, then stops.
+
+P2 (reader) creates destination port SP_IN with a refresh period of 1 s and
+reads it every 500 ms. While P1 writes, readings are VALID; about 1 s after
+the last write they become INVALID, and P2 reports the stale data to the
+health monitor once.
+
+Build and run
+-------------
+
+From the top-level directory:
+
+    make health-monitoring                      # x86_64
+    make BSP=arm64-qemu health-monitoring       # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel examples/health-monitoring/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel examples/health-monitoring/build/arm64-qemu/pok.elf
+
+Expected output (shortened; "[HM]" lines come from the kernel's health
+monitor, "[KERNEL]" from the HM recovery action):
+
+    P1: partition 1 started: start condition NORMAL_START, mode COLD_START,
+        period 60 ms, duration 30 ms, lock level 1, 1 core(s)
+    [HM] Application message from partition P1: S001
+    [HM] Application message from partition P1: first start, restarting the partition
+    P1: partition 1 started: start condition PARTITION_RESTART, mode COLD_START, ...
+    [HM] Application message from partition P1: restarted by SET_PARTITION_MODE, raising an application error
+    [KERNEL] Restarting partition P1 due to: Application Error
+    P1: partition 1 started: start condition HM_PARTITION_RESTART, mode COLD_START, ...
+    [HM] Application message from partition P1: restarted by the health monitor, starting the writer
+    P1: CREATE_SAMPLING_PORT(SP_OUT, size 64): INVALID_CONFIG (configured size is 32)
+    P1: CREATE_SAMPLING_PORT(SP_OUT, size 32): NO_ERROR
+    P1: wrote "reading #1"
+    P2: partition 2 started, start condition NORMAL_START
+    P2: CREATE_SAMPLING_PORT(SP_IN, refresh 1000 ms): NO_ERROR
+    P2: read "reading #1" (11 bytes): VALID
+    ...
+    P1: wrote "reading #6"
+    [HM] Application message from partition P1: writer stopped, no new readings on SP_OUT
+    P2: read "reading #6" (11 bytes): VALID
+    P2: read "reading #6" (11 bytes): INVALID, older than the refresh period
+    [HM] Application message from partition P2: stale reading on SP_IN
+    ...
+    P2: done

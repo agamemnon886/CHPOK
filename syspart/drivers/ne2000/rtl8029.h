@@ -17,11 +17,16 @@
  * Copyright (c) 2007-2009 POK team
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: fixed an #endif comment.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 //TODO move define to config.h or delete
 
 #include "syspart_config.h"
+#include <stdint.h>
 
 #ifdef SYS_NEEDS_DRIVER_NE2000
 
@@ -48,7 +53,7 @@ typedef struct
 typedef struct
 {
     s_pci_dev  pci;
-    unsigned int  addr;
+    uint32_t      addr;
     uint8_t       mac[6];
     void (*packet_received_callback)(const char *, size_t);
 } s_ne2000_dev;

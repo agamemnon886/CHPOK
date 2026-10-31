@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <pci.h>
@@ -13,9 +17,9 @@ uint8_t *radeon_bios;
 #define RBIOS8(i) (radeon_bios[i])
 #define RBIOS16(i) (RBIOS8(i) | (RBIOS8((i)+1) << 8))
 
-int radeon_tst_atom_magic_simple(int b, int d, int f)
+int32_t radeon_tst_atom_magic_simple(int32_t b, int32_t d, int32_t f)
 {
-    int val1 = 0, val2 = 0, res = -1;
+    int32_t val1 = 0, val2 = 0, res = -1;
     size_t size = 0;
     uint16_t tmp;
     uint16_t bios_header_start;
@@ -77,13 +81,13 @@ int radeon_tst_atom_magic_simple(int b, int d, int f)
         ioread32((uint32_t*)(base) + (reg)) : \
         (iowrite32((reg), (uint32_t*)(base)), ioread32((uint32_t*)(base) + 0x4)))
 
-int radeon_get_temp(int b, int d, int f)
+int32_t radeon_get_temp(int32_t b, int32_t d, int32_t f)
 {
     struct pci_dev radeon_pci_dev;
     uint32_t radeon_rmmio_base;
     size_t radeon_rmmio_size;
     uint32_t temp;
-    int actual_temp;
+    int32_t actual_temp;
 
     printf("radeon temp test\n");
 

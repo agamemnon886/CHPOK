@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -36,7 +41,7 @@ static size_t nevents_used = 0;
 /* Find event by name (in UPPERCASE). Returns NULL if not found. */
 static struct arinc_event* find_event(const char* name)
 {
-   for(int i = 0; i < nevents_used; i++)
+   for(int32_t i = 0; i < nevents_used; i++)
    {
       struct arinc_event* event = &arinc_events[i];
       if(strncasecmp(event->event_name, name, MAX_NAME_LENGTH) == 0)

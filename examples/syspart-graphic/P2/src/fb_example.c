@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <stdio.h>
@@ -23,20 +28,20 @@
 uint32_t rgba_to_argb(uint32_t rgba_color);
 
 struct gimp_image {
-  unsigned int  width;
-  unsigned int  height;
-  unsigned int  bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
-  unsigned char pixel_data[];
+  uint32_t      width;
+  uint32_t      height;
+  uint32_t      bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */
+  uint8_t pixel_data[];
 };
 
 extern const struct gimp_image gimp_image; //Image of airplane
 
 
-static void draw_image(struct uwrm_scm_direct_fb *fb, int x_start, int y_start)
+static void draw_image(struct uwrm_scm_direct_fb *fb, int32_t x_start, int32_t y_start)
 {
     uint32_t *addr;
-    for (int y = 0; y < gimp_image.height; y++) {
-        for (int x = 0; x < gimp_image.width; x++) {
+    for (int32_t y = 0; y < gimp_image.height; y++) {
+        for (int32_t x = 0; x < gimp_image.width; x++) {
             addr = (uint32_t *) fb->back_surface + (y+y_start)*fb->width + x + x_start;
             uint32_t rgba_pixel = (((uint32_t*)gimp_image.pixel_data)[y*gimp_image.width + x]);
             *addr = rgba_to_argb(rgba_pixel);
@@ -51,8 +56,8 @@ void fb_example_run(void)
     struct uwrm_scm_direct_fb fb;
     uwrm_scm_get_direct_fb(&fb);
 
-    int y = fb.height - 100;
-    int x = 0;
+    int32_t y = fb.height - 100;
+    int32_t x = 0;
 
     while (y > 0) {
         draw_image(&fb, x, y);

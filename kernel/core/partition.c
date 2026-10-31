@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -56,7 +61,7 @@ void for_each_partition(void (*f)(pok_partition_t* part))
 #endif /* POK_NEEDS_GDB */
 
 
-   for(int i = 0; i < pok_partitions_arinc_n; i++)
+   for(int32_t i = 0; i < pok_partitions_arinc_n; i++)
    {
       f(&pok_partitions_arinc[i].base_part);
    }
@@ -142,20 +147,20 @@ static void kernel_thread_on_event(void)
 
 #ifdef POK_NEEDS_GDB
 
-static int kernel_thread_get_number_of_threads(pok_partition_t* part)
+static int32_t kernel_thread_get_number_of_threads(pok_partition_t* part)
 {
    (void)part;
    return 1;
 }
 
-static int kernel_thread_get_current_thread_index(pok_partition_t* part)
+static int32_t kernel_thread_get_current_thread_index(pok_partition_t* part)
 {
    (void)part;
    return 0;
 }
 
-static int kernel_thread_get_thread_at_index(pok_partition_t* part,
-     int index, void** private)
+static int32_t kernel_thread_get_thread_at_index(pok_partition_t* part,
+     int32_t index, void** private)
 {
    (void)part;
    (void)private;
@@ -163,7 +168,7 @@ static int kernel_thread_get_thread_at_index(pok_partition_t* part,
 }
 
 static void kernel_thread_get_thread_info(pok_partition_t* part,
-   int index, void* private,
+   int32_t index, void* private,
    print_cb_t print_cb, void* cb_data)
 {
    (void)part;

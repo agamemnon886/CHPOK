@@ -36,7 +36,7 @@ void ja_exception_sync_user(interrupt_frame* frame);
 void ja_exception_sync_kernel(interrupt_frame* frame);
 void ja_exception_irq_kernel(interrupt_frame* frame);
 void ja_exception_irq_user(interrupt_frame* frame);
-void ja_exception_unexpected(interrupt_frame* frame, int kind);
+void ja_exception_unexpected(interrupt_frame* frame, int32_t kind);
 
 /* Handle 'svc' from user space. */
 void process_syscall(interrupt_frame* frame);

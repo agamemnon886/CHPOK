@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: printf format fix for
  * 64-bit targets.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <net/byteorder.h>
@@ -27,9 +31,9 @@
 #define C_NAME "ROUTER: "
 
 /* Return index of (ip, port) pair in array in state. -1 if not found */
-static int get_ip_port_index(ROUTER_state *state, uint32_t ip, uint16_t port)
+static int32_t get_ip_port_index(ROUTER_state *state, uint32_t ip, uint16_t port)
 {
-    for (int i=0; i<state->map_ip_port_to_idx_len; i++) {
+    for (int32_t i=0; i<state->map_ip_port_to_idx_len; i++) {
         struct udp_ip_pair *cur_pair = &state->map_ip_port_to_idx[i];
         if (cur_pair->ip == ip && cur_pair->port == port)
             return i;
@@ -39,7 +43,7 @@ static int get_ip_port_index(ROUTER_state *state, uint32_t ip, uint16_t port)
 
 ret_t receive_packet(ROUTER *self, const char *payload, size_t payload_size, uint32_t ip, uint16_t port)
 {
-    int idx = get_ip_port_index(&self->state, ip, port);
+    int32_t idx = get_ip_port_index(&self->state, ip, port);
 
     if (idx < 0) {
         printf(C_NAME"packet not for us (from %u.%u.%u.%u:%d)\n", IP_PRINT(ip), port);

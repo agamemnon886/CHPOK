@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,9 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: added
+ * pok_error_report_application_message().
  */
 
 #ifndef __POK_CORE_ERROR_ARINC_H__
@@ -63,6 +67,16 @@ pok_ret_t   pok_error_thread_create (uint32_t stack_size, void* __user entry);
  * and passes them to pok_thread_error almost verbatim.
  */
 pok_ret_t   pok_error_raise_application_error (const char* __user msg, size_t msg_size);
+
+/*
+ * Pass an application message to the health monitor.
+ *
+ * Used for ARINC REPORT_APPLICATION_MESSAGE. The message (msg_size bytes,
+ * not necessarily NUL-terminated, possibly empty) is written to the
+ * kernel console together with the name of the reporting partition.
+ * No error is raised and the calling process continues.
+ */
+pok_ret_t   pok_error_report_application_message (const char* __user msg, size_t msg_size);
 
 /* 
  * Raise OS-error from user space.

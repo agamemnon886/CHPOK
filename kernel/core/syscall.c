@@ -18,6 +18,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: removed the
  * POK_SYSCALL_GET_BSP_INFO syscall (PowerPC only).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: dispatches the
+ * POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE syscall.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -125,6 +132,7 @@ static inline pok_ret_t pok_core_syscall_internal (const pok_syscall_id_t       
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_HANDLER_CREATE)
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR)
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_GET)
+   SYSCALL_ENTRY(POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE)
 #endif
 
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_RAISE_OS_ERROR)
@@ -158,7 +166,7 @@ static inline pok_ret_t pok_core_syscall_internal (const pok_syscall_id_t       
          }
          else
          {
-            return inb((unsigned short) args->arg1);
+            return inb((uint16_t) args->arg1);
          }
          break;
 
@@ -170,7 +178,7 @@ static inline pok_ret_t pok_core_syscall_internal (const pok_syscall_id_t       
          }
          else
          {
-            outb((unsigned short) args->arg1, (unsigned char) args->arg2);
+            outb((uint16_t) args->arg1, (uint8_t) args->arg2);
             return POK_ERRNO_OK;
          }
        break;

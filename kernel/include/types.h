@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 
@@ -36,7 +41,7 @@ static inline pok_bool_t pok_time_is_infinity(pok_time_t t)
  * bytes.
  */
 int   strncasecmp(const char *s1, const char *s2, size_t size);
-static inline int pok_compare_names(const char* name1, const char* name2)
+static inline int32_t pok_compare_names(const char* name1, const char* name2)
 {
     return strncasecmp(name1, name2, MAX_NAME_LENGTH);
 }

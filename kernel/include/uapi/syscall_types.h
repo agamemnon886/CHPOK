@@ -18,6 +18,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: removed
  * POK_SYSCALL_GET_BSP_INFO (PowerPC only).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: added
+ * POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE.
  */
 
 #ifndef __LIBJET_SYSCALL_TYPES_H__
@@ -82,6 +85,7 @@ typedef enum
      POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR       = 303,
      POK_SYSCALL_ERROR_GET                           = 304,
      POK_SYSCALL_ERROR_IS_HANDLER                    = 305,
+     POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE    = 306,
 #endif
 
      POK_SYSCALL_ERROR_RAISE_OS_ERROR       = 310,

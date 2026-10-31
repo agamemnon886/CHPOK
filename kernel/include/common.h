@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,10 +15,15 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #ifndef __POK_COMMON_H__
 #define __POK_COMMON_H__
+#include <stdint.h>
 
 #include <compiler.h>
 
@@ -62,7 +68,7 @@
  * 
  * @align should be constant and be power of 2.
  */
-static inline unsigned long ALIGN_VAL(unsigned long val, unsigned long align)
+static inline uintptr_t ALIGN_VAL(uintptr_t val, uintptr_t align)
 {
     return (val + align - 1) & (~(align - 1));
 }

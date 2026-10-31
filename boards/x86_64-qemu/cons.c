@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * boards/x86-qemu/cons.c to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -43,18 +46,18 @@ struct s_cons
   char cur_attr;
 };
 
-static const int     screen_w = 80;
-static const int     screen_h = 25;
-static const int     tab_size = 8;
+static const int32_t screen_w = 80;
+static const int32_t screen_h = 25;
+static const int32_t tab_size = 8;
 static char *const   vga_base = (char *)0xb8000;
 struct s_cons        g_cons;
 
 
-int is_transmit_empty(int port) {
+int32_t is_transmit_empty(int32_t port) {
    return inb(port + 5) & 0x20;
 }
 
-void write_serial(int port, char a) {
+void write_serial(int32_t port, char a) {
    while (is_transmit_empty(port) == 0);
 
    outb(port, a);
@@ -65,32 +68,32 @@ void write_serial(int port, char a) {
 #define   COM_LSR_DATA	0x01	//   Data available
 #define   COM_LSR_RFE	0x80	//   Error in Received FIFO
 
-static int data_to_read(int port) //return 0 if no data to read
+static int32_t data_to_read(int32_t port) //return 0 if no data to read
 {
-    int flags = inb(port + COM_LSR);
+    int32_t flags = inb(port + COM_LSR);
 	if (!(flags & COM_LSR_DATA) || (flags & COM_LSR_RFE))
 		return 0;
 	return 1;
 }
 
-static int read_serial(int port)
+static int32_t read_serial(int32_t port)
 {
 	if(!data_to_read(port)) return -1;
 
-   int data;
+   int32_t data;
 	data=inb(port+COM_RX);
 	if ( !(inb(port+COM_LSR) & COM_LSR_RFE) )
 		return data;
 	return -1;
 }
 
-static size_t iostream_read_common(int port, char* s, size_t length)
+static size_t iostream_read_common(int32_t port, char* s, size_t length)
 {
    size_t i;
 
    for(i = 0; i != length; i++)
    {
-      int data = read_serial(port);
+      int32_t data = read_serial(port);
       if(data == -1) break;
 
       s[i] = (char)data;
@@ -101,8 +104,8 @@ static size_t iostream_read_common(int port, char* s, size_t length)
 
 void pok_cons_clear (void)
 {
-   int   i;
-   int   j;
+   int32_t i;
+   int32_t j;
    char  *ptr;
    static struct s_cons		local_curs; /* local copy of the current cursor position */
 
@@ -130,7 +133,7 @@ static void pok_write_vga (const char c)
 {
    char*                ptr;
    static struct s_cons local_curs; /* Local copy of the curent cursor position */
-   int                  i;
+   int32_t              i;
 
    local_curs = g_cons;
 
@@ -180,7 +183,7 @@ static void pok_write_vga (const char c)
 
 }
 
-static size_t iostream_write_common (int port, const char *s, size_t length)
+static size_t iostream_write_common (int32_t port, const char *s, size_t length)
 {
     char c;
     size_t rest = length;
@@ -201,7 +204,7 @@ static size_t iostream_write_common (int port, const char *s, size_t length)
    return length;
 }
 
-static void iostream_init_common (int port)
+static void iostream_init_common (int32_t port)
 {
    /* Init VGA screen */
    pok_cons_clear ();

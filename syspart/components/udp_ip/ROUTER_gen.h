@@ -6,6 +6,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,6 +17,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
+ * the generated code are replaced with the fixed-width types from
+ * <stdint.h>.
  */
 
 #ifndef __ROUTER_GEN_H__
@@ -29,8 +34,8 @@
     #include <interfaces/message_handler_gen.h>
 
 typedef struct ROUTER_state {
-    size_t map_ip_port_to_idx_len;
     struct udp_ip_pair map_ip_port_to_idx[10];
+    size_t map_ip_port_to_idx_len;
 }ROUTER_state;
 
 typedef struct {
@@ -52,7 +57,7 @@ typedef struct {
 
       ret_t receive_packet(ROUTER *, const char *, size_t, uint32_t, uint16_t);
 
-      ret_t ROUTER_call_portArray_handle_by_index(int, ROUTER *, const char *, size_t);
+      ret_t ROUTER_call_portArray_handle_by_index(int32_t, ROUTER *, const char *, size_t);
 
 
 

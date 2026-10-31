@@ -18,6 +18,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/arch.c to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <errno.h>
@@ -48,9 +52,9 @@ void ja_preempt_enable(void)
   asm volatile ("sti" ::: "memory");
 }
 
-static unsigned long get_flags(void)
+static uintptr_t get_flags(void)
 {
-  unsigned long ret;
+  uintptr_t ret;
 
   asm volatile(
     "pushfq\n"
@@ -65,7 +69,7 @@ static unsigned long get_flags(void)
 
 pok_bool_t ja_preempt_enabled(void)
 {
-  unsigned long flags = get_flags();
+  uintptr_t flags = get_flags();
   return !!(flags & (1<<9));
 }
 

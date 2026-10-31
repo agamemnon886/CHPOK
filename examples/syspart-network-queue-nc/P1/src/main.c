@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 #include <stdio.h>
 #include <string.h>
@@ -32,7 +37,7 @@ static void first_process(void)
     /* Wait a little until second partition is initialized */
     TIMED_WAIT(SECOND/5, &ret);
 
-    for (int i = 0; i < 30; i++) {
+    for (int32_t i = 0; i < 30; i++) {
         printf("P1: sending %d msg\n", i);
         snprintf(msg, 64, "Hello %d\n", i);
         SEND_QUEUING_MESSAGE(QP1, (MESSAGE_ADDR_TYPE) &msg, sizeof(msg), INFINITE_TIME_VALUE, &ret);
@@ -56,7 +61,7 @@ static void first_process(void)
 }
 
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;

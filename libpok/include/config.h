@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #define POK_NEEDS_TIMER 1
 #define POK_NEEDS_THREADS 1
 
@@ -59,11 +63,12 @@
 
 #define POK_CONFIG_NB_THREADS pok_config_nb_threads
 
-extern unsigned pok_config_nb_buffers;
-extern unsigned pok_config_buffer_data_size;
-extern unsigned pok_config_nb_blackboards;
-extern unsigned pok_config_blackboard_data_size;
-extern unsigned pok_config_arinc653_nb_semaphores;
-extern unsigned pok_config_arinc653_nb_events;
-extern unsigned pok_config_nb_events;
-extern unsigned pok_config_nb_threads;
+#include <stdint.h>
+extern uint32_t pok_config_nb_buffers;
+extern uint32_t pok_config_buffer_data_size;
+extern uint32_t pok_config_nb_blackboards;
+extern uint32_t pok_config_blackboard_data_size;
+extern uint32_t pok_config_arinc653_nb_semaphores;
+extern uint32_t pok_config_arinc653_nb_events;
+extern uint32_t pok_config_nb_events;
+extern uint32_t pok_config_nb_threads;

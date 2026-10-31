@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/include/arch/spinlock.h to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -23,8 +26,9 @@
 
 #ifndef __POK_SPINLOCK_H__
 #define __POK_SPINLOCK_H__
+#include <stdint.h>
 
-typedef unsigned char pok_spinlock_t;
+typedef uint8_t pok_spinlock_t;
 
 #define SPIN_UNLOCK(_spin_)                                     \
 {                                                               \

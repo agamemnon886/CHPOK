@@ -43,7 +43,7 @@
 static void uart_putc(char c)
 {
     while (ja_mmio_read32(BOARD_UART_BASE + UART_FR) & UART_FR_TXFF);
-    ja_mmio_write32(BOARD_UART_BASE + UART_DR, (unsigned char)c);
+    ja_mmio_write32(BOARD_UART_BASE + UART_DR, (uint8_t)c);
 }
 
 static size_t iostream_write(const char* s, size_t length)

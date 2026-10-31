@@ -16,6 +16,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: FP context restore is moved
  * into pok_partition_return_user_fp(), which is also called on return
  * from interrupts.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -277,9 +281,9 @@ void pok_sched_start (void)
 #define QEMU_TRACING 0
 
 #if QEMU_TRACING
-static int started = 0;
-static int ended = 0;
-static int nb_major_time_frame = 0;
+static int32_t started = 0;
+static int32_t ended = 0;
+static int32_t nb_major_time_frame = 0;
 #endif /* QEMU_TRACE */
 /********************************************/
 
@@ -399,7 +403,7 @@ void __pok_preemption_enable(void)
  */
 pok_time_t get_next_periodic_processing_start(void)
 {
-    int i;
+    int32_t i;
 
     pok_time_t offset = pok_sched_next_deadline;
 
@@ -408,7 +412,7 @@ pok_time_t get_next_periodic_processing_start(void)
     // e.g. if we're currently in periodic processing window,
     // and it's the only one in schedule, we say that next one
     // will be major frame time units later
-    int time_slot_index = pok_sched_current_slot;
+    int32_t time_slot_index = pok_sched_current_slot;
 
     for (i = 0; i < pok_module_sched_n; i++) {
 
@@ -548,7 +552,7 @@ void pok_partition_jump_user(void (* __user entry)(void),
         stack_kernel,
         part->space_id,
         entry,
-        (unsigned long)stack_user);
+        (uintptr_t)stack_user);
 }
 
 void pok_partition_restart(void)

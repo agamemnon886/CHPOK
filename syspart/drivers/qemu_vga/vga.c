@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <pci.h>
@@ -83,10 +88,10 @@ uint32_t rgba_to_argb(uint32_t rgba_color)
 
 #define DEFAULT_FB_DESCRIPTOR 1
 
-int first = 1;
-int fb_initialized = 0;
+int32_t first = 1;
+int32_t fb_initialized = 0;
 
-int uwrm_scm_get_direct_fb(struct uwrm_scm_direct_fb * fb)
+int32_t uwrm_scm_get_direct_fb(struct uwrm_scm_direct_fb * fb)
 {
     if (fb_initialized)
         return UWRM_ERROR;
@@ -101,7 +106,7 @@ int uwrm_scm_get_direct_fb(struct uwrm_scm_direct_fb * fb)
     return UWRM_OK;
 }
 
-int uwrm_scm_fb_swap(struct uwrm_scm_direct_fb *fb)
+int32_t uwrm_scm_fb_swap(struct uwrm_scm_direct_fb *fb)
 {
     if (fb->hfb != DEFAULT_FB_DESCRIPTOR)
         return UWRM_ERROR;

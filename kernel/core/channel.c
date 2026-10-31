@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <core/channel.h>
@@ -30,7 +35,7 @@ void pok_channel_queuing_init(pok_channel_queuing_t* channel)
 
     channel->border = channel->recv.next_message = channel->send.next_message = 0;
 
-    const unsigned int message_alignment = __alignof__(int);
+    const uint32_t message_alignment = __alignof__(int32_t);
 
     channel->message_stride = ALIGN_VAL(channel->max_message_size,
         message_alignment);
@@ -275,7 +280,7 @@ pok_message_range_t pok_channel_queuing_s_n_messages(pok_channel_queuing_t* chan
 
 void pok_channel_sampling_init(pok_channel_sampling_t* channel)
 {
-    const unsigned int message_alignment = __alignof__(int);
+    const uint32_t message_alignment = __alignof__(int32_t);
 
     channel->message_stride = ALIGN_VAL(channel->max_message_size,
         message_alignment);
@@ -292,7 +297,7 @@ void pok_channel_sampling_init(pok_channel_sampling_t* channel)
 }
 
 char* channel_sampling_message_at(
-    pok_channel_sampling_t* channel, int pos)
+    pok_channel_sampling_t* channel, int32_t pos)
 {
     assert(pos <= 2);
 
@@ -392,7 +397,7 @@ void pok_channel_sampling_s_clear_message(pok_channel_sampling_t* channel)
 /**********************************************************************/
 void pok_channels_init_all(void)
 {
-    int i;
+    int32_t i;
 
     for(i = 0; i < pok_channels_queuing_n; i++)
     {

@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -14,6 +15,10 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 # See the GNU General Public License version 3 for more details.
+#
+# Modified by Kirill Brazhnikov, 2026-10-31: partition, port and memory
+# block names are matched case-insensitively, as ARINC 653 NAME_TYPE
+# requires, so names differing only in case are reported as duplicates.
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -33,6 +38,16 @@ import functools
 import collections
 import ipaddr
 import math
+import string
+
+# ARINC 653 names (NAME_TYPE) are case insensitive. The kernel and libpok
+# compare them with strncasecmp(), which folds ASCII letters only, so do
+# the same here (str.lower() would also fold non-ASCII characters).
+_ascii_lower = str.maketrans(string.ascii_uppercase, string.ascii_lowercase)
+
+def name_key(name):
+    """Key under which an ARINC name is looked up (case insensitive)."""
+    return name.translate(_ascii_lower)
 
 
 class PartitionLayout():
@@ -332,10 +347,10 @@ class Partition:
         self.part_index = part_index
 
     def add_port_queueing(self, port):
-        if port.name in self.port_names_map:
-            raise RuntimeError("Port with name %s already exists in partition %s" % (port.name, self.name))
+        if name_key(port.name) in self.port_names_map:
+            raise RuntimeError("Port with name %s already exists in partition %s (names are case insensitive)" % (port.name, self.name))
         self.ports_queueing.append(port)
-        self.port_names_map[port.name] = port
+        self.port_names_map[name_key(port.name)] = port
 
         port.partition = self
 
@@ -343,10 +358,10 @@ class Partition:
             self.ports_queueing_system.append(port)
 
     def add_port_sampling(self, port):
-        if port.name in self.port_names_map:
-            raise RuntimeError("Port with name %s already exists in partition %s" % (port.name, self.name))
+        if name_key(port.name) in self.port_names_map:
+            raise RuntimeError("Port with name %s already exists in partition %s (names are case insensitive)" % (port.name, self.name))
         self.ports_sampling.append(port)
-        self.port_names_map[port.name] = port
+        self.port_names_map[name_key(port.name)] = port
 
         port.partition = self
 
@@ -356,7 +371,7 @@ class Partition:
     def add_mem_block(self, name, user_access):
         if user_access is None:
             user_access = "READ_ONLY"
-        self.memory_blocks_map[name] = user_access
+        self.memory_blocks_map[name_key(name)] = user_access
 
     def get_all_sampling_ports(self):
         return ports_sampling
@@ -390,7 +405,7 @@ class Partition:
         )
 
     def get_port_by_name(self, port_name):
-        return self.port_names_map[port_name]
+        return self.port_names_map[name_key(port_name)]
 
     # Return size of memory, needed by single buffer structure.
     # TODO: This should be arch-specific somehow.
@@ -686,8 +701,8 @@ class Memory_block:
         self.cache_policy = "DEFAULT"
         self.access = dict()
         for part in conf.partitions:
-            if name in part.memory_blocks_map:
-                self.access[part.part_index + 1] = part.memory_blocks_map[name]
+            if name_key(name) in part.memory_blocks_map:
+                self.access[part.part_index + 1] = part.memory_blocks_map[name_key(name)]
         self.tlb_entries_count = len(self.access)
 
     def __repr__(self):
@@ -766,8 +781,8 @@ class Configuration:
         self.next_channel_id_queueing = 0
 
     def add_partition(self, part_name, part_size, part_id = None):
-        if part_name in self.partition_names_map:
-            raise RuntimeError("Adding already existed partition '%s'" % part_name)
+        if name_key(part_name) in self.partition_names_map:
+            raise RuntimeError("Adding already existed partition '%s' (names are case insensitive)" % part_name)
 
         part_id_real = None
 
@@ -783,7 +798,7 @@ class Configuration:
         part.set_index(len(self.partitions))
 
         self.partitions.append(part)
-        self.partition_names_map[part_name] = part
+        self.partition_names_map[name_key(part_name)] = part
 
         if part_id is not None:
             self.partition_ids_map[part_id] = part
@@ -858,13 +873,13 @@ class Configuration:
         self.major_frame += slot.duration
 
     def add_memory_block(self, name, size):
-        if name in self.memory_blocks_names:
-            raise RuntimeError("Adding already existed memory block '%s'" % name)
+        if name_key(name) in self.memory_blocks_names:
+            raise RuntimeError("Adding already existed memory block '%s' (names are case insensitive)" % name)
 
         mblock = Memory_block(name, size, self)
 
         self.memory_blocks.append(mblock)
-        self.memory_blocks_names.add(name)
+        self.memory_blocks_names.add(name_key(name))
         self.memory_blocks_tlb_entries_count += mblock.tlb_entries_count
 
         return mblock
@@ -879,7 +894,7 @@ class Configuration:
         return sum((part.get_all_queueing_ports() for part in self.partitions), [])
 
     def get_partition_by_name(self, name):
-        return self.partition_names_map[name]
+        return self.partition_names_map[name_key(name)]
 
     def get_partition_by_id(self, part_id):
         return self.partition_ids_map[part_id]

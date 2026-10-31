@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: pok_thread_create() rejects
+ * a period that is not positive or not a multiple of the partition
+ * period (INVALID_CONFIG for ARINC CREATE_PROCESS), a negative time
+ * capacity, and reports an out-of-range priority as a parameter error
+ * (INVALID_PARAM).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -120,13 +131,23 @@ pok_ret_t pok_thread_create (const char* __user name,
     t->time_capacity = k_attr->time_capacity;
     t->deadline = k_attr->deadline;
 
+    /*
+     * Error codes follow ARINC CREATE_PROCESS: POK_ERRNO_PARAM becomes
+     * INVALID_PARAM (priority, time capacity) and POK_ERRNO_EINVAL becomes
+     * INVALID_CONFIG (period inconsistent with the configuration).
+     */
     if (t->base_priority > MAX_PRIORITY_VALUE ||
-        t->base_priority < MIN_PRIORITY_VALUE) return POK_ERRNO_EINVAL;
+        t->base_priority < MIN_PRIORITY_VALUE) return POK_ERRNO_PARAM;
 
-    if (t->period == 0) {
-        return POK_ERRNO_PARAM;
+    /*
+     * INFINITE_TIME_VALUE (-1) is the only valid non-positive period or
+     * time capacity. pok_time_is_infinity() treats every negative value as
+     * infinite, so compare with POK_TIME_INFINITY explicitly.
+     */
+    if (t->period != POK_TIME_INFINITY && t->period <= 0) {
+        return POK_ERRNO_EINVAL;
     }
-    if (t->time_capacity == 0) {
+    if (t->time_capacity != POK_TIME_INFINITY && t->time_capacity <= 0) {
         return POK_ERRNO_PARAM;
     }
 
@@ -142,7 +163,11 @@ pok_ret_t pok_thread_create (const char* __user name,
             return POK_ERRNO_PARAM;
         }
 
-        // TODO: Check period for being multiple to partition's period.
+        // A periodic process must be released at partition period points.
+        if(part->base_part.period != 0 &&
+            (uint64_t)t->period % part->base_part.period != 0) {
+            return POK_ERRNO_EINVAL;
+        }
    }
 
     // do at least basic check of entry point
@@ -1091,9 +1116,9 @@ pok_thread_t* pok_thread_wq_wake_up(pok_thread_wq_t* wq)
 }
 
 
-int pok_thread_wq_get_nwaits(pok_thread_wq_t* wq)
+int32_t pok_thread_wq_get_nwaits(pok_thread_wq_t* wq)
 {
-    int count = 0;
+    int32_t count = 0;
     struct list_head* elem;
     list_for_each(elem, &wq->waits)
     {

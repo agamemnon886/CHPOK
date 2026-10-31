@@ -1,3 +1,10 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the result of
+ * CREATE_SAMPLING_PORT is checked.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <arinc653/buffer.h>
@@ -14,9 +21,9 @@ static void first_process(void)
     RETURN_CODE_TYPE ret;
 
     struct {
-        unsigned x;
+        uint32_t x;
         char message[32];
-        unsigned y;
+        uint32_t y;
     } __attribute__((packed)) msg;
 
     msg.x = 0;
@@ -38,7 +45,7 @@ static void first_process(void)
     }
 }
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;
@@ -73,7 +80,12 @@ static int real_main(void)
 
     // create ports
     //CREATE_QUEUING_PORT("QP1", 64, 10, DESTINATION, FIFO, &QP1, &ret);
+    // Name, size and direction must match P1/config.xml.
     CREATE_SAMPLING_PORT("SP1", 64, SOURCE, 5*SECOND, &SP1, &ret);
+    if (ret != NO_ERROR) {
+        printf("couldn't create sampling port SP1: %d\n", (int) ret);
+        return 1;
+    }
 
 
     // transition to NORMAL operating mode

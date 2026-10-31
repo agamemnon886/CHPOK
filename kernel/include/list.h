@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #ifndef __POK_LIST_H__
 #define __POK_LIST_H__
 
@@ -121,7 +125,7 @@ static inline void list_del_init(struct list_head *entry)
  * list_empty - tests whether a list is empty
  * @head: the list to test.
  */
-static inline int list_empty(const struct list_head *head)
+static inline int32_t list_empty(const struct list_head *head)
 {
     return head->next == head;
 }

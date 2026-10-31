@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 #include <arinc653/queueing.h>
 #include <arinc653/sampling.h>
@@ -23,7 +28,7 @@
 #include "ARINC_SENDER_gen.h"
 #define C_NAME "ARINC_SENDER: "
 
-static int receive_msg_queuing(ARINC_SENDER *self)
+static int32_t receive_msg_queuing(ARINC_SENDER *self)
 {
     sys_port_data_t *dst_place = self->state.port_buffer;
 
@@ -44,7 +49,7 @@ static int receive_msg_queuing(ARINC_SENDER *self)
     return 0;
 }
 
-static int receive_msg_samping(ARINC_SENDER *self)
+static int32_t receive_msg_samping(ARINC_SENDER *self)
 {
     RETURN_CODE_TYPE ret;
     sys_port_data_t *dst_place = self->state.port_buffer;
@@ -71,7 +76,7 @@ static int receive_msg_samping(ARINC_SENDER *self)
 
 void arinc_sender_activity(ARINC_SENDER *self)
 {
-    int receive_error;
+    int32_t receive_error;
     if (self->state.is_queuing_port)
         receive_error = receive_msg_queuing(self);
     else

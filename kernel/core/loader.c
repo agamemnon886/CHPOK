@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: loads 64-bit ELF images;
  * skips segments which are not PT_LOAD.
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -102,7 +105,7 @@ void jet_loader_elf_load   (uint8_t elf_id,
     // First cycle: determine the last virtual address in the elf
     char* elf_end_user = space_layout.user_addr;
 
-    for (int i = 0; i < elf_header->e_phnum; ++i)
+    for (int32_t i = 0; i < elf_header->e_phnum; ++i)
     {
         // Only PT_LOAD segments occupy memory (e.g. PT_GNU_STACK has p_vaddr 0).
         if (elf_phdr[i].p_type != PT_LOAD) continue;
@@ -142,7 +145,7 @@ void jet_loader_elf_load   (uint8_t elf_id,
        pok_raise_error(POK_ERROR_ID_PARTLOAD_ERROR, FALSE, NULL);
     }
 
-    for (int i = 0; i < elf_header->e_phnum; ++i)
+    for (int32_t i = 0; i < elf_header->e_phnum; ++i)
     {
         // Only PT_LOAD segments occupy memory (e.g. PT_GNU_STACK has p_vaddr 0).
         if (elf_phdr[i].p_type != PT_LOAD) continue;

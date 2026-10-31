@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <config.h>
 
 #ifdef POK_NEEDS_GDB
@@ -134,8 +138,8 @@
  */
 struct gdb_thread
 {
-    int inferior_id; // count from 1
-    int thread_id; // count from 1
+    int32_t inferior_id; // count from 1
+    int32_t thread_id; // count from 1
     // model-specific data
     pok_partition_t* part;
     void* part_private;
@@ -164,11 +168,11 @@ static inline void gdb_thread_copy(struct gdb_thread* dest,
 /* Variables used in callbacks for 'for_each_partition'.*/
 
 /* Index of the partition. */
-int _partition_index;
+int32_t _partition_index;
 /* Partition at given index. */
 pok_partition_t* _partition_at_index;
 /* Index of currently iterated partition. */
-int _partition_index_current;
+int32_t _partition_index_current;
 /* Whether we enumerate kernel-only partitions or user-space ones. */
 pok_bool_t _partition_is_kernel;
 
@@ -225,7 +229,7 @@ static pok_partition_t* get_partition_at_index(uint8_t index,
  * except the last listed one, so it cannot find address space for
  * current (GDB, kernel) thread.
  */
-int gdb_thread_get_next(struct gdb_thread* t)
+int32_t gdb_thread_get_next(struct gdb_thread* t)
 {
     t->thread_id++;
 
@@ -278,7 +282,7 @@ next_inferior:
  * 
  * Return 0 on success, negative value on fail.
  */
-int gdb_thread_find(struct gdb_thread* t)
+int32_t gdb_thread_find(struct gdb_thread* t)
 {
     if(t->inferior_id == 1)
     {
@@ -316,7 +320,7 @@ void _get_partition_index_cb(pok_partition_t* part)
     _partition_index_current++;
 }
 
-int get_partition_index(pok_partition_t* part)
+int32_t get_partition_index(pok_partition_t* part)
 {
     assert(part);
 
@@ -409,7 +413,7 @@ static struct jet_interrupt_context* gdb_thread_get_regs(const struct gdb_thread
         return t->part->entry_sp;
     }
 
-    int current_thread_id = t->part->part_sched_ops->get_current_thread_index(t->part) + 1;
+    int32_t current_thread_id = t->part->part_sched_ops->get_current_thread_index(t->part) + 1;
 
     if(current_thread_id == t->thread_id)
     {
@@ -447,7 +451,7 @@ void gdb_thread_set_fp_regs(struct gdb_thread* t, const uint32_t* registers)
 
 char        *strcpy(char *dest, const char *str)
 {
-    unsigned int i;
+    uint32_t i;
     for (i = 0; str[i];i++)
         dest[i] = str[i];
     dest[i] = '\0';
@@ -455,10 +459,10 @@ char        *strcpy(char *dest, const char *str)
 }
 
 char string[1000];
-int st_idx = 0;
+int32_t st_idx = 0;
 
 extern void putDebugChar( char );   /* write a single character      */
-extern int getDebugChar();  /* read and return a single char */
+extern int32_t getDebugChar();  /* read and return a single char */
 extern void exceptionHandler(); /* assign an exception handler   */
 
 void putDebugChar(char c){
@@ -469,9 +473,9 @@ void putDebugChar(char c){
 #endif
 }
 
-int getDebugChar(){
+int32_t getDebugChar(){
     data_to_read_1();
-    int inf = getchar2();
+    int32_t inf = getchar2();
 #ifdef DEBUG_GDB
     string[st_idx++] = inf;
     //~ printf("%c",inf);
@@ -495,7 +499,7 @@ static uint32_t registers[NUMREGS];
 static uint32_t fp_registers[NUMREGS_FP];
 #endif
 
-int
+int32_t
 hex (ch)
      char ch;
 {
@@ -519,11 +523,11 @@ getpacket(char *buffer)
 #ifdef DEBUG_GDB
     printf("Lets getpacket <---\n");
 #endif
-    unsigned char checksum;
-    unsigned char xmitcsum;
-    int i;
-    int count;
-    unsigned char ch;
+    uint8_t checksum;
+    uint8_t xmitcsum;
+    int32_t i;
+    int32_t count;
+    uint8_t ch;
 
     do {
         /* wait around for the start character, ignore all other
@@ -579,11 +583,11 @@ getpacket(char *buffer)
 /* send the packet in buffer.  */
 
 void
-putpacket (unsigned char *buffer)
+putpacket (uint8_t *buffer)
 {
     data_to_read_1();
-    unsigned char checksum;
-    int count;
+    uint8_t checksum;
+    int32_t count;
     char ch;
 #ifdef DEBUG_GDB
     string[st_idx] = '\0';
@@ -625,7 +629,7 @@ static void (*volatile mem_fault_routine) () = NULL;
  *  Indicate to caller of mem2hex or hex2mem
  *  that there has been an error.  
  */
-static volatile int mem_err = 0;
+static volatile int32_t mem_err = 0;
 
 void
 set_mem_err (void)
@@ -639,14 +643,14 @@ set_mem_err (void)
  * to mem_fault, they won't get restored, so there better not be any
  * saved).  
  */
-int
+int32_t
 get_char (const char *addr)
 {
     return *addr;
 }
 
 void
-set_char (char *addr, int val)
+set_char (char *addr, int32_t val)
 {
     *addr = val;
 /*
@@ -670,11 +674,11 @@ char *
 mem2hex (mem, buf, count, may_fault)
      const char *mem;
      char *buf;
-     int count;
-     int may_fault;
+     int32_t count;
+     int32_t may_fault;
 {
-    int i;
-    unsigned char ch;
+    int32_t i;
+    uint8_t ch;
 
     if (may_fault)
         mem_fault_routine = set_mem_err;
@@ -700,11 +704,11 @@ char *
 hex2mem (buf, mem, count, may_fault)
      char *buf;
      char *mem;
-     int count;
-     int may_fault;
+     int32_t count;
+     int32_t may_fault;
 {
-    int i;
-    unsigned char ch;
+    int32_t i;
+    uint8_t ch;
 
     if (may_fault)
         mem_fault_routine = set_mem_err;
@@ -725,10 +729,10 @@ hex2mem (buf, mem, count, may_fault)
  * This function takes the 386 exception vector and attempts to
  * translate this number into a unix compatible signal value 
  */
-int
-computeSignal (int exceptionVector)
+int32_t
+computeSignal (int32_t exceptionVector)
 {
-    int sigval;
+    int32_t sigval;
     switch (exceptionVector)
     {
         case 0:
@@ -789,11 +793,11 @@ computeSignal (int exceptionVector)
 /* WHILE WE FIND NICE HEX CHARS, BUILD AN INT */
 /* RETURN NUMBER OF CHARS PROCESSED           */
 /**********************************************/
-int
+int32_t
 hexToInt (char **ptr, uintptr_t *intValue)
 {
-    int numChars = 0;
-    int hexValue;
+    int32_t numChars = 0;
+    int32_t hexValue;
 
     *intValue = 0;
 
@@ -819,9 +823,9 @@ hexToInt (char **ptr, uintptr_t *intValue)
  */
 #ifdef __PPC__
 char instr[8] = "00000000";
-int addr_instr = 0;
+int32_t addr_instr = 0;
 char instr2[8] = "00000000";
-int addr_instr2 = 0;
+int32_t addr_instr2 = 0;
 char trap[8] = "7fe00008";
 
 #define SPRN_PID        0x030   /* Process ID */
@@ -829,11 +833,11 @@ char trap[8] = "7fe00008";
 #define __stringify_1(x)        #x
 #define __stringify(x)          __stringify_1(x)
 
-#define mfspr(rn)       ({unsigned long rval; \
+#define mfspr(rn)       ({uintptr_t rval; \
                                 asm volatile("mfspr %0," __stringify(rn) \
                                                                     : "=r" (rval)); rval;})
 #define mtspr(rn, v)    asm volatile("mtspr " __stringify(rn) ",%0" : \
-                                             : "r" ((unsigned long)(v)) \
+                                             : "r" ((uintptr_t)(v)) \
                                              : "memory")
 #define MSR_EE      1<<(15)              /* External Interrupt Enable */
 
@@ -841,7 +845,7 @@ char trap[8] = "7fe00008";
 #endif
 #ifdef __i386__
 char instr[2] = "00";
-int addr_instr = 0;
+int32_t addr_instr = 0;
 char trap[2] = "CC";
 
 #endif
@@ -852,7 +856,7 @@ char trap[2] = "CC";
 #define __MASK(X)   (1<<(X))
 #define MSR_SE      __MASK(MSR_SE_LG)   /* Single Step */
 
-static inline void set_msr(int msr)
+static inline void set_msr(int32_t msr)
 {
     asm volatile("mtmsr %0" : : "r" (msr));
 }
@@ -860,14 +864,14 @@ static inline void set_msr(int msr)
 
 
 #define max_breakpoints  20
-int max_breakpoint = max_breakpoints;
-int b_need_to_delete = -1;
-int Connect_to_new_inferior = -1;
+int32_t max_breakpoint = max_breakpoints;
+int32_t b_need_to_delete = -1;
+int32_t Connect_to_new_inferior = -1;
 
 
 struct T_breakpoint breakpoints[max_breakpoints];
-int Head_of_breakpoints;
-int last_breakpoint;
+int32_t Head_of_breakpoints;
+int32_t last_breakpoint;
 
 
 pok_bool_t watchpoint_is_set = FALSE;
@@ -1031,16 +1035,16 @@ static void gdb_sate_set_thread(struct gdb_state* tc,
 
 
 
-int new_start;
+int32_t new_start;
 
 void clear_breakpoints(){
-    for (int i = 0; i < max_breakpoint; i++)
+    for (int32_t i = 0; i < max_breakpoint; i++)
         breakpoints[i].addr = 0;
 }
 
 //Work only on bared metal p3041
 
-void add_watchpoint(uintptr_t addr, int length, const struct gdb_thread* t, int type)
+void add_watchpoint(uintptr_t addr, int32_t length, const struct gdb_thread* t, int32_t type)
 {
 #ifdef QEMU
     /*do nothing*/
@@ -1060,8 +1064,8 @@ void add_watchpoint(uintptr_t addr, int length, const struct gdb_thread* t, int 
         goto out;
     }
 
-    int old_pid = pok_space_get_current();
-    int new_pid = gdb_thread_get_space(t);
+    int32_t old_pid = pok_space_get_current();
+    int32_t new_pid = gdb_thread_get_space(t);
     pok_space_switch(new_pid);
 
     mtspr(SPRN_DAC1, addr); // Use original address, as it is not accessed immediately.
@@ -1069,7 +1073,7 @@ void add_watchpoint(uintptr_t addr, int length, const struct gdb_thread* t, int 
     uint32_t DBCR2 = mfspr(SPRN_DBCR2);
     DBCR2 |= 0x800000UL;
     mtspr(SPRN_DBCR2, DBCR2);
-    int DAC;
+    int32_t DAC;
     if (type == 2) DAC = 0x40050000UL;
     if (type == 3) DAC = 0x400A0000UL;
     if (type == 4) DAC = 0x400F0000UL;
@@ -1093,7 +1097,7 @@ out:
 #endif
 }
 
-void remove_watchpoint(uintptr_t addr, int length, const struct gdb_thread* t, int type){
+void remove_watchpoint(uintptr_t addr, int32_t length, const struct gdb_thread* t, int32_t type){
 #ifdef QEMU
     /*do nothing*/
     strcpy (remcomOutBuffer, "E22");
@@ -1142,7 +1146,7 @@ void remove_watchpoint(uintptr_t addr, int length, const struct gdb_thread* t, i
 #endif    
 }
 
-void add_0_breakpoint(uintptr_t addr, int length, const struct gdb_thread* t){
+void add_0_breakpoint(uintptr_t addr, int32_t length, const struct gdb_thread* t){
     uint8_t old_space_id = pok_space_get_current();
 
     uintptr_t gdb_addr = gdb_thread_write_addr(t, addr, length);
@@ -1152,7 +1156,7 @@ void add_0_breakpoint(uintptr_t addr, int length, const struct gdb_thread* t){
     uint8_t space_id = gdb_thread_get_space(t);
     pok_space_switch(space_id);
 
-    int i;
+    int32_t i;
     for (i = 0; i < max_breakpoint; i++){
         if ((breakpoints[i].P_num == 0) && (breakpoints[i].B_num == 0) && (breakpoints[i].T_num == 0))
             break;
@@ -1181,13 +1185,13 @@ err:
     return;
 }
 
-void remove_0_breakpoint(uintptr_t addr, int length, const struct gdb_thread* t){
-    int old_pid = pok_space_get_current();
+void remove_0_breakpoint(uintptr_t addr, int32_t length, const struct gdb_thread* t){
+    int32_t old_pid = pok_space_get_current();
     uintptr_t gdb_addr = gdb_thread_write_addr(t, addr, length);
     if(!gdb_addr) goto err;
 
-    int i = 0;
-    int new_pid = gdb_thread_get_space(t);
+    int32_t i = 0;
+    int32_t new_pid = gdb_thread_get_space(t);
 #ifdef DEBUG_GDB
     printf("New_pid = %d\n",new_pid);
     printf("Old_pid = %d\n",old_pid);    
@@ -1224,7 +1228,7 @@ err:
  * This function does all command procesing for interfacing to gdb.
  */
 void
-handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
+handle_exception (int32_t exceptionVector, struct jet_interrupt_context* ea)
 {
     Connect_to_new_inferior = -1;
 
@@ -1237,12 +1241,12 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
 
     memset(remcomOutBuffer, 0, BUFMAX);
     memset(remcomInBuffer, 0, BUFMAX);
-    int sigval;
+    int32_t sigval;
 #ifdef __i386__
     pok_bool_t stepping = FALSE;
 #endif
     uintptr_t addr;
-    int length;
+    int32_t length;
     char *ptr;
 
 
@@ -1341,7 +1345,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
 #endif      
     data_to_read_1();
     //~ int flag = 0;
-    putpacket ( (unsigned char *) remcomOutBuffer);
+    putpacket ( (uint8_t *) remcomOutBuffer);
 
     
     while (1) {
@@ -1379,7 +1383,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
                     clear_breakpoints();
                 }
                 ptr = &remcomInBuffer[1];
-                int type = -1;
+                int32_t type = -1;
                 hexToInt(&ptr, (uintptr_t *)(&type));
                 if (type == -1) break;
                 if (*ptr != ',') break;
@@ -1387,7 +1391,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
                 hexToInt(&ptr, &addr);
                 if (*ptr != ',') break;
                 ptr++;
-                int kind = -1;
+                int32_t kind = -1;
                 hexToInt(&ptr, (uintptr_t *)(&kind));
                 if (kind == -1) break;
                 if (type == 0){
@@ -1436,7 +1440,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
 
                 if (Connect_to_new_inferior == 1){
                     Connect_to_new_inferior = -1;
-                    putpacket ( (unsigned char *) remcomOutBuffer);
+                    putpacket ( (uint8_t *) remcomOutBuffer);
                
                     ptr = &remcomInBuffer[1];
                     if (hexToInt(&ptr, &addr)) {
@@ -1461,7 +1465,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
             }
             if (strncmp(ptr, "Attached:", 9) == 0){
                 ptr += 9;
-                int part_id;
+                int32_t part_id;
                 hexToInt(&ptr, (uintptr_t *)(&part_id));
                 ptr = remcomOutBuffer;
                 *ptr++ = '1';
@@ -1488,7 +1492,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
                 if (strncmp(ptr, "multiprocess", 9) == 0){
                     char * answer = "multiprocess+";
                     ptr = remcomOutBuffer;
-                    for (int i = 0; i < 13; i++)
+                    for (int32_t i = 0; i < 13; i++)
                     *ptr++ = answer[i];
                 }
                 
@@ -1644,8 +1648,8 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
                 /* Try to read %x,%x.  */
             {
                 ptr = &remcomInBuffer[1];
-                int old_pid = pok_space_get_current();
-                int new_pid = gdb_thread_get_space(&tc.t);
+                int32_t old_pid = pok_space_get_current();
+                int32_t new_pid = gdb_thread_get_space(&tc.t);
 #ifdef DEBUG_GDB
                 printf("New_pid = %d\n",new_pid);
                 printf("Old_pid = %d\n",old_pid);
@@ -1676,8 +1680,8 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
             /* Try to read '%x,%x:'.  */
             {
                 ptr = &remcomInBuffer[1];
-                int old_pid = pok_space_get_current();
-                int new_pid = gdb_thread_get_space(&tc.t);
+                int32_t old_pid = pok_space_get_current();
+                int32_t new_pid = gdb_thread_get_space(&tc.t);
 
                 if (hexToInt(&ptr, &addr)
                     && *ptr++ == ','
@@ -1747,7 +1751,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
             printf("HERE\n");
 #endif
             ptr = &remcomInBuffer[2];
-            int part_id;
+            int32_t part_id;
             hexToInt(&ptr, (uintptr_t *)(&part_id));
             remcomOutBuffer[0] = 'O';
             remcomOutBuffer[1] = 'K';
@@ -1755,7 +1759,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
             
             /*If it is last detaching process - continue*/
             if (part_id != 1) break;
-            putpacket((unsigned char *)remcomOutBuffer);            
+            putpacket((uint8_t *)remcomOutBuffer);            
         }
 #endif
         case 's':
@@ -1893,7 +1897,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
  */
         case 'P':       /* set the value of a single CPU register - return OK */
         {
-            int regno_offset;
+            int32_t regno_offset;
             ptr = &remcomInBuffer[1];
             if (hexToInt (&ptr, (uintptr_t *)&regno_offset) && *ptr++ == '=')
                 if (regno_offset >= 0 && regno_offset < NUMREGS * 8) /* 8 - max length of each register*/
@@ -1913,7 +1917,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
         }
         case 'p':       /* Read the value of register; Register is in hex. */
         {
-            int regno_offset;
+            int32_t regno_offset;
             ptr = &remcomInBuffer[1];
             if (hexToInt (&ptr, (uintptr_t *)&regno_offset))
             {
@@ -1936,7 +1940,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
 
         }/* switch */
     /* reply to the request */
-    putpacket((unsigned char *)remcomOutBuffer);
+    putpacket((uint8_t *)remcomOutBuffer);
     } /* while(1) */
     ////printf("\n\n\n          End of handle_exeption\n\n");
 }
@@ -1944,7 +1948,7 @@ handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
 #else /* POK_NEEDS_GDB */
 #include <core/debug.h>
 void
-handle_exception (int exceptionVector, struct jet_interrupt_context* ea)
+handle_exception (int32_t exceptionVector, struct jet_interrupt_context* ea)
 {
     pok_fatal("Exception without GDB enabled");
 }

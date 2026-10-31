@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/include/arch/ioports.h to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -23,6 +26,7 @@
 
 #ifndef __POK_X86_64_IOPORTS_H__
 #define __POK_X86_64_IOPORTS_H__
+#include <stdint.h>
 
 #define JET_ARCH_DECLARE_IO_PORT 1
 
@@ -33,7 +37,7 @@
 
 #define ja_inb(port)                                               \
 ({                                                              \
-  unsigned char res;                                            \
+  uint8_t res;                                            \
   asm volatile ("inb %w1,%0"                                    \
                 :"=a" (res)                                     \
                 :"d" (port));                                   \
@@ -47,7 +51,7 @@
 
 #define ja_inw(port)                                               \
 ({                                                              \
-  unsigned short res;						\
+  uint16_t res;						\
   asm volatile ("inw %w1,%0"					\
                 :"=a" (res)                                     \
                 :"d" (port));					\
@@ -61,7 +65,7 @@
 
 #define ja_inl(port)                                               \
 ({                                                              \
-  unsigned int res;						\
+  uint32_t res;						\
   asm volatile ("inl %w1,%0"					\
                 :"=a" (res)                                     \
                 :"d" (port));					\

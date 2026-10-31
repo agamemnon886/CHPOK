@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: x86_64 support; removed
  * PowerPC, x86 (32-bit) and SPARC support.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #ifndef __JET__IOPORTS_H__
@@ -66,7 +70,7 @@ static inline void iowrite32(uint32_t value, uint32_t *addr)
     (void) addr;
 }
 
-static inline void memset_io(volatile void *addr, unsigned char val, size_t count)
+static inline void memset_io(volatile void *addr, uint8_t val, size_t count)
 {
     memset((void *)addr, val, count);
 }

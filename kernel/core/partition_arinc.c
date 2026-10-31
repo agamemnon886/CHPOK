@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -108,12 +113,12 @@ static void partition_arinc_start(void)
        part->kshd->heap_end = NULL;
     }
 
-	for(int i = 0; i < part->nports_queuing; i++)
+	for(int32_t i = 0; i < part->nports_queuing; i++)
 	{
 		pok_port_queuing_init(&part->ports_queuing[i]);
 	}
 
-	for(int i = 0; i < part->nports_sampling; i++)
+	for(int32_t i = 0; i < part->nports_sampling; i++)
 	{
 		pok_port_sampling_init(&part->ports_sampling[i]);
 	}
@@ -123,7 +128,7 @@ static void partition_arinc_start(void)
 	INIT_LIST_HEAD(&part->eligible_threads);
 	delayed_event_queue_init(&part->partition_delayed_events);
 
-	for(int i = 0; i < part->nthreads; i++)
+	for(int32_t i = 0; i < part->nthreads; i++)
 	{
 		thread_reset(&part->threads[i]);
 	}
@@ -180,7 +185,7 @@ void pok_partition_arinc_reset(pok_partition_mode_t mode)
 }
 
 #if POK_NEEDS_GDB
-static int pok_sched_arinc_get_number_of_threads(pok_partition_t* part)
+static int32_t pok_sched_arinc_get_number_of_threads(pok_partition_t* part)
 {
 	pok_partition_arinc_t* part_arinc = container_of(part,
 		typeof(*part_arinc), base_part);
@@ -188,7 +193,7 @@ static int pok_sched_arinc_get_number_of_threads(pok_partition_t* part)
 	return part_arinc->nthreads + 1; //IDLE thread
 }
 
-static int pok_sched_arinc_get_current_thread_index(pok_partition_t* part)
+static int32_t pok_sched_arinc_get_current_thread_index(pok_partition_t* part)
 {
 	pok_partition_arinc_t* part_arinc = container_of(part,
 		typeof(*part_arinc), base_part);
@@ -198,8 +203,8 @@ static int pok_sched_arinc_get_current_thread_index(pok_partition_t* part)
 		: part_arinc->nthreads; //IDLE thread
 }
 
-static int pok_sched_arinc_get_thread_at_index(pok_partition_t* part,
-	int index, void** private)
+static int32_t pok_sched_arinc_get_thread_at_index(pok_partition_t* part,
+	int32_t index, void** private)
 {
     pok_partition_arinc_t* part_arinc = container_of(part,
 		typeof(*part_arinc), base_part);
@@ -217,7 +222,7 @@ static int pok_sched_arinc_get_thread_at_index(pok_partition_t* part,
 	return 0;
 }
 
-static void pok_sched_arinc_get_thread_info(pok_partition_t* part, int index, void* private,
+static void pok_sched_arinc_get_thread_info(pok_partition_t* part, int32_t index, void* private,
 	print_cb_t print_cb, void* cb_data)
 {
 // Write given string (null-terminated)
@@ -266,7 +271,7 @@ static void pok_sched_arinc_get_thread_info(pok_partition_t* part, int index, vo
 }
 
 static struct jet_interrupt_context* pok_sched_arinc_get_thread_registers(pok_partition_t* part,
-	int index, void* private)
+	int32_t index, void* private)
 {
 	pok_thread_t* t = private;
 	pok_partition_arinc_t* part_arinc = container_of(part, typeof(*part_arinc), base_part);
@@ -310,7 +315,7 @@ void pok_partition_arinc_init(pok_partition_arinc_t* part)
 
 	part->base_part.initial_sp = pok_stack_alloc(DEFAULT_STACK_SIZE);
 
-	for(int i = 0; i < part->nthreads; i++)
+	for(int32_t i = 0; i < part->nthreads; i++)
 	{
 		thread_init(&part->threads[i]);
 	}
@@ -343,7 +348,7 @@ static void partition_set_mode_normal(void)
 	part->lock_level = 0;
 	pok_sched_local_invalidate();
 
-	for(int i = POK_PARTITION_ARINC_MAIN_THREAD_ID + 1; i < part->nthreads_used; i++)
+	for(int32_t i = POK_PARTITION_ARINC_MAIN_THREAD_ID + 1; i < part->nthreads_used; i++)
 	{
 		pok_thread_t* t = &part->threads[i];
 		pok_time_t thread_start_time;
@@ -510,7 +515,7 @@ pok_ret_t pok_current_partition_dec_lock_level(int32_t * __user lock_level)
 
 void pok_partition_arinc_init_all(void)
 {
-	for(int i = 0; i < pok_partitions_arinc_n; i++)
+	for(int32_t i = 0; i < pok_partitions_arinc_n; i++)
 	{
 		pok_partition_arinc_init(&pok_partitions_arinc[i]);
 

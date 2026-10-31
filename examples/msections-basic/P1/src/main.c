@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <stdio.h>
@@ -21,7 +26,7 @@
 
 #include <msection.h>
 
-static int volatile global_val = 0;
+static int32_t volatile global_val = 0;
 
 static struct msection s;
 
@@ -31,7 +36,7 @@ static void first_process(void)
     msection_enter(&s);
     printf("First process has been entered mutual section.\n");
 
-    for(int i = 0; i < 5000000; i++)
+    for(int32_t i = 0; i < 5000000; i++)
         global_val ++;
 
     printf("First process is leaving the section.\n");
@@ -57,7 +62,7 @@ static void second_process(void)
 
  
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;

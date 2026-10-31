@@ -1,5 +1,7 @@
+<!-- Modified by Kirill Brazhnikov, 2026-10-31: P2 has Identifier 2
+     (it duplicated P1's identifier 1). -->
 <Partition>
-    <Definition Identifier="1" Name="P2" />
+    <Definition Identifier="2" Name="P2" />
     <!-- Amount of ram allocated (code + stack + static variables) -->
     <Memory Bytes="300K" />
 

@@ -1,3 +1,12 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the results of
+ * CREATE_SAMPLING_PORT and READ_SAMPLING_MESSAGE are checked (the message
+ * order was checked even when nothing was read), and the message validity
+ * is printed.
+ */
 #include <stdio.h>
 #include <string.h>
 //#include <arinc653/buffer.h>
@@ -13,12 +22,12 @@ static void first_process(void)
 {
     RETURN_CODE_TYPE ret;
     struct {
-        unsigned x;
+        uint32_t x;
         char message[32];
-        unsigned y;
+        uint32_t y;
     } __attribute__((packed)) msg;
 
-    unsigned last_x = 0;
+    uint32_t last_x = 0;
 
     while (1) {
         MESSAGE_SIZE_TYPE len;
@@ -26,11 +35,20 @@ static void first_process(void)
 
         READ_SAMPLING_MESSAGE(SP2, (MESSAGE_ADDR_TYPE) &msg, &len, &validity, &ret);
 
-        if (ret == NO_ERROR) {
-            printf("PR2: got message {%u, \"%s\", %u}\n", msg.x, msg.message, msg.y);
-        } else {
-            printf("PR2: sp error: %u\n", ret);
+        if (ret == NO_ACTION) {
+            // Nothing has been written to the port yet.
+            printf("PR2: no message yet\n");
+            TIMED_WAIT(SECOND, &ret);
+            continue;
+        } else if (ret != NO_ERROR) {
+            printf("PR2: READ_SAMPLING_MESSAGE error: %u\n", (unsigned) ret);
+            TIMED_WAIT(SECOND, &ret);
+            continue;
         }
+
+        // INVALID: the message is older than the port's refresh period.
+        printf("PR2: got message {%u, \"%s\", %u} (%s)\n", msg.x, msg.message, msg.y,
+               validity == VALID ? "VALID" : "INVALID");
 
         if (msg.x < last_x) {
             printf("PR2: warning: received SP message out of order\n");
@@ -46,7 +64,7 @@ static void first_process(void)
 
 }
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;
@@ -79,7 +97,12 @@ static int real_main(void)
 
     // create ports
     //CREATE_QUEUING_PORT("QP1", 64, 10, DESTINATION, FIFO, &QP1, &ret);
+    // Name, size and direction must match P2/config.xml.
     CREATE_SAMPLING_PORT("SP2", 64, DESTINATION, 5*SECOND, &SP2, &ret);
+    if (ret != NO_ERROR) {
+        printf("couldn't create sampling port SP2: %d\n", (int) ret);
+        return 1;
+    }
 
 
     // transition to NORMAL operating mode

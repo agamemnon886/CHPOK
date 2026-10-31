@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,16 +12,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <debug.h>
 #include <stdio.h>
 
-void hexdump (const void *addr, int len)
+void hexdump (const void *addr, int32_t len)
 {
-    int i;
-    unsigned char buff[17];
-    const unsigned char *pc = (const unsigned char*)addr;
+    int32_t i;
+    uint8_t buff[17];
+    const uint8_t *pc = (const uint8_t*)addr;
 
     if (len == 0) {
         printf("Len is zero\n");

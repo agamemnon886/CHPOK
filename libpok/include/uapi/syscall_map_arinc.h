@@ -6,6 +6,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,6 +17,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: added the
+ * POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE syscall, used by
+ * REPORT_APPLICATION_MESSAGE.
  */
 
 
@@ -294,6 +299,16 @@ static inline pok_ret_t pok_error_get(pok_error_status_t* status,
 }
 // Syscall should be accessed only by function
 #undef POK_SYSCALL_ERROR_GET
+
+static inline pok_ret_t pok_error_report_application_message(const char* msg,
+    size_t msg_size)
+{
+    return pok_syscall2(POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE,
+        (uintptr_t)msg,
+        (uintptr_t)msg_size);
+}
+// Syscall should be accessed only by function
+#undef POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE
 #endif
 
 static inline pok_ret_t pok_error_raise_os_error(const char* msg,

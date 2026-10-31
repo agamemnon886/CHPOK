@@ -2,6 +2,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,6 +16,10 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <config.h>
@@ -29,9 +34,9 @@
 #include <core/thread.h>
 #include <core/partition.h>
 
-int debug_strlen (const char* str)
+int32_t debug_strlen (const char* str)
 {
-  int		i = 0;
+  int32_t		i = 0;
 
   while (*str != '\0')
   {
@@ -95,11 +100,11 @@ void pok_fatal (const char* message)
   __builtin_unreachable();
 }
 
-void hexdump (const void *addr, int len)
+void hexdump (const void *addr, int32_t len)
 {
-    int i;
-    unsigned char buff[17];
-    const unsigned char *pc = (const unsigned char*)addr;
+    int32_t i;
+    uint8_t buff[17];
+    const uint8_t *pc = (const uint8_t*)addr;
 
     if (len == 0) {
         printf("Len is zero\n");

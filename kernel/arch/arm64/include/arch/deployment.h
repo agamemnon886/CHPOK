@@ -18,6 +18,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * kernel/arch/x86/include/arch/deployment.h for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 /* Definitions which are used in deployment.c */
@@ -90,6 +94,6 @@ struct ja_arm64_space
  * Should be defined in deployment.c.
  */
 extern struct ja_arm64_space ja_spaces[];
-extern int ja_spaces_n;
+extern int32_t ja_spaces_n;
 
 #endif /* __JET_ARM64_DEPLOYMENT_H__ */

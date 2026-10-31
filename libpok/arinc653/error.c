@@ -11,7 +11,19 @@
  *
  *                                      Copyright (c) 2007-2009 POK team 
  *
- * Created by julien on Thu Jan 15 23:34:13 2009 
+ * Created by julien on Thu Jan 15 23:34:13 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: REPORT_APPLICATION_MESSAGE
+ * passes exactly LENGTH bytes of the message to the health monitor
+ * (kernel) instead of printing it as a NUL-terminated string.
+ * Modified by Kirill Brazhnikov, 2026-10-31: RAISE_APPLICATION_ERROR
+ * returns NO_ERROR only if the kernel accepted the error.
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -29,7 +41,7 @@
 #define MAP_ERROR(from, to) case (from): *RETURN_CODE = (to); break
 #define MAP_ERROR_DEFAULT(to) default: *RETURN_CODE = (to); break
 
-static ERROR_CODE_TYPE error_pok_to_arinc(int pok_error)
+static ERROR_CODE_TYPE error_pok_to_arinc(int32_t pok_error)
 {
     #define MAP(from, to) case (from): return (to);
     switch (pok_error) {
@@ -47,25 +59,32 @@ static ERROR_CODE_TYPE error_pok_to_arinc(int pok_error)
 }
 
 /**
- * At this time, it is implemented to have the same behavior as 
- * RAISE_APPLICATION_ERROR. Should change that in the future
+ * Transmits a message to the health monitor (HM) function.
  *
- * XXX If I understand this correctly, it's essentially 
- * a logging function, and shouldn't raise any errors.
+ * The message is LENGTH bytes long; it need not be NUL-terminated and
+ * may be empty (LENGTH = 0). The kernel writes it to the console with the
+ * name of the reporting partition. No error is raised: the calling
+ * process continues.
  */
 void REPORT_APPLICATION_MESSAGE (MESSAGE_ADDR_TYPE    MESSAGE,
                                  MESSAGE_SIZE_TYPE    LENGTH,
                                  RETURN_CODE_TYPE     *RETURN_CODE )
 {
+   pok_ret_t core_ret;
+
    if (LENGTH < 0 || LENGTH > MAX_ERROR_MESSAGE_SIZE) {
        *RETURN_CODE = INVALID_PARAM;
        return;
    }
 
-   // TODO LENGTH is ignored (shouldn't be)
-   printf("%s\n", MESSAGE);
+   core_ret = pok_error_report_application_message ((const char*) MESSAGE,
+                                                    (size_t) LENGTH);
 
-   *RETURN_CODE = NO_ERROR;
+   switch (core_ret) {
+       MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
+       // Bad message address or length.
+       MAP_ERROR_DEFAULT(INVALID_PARAM);
+   }
 }
 
 void CREATE_ERROR_HANDLER (SYSTEM_ADDRESS_TYPE  ENTRY_POINT,
@@ -122,10 +141,15 @@ void RAISE_APPLICATION_ERROR (ERROR_CODE_TYPE            ERROR_CODE,
         *RETURN_CODE = INVALID_PARAM;
         return;
     }
-    
-    pok_error_raise_application_error ((char*) MESSAGE, LENGTH);
-    
-    *RETURN_CODE = NO_ERROR;
+
+    pok_ret_t core_ret = pok_error_raise_application_error ((const char*) MESSAGE,
+                                                            (size_t) LENGTH);
+
+    switch (core_ret) {
+        MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
+        // Bad message address or length: the error was not raised.
+        MAP_ERROR_DEFAULT(INVALID_PARAM);
+    }
 }
 
 #endif

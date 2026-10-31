@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/uaccess.c to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <asp/uaccess.h>
@@ -28,8 +32,8 @@ static pok_bool_t x86_64_check_access(const void* __user addr, size_t size,
     assert(space_id != 0);
     assert(size != 0);
 
-    unsigned long start = (unsigned long)addr;
-    unsigned long end = start + size;
+    uintptr_t start = (uintptr_t)addr;
+    uintptr_t end = start + size;
 
     struct ja_x86_64_space* space = &ja_spaces[space_id - 1];
 
@@ -88,7 +92,7 @@ pok_bool_t ja_check_access_exec(void* __user addr, jet_space_id space_id)
 {
     assert(space_id != 0);
 
-    unsigned long start = (unsigned long)addr;
+    uintptr_t start = (uintptr_t)addr;
 
     struct ja_x86_64_space* space = &ja_spaces[space_id - 1];
 

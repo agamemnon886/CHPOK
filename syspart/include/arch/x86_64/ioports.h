@@ -15,11 +15,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * syspart/include/arch/x86/ioports.h to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 
 #ifndef __POK_SYSPART_X86_64_IOPORTS_H__
 #define __POK_SYSPART_X86_64_IOPORTS_H__
+#include <stdint.h>
 
 #define outb(port, data)                                        \
   asm volatile ("outb %b0,%w1"                                  \
@@ -28,7 +33,7 @@
 
 #define inb(port)                                               \
 ({                                                              \
-  unsigned char res;                                            \
+  uint8_t res;                                            \
   asm volatile ("inb %w1,%0"                                    \
                 :"=a" (res)                                     \
                 :"d" (port));                                   \
@@ -42,7 +47,7 @@
 
 #define inw(port)                                               \
 ({                                                              \
-  unsigned short res;						\
+  uint16_t res;						\
   asm volatile ("inw %w1,%0"					\
                 :"=a" (res)                                     \
                 :"d" (port));					\
@@ -56,7 +61,7 @@
 
 #define inl(port)                                               \
 ({                                                              \
-  unsigned int res;						\
+  uint32_t res;						\
   asm volatile ("inl %w1,%0"					\
                 :"=a" (res)                                     \
                 :"d" (port));					\

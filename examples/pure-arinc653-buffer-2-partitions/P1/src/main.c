@@ -1,3 +1,7 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <arinc653/buffer.h>
@@ -41,7 +45,7 @@ static void second_process(void)
 
  
 
-static int real_main(void)
+static int32_t real_main(void)
 {
     RETURN_CODE_TYPE ret;
     BUFFER_ID_TYPE id;
@@ -55,7 +59,7 @@ static int real_main(void)
     };
 
     // create buffer
-    CREATE_BUFFER("foo", sizeof(int), 10, FIFO, &id, &ret);
+    CREATE_BUFFER("foo", sizeof(int32_t), 10, FIFO, &id, &ret);
     if (ret != NO_ERROR) {
         printf("error creating a buffer: %d\n", (int) ret);
         return 1;

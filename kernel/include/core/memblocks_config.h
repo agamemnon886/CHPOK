@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team
  *
  * Created by julien on Wed Jan 21 23:07:15 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
@@ -30,7 +37,7 @@ enum mb_config_rights {
 struct memory_block {
     char name[MAX_NAME_LENGTH];
     uint32_t virt_addr;
-    unsigned size;
+    uint32_t size;
     enum mb_config_rights pid_to_rights[MAX_PID];
 };
 

@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * boards/x86-qemu/pic.c to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -28,7 +31,7 @@
 
 #include "pic.h"
 
-int pok_pic_init ()
+int32_t pok_pic_init ()
 {
    outb (PIC_MASTER_BASE, PIC_MASTER_ICW1);
    outb (PIC_SLAVE_BASE, PIC_SLAVE_ICW1);
@@ -49,7 +52,7 @@ int pok_pic_init ()
    return (POK_ERRNO_OK);
 }
 
-int pok_pic_mask (uint8_t irq)
+int32_t pok_pic_mask (uint8_t irq)
 {
    uint8_t mask;
 
@@ -72,7 +75,7 @@ int pok_pic_mask (uint8_t irq)
    return (POK_ERRNO_OK);
 }
 
-int pok_pic_unmask(uint8_t irq)
+int32_t pok_pic_unmask(uint8_t irq)
 {
    uint8_t mask;
 

@@ -1,5 +1,10 @@
+/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ */
 #ifndef __POK_UTILS_H__
 #define __POK_UTILS_H__
+#include <stdint.h>
 
 /* 
  * Useful functions for enforce alignment.
@@ -11,9 +16,9 @@
  * Return minimal value, which is equal-or-more than given one
  * and has required alignment.
  */
-static inline unsigned long ALIGN(unsigned long val, unsigned long align)
+static inline uintptr_t ALIGN(uintptr_t val, uintptr_t align)
 {
-    unsigned long mask = align - 1;
+    uintptr_t mask = align - 1;
     return (val + mask) & ~mask;
 }
 
@@ -21,9 +26,9 @@ static inline unsigned long ALIGN(unsigned long val, unsigned long align)
  * Return minimal pointer, which is equal-or-more than
  * given one and has required alignment.
  */
-static inline void* ALIGN_PTR(void* ptr, unsigned long align)
+static inline void* ALIGN_PTR(void* ptr, uintptr_t align)
 {
-    return (void*)ALIGN((unsigned long)ptr, align);
+    return (void*)ALIGN((uintptr_t)ptr, align);
 }
 
 /* Return number of elements in the array.

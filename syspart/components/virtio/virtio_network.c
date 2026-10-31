@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
  */
 
 #include <string.h>
@@ -104,7 +109,7 @@ static void read_mac_address(struct virtio_network_device *dev)
 {
     uint8_t *mac = dev->mac;
 
-    int i;
+    int32_t i;
     for (i = 0; i < ETH_ALEN; i++) {
         mac[i] = inb(dev->pci_device.resources[PCI_RESOURCE_BAR0].addr + VIRTIO_PCI_CONFIG_OFF(FALSE) + i);
     }
@@ -135,7 +140,7 @@ static void use_receive_buffer(struct virtio_network_device *dev, struct receive
     desc->len = sizeof(*buf);
     desc->flags = VRING_DESC_F_WRITE;
 
-    int avail = vq->vring.avail->idx & (vq->vring.num-1); // wrap around
+    int32_t avail = vq->vring.avail->idx & (vq->vring.num-1); // wrap around
     vq->vring.avail->ring[avail] = head;
     
     __sync_synchronize();
@@ -151,7 +156,7 @@ static void notify_receive_buffers(struct virtio_network_device *dev)
 
 static void setup_receive_buffers(struct virtio_network_device *dev)
 {
-    int i;
+    int32_t i;
     for (i = 0; i < POK_MAX_RECEIVE_BUFFERS; i++) {
         // this pushes buffer to avail ring
         use_receive_buffer(dev, &dev->receive_buffers[i]);
@@ -211,7 +216,7 @@ ret_t send_frame(VIRTIO_NET_DEV * self,
     desc->flags = 0;
     vq->free_index = desc->next;
 
-    int avail = vq->vring.avail->idx & (vq->vring.num-1); // wrap around
+    int32_t avail = vq->vring.avail->idx & (vq->vring.num-1); // wrap around
     vq->vring.avail->ring[avail] = head;
 
     __sync_synchronize();

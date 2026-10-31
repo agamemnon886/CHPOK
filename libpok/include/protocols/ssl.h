@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Mon Nov 30 20:42:30 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #ifndef __LIBPOK_PROTOCOLS_SSL_H__
@@ -36,7 +43,7 @@ void pok_protocols_ssl_unmarshall (void* crypted_data, pok_size_t crypted_size, 
 
 void pok_protocols_ssl_marshall (void* uncrypted_data, pok_size_t uncrypted_size, void* crypted_data, size_t* crypted_size);
 
-#define pok_protocols_ssl_data_t int
+#define pok_protocols_ssl_data_t int32_t
 
 #endif
 

@@ -11,7 +11,17 @@
  *
  *                                      Copyright (c) 2007-2009 POK team 
  *
- * Created by julien on Thu Jan 15 23:34:13 2009 
+ * Created by julien on Thu Jan 15 23:34:13 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: APEX_INTEGER and
+ * APEX_UNSIGNED are exactly 32 bits wide, as ARINC 653 requires, also on
+ * 64-bit targets where long is 64 bits.
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+ * unsigned, short, long, ...) are replaced with the fixed-width types
+ * from <stdint.h>.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
@@ -37,10 +47,17 @@
 /*  The actual size of these base types is system specific and the          */
 /*  sizes must match the sizes used by the implementation of the            */
 /*  underlying Operating System.                                            */
-typedef   unsigned char    APEX_BYTE;               /* 8-bit unsigned */
-typedef   long             APEX_INTEGER;            /* 32-bit signed */
-typedef   unsigned long    APEX_UNSIGNED;           /* 32-bit unsigned */
-typedef   long long        APEX_LONG_INTEGER;       /* 64-bit signed */
+/*  The standard's C header uses long for the 32-bit types, which is only   */
+/*  right where long is 32 bits; the Ada binding fixes the sizes (e.g.      */
+/*  "for APEX_INTEGER'size use 32"), so fixed-width types are used here.    */
+typedef   uint8_t          APEX_BYTE;               /* 8-bit unsigned */
+typedef   int32_t          APEX_INTEGER;            /* 32-bit signed */
+typedef   uint32_t         APEX_UNSIGNED;           /* 32-bit unsigned */
+typedef   int64_t          APEX_LONG_INTEGER;       /* 64-bit signed */
+
+_Static_assert(sizeof(APEX_INTEGER) == 4, "APEX_INTEGER must be 32-bit");
+_Static_assert(sizeof(APEX_UNSIGNED) == 4, "APEX_UNSIGNED must be 32-bit");
+_Static_assert(sizeof(APEX_LONG_INTEGER) == 8, "APEX_LONG_INTEGER must be 64-bit");
 /*----------------------*/
 /* General APEX types     */
 /*----------------------*/
