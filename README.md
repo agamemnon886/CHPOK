@@ -27,3 +27,16 @@ The resulting kernel image `examples/<name>/build/<board>/pok.elf` runs in QEMU:
 
 To debug, use QEMU's gdb stub (`scons rundbg` and `scons debug` in an
 example directory).
+
+## Testing
+
+The tests under `tests/` check the APEX services against ARINC 653. They
+are built like the examples and run in QEMU on the host, so
+`qemu-system-x86_64` / `qemu-system-aarch64` must be installed:
+
+    make run                     # build and run all tests for x86_64
+    make BSP=arm64-qemu run      # the same for arm64
+    make run-mutex               # one test
+    make run VERBOSE=0           # only the results, not the test output
+
+See `tests/README` for what each test covers and how to add one.

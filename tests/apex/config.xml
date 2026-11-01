@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+    Distributed under the 2-clause BSD license (see the top-level Makefile).
+
+    APEX conformance test: two partitions connected by two sampling
+    channels. See tests/README and the comments in P1/src/main.c.
+-->
+<chpok-configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+    <Partitions>
+        <xi:include href="P1/config.xml" parse="xml"/>
+        <xi:include href="P2/config.xml" parse="xml"/>
+    </Partitions>
+
+    <Schedule>
+        <Slot Type="Partition" PartitionNameRef="P1" Duration="30ms" PeriodicProcessingStart="true" />
+        <Slot Type="Partition" PartitionNameRef="P2" Duration="30ms" PeriodicProcessingStart="true" />
+    </Schedule>
+
+    <Connection_Table>
+        <Channel>
+            <Source>
+                <Standard_Partition PartitionName="P1" PortName="SP1" />
+            </Source>
+            <Destination>
+                <Standard_Partition PartitionName="P2" PortName="SP2" />
+            </Destination>
+        </Channel>
+        <Channel>
+            <Source>
+                <Standard_Partition PartitionName="P1" PortName="SP3" />
+            </Source>
+            <Destination>
+                <Standard_Partition PartitionName="P2" PortName="SP4" />
+            </Destination>
+        </Channel>
+    </Connection_Table>
+
+    <Memory_Blocks>
+        <Memory_Block Name="Shared_MB0" VirtualAddress="0xed000000"
+            PhysicalAddress="0x600000" Size="0x10000" />
+    </Memory_Blocks>
+
+    <!-- A memory violation in a process is a module level error that
+         restarts the module (P1 tests HM_MODULE_RESTART with it). -->
+    <System_HM_Table>
+        <System_State_Entry SystemState="USER">
+            <Error_ID_Level ErrorIdentifier="MEMORY_VIOLATION" ErrorLevel="MODULE" />
+        </System_State_Entry>
+    </System_HM_Table>
+    <Module_HM_Table>
+        <System_State_Entry SystemState="USER">
+            <Error_ID_Action ErrorIdentifier="MEMORY_VIOLATION" Action="RESET" />
+        </System_State_Entry>
+    </Module_HM_Table>
+</chpok-configuration>

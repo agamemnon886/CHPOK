@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+    Distributed under the 2-clause BSD license (see the top-level Makefile).
+
+    Mutex test: one partition. See tests/README and P1/src/main.c.
+-->
+<chpok-configuration xmlns:xi="http://www.w3.org/2001/XInclude">
+    <Partitions>
+        <xi:include href="P1/config.xml" parse="xml"/>
+    </Partitions>
+
+    <Schedule>
+        <Slot Type="Partition" PartitionNameRef="P1" Duration="50ms" PeriodicProcessingStart="true" />
+    </Schedule>
+</chpok-configuration>

@@ -1,0 +1,86 @@
+JetOS tests
+===========
+
+Conformance tests for the APEX services (ARINC 653 Part 1). Each test is a
+JetOS project like the examples: it builds a kernel image with one or more
+partitions, runs in QEMU, and checks the return codes and behaviour of
+the services.
+
+Running
+-------
+
+From the top-level directory:
+
+    make run                     # build and run all tests (x86_64-qemu)
+    make BSP=arm64-qemu run      # the same for arm64
+    make run-<name>              # build and run one test, e.g. make run-mutex
+    make run VERBOSE=0           # show only the result of each test
+    make tests                   # only build them
+    make clean-tests
+
+make run shows the output of each test while it runs (the kernel and
+partition messages, indented), then its result.
+
+The tests are built in Docker, like the examples; running them needs
+qemu-system-x86_64 or qemu-system-aarch64 on the host. tests/run_test.sh
+runs one built test:
+
+    tests/run_test.sh <name> [<board>]
+
+with TIMEOUT=<seconds> (default 60) and VERBOSE=1 to show the output
+(default 0). It prints one result line per test, for example
+
+    PASS tests/mutex on x86_64-qemu: 101 checks
+
+or FAIL followed by the failed checks. The full QEMU output is in
+tests/<name>/build/<board>/test.log. make run runs all tests and fails if
+any of them failed.
+
+Tests
+-----
+
+apex    Two partitions. P1 is started four times and checks: APEX type
+        sizes; REPORT_APPLICATION_MESSAGE and RAISE_APPLICATION_ERROR
+        (lengths, bad addresses, LENGTH 0); CREATE_PROCESS priority,
+        period and time capacity checks; partition restarts by
+        SET_PARTITION_MODE and by the health monitor, and a module restart
+        (start conditions PARTITION_RESTART, HM_PARTITION_RESTART,
+        HM_MODULE_RESTART); CREATE_SAMPLING_PORT checks, including refresh
+        periods above 2^32 ms; case-insensitive names (ports, processes,
+        memory blocks); GET_MEMORY_BLOCK_STATUS; CREATE_ERROR_HANDLER and
+        CONFIGURE_ERROR_HANDLER; INITIALIZE_PROCESS_CORE_AFFINITY,
+        GET_MY_PROCESSOR_CORE_ID and GET_MY_INDEX; and that the
+        initialization-only services return INVALID_MODE in NORMAL mode.
+        P2 checks its start conditions and the validity of sampling
+        messages with a huge and a tiny refresh period.
+
+mutex   One partition. Checks every mutex service and return code:
+        CREATE_MUTEX limits and parameters, GET_MUTEX_ID, GET_MUTEX_STATUS,
+        mutexes used by the main process during initialization, the
+        priority ceiling (raised on acquire, restored on release, refused
+        for higher-priority processes), recursive locking up to
+        MAX_LOCK_LEVEL, time-outs, hand-over to waiting processes in
+        PRIORITY order, SET_PRIORITY of an owner, RESET_MUTEX of a stopped
+        owner, a waiting process that is stopped, PREEMPTION_LOCK_MUTEX in
+        GET_PROCESS_MUTEX_STATE, and the error handler.
+
+Some expected return codes come from public sources rather than the
+standard's text (see the comments in the tests); check them against
+ARINC 653 when in doubt.
+
+Writing a test
+--------------
+
+A test is a directory tests/<name>/ with an SConstruct, a config.xml and
+one directory per partition (with SConstruct, SConscript, config.xml and
+src/), like an example. make finds it automatically. Its output must
+follow two rules, which tests/run_test.sh relies on:
+
+  - each check prints a line "TEST <description>: PASS" or
+    "TEST <description>: FAIL ...". No other line may contain FAIL;
+  - each partition prints, as its last line, "<partition> DONE: <n>
+    failure(s)". The test is finished when every partition has printed it,
+    and passes if every <n> is 0 and no line contains FAIL.
+
+A partition that restarts must print its DONE line only once, in its last
+phase.

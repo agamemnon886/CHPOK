@@ -35,6 +35,10 @@
 #   make list            # list available example names
 #   make benchmarks      # build all benchmarks under benchmark/
 #   make clean-benchmarks # clean all benchmarks
+#   make tests           # build all tests under tests/
+#   make run             # build and run all tests in QEMU on the host
+#   make run-<name>      # build and run tests/<name> only (e.g. make run-mutex)
+#   make clean-tests     # clean all tests
 #   make docker-image    # (re)build the Docker build image only
 #   make help            # show this help
 #
@@ -43,12 +47,18 @@
 #   NATIVE=1             # skip Docker, run scons directly on the host with
 #                        # whatever toolchain is on PATH (set PREFIX=... in
 #                        # the environment for a prefixed cross-compiler)
+#   VERBOSE=0            # make run: show only the result of each test, not
+#                        # the output of the running test (VERBOSE=1, default)
 #
 # The syspart-* examples use x86_64-only drivers (PCI, virtio-net), so they
 # are not built for arm64-qemu.
 #
 # POK_PATH, required by every example's SConstruct, is derived from this
 # Makefile's location.
+#
+# Modified by Kirill Brazhnikov, 2026-11-01: added the tests, run,
+# run-<name> and clean-tests targets for the tests under tests/; make run
+# shows the output of the running tests (VERBOSE).
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -64,6 +74,11 @@ BENCH_SCONSTRUCTS := $(wildcard $(BENCH_DIR)/*/SConstruct $(BENCH_DIR)/*/*/SCons
 BENCH_PARTITIONS := $(dir $(wildcard $(BENCH_DIR)/*/*/SConscript \
 	$(BENCH_DIR)/*/*/*/SConscript $(BENCH_DIR)/*/*/*/*/SConscript))
 BENCHMARKS := $(sort $(patsubst %/,%,$(filter-out $(BENCH_PARTITIONS),$(dir $(BENCH_SCONSTRUCTS)))))
+
+# Tests under tests/: one project per directory, run in QEMU by
+# tests/run_test.sh (see tests/README).
+TESTS_DIR := tests
+TESTS := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(TESTS_DIR)/*/SConstruct)))))
 
 SCONS := scons
 BSP ?= x86_64-qemu
@@ -102,6 +117,7 @@ DOCKER_RUN := $(DOCKER) run --rm \
 .NOTPARALLEL:
 
 .PHONY: all clean list help docker-image benchmarks clean-benchmarks \
+	tests run clean-tests $(addprefix run-,$(TESTS)) \
 	$(EXAMPLES) $(addprefix clean-,$(EXAMPLES))
 
 all: $(BSP_EXAMPLES)
@@ -115,15 +131,23 @@ help:
 	@echo "  make list            List available example names"
 	@echo "  make benchmarks      Build all benchmarks (benchmark/)"
 	@echo "  make clean-benchmarks Clean all benchmarks"
+	@echo "  make tests           Build all tests (tests/)"
+	@echo "  make run             Build and run all tests in QEMU"
+	@echo "  make run-<name>      Build and run one test (e.g. make run-mutex)"
+	@echo "  make clean-tests     Clean all tests"
 	@echo "  make docker-image    (Re)build the Docker build image"
 	@echo "  make help            Show this help"
 	@echo ""
 	@echo "Variables:"
 	@echo "  BSP=<board>          Target board: x86_64-qemu (default) or arm64-qemu"
 	@echo "  NATIVE=1             Run scons on the host instead of in Docker"
+	@echo "  VERBOSE=0            make run: show only the test results"
 	@echo ""
 	@echo "Examples:"
 	@for e in $(EXAMPLES); do echo "  $$e"; done
+	@echo ""
+	@echo "Tests:"
+	@for t in $(TESTS); do echo "  $$t"; done
 
 ifdef NATIVE
 $(EXAMPLES):
@@ -152,6 +176,41 @@ endif
 	$(DOCKER_RUN) sh -c '$(BENCH_BUILD)'
 endif
 
+# Tests are built like the benchmarks, in one container; running them
+# needs qemu-system-x86_64 / qemu-system-aarch64 on the host.
+VERBOSE ?= 1
+RUN_TEST := VERBOSE=$(VERBOSE) $(TESTS_DIR)/run_test.sh
+
+TEST_BUILD = set -e; for t in $(1); do \
+	echo "== building $(TESTS_DIR)/$$t"; (cd "$(POK_PATH)/$(TESTS_DIR)/$$t" && $(SCONS) $(SCONS_ARGS)); done
+
+ifdef NATIVE
+tests:
+	$(call TEST_BUILD,$(TESTS))
+
+$(addprefix run-,$(TESTS)):
+	$(call TEST_BUILD,$(patsubst run-%,%,$@))
+	$(RUN_TEST) $(patsubst run-%,%,$@) $(BSP)
+else
+tests: docker-image
+ifeq ($(DOCKER_PREFIX),)
+	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
+endif
+	$(DOCKER_RUN) sh -c '$(call TEST_BUILD,$(TESTS))'
+
+$(addprefix run-,$(TESTS)): docker-image
+ifeq ($(DOCKER_PREFIX),)
+	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
+endif
+	$(DOCKER_RUN) sh -c '$(call TEST_BUILD,$(patsubst run-%,%,$@))'
+	$(RUN_TEST) $(patsubst run-%,%,$@) $(BSP)
+endif
+
+# Runs every test, also after a failure, and fails if any test failed.
+run: tests
+	@status=0; for t in $(TESTS); do \
+		$(RUN_TEST) $$t $(BSP) || status=1; done; exit $$status
+
 docker-image:
 	$(DOCKER) build -t $(DOCKER_IMAGE) $(DOCKER_DIR)
 
@@ -178,6 +237,10 @@ $(addprefix clean-,$(EXAMPLES)):
 clean-benchmarks:
 	find $(BENCH_DIR) -type d -name build -prune -exec rm -rf {} +
 	find $(BENCH_DIR) \( -name '.sconsign*' -o -name scons_build.log \) -delete
+
+clean-tests:
+	find $(TESTS_DIR) -type d -name build -prune -exec rm -rf {} +
+	find $(TESTS_DIR) \( -name '.sconsign*' -o -name scons_build.log \) -delete
 
 list:
 	@echo $(EXAMPLES)
