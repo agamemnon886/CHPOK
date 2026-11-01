@@ -21,6 +21,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: added
  * POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added
+ * POK_SYSCALL_ERROR_HANDLER_CONFIGURE.
  */
 
 #ifndef __LIBJET_SYSCALL_TYPES_H__
@@ -82,6 +85,7 @@ typedef enum
 
 #ifdef POK_NEEDS_ERROR_HANDLING
      POK_SYSCALL_ERROR_HANDLER_CREATE                = 301,
+     POK_SYSCALL_ERROR_HANDLER_CONFIGURE             = 302,
      POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR       = 303,
      POK_SYSCALL_ERROR_GET                           = 304,
      POK_SYSCALL_ERROR_IS_HANDLER                    = 305,

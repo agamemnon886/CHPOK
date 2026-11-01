@@ -25,6 +25,9 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: dispatches the
+ * POK_SYSCALL_ERROR_HANDLER_CONFIGURE syscall.
  */
 
 #include <config.h>
@@ -130,6 +133,7 @@ static inline pok_ret_t pok_core_syscall_internal (const pok_syscall_id_t       
 
 #ifdef POK_NEEDS_ERROR_HANDLING
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_HANDLER_CREATE)
+   SYSCALL_ENTRY(POK_SYSCALL_ERROR_HANDLER_CONFIGURE)
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR)
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_GET)
    SYSCALL_ENTRY(POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE)

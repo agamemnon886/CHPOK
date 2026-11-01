@@ -1,0 +1,115 @@
+Error handler example
+=====================
+
+Shows the two ARINC 653 services that set up a partition's error handler
+process, and what an error handler does:
+
+  CREATE_ERROR_HANDLER     creates the error handler process: the entry
+                           point and stack size are given, the priority is
+                           the highest in the partition. Allowed only during
+                           initialization; a second call returns NO_ACTION.
+  CONFIGURE_ERROR_HANDLER  sets the error handler's concurrency control
+                           (PROCESSES_PAUSE or PROCESSES_SCHEDULED) and its
+                           processor core (ARINC 653P1-4). Allowed only
+                           during initialization, after CREATE_ERROR_HANDLER.
+
+How errors reach the error handler
+----------------------------------
+
+The partition HM table in P1/config.xml marks the errors as PROCESS level.
+In NORMAL mode a process-level error doesn't stop the partition: the
+kernel starts the error handler, which preempts the failed process (even
+when preemption is locked). The error handler calls GET_ERROR_STATUS until
+it returns NO_ACTION, recovers from each error, and calls STOP_SELF. An
+error reported while it runs makes the kernel start it again.
+
+The HM table's Action is used only when there is no error handler, or
+when the error happens during initialization (COLD_START / WARM_START).
+
+JetOS runs every partition on one processor core (ID 0), so
+CONFIGURE_ERROR_HANDLER accepts only core 0 or CORE_AFFINITY_NO_PREFERENCE.
+On one core both concurrency controls work the same: while the error
+handler runs, no other process of the partition runs.
+
+What P1 does
+------------
+
+During initialization the main process:
+
+  1. calls CONFIGURE_ERROR_HANDLER before the error handler exists:
+     INVALID_CONFIG;
+  2. creates the error handler (NO_ERROR) and tries again (NO_ACTION);
+  3. calls CONFIGURE_ERROR_HANDLER with core 1 (INVALID_CONFIG) and with
+     PROCESSES_PAUSE on core 0 (NO_ERROR);
+  4. creates the processes demo (priority 10), bad_pointer and overrun
+     (priority 20, so they run as soon as they are started), starts demo
+     and sets the partition to NORMAL mode.
+
+In NORMAL mode, demo first shows that both services now return
+INVALID_MODE. Then it causes three errors, one after the other:
+
+  APPLICATION_ERROR  demo calls RAISE_APPLICATION_ERROR with a message.
+                     The error handler prints the message and lets demo
+                     continue.
+  MEMORY_VIOLATION   bad_pointer writes to address 0x10. The error handler
+                     prints FAILED_ADDRESS (the address of the faulting
+                     instruction) and stops the process: resuming it would
+                     execute the same instruction again.
+  DEADLINE_MISSED    overrun runs for 200 ms with a time capacity of 20 ms.
+                     The kernel reports the missed deadline and the error
+                     handler stops the process.
+
+For each error the error handler prints the error code, the ID and name
+of the failed process (GET_PROCESS_STATUS) and the message. The message
+is LENGTH bytes long and isn't NUL-terminated.
+
+Build and run
+-------------
+
+From the top-level directory:
+
+    make error-handler                      # x86_64
+    make BSP=arm64-qemu error-handler       # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel examples/error-handler/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel examples/error-handler/build/arm64-qemu/pok.elf
+
+Quit QEMU with Ctrl-A X.
+
+Expected output (x86_64; the "[KERNEL]" and register lines come from the
+kernel, and addresses differ on arm64):
+
+    P1: started, 1 processor core(s)
+    P1: CONFIGURE_ERROR_HANDLER(PROCESSES_PAUSE, core 0): INVALID_CONFIG (no error handler yet)
+    P1: CREATE_ERROR_HANDLER: NO_ERROR
+    P1: CREATE_ERROR_HANDLER again: NO_ACTION
+    P1: CONFIGURE_ERROR_HANDLER(PROCESSES_PAUSE, core 1): INVALID_CONFIG (the partition has only core 0)
+    P1: CONFIGURE_ERROR_HANDLER(PROCESSES_PAUSE, core 0): NO_ERROR
+    P1: CREATE_PROCESS(demo): NO_ERROR
+    P1: CREATE_PROCESS(bad_pointer): NO_ERROR
+    P1: CREATE_PROCESS(overrun): NO_ERROR
+    P1: SET_PARTITION_MODE(NORMAL)
+    P1: CONFIGURE_ERROR_HANDLER(PROCESSES_PAUSE, core 0): INVALID_MODE (partition is in NORMAL mode)
+    demo: CREATE_ERROR_HANDLER: INVALID_MODE (partition is in NORMAL mode)
+    demo: RAISE_APPLICATION_ERROR("sensor value out of range")
+    error handler: APPLICATION_ERROR in process 3 (demo): "sensor value out of range"
+    error handler: recovery: none, the process continues
+    demo: continues after the error handler, RAISE_APPLICATION_ERROR: NO_ERROR
+    demo: START(bad_pointer)
+    bad_pointer: writing to address 0x10
+    ...
+    [KERNEL] Raise exception pagefault at 0x10. RIP=0x400013bf
+    error handler: MEMORY_VIOLATION in process 4 (bad_pointer): "Memory Violation"
+    error handler: failed instruction at 0x400013bf
+    error handler: recovery: STOP(4): NO_ERROR
+    demo: START(overrun)
+    overrun: running for 200 ms, time capacity is 20 ms
+    [36080443] Deadline miss occured for thread overrun (Id: 4, Part: 1)
+    error handler: DEADLINE_MISSED in process 5 (overrun): "Deadline Missed"
+    error handler: recovery: STOP(5): NO_ERROR
+    demo: done
+
+The kernel's "Deadline miss" line shows the kernel thread index (4); the
+ARINC process ID is one higher (5).

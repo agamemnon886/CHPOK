@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-01: added
+ * ERROR_HANDLER_CONCURRENCY_CONTROL_TYPE and CONFIGURE_ERROR_HANDLER
+ * (ARINC 653P1-4).
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -57,6 +64,11 @@ typedef struct{
    ERROR_MESSAGE_TYPE      MESSAGE;
 } ERROR_STATUS_TYPE;
 
+typedef enum {
+   PROCESSES_PAUSE      = 0,
+   PROCESSES_SCHEDULED  = 1
+} ERROR_HANDLER_CONCURRENCY_CONTROL_TYPE;
+
 /*----------------------------------------------------------------------*/
 /* */
 /* ERROR MANAGEMENT SERVICES */
@@ -79,5 +91,9 @@ extern void RAISE_APPLICATION_ERROR (ERROR_CODE_TYPE            ERROR_CODE,
                                      MESSAGE_ADDR_TYPE          MESSAGE,
                                      ERROR_MESSAGE_SIZE_TYPE    LENGTH,
                                      RETURN_CODE_TYPE           *RETURN_CODE);
+
+extern void CONFIGURE_ERROR_HANDLER (ERROR_HANDLER_CONCURRENCY_CONTROL_TYPE CONCURRENCY_CONTROL,
+                                     PROCESSOR_CORE_ID_TYPE                 PROCESSOR_CORE_ID,
+                                     RETURN_CODE_TYPE                       *RETURN_CODE);
 #endif
 #endif 

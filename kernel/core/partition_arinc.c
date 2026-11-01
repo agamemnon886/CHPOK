@@ -16,6 +16,9 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: a partition restart also
+ * resets the error handler configuration (CONFIGURE_ERROR_HANDLER).
  */
 
 #include <config.h>
@@ -138,6 +141,8 @@ static void partition_arinc_start(void)
 	part->thread_current = NULL;
 #ifdef POK_NEEDS_ERROR_HANDLING
 	part->thread_error = NULL;
+	part->error_handler_concurrency = POK_ERROR_HANDLER_PROCESSES_PAUSE;
+	part->error_handler_core = POK_CORE_AFFINITY_NO_PREFERENCE;
 	INIT_LIST_HEAD(&part->error_list);
 #endif
 

@@ -18,6 +18,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: added
  * pok_error_report_application_message().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added
+ * pok_error_thread_configure() for CONFIGURE_ERROR_HANDLER.
  */
 
 #ifndef __POK_CORE_ERROR_ARINC_H__
@@ -59,6 +62,23 @@ typedef struct
  * It's created in stopped state.
  */
 pok_ret_t   pok_error_thread_create (uint32_t stack_size, void* __user entry);
+
+/*
+ * Sets the concurrency control (POK_ERROR_HANDLER_PROCESSES_*) and the
+ * processor core of the error-handler thread of the current partition.
+ *
+ * Used for ARINC CONFIGURE_ERROR_HANDLER. Allowed only in INIT modes and
+ * after the error handler is created. processor_core_id is a core of the
+ * partition (0 .. number of cores - 1) or POK_CORE_AFFINITY_NO_PREFERENCE.
+ *
+ * Returns:
+ *  - POK_ERRNO_UNAVAILABLE if the error handler isn't created,
+ *  - POK_ERRNO_EINVAL if concurrency_control is not a known value,
+ *  - POK_ERRNO_PARAM if processor_core_id is not a core of the partition,
+ *  - POK_ERRNO_PARTITION_MODE if the partition is in NORMAL mode.
+ */
+pok_ret_t   pok_error_thread_configure (uint32_t concurrency_control,
+                                        int32_t processor_core_id);
 
 /*
  * Raise thread-level application error.

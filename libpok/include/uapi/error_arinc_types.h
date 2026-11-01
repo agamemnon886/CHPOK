@@ -6,6 +6,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,6 +20,10 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added the error handler
+ * concurrency control values and POK_CORE_AFFINITY_NO_PREFERENCE, used by
+ * CONFIGURE_ERROR_HANDLER (ARINC 653P1-4).
  */
 
 #ifndef __JET_UAPI_ERROR_ARINC_TYPES_H__
@@ -50,5 +55,16 @@ typedef struct
    uintptr_t            failed_addr;
    size_t               msg_size;
 } pok_error_status_t;
+
+/*
+ * Error handler concurrency control, set by CONFIGURE_ERROR_HANDLER.
+ * The values are those of ARINC ERROR_HANDLER_CONCURRENCY_CONTROL_TYPE.
+ */
+typedef uint8_t pok_error_handler_concurrency_t;
+#define POK_ERROR_HANDLER_PROCESSES_PAUSE       0 // other processes don't run
+#define POK_ERROR_HANDLER_PROCESSES_SCHEDULED   1 // other cores keep scheduling
+
+/* Processor core ID meaning "any core of the partition" (ARINC CORE_AFFINITY_NO_PREFERENCE). */
+#define POK_CORE_AFFINITY_NO_PREFERENCE       (-1)
 
 #endif /* __JET_UAPI_ERROR_ARINC_TYPES_H__ */

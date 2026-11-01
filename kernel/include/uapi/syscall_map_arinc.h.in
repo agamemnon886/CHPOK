@@ -16,6 +16,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: added the
  * POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE syscall, used by
  * REPORT_APPLICATION_MESSAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added the
+ * POK_SYSCALL_ERROR_HANDLER_CONFIGURE syscall, used by
+ * CONFIGURE_ERROR_HANDLER.
  */
 
 //!
@@ -157,6 +161,11 @@ SYSCALL_DECLARE(POK_SYSCALL_PARTITION_DEC_LOCK_LEVEL, pok_current_partition_dec_
 SYSCALL_DECLARE(POK_SYSCALL_ERROR_HANDLER_CREATE, pok_error_thread_create,
    uint32_t, stack_size,
    void*, entry)
+
+//! Used directly for CONFIGURE_ERROR_HANDLER
+SYSCALL_DECLARE(POK_SYSCALL_ERROR_HANDLER_CONFIGURE, pok_error_thread_configure,
+   uint32_t, concurrency_control,
+   int32_t, processor_core_id)
 
 SYSCALL_DECLARE(POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR, pok_error_raise_application_error,
    const char*, msg,

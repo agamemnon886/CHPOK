@@ -20,6 +20,8 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-01: added PROCESSOR_CORE_ID_TYPE
+ * and CORE_AFFINITY_NO_PREFERENCE (ARINC 653P1-4).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -81,5 +83,7 @@ typedef   enum { SOURCE = 0, DESTINATION = 1 } PORT_DIRECTION_TYPE;
 typedef   enum { FIFO = 0, PRIORITY = 1 } QUEUING_DISCIPLINE_TYPE;
 typedef   APEX_LONG_INTEGER     SYSTEM_TIME_TYPE; /* 64-bit signed integer with a 1 nanosecond LSB */
 #define   INFINITE_TIME_VALUE       -1
+typedef   APEX_INTEGER     PROCESSOR_CORE_ID_TYPE;
+#define   CORE_AFFINITY_NO_PREFERENCE  -1
 
 #endif

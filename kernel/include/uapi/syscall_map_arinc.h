@@ -21,6 +21,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: added the
  * POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE syscall, used by
  * REPORT_APPLICATION_MESSAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added the
+ * POK_SYSCALL_ERROR_HANDLER_CONFIGURE syscall, used by
+ * CONFIGURE_ERROR_HANDLER.
  */
 
 
@@ -252,6 +256,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_HANDLER_CREATE(con
     return pok_error_thread_create(
         (uint32_t)args->arg1,
         (void* __user)args->arg2);
+}
+
+pok_ret_t pok_error_thread_configure(uint32_t concurrency_control,
+    int32_t processor_core_id);
+static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_HANDLER_CONFIGURE(const pok_syscall_args_t* args)
+{
+    return pok_error_thread_configure(
+        (uint32_t)args->arg1,
+        (int32_t)args->arg2);
 }
 
 pok_ret_t pok_error_raise_application_error(const char* __user msg,

@@ -23,6 +23,9 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: RAISE_APPLICATION_ERROR
  * accepts an empty message (LENGTH 0) instead of silently ignoring the
  * request.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added
+ * pok_error_thread_configure() for CONFIGURE_ERROR_HANDLER.
  */
 
 #include <config.h>
@@ -101,6 +104,38 @@ pok_ret_t pok_error_thread_create (uint32_t stack_size, void* __user entry)
     part->nthreads_used++;
 
     part->thread_error = t;
+
+    return POK_ERRNO_OK;
+}
+
+pok_ret_t pok_error_thread_configure (uint32_t concurrency_control,
+                                      int32_t processor_core_id)
+{
+    pok_partition_arinc_t* part = current_partition_arinc;
+
+    // Checks follow the order of the error conditions in ARINC 653.
+    if (part->thread_error == NULL)
+        return POK_ERRNO_UNAVAILABLE;
+
+    if (concurrency_control != POK_ERROR_HANDLER_PROCESSES_PAUSE
+        && concurrency_control != POK_ERROR_HANDLER_PROCESSES_SCHEDULED)
+        return POK_ERRNO_EINVAL;
+
+    // The partition has one processor core, with partition-relative ID 0.
+    if (processor_core_id != POK_CORE_AFFINITY_NO_PREFERENCE
+        && processor_core_id != 0)
+        return POK_ERRNO_PARAM;
+
+    if (part->mode == POK_PARTITION_MODE_NORMAL)
+        return POK_ERRNO_PARTITION_MODE;
+
+    /*
+     * On a single core both concurrency controls behave the same: the
+     * error handler has the highest priority and isn't preempted, so no
+     * other process of the partition runs until it finishes.
+     */
+    part->error_handler_concurrency = concurrency_control;
+    part->error_handler_core = processor_core_id;
 
     return POK_ERRNO_OK;
 }

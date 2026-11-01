@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added the error handler
+ * configuration set by CONFIGURE_ERROR_HANDLER.
  */
 
 #ifndef __POK_PARTITION_ARINC_H__
@@ -93,6 +97,17 @@ typedef struct _pok_patition_arinc
 #ifdef POK_NEEDS_ERROR_HANDLING
     pok_thread_t*          thread_error;     /**< Error thread. One of the @threads. */
     struct list_head       error_list;       /** List of threads in errorneus state. */
+
+    /*
+     * Error handler configuration (CONFIGURE_ERROR_HANDLER).
+     *
+     * Every partition runs on a single processor core, where the error
+     * handler always preempts the other processes, so the scheduler
+     * doesn't need these values yet. They are kept for multicore
+     * scheduling.
+     */
+    pok_error_handler_concurrency_t error_handler_concurrency;
+    int32_t                error_handler_core; /**< Core ID or POK_CORE_AFFINITY_NO_PREFERENCE. */
     
     pok_error_id_t         sync_error;
     void* __user           sync_error_failed_addr;

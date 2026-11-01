@@ -22,6 +22,8 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-01: added CONFIGURE_ERROR_HANDLER
+ * (ARINC 653P1-4).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -149,6 +151,39 @@ void RAISE_APPLICATION_ERROR (ERROR_CODE_TYPE            ERROR_CODE,
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         // Bad message address or length: the error was not raised.
         MAP_ERROR_DEFAULT(INVALID_PARAM);
+    }
+}
+
+/**
+ * Sets the concurrency control and the processor core of the error
+ * handler (ARINC 653P1-4).
+ *
+ * Allowed only during partition initialization, after
+ * CREATE_ERROR_HANDLER. JetOS runs each partition on a single processor
+ * core (ID 0), so PROCESSOR_CORE_ID must be 0 or
+ * CORE_AFFINITY_NO_PREFERENCE. On one core, PROCESSES_PAUSE and
+ * PROCESSES_SCHEDULED behave the same: no other process of the partition
+ * runs while the error handler runs.
+ */
+void CONFIGURE_ERROR_HANDLER (ERROR_HANDLER_CONCURRENCY_CONTROL_TYPE CONCURRENCY_CONTROL,
+                              PROCESSOR_CORE_ID_TYPE                 PROCESSOR_CORE_ID,
+                              RETURN_CODE_TYPE                       *RETURN_CODE)
+{
+    // The kernel checks CONCURRENCY_CONTROL; any out-of-range value,
+    // negative ones too, stays out of range as uint32_t.
+    pok_ret_t core_ret = pok_error_thread_configure ((uint32_t) CONCURRENCY_CONTROL,
+                                                     (int32_t) PROCESSOR_CORE_ID);
+
+    switch (core_ret) {
+        MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
+        // The error handler is not created.
+        MAP_ERROR(POK_ERRNO_UNAVAILABLE, INVALID_CONFIG);
+        // Unknown CONCURRENCY_CONTROL.
+        MAP_ERROR(POK_ERRNO_EINVAL, INVALID_PARAM);
+        // PROCESSOR_CORE_ID is not a core of the partition.
+        MAP_ERROR(POK_ERRNO_PARAM, INVALID_CONFIG);
+        MAP_ERROR(POK_ERRNO_PARTITION_MODE, INVALID_MODE);
+        MAP_ERROR_DEFAULT(INVALID_CONFIG);
     }
 }
 
