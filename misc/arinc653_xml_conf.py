@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -22,6 +23,10 @@
 # Modified by Kirill Brazhnikov, 2026-10-31: the partition identifier is
 # taken from the Identifier attribute of <Definition> (it was ignored and
 # partitions were numbered from 0).
+#
+# Modified by Kirill Brazhnikov, 2026-11-01: parses the optional
+# <ARINC653_Mutexes Count="..."/> (number of ARINC 653 mutexes, 0 if
+# absent).
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -200,6 +205,9 @@ class ArincConfigParser:
         part.num_arinc653_blackboards = int(part_root.find("ARINC653_Blackboards").attrib["Count"])
         part.num_arinc653_events = int(part_root.find("ARINC653_Events").attrib["Count"])
         part.num_arinc653_semaphores = int(part_root.find("ARINC653_Semaphores").attrib["Count"])
+        mutexes = part_root.find("ARINC653_Mutexes")
+        if mutexes is not None:
+            part.num_arinc653_mutexes = int(mutexes.attrib["Count"])
 
         part.buffer_data_size = parse_bytes(part_root.find("ARINC653_Buffers").attrib["Data_Size"])
         part.blackboard_data_size = parse_bytes(part_root.find("ARINC653_Blackboards").attrib["Data_Size"])

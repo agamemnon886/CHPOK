@@ -1,6 +1,9 @@
 /* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: enabled the ARINC 653
+ * mutexes (POK_NEEDS_ARINC653_MUTEX).
  */
 #define POK_NEEDS_TIMER 1
 #define POK_NEEDS_THREADS 1
@@ -54,6 +57,8 @@
 
 #define POK_NEEDS_SEMAPHORES 1
 #define POK_NEEDS_ARINC653_SEMAPHORE 1
+
+#define POK_NEEDS_ARINC653_MUTEX 1
 #define POK_CONFIG_ARINC653_NB_SEMAPHORES pok_config_arinc653_nb_semaphores
 
 #define POK_NEEDS_EVENTS 1

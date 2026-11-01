@@ -20,6 +20,9 @@
 # block names are matched case-insensitively, as ARINC 653 NAME_TYPE
 # requires, so names differing only in case are reported as duplicates.
 #
+# Modified by Kirill Brazhnikov, 2026-11-01: added the number of ARINC 653
+# mutexes of a partition and their memory.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 """
@@ -281,6 +284,7 @@ class Partition:
         "num_arinc653_blackboards",
         "num_arinc653_semaphores",
         "num_arinc653_events",
+        "num_arinc653_mutexes",
 
         "buffer_data_size", # bytes allocated for buffer data
         "blackboard_data_size", # same, for blackboards
@@ -321,6 +325,7 @@ class Partition:
         self.num_arinc653_blackboards = 0
         self.num_arinc653_semaphores = 0
         self.num_arinc653_events = 0
+        self.num_arinc653_mutexes = 0
 
         self.buffer_data_size = 0
         self.blackboard_data_size = 0
@@ -427,6 +432,11 @@ class Partition:
     def get_event_size(self):
         return 50
 
+    # Return size of memory, needed by single mutex structure.
+    # TODO: This should be arch-specific somehow.
+    def get_mutex_size(self):
+        return 64
+
     # Return memory size, needed by intra-partition communication mechanisms.
     def get_intra_size(self):
         return ( self.buffer_data_size + self.blackboard_data_size
@@ -434,6 +444,7 @@ class Partition:
             + self.num_arinc653_blackboards * self.get_blackboard_size()
             + self.num_arinc653_semaphores * self.get_semaphore_size()
             + self.num_arinc653_events * self.get_event_size()
+            + self.num_arinc653_mutexes * self.get_mutex_size()
         )
 
     def get_heap_size(self):

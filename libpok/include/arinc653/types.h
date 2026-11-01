@@ -21,7 +21,8 @@
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
  * Modified by Kirill Brazhnikov, 2026-11-01: added PROCESSOR_CORE_ID_TYPE
- * and CORE_AFFINITY_NO_PREFERENCE (ARINC 653P1-4).
+ * and CORE_AFFINITY_NO_PREFERENCE (ARINC 653P1-4); added
+ * SYSTEM_LIMIT_NUMBER_OF_MUTEXES.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -42,6 +43,7 @@
 #define SYSTEM_LIMIT_NUMBER_OF_BLACKBOARDS    256  /* partition scope */
 #define SYSTEM_LIMIT_NUMBER_OF_SEMAPHORES     256  /* partition scope */
 #define SYSTEM_LIMIT_NUMBER_OF_EVENTS         256  /* partition scope */
+#define SYSTEM_LIMIT_NUMBER_OF_MUTEXES        256  /* partition scope */
 
 /*----------------------*/
 /* Base APEX types        */

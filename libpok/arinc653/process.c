@@ -42,6 +42,12 @@
  * Modified by Kirill Brazhnikov, 2026-11-01: added the ARINC 653P1-4
  * multicore services INITIALIZE_PROCESS_CORE_AFFINITY,
  * GET_MY_PROCESSOR_CORE_ID and GET_MY_INDEX.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: SET_PRIORITY of a process
+ * that owns a mutex changes only its retained priority (priority ceiling
+ * protocol) and rejects process IDs above the number of threads instead of
+ * wrapping them to another process; LOCK_PREEMPTION and UNLOCK_PREEMPTION
+ * record the holder of the preemption lock for GET_PROCESS_MUTEX_STATE.
  */
 
 #include <config.h>
@@ -59,6 +65,9 @@
 #include <core/partition.h>
 
 #include <kernel_shared_data.h>
+#include "mutex.h"
+
+pok_thread_id_t arinc_preemption_lock_holder = JET_THREAD_ID_NONE;
 
 #define MAP_ERROR(from, to) case (from): *return_code = (to); break
 #define MAP_ERROR_DEFAULT(to) default: *return_code = (to); break
@@ -217,7 +226,17 @@ void SET_PRIORITY (
         return;
     }
 
+    // Check the range before narrowing to the 8-bit kernel thread ID.
+    if (process_id < 1 || process_id > kshd.max_n_threads) {
+        *return_code = INVALID_PARAM;
+        return;
+    }
+
+#ifdef POK_NEEDS_ARINC653_MUTEX
+    pok_ret_t core_ret = arinc_mutex_set_priority(process_id - 1, priority);
+#else
     pok_ret_t core_ret = pok_thread_set_priority(process_id - 1, priority);
+#endif
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_UNAVAILABLE, INVALID_MODE);
@@ -311,6 +330,8 @@ void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_code
     int32_t lock_level = (int32_t)*LOCK_LEVEL;
     pok_ret_t ret = pok_partition_inc_lock_level(&lock_level);
     *LOCK_LEVEL = lock_level;
+    if (ret == POK_ERRNO_OK)
+        arinc_preemption_lock_holder = kshd.current_thread_id;
     switch (ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION);
@@ -325,6 +346,8 @@ void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_co
     int32_t lock_level = (int32_t)*LOCK_LEVEL;
     pok_ret_t ret = pok_partition_dec_lock_level(&lock_level);
     *LOCK_LEVEL = lock_level;
+    if (ret == POK_ERRNO_OK && lock_level == 0)
+        arinc_preemption_lock_holder = JET_THREAD_ID_NONE;
     switch (ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION);

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added
+ * arinc_config_nmutexes.
  */
 
 /* Configuration parameters for ARINC. */
@@ -40,6 +44,11 @@ extern size_t arinc_config_nsemaphores;
 // Maximum number of events. Set in deployment.c
 extern size_t arinc_config_nevents;
 #endif /* POK_NEEDS_ARINC653_EVENT */
+
+#ifdef POK_NEEDS_ARINC653_MUTEX
+// Maximum number of mutexes. Set in deployment.c
+extern size_t arinc_config_nmutexes;
+#endif /* POK_NEEDS_ARINC653_MUTEX */
 
 #if defined(POK_NEEDS_ARINC653_BUFFER) || defined(POK_NEEDS_ARINC653_BLACKBOARD)
 // Memory for messages, used by buffers and blackboards. Set in deployment.c.
