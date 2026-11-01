@@ -1,0 +1,39 @@
+Matrix multiplication
+=====================
+
+Part of CACHE_FRAMEWORK: kernels kept as a separate set for cache studies
+(cache locking and cache-miss analysis).
+
+What it tests
+-------------
+
+Cache behaviour and execution time of a memory-intensive loop nest.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Multiplies two 200x200 matrices. Period and time capacity: 1 s.
+
+Expected output
+---------------
+
+"Multiplication" every period.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/matmult/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/matmult/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

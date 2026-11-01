@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team
  *
  * Created by Jean-Baptiste on 22/03/2018
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to x86_64 and AArch64:
+ * the tracer markers are emitted only with CACHE_TRACE_MARKERS on x86_64,
+ * process IDs use PROCESS_ID_TYPE and printf formats match their types.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /*******************************************************************************
@@ -54,6 +61,22 @@
 #define PROC_PERIOD     100000000ll
 #define PROC_DEADLINE   PROC_PERIOD
 
+/*
+ * Start/stop markers around the measured accesses, for the external
+ * memory tracer the benchmark was written for: the byte sequences
+ * 0F A7 00 00 and 0F A6 00 00. They are not valid instructions on x86_64
+ * processors or in QEMU (they raise an invalid-opcode fault) and have no
+ * AArch64 equivalent, so they are emitted only on x86_64 and only when
+ * CACHE_TRACE_MARKERS is defined (e.g. in the partition's cflags).
+ */
+#if defined(CACHE_TRACE_MARKERS) && defined(__x86_64__)
+#define CACHE_TRACE_START() __asm__ __volatile__(".byte 0x0F, 0xA7, 0x00, 0x00\n")
+#define CACHE_TRACE_STOP()  __asm__ __volatile__(".byte 0x0F, 0xA6, 0x00, 0x00\n")
+#else
+#define CACHE_TRACE_START() do { } while (0)
+#define CACHE_TRACE_STOP()  do { } while (0)
+#endif
+
 
 
 /*******************************************************************************
@@ -72,7 +95,7 @@ void* process_func(void)
     RETURN_CODE_TYPE ret;
     while(1)
     {
-        long my_id;
+        PROCESS_ID_TYPE my_id;
         GET_MY_ID(&my_id, &ret);
         if(ret != NO_ERROR)
         {
@@ -80,12 +103,12 @@ void* process_func(void)
                     partition_id, ret);
             STOP_SELF();
         }
-        __asm__ __volatile__(".byte 0x0F, 0xA7, 0x00, 0x00\n");
-        for(register int j = 0; j < NB_LOOP; ++j)
+        CACHE_TRACE_START();
+        for(register int32_t j = 0; j < NB_LOOP; ++j)
         {
             access_array(tabs);
         }
-        __asm__ __volatile__(".byte 0x0F, 0xA6, 0x00, 0x00\n");
+        CACHE_TRACE_STOP();
         printf("Finished loop\n");
         PERIODIC_WAIT(&ret);
     }
@@ -128,9 +151,8 @@ int main ()
         printf("[Part %d] Cannot create ROUND_ARRAY_A653_PROC_0 process[%d]\n", 
                 partition_id, ret_type);
     }
-    printf("[Part %d] ", partition_id);
-    printf(tattr.NAME);
-    printf(" thread number: %ld\n", thread);
+    printf("[Part %d] %s thread number: %d\n", (int) partition_id,
+           tattr.NAME, (int) thread);
 
 
     START(thread, &ret_type);

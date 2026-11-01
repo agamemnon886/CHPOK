@@ -16,6 +16,15 @@
  * You can generate different size of code to fill the cache thanks to the
  * program contained in BENCH_TOOLS, gen_icache_flooder.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: runs on x86_64 and AArch64:
+ * the architecture comes from BENCH_TOOLS/arch_config.h, and the flood code
+ * is generated for each (icache_flood_x86_64.h, icache_flood_aarch64.h; the
+ * 32-bit x86 one is removed).
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -33,16 +42,11 @@
  * TESTS SETTINGS
  ******************************************************************************/
 
-#define ARCH_X86 1
-#define ARCH_PPC 0
-#define ARCH_ARM 0
-
-#if ARCH_X86
-    #include "icache_flood_x86.h"
-#elif ARCH_PPC
-    #include "icache_flood_ppc.h"
-#elif ARCH_ARM
-    #include "icache_flood_arm.h"
+/* Code of CACHE_SIZE_L1_INST bytes, see BENCH_TOOLS/gen_icache_flooder.c */
+#if defined(__x86_64__)
+    #include "icache_flood_x86_64.h"
+#elif defined(__aarch64__)
+    #include "icache_flood_aarch64.h"
 #endif
 
 /*******************************************************************************
@@ -102,7 +106,7 @@ int main()
     th_attr_flood.ENTRY_POINT   = flood_th;
     th_attr_flood.DEADLINE      = HARD;
     th_attr_flood.PERIOD        = 50000000;
-    th_attr_flood.STACK_SIZE    = 1000;
+    th_attr_flood.STACK_SIZE    = 8192;
     th_attr_flood.TIME_CAPACITY = 50000000;
     th_attr_flood.BASE_PRIORITY = 1;
     memcpy(th_attr_flood.NAME, "FLOOD_A653\0", 11 * sizeof(char));

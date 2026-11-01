@@ -14,6 +14,10 @@
  * Ported from:
  *     SNU-RT Benchmarks (http://www.cprover.org/goto-cc/examples/snu.html)
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include "../../../BenchmarksTools/benc_config.h"
@@ -385,7 +389,7 @@ int main()
     th_attr_dct.ENTRY_POINT   = dct_thread;
     th_attr_dct.DEADLINE      = HARD;
     th_attr_dct.PERIOD        = 100000000;
-    th_attr_dct.STACK_SIZE    = 1000;
+    th_attr_dct.STACK_SIZE    = 8192;
     th_attr_dct.TIME_CAPACITY = 100000000;
     th_attr_dct.BASE_PRIORITY = 1;
     memcpy(th_attr_dct.NAME, "DCT_A653\0", 9 * sizeof(char));

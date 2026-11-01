@@ -1,7 +1,9 @@
+<!-- Modified by Kirill Brazhnikov, 2026-10-31: more memory; the arm64
+     partition image (with debug information) did not fit. -->
 <Partition>
     <Definition Identifier="1" Name="P1" />
     <!-- Amount of ram allocated (code + stack + static variables) -->
-    <Memory Bytes="100K" />
+    <Memory Bytes="160K" />
 
     <!-- Number of threads that can be created in this partition.
          Note that this number doesn't include main and error handler threads,

@@ -16,10 +16,18 @@
  * the RTOS implemented and how it reacts with memory and IO acces
  * intensive applications.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets:
+ * includes <stdlib.h> (rand and srand were implicitly declared); printf
+ * arguments are cast to the types their formats expect (partition status
+ * fields are 32- and 64-bit values); the process stack is 8192 bytes (1000
+ * to 2500 bytes overflowed on 64-bit targets, whose call frames are
+ * larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <libm.h>
 #include <types.h>
 #include <float.h>
@@ -156,7 +164,7 @@ void* pro_alpr_thread_func(void)
 
 #ifdef VERBOSE_OUTPUT_PROC
         printf("[p%ld:%lld|%lld|%d] COMPUTED PLANE SETTINGS: Altitude %fft, Pressure %fhPa\n",
-               pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+               (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                pr_stat.OPERATING_MODE,
                current_altitude, current_pressure);
 #else
@@ -242,7 +250,7 @@ void* pro_alpr_thread_func(void)
 
 #ifdef VERBOSE_OUTPUT_PROC
         printf("[p%ld:%lld|%lld|%d] COMPUTED PLANE SETTINGS: Dist %fKm, Speed %fKt, Bearing %fdeg\n",
-               pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+               (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                pr_stat.OPERATING_MODE,
                distance, speed * 0.539957, bearing);
 #else
@@ -307,7 +315,7 @@ void* com_thread_func(void)
 
 #ifdef VERBOSE_OUTPUT_PROC
             printf("[p%ld:%lld|%lld|%d] RECEIVED COORDINATES: %fN %fE\n",
-                   pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+                   (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                    pr_stat.OPERATING_MODE,
                    current_position.lat, current_position.lon);
 #endif
@@ -384,7 +392,7 @@ int main ()
     tattr_com.ENTRY_POINT   = com_thread_func;
     tattr_com.DEADLINE      = HARD;
     tattr_com.PERIOD        = GPS_PERIOD;
-    tattr_com.STACK_SIZE    = 2000;
+    tattr_com.STACK_SIZE    = 8192;
     tattr_com.TIME_CAPACITY = 5000000000;
     tattr_com.BASE_PRIORITY = 1;
 
@@ -394,7 +402,7 @@ int main ()
     tattr_pro_spdi.ENTRY_POINT   = pro_spdi_thread_func;
     tattr_pro_spdi.DEADLINE      = HARD;
     tattr_pro_spdi.PERIOD        = GPS_PERIOD;
-    tattr_pro_spdi.STACK_SIZE    = 2000;
+    tattr_pro_spdi.STACK_SIZE    = 8192;
     tattr_pro_spdi.TIME_CAPACITY = 3750000000;
     tattr_pro_spdi.BASE_PRIORITY = 1;
 
@@ -404,7 +412,7 @@ int main ()
     tattr_pro_alpr.ENTRY_POINT   = pro_alpr_thread_func;
     tattr_pro_alpr.DEADLINE      = HARD;
     tattr_pro_alpr.PERIOD        = GPS_PERIOD;
-    tattr_pro_alpr.STACK_SIZE    = 2000;
+    tattr_pro_alpr.STACK_SIZE    = 8192;
     tattr_pro_alpr.TIME_CAPACITY = 3750000000;
     tattr_pro_alpr.BASE_PRIORITY = 5;
 

@@ -1,0 +1,46 @@
+Transitive closure
+==================
+
+Part of CACHE_FRAMEWORK: kernels kept as a separate set for cache studies
+(cache locking and cache-miss analysis).
+
+What it tests
+-------------
+
+Cache behaviour of graph code with irregular, data-dependent accesses.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Computes the transitive closure of a graph (DIS Stressmark "transitive
+closure"). Period and time capacity: 1 s.
+
+Expected output
+---------------
+
+"Transitive closure" every period; "ASSERT Failed" would report a wrong result.
+
+Origin
+------
+
+Ported from DIS Stressmarks
+(https://www.ics.uci.edu/~amrm/hdu/DIS_Stressmark/DIS_stressmark.html).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/transitive/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/transitive/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

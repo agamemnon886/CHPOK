@@ -15,6 +15,12 @@
  * We excpect these tests to allow us to analyse the memory access management
  * the RTOS implemented and how it reacts with memory intenssive applications.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets:
+ * printf arguments are cast to the types their formats expect (partition
+ * status fields are 32- and 64-bit values); the process stack is 8192 bytes
+ * (1000 to 2500 bytes overflowed on 64-bit targets, whose call frames are
+ * larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -83,7 +89,7 @@ void* sort_thread_func(void)
         }
 
         printf("[p%ld:%lld|%lld|%d] INSERT SORTED, WAITING\n",
-               pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+               (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                pr_stat.OPERATING_MODE);
 
         GET_ET_STAT_3_3
@@ -128,7 +134,7 @@ void* gen_thread_func(void)
         }
 
         printf("[p%ld:%lld|%lld|%d] GENERATED, WAITING\n",
-               pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+               (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                pr_stat.OPERATING_MODE);
 
         GET_ET_STAT_3_3
@@ -161,7 +167,7 @@ int main ()
     tattr_gen.ENTRY_POINT   = gen_thread_func;
     tattr_gen.DEADLINE      = HARD;
     tattr_gen.PERIOD        = 4700000000;
-    tattr_gen.STACK_SIZE    = 2500;
+    tattr_gen.STACK_SIZE    = 8192;
     tattr_gen.TIME_CAPACITY = 10000000;
     tattr_gen.BASE_PRIORITY = 1;
     memcpy(&tattr_gen.NAME, "GEN_A653\0", 9 * sizeof(char));
@@ -170,7 +176,7 @@ int main ()
     tattr_sort.ENTRY_POINT   = sort_thread_func;
     tattr_sort.DEADLINE      = HARD;
     tattr_sort.PERIOD        = 4700000000;
-    tattr_sort.STACK_SIZE    = 2500;
+    tattr_sort.STACK_SIZE    = 8192;
     tattr_sort.TIME_CAPACITY = 2190000000;
     tattr_sort.BASE_PRIORITY = 1;
     memcpy(&tattr_sort.NAME, "SORT_A653\0", 10 * sizeof(char));

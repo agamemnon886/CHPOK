@@ -1,0 +1,47 @@
+LMS adaptive filter
+===================
+
+Part of CACHE_FRAMEWORK: the same kernels as A653_Benchmarks, kept as a
+separate set for cache studies (cache locking and cache-miss analysis). The
+algorithm is identical to A653_Benchmarks/LMS unless noted below.
+
+What it tests
+-------------
+
+Execution time of floating-point adaptive filtering.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Enhances a sine wave with added white noise using a least-mean-squares (LMS)
+adaptive filter. Period and time capacity: 100 ms.
+
+Expected output
+---------------
+
+"Applying LMS" every period.
+
+Origin
+------
+
+Ported from SNU-RT benchmark suite (Seoul National University real-time
+benchmarks).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/LMS/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/LMS/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

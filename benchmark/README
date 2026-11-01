@@ -1,0 +1,54 @@
+JetOS benchmarks
+================
+
+Benchmarks for measuring JetOS: execution times of classic real-time kernels,
+and interference between partitions on shared hardware (caches, TLB, memory,
+pipeline). Every benchmark builds and runs on x86_64 (board x86_64-qemu) and
+arm64 (board arm64-qemu). Each benchmark directory has a README describing
+what it tests and what it does.
+
+Sets
+----
+
+A653_Benchmarks/   WCET kernels (SNU-RT, Malardalen, MiBench) as periodic
+                   ARINC 653 processes: BinSearch, Compress, Fibonacci, FIR,
+                   JFDCTint, LMS, LUDCMP, MIB_Basicmath, QSort, QuadRoot.
+CACHE_FRAMEWORK/   Kernels for cache studies: copies of the A653 kernels plus
+                   matmult, matconv, transitive and the round_array tests.
+HW_Specific/       Stress tests for one hardware resource each: CACHES,
+                   MEMORY, PIPELINE, TLB.
+CPU_MEM_2PART/     CPU and memory stress in two identical partitions.
+MEM_SORT_UNMIXED_MONO/
+                   Memory-intensive generation and sorting, three partitions.
+NAV_SOB_SYS/, NAV_SYS_MONO_QUEUING/, NAV_SYS_MONO_SAMPLING/
+                   A navigation system over three communicating partitions
+                   (sampling or queuing ports).
+BENCH_TOOLS/       Shared configuration and code generators:
+                   arch_config.h      cache and TLB geometry per architecture
+                                      (Intel i5-750 for x86_64, Cortex-A53
+                                      for arm64); adjust it for your hardware
+                   config.h           settings for HW_Specific
+                   gen_icache_flooder.c, gen_itlb_flooder.c
+                                      generate instruction-cache and
+                                      instruction-TLB flooding code
+
+QEMU (TCG) does not model caches or TLBs: the HW_Specific results are only
+meaningful on real hardware, with arch_config.h set for that processor.
+
+Build and run
+-------------
+
+From the top-level directory:
+
+    make benchmarks                     # all benchmarks for x86_64
+    make BSP=arm64-qemu benchmarks      # all benchmarks for arm64
+    make clean-benchmarks
+
+Then run one image, for example:
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/QSort/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/QSort/build/arm64-qemu/pok.elf
+
+Benchmarks run forever; quit QEMU with Ctrl-A X.

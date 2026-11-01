@@ -1,0 +1,50 @@
+Instruction cache flood
+=======================
+
+Part of HW_Specific: tests that stress one hardware resource, to study how
+interference on it shows up in other partitions. The sizes come from
+BENCH_TOOLS/arch_config.h (cache and TLB geometry of the target).
+
+What it tests
+-------------
+
+Interference caused by filling the instruction cache.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Every 50 ms executes once a block of code as big as the L1 instruction cache
+(32 KB): a chain of indirect jumps, generated for each architecture by
+BENCH_TOOLS/gen_icache_flooder.c (icache_flood_x86_64.h,
+icache_flood_aarch64.h).
+
+Expected output
+---------------
+
+"L1 Cache filled 1000 times" every 1000 periods (50 s).
+
+Notes
+-----
+
+To change the code size, regenerate the headers, e.g.
+    gen_icache_flooder x86_64 32768 icache_flood_x86_64.h
+    gen_icache_flooder aarch64 32768 icache_flood_aarch64.h
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/HW_Specific/CACHES/ICACHE_PRIVATE/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/HW_Specific/CACHES/ICACHE_PRIVATE/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

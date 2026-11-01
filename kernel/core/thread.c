@@ -22,6 +22,11 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the period is no longer
+ * required to be a multiple of the partition period, which is always the
+ * major frame here and so wrong for partitions with several windows per
+ * frame (it rejected processes of existing benchmarks).
  */
 
 #include <config.h>
@@ -163,11 +168,12 @@ pok_ret_t pok_thread_create (const char* __user name,
             return POK_ERRNO_PARAM;
         }
 
-        // A periodic process must be released at partition period points.
-        if(part->base_part.period != 0 &&
-            (uint64_t)t->period % part->base_part.period != 0) {
-            return POK_ERRNO_EINVAL;
-        }
+        /*
+         * The period is not checked against the partition period: the
+         * configuration cannot set a partition period (base_part.period is
+         * always the major frame), and a partition with several windows per
+         * major frame has a shorter real period.
+         */
    }
 
     // do at least basic check of entry point

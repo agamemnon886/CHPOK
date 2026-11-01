@@ -1,0 +1,45 @@
+Navigation system, sampling ports
+=================================
+
+A navigation system split over three partitions that share data, to study CPU,
+memory and I/O interference between communicating partitions.
+
+What it tests
+-------------
+
+Inter-partition communication through sampling ports: a producer and two
+consumers. Compare with NAV_SYS_MONO_QUEUING, which uses queuing ports.
+
+What it does
+------------
+
+Three partitions: GPS_P, SPDI_P and ALPR_P, two processes each.
+
+GPS_P generates GPS positions every 2 s and sends them to SPDI_P and ALPR_P
+over sampling ports. SPDI_P computes the distance, speed and bearing; ALPR_P
+computes the altitude and pressure. In each partition a communication process
+and a processing process share data under a semaphore. Windows: GPS_P 500 ms,
+SPDI_P 1000 ms, ALPR_P 500 ms.
+
+Expected output
+---------------
+
+"NEW POINT GENERATED, <lat>N <lon>E", "Distance ... Speed ... Bearing",
+"Altitude ... Pressure".
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/NAV_SYS_MONO_SAMPLING/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/NAV_SYS_MONO_SAMPLING/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

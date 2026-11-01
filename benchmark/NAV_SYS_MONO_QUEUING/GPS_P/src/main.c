@@ -16,6 +16,12 @@
  * the RTOS implemented and how it reacts with memory and IO acces
  * intensive applications.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets:
+ * printf arguments are cast to the types their formats expect (partition
+ * status fields are 32- and 64-bit values); the process stack is 8192 bytes
+ * (1000 to 2500 bytes overflowed on 64-bit targets, whose call frames are
+ * larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -125,7 +131,7 @@ void* com_thread_func(void)
         {
 #ifdef VERBOSE_OUTPUT_GPS
             printf("[p%ld:%lld|%lld|%d] DATA SENT\n",
-                   pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+                   (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                    pr_stat.OPERATING_MODE);
 #endif
         }
@@ -228,7 +234,7 @@ void* gen_thread_func(void)
             }
 #ifdef VERBOSE_OUTPUT_GPS
             printf("[p%ld:%lld|%lld|%d] NEW POINT GENERATED, %fN %fE\n",
-                   pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+                   (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                    pr_stat.OPERATING_MODE, current_position.lat, current_position.lon);
 #else
             printf("NEW POINT GENERATED, %fN %fE\n",
@@ -271,7 +277,7 @@ int main()
     tattr_gen.ENTRY_POINT   = gen_thread_func;
     tattr_gen.DEADLINE      = HARD;
     tattr_gen.PERIOD        = GPS_PERIOD;
-    tattr_gen.STACK_SIZE    = 2000;
+    tattr_gen.STACK_SIZE    = 8192;
     tattr_gen.TIME_CAPACITY = 2000000000;
     tattr_gen.BASE_PRIORITY = 25;
     memcpy(tattr_gen.NAME, "GPS_GEN_A653\0", 13 * sizeof(char));
@@ -280,7 +286,7 @@ int main()
     tattr_com.ENTRY_POINT   = com_thread_func;
     tattr_com.DEADLINE      = HARD;
     tattr_com.PERIOD        = GPS_PERIOD;
-    tattr_com.STACK_SIZE    = 2000;
+    tattr_com.STACK_SIZE    = 8192;
     tattr_com.TIME_CAPACITY = 2000000000;
     tattr_com.BASE_PRIORITY = 50;
     memcpy(tattr_com.NAME, "GPS_COM_A653\0", 13 * sizeof(char));

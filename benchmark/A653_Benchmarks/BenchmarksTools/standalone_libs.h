@@ -7,10 +7,17 @@
  *    Jean-Baptiste Lefoul
  *
  * Global statistics tools and instrumentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: size_t comes from <stddef.h>
+ * (it was redefined as a 32-bit type); usqrt() and struct int_sqrt use
+ * uint32_t, as the algorithm assumes 32-bit values.
  ******************************************************************************/
 
 #ifndef __STANDALONE_LIBS_H_
 #define __STANDALONE_LIBS_H_
+
+#include <stddef.h>
+#include <stdint.h>
 
 
 #ifndef PI
@@ -25,25 +32,24 @@
 #define RAND_MAX  32767
 #endif
 
+/* Width of the usqrt() argument */
 #define BITSPERLONG 32
 
-#define TOP2BITS(x) ((x & (3L << (BITSPERLONG-2))) >> (BITSPERLONG-2))
+#define TOP2BITS(x) ((x & ((uint32_t)3 << (BITSPERLONG-2))) >> (BITSPERLONG-2))
 
 #define deg2rad(d) ((d)*PI/180)
 #define rad2deg(r) ((r)*180/PI)
 
 #define MIN(v1, v2) (v1 < v2 ? v1 : v2)
 
-typedef unsigned int size_t;
-
 struct int_sqrt {
-      unsigned sqrt,
+      uint32_t sqrt,
                frac;
 };
 
 extern void* memcpy (void* to, const void*  from, size_t n);
 
-extern void usqrt(unsigned long x, struct int_sqrt *q);
+extern void usqrt(uint32_t x, struct int_sqrt *q);
 extern double sqrt(double val);
 extern double sin(double rad);
 extern double fabs(double n);

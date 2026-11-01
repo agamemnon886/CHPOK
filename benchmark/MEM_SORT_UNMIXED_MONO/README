@@ -1,0 +1,51 @@
+Memory-intensive sorting, three partitions
+==========================================
+
+A memory-intensive test: random number generation followed by sorting, so that
+memory accesses are the performance bottleneck.
+
+What it tests
+-------------
+
+How the RTOS handles memory-intensive applications in separate partitions
+("unmixed": each partition runs only this kind of load).
+
+What it does
+------------
+
+Three partitions, P1, P2 and P3, each with two periodic processes.
+
+Each partition has a generator process (GEN_A653, 10 ms budget) that fills an
+array with random numbers, and a sorting process (SORT_A653) that sorts it:
+bubble sort in P1 and P2, insertion sort in P3. Windows: P1 1300 ms, P2 1200
+ms, P3 2200 ms in a 4700 ms major frame; both processes have a 4700 ms period.
+
+Expected output
+---------------
+
+"GENERATED, WAITING", "BUBBLE SORTED" / "INSERT SORTED" and the execution-time
+statistics of each process.
+
+Notes
+-----
+
+The generator has a hard 10 ms time capacity. In QEMU its first activation
+after a (re)start sometimes takes longer (code translation), and the partition
+is restarted for a missed deadline.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/MEM_SORT_UNMIXED_MONO/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/MEM_SORT_UNMIXED_MONO/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

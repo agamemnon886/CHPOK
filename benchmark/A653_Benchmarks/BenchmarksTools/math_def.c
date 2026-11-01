@@ -9,6 +9,10 @@
  *
  *  Standalone functions to abstract library use.
  *
+ *  Modified by Kirill Brazhnikov, 2026-10-31: usqrt() works on uint32_t
+ *  and copies only the 32-bit result (it copied sizeof(long) bytes, which
+ *  overwrote q->frac on 64-bit targets).
+ *
  ******************************************************************************/
 
 #include "standalone_libs.h"
@@ -65,13 +69,13 @@ double sqrt(double val)
   return (x);
 }
 
-void usqrt(unsigned long x, struct int_sqrt *q)
+void usqrt(uint32_t x, struct int_sqrt *q)
 {
-      unsigned long a = 0L;                   /* accumulator      */
-      unsigned long r = 0L;                   /* remainder        */
-      unsigned long e = 0L;                   /* trial product    */
+      uint32_t a = 0;                         /* accumulator      */
+      uint32_t r = 0;                         /* remainder        */
+      uint32_t e = 0;                         /* trial product    */
 
-      int i;
+      int32_t i;
 
       for (i = 0; i < BITSPERLONG; i++)   /* NOTE 1 */
       {
@@ -84,7 +88,7 @@ void usqrt(unsigned long x, struct int_sqrt *q)
                   a++;
             }
       }
-      memcpy(q, &a, sizeof(long));
+      memcpy(q, &a, sizeof(a));
 }
 
 double sin(double rad)

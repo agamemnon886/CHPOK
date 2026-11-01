@@ -1,0 +1,51 @@
+Data cache false sharing
+========================
+
+Part of HW_Specific: tests that stress one hardware resource, to study how
+interference on it shows up in other partitions. The sizes come from
+BENCH_TOOLS/arch_config.h (cache and TLB geometry of the target).
+
+What it tests
+-------------
+
+False sharing: two partitions write to different addresses that map to the same
+data-cache sets. If the RTOS manages the caches correctly the WCET is not
+affected.
+
+What it does
+------------
+
+Two partitions, P1 and P2, one periodic process each.
+
+In each partition a process walks a growing address range (from L1D/4 up to
+half the last-level cache), aligned to a chosen cache set, writing every other
+line 100 times per period, and reports the WCET, ACET and BCET of each walk
+size.
+
+Expected output
+---------------
+
+"Starting new walk: Start / End / Step / Dataset size" and "End walk: WCET ACET
+BCET"; "Benchmark END" when all sizes are done.
+
+Notes
+-----
+
+The name says TODO: the authors marked the test as unfinished.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/HW_Specific/CACHES/DCACHE_PRIVATE_FSHARING_TODO/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/HW_Specific/CACHES/DCACHE_PRIVATE_FSHARING_TODO/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

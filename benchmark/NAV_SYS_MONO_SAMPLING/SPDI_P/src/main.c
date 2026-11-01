@@ -16,6 +16,12 @@
  * the RTOS implemented and how it reacts with memory and IO acces
  * intensive applications.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets:
+ * printf arguments are cast to the types their formats expect (partition
+ * status fields are 32- and 64-bit values); the process stack is 8192 bytes
+ * (1000 to 2500 bytes overflowed on 64-bit targets, whose call frames are
+ * larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -128,7 +134,7 @@ static SEMAPHORE_ID_TYPE      sync_sem;
 
 #ifdef VERBOSE_OUTPUT_ALPR
         printf("[p%ld:%lld|%lld|%d] COMPUTED PLANE SETTINGS: Dist %fKm, Speed %fKt, Bearing %fdeg\n",
-               pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+               (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                pr_stat.OPERATING_MODE,
                distance, speed * 0.539957, bearing);
 #else
@@ -193,7 +199,7 @@ void* com_thread_func(void)
 
 #ifdef VERBOSE_OUTPUT_ALPR
             printf("[p%ld:%lld|%lld|%d] RECEIVED COORDINATES: %fN %fE\n",
-                   pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+                   (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                    pr_stat.OPERATING_MODE,
                    current_position.lat, current_position.lon);
 #endif
@@ -236,7 +242,7 @@ int main ()
     tattr_com.ENTRY_POINT   = com_thread_func;
     tattr_com.DEADLINE      = HARD;
     tattr_com.PERIOD        = GPS_PERIOD;
-    tattr_com.STACK_SIZE    = 2000;
+    tattr_com.STACK_SIZE    = 8192;
     tattr_com.TIME_CAPACITY = 2000000000;
     tattr_com.BASE_PRIORITY = 1;
 
@@ -246,7 +252,7 @@ int main ()
     tattr_pro.ENTRY_POINT   = pro_thread_func;
     tattr_pro.DEADLINE      = HARD;
     tattr_pro.PERIOD        = GPS_PERIOD;
-    tattr_pro.STACK_SIZE    = 2000;
+    tattr_pro.STACK_SIZE    = 8192;
     tattr_pro.TIME_CAPACITY = 2000000000;
     tattr_pro.BASE_PRIORITY = 1;
 

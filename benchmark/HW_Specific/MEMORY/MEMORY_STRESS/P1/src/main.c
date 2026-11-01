@@ -16,6 +16,15 @@
  * Going further, we could use these benchmarks to study the contention on the
  * bus is the memory contention effect can be substracted to our results.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the data size and walk step
+ * come from the last-level cache (CACHE_SIZE_LLC, CACHE_LINE_SIZE_LLC):
+ * Cortex-A53 has no L3, so the L3 values (0) gave empty arrays and a walk
+ * that never advanced.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -33,7 +42,7 @@
  * TESTS SETTINGS
  ******************************************************************************/
 
-#define DATA_SIZE (CACHE_SIZE_L3 / 2)
+#define DATA_SIZE (CACHE_SIZE_LLC / 2)
 
 
 /* The walk size will be repeated infinitely, you can modify its value to
@@ -103,7 +112,7 @@ void* mem_thread_func_0(void)
         while(start_address < end_address)
         {
             tmp = *start_address;
-            start_address += CACHE_LINE_SIZE_L3;
+            start_address += CACHE_LINE_SIZE_LLC;
         }
         ++tmp;
 
@@ -143,7 +152,7 @@ int main()
     tattr_mem_0.ENTRY_POINT   = mem_thread_func_0;
     tattr_mem_0.DEADLINE      = HARD;
     tattr_mem_0.PERIOD        = 200000000;
-    tattr_mem_0.STACK_SIZE    = 2000;
+    tattr_mem_0.STACK_SIZE    = 8192;
     tattr_mem_0.TIME_CAPACITY = 200000000;
     tattr_mem_0.BASE_PRIORITY = 1;
     memcpy(tattr_mem_0.NAME, "MEM_A653\0", 9 * sizeof(char));

@@ -1,0 +1,48 @@
+Front-end pipeline stress (NOP)
+===============================
+
+Part of HW_Specific: tests that stress one hardware resource, to study how
+interference on it shows up in other partitions. The sizes come from
+BENCH_TOOLS/arch_config.h (cache and TLB geometry of the target).
+
+What it tests
+-------------
+
+Interference on the front end of the pipeline (fetch and decode), with NOPs
+only.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Every 10 ms executes 3 million NOPs (10000 blocks of 300 inline NOP
+instructions).
+
+Expected output
+---------------
+
+"3000000 NOP DONE" periodically.
+
+Notes
+-----
+
+Under QEMU emulation 3 million NOPs can take longer than the 10 ms budget, and
+the partition is restarted for a missed deadline.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/HW_Specific/PIPELINE/FRONT_PIPE_NOP/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/HW_Specific/PIPELINE/FRONT_PIPE_NOP/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

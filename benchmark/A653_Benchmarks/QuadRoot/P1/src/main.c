@@ -14,6 +14,10 @@
  * Ported from:
  *     SNU-RT Benchmarks (http://www.cprover.org/goto-cc/examples/snu.html)
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include "../../../BenchmarksTools/benc_config.h"
@@ -132,7 +136,7 @@ int main()
     th_attr_qurt.ENTRY_POINT   = qurt_thread;
     th_attr_qurt.DEADLINE      = HARD;
     th_attr_qurt.PERIOD        = 100000000;
-    th_attr_qurt.STACK_SIZE    = 1000;
+    th_attr_qurt.STACK_SIZE    = 8192;
     th_attr_qurt.TIME_CAPACITY = 100000000;
     th_attr_qurt.BASE_PRIORITY = 1;
     memcpy(th_attr_qurt.NAME, "QURT_A653\0", 9 * sizeof(char));

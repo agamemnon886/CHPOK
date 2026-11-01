@@ -16,6 +16,10 @@
  * the RTOS implemented and how it reacts with memory and IO acces
  * intensive applications.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -176,7 +180,7 @@ int main ()
     tattr_sob.ENTRY_POINT   = pro_thread_func;
     tattr_sob.DEADLINE      = HARD;
     tattr_sob.PERIOD        = GPS_PERIOD;
-    tattr_sob.STACK_SIZE    = 2000;
+    tattr_sob.STACK_SIZE    = 8192;
     tattr_sob.TIME_CAPACITY = 5000000000;
     tattr_sob.BASE_PRIORITY = 1;
 

@@ -16,6 +16,10 @@
  * The test will run on any architecture having NOP as a part of its instruction
  * set.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -128,7 +132,7 @@ int main()
     th_attr_nop.ENTRY_POINT   = nop_th;
     th_attr_nop.DEADLINE      = HARD;
     th_attr_nop.PERIOD        = 10000000;
-    th_attr_nop.STACK_SIZE    = 1000;
+    th_attr_nop.STACK_SIZE    = 8192;
     th_attr_nop.TIME_CAPACITY = 10000000;
     th_attr_nop.BASE_PRIORITY = 1;
     memcpy(th_attr_nop.NAME, "NOP_A653\0", 9 * sizeof(char));

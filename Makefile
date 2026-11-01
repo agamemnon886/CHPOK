@@ -33,6 +33,8 @@
 #   make clean           # clean all examples
 #   make clean-<name>    # clean examples/<name> only
 #   make list            # list available example names
+#   make benchmarks      # build all benchmarks under benchmark/
+#   make clean-benchmarks # clean all benchmarks
 #   make docker-image    # (re)build the Docker build image only
 #   make help            # show this help
 #
@@ -53,6 +55,15 @@ export POK_PATH
 
 EXAMPLES_DIR := examples
 EXAMPLES := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(EXAMPLES_DIR)/*/SConstruct)))))
+
+# Benchmark projects under benchmark/: directories with an SConstruct but
+# no SConscript (their partition directories have both).
+BENCH_DIR := benchmark
+BENCH_SCONSTRUCTS := $(wildcard $(BENCH_DIR)/*/SConstruct $(BENCH_DIR)/*/*/SConstruct \
+	$(BENCH_DIR)/*/*/*/SConstruct)
+BENCH_PARTITIONS := $(dir $(wildcard $(BENCH_DIR)/*/*/SConscript \
+	$(BENCH_DIR)/*/*/*/SConscript $(BENCH_DIR)/*/*/*/*/SConscript))
+BENCHMARKS := $(sort $(patsubst %/,%,$(filter-out $(BENCH_PARTITIONS),$(dir $(BENCH_SCONSTRUCTS)))))
 
 SCONS := scons
 BSP ?= x86_64-qemu
@@ -90,7 +101,8 @@ DOCKER_RUN := $(DOCKER) run --rm \
 # concurrently.
 .NOTPARALLEL:
 
-.PHONY: all clean list help docker-image $(EXAMPLES) $(addprefix clean-,$(EXAMPLES))
+.PHONY: all clean list help docker-image benchmarks clean-benchmarks \
+	$(EXAMPLES) $(addprefix clean-,$(EXAMPLES))
 
 all: $(BSP_EXAMPLES)
 
@@ -101,6 +113,8 @@ help:
 	@echo "  make clean           Clean all examples"
 	@echo "  make clean-<name>    Clean one example"
 	@echo "  make list            List available example names"
+	@echo "  make benchmarks      Build all benchmarks (benchmark/)"
+	@echo "  make clean-benchmarks Clean all benchmarks"
 	@echo "  make docker-image    (Re)build the Docker build image"
 	@echo "  make help            Show this help"
 	@echo ""
@@ -120,6 +134,22 @@ ifeq ($(DOCKER_PREFIX),)
 	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
 endif
 	$(DOCKER_RUN) sh -c 'cd "$(POK_PATH)/$(EXAMPLES_DIR)/$@" && $(SCONS) $(SCONS_ARGS)'
+endif
+
+# Benchmarks are built one after another, in one container, stopping at
+# the first failure.
+BENCH_BUILD := set -e; for b in $(BENCHMARKS); do \
+	echo "== $$b"; (cd "$(POK_PATH)/$$b" && $(SCONS) $(SCONS_ARGS)); done
+
+ifdef NATIVE
+benchmarks:
+	$(BENCH_BUILD)
+else
+benchmarks: docker-image
+ifeq ($(DOCKER_PREFIX),)
+	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
+endif
+	$(DOCKER_RUN) sh -c '$(BENCH_BUILD)'
 endif
 
 docker-image:
@@ -144,6 +174,10 @@ $(addprefix clean-,$(EXAMPLES)):
 	rm -f $(EXAMPLES_DIR)/$(EX)/sizes.c $(EXAMPLES_DIR)/$(EX)/*/deployment.c
 	rm -f $(EXAMPLES_DIR)/$(EX)/scons_build.log
 	find $(EXAMPLES_DIR)/$(EX) -name '.sconsign*' -delete
+
+clean-benchmarks:
+	find $(BENCH_DIR) -type d -name build -prune -exec rm -rf {} +
+	find $(BENCH_DIR) \( -name '.sconsign*' -o -name scons_build.log \) -delete
 
 list:
 	@echo $(EXAMPLES)

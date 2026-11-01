@@ -1,0 +1,45 @@
+Navigation system with Sobel filter
+===================================
+
+A navigation system split over three partitions that share data, to study CPU,
+memory and I/O interference between communicating partitions.
+
+What it tests
+-------------
+
+Inter-partition communication through sampling ports next to a CPU- and memory-
+heavy partition.
+
+What it does
+------------
+
+Three partitions: GPS_P, PROC_P and SOBE_P.
+
+GPS_P generates GPS positions (latitude, longitude) and writes them to a
+sampling port. PROC_P reads them and computes speed and bearing (SPDI) and
+altitude and pressure (ALPR). SOBE_P runs a Sobel edge filter on a 200x200
+image. Processes inside a partition share data under a semaphore. Windows: 2.5
+s, 7.5 s and 5 s.
+
+Expected output
+---------------
+
+"NEW POINT GENERATED", "Distance ... Speed ... Bearing", "Altitude ...
+Pressure" (some output only with the VERBOSE_* options).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/NAV_SOB_SYS/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/NAV_SOB_SYS/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

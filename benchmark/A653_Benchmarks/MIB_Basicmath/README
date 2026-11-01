@@ -1,0 +1,58 @@
+MiBench basic math
+==================
+
+Part of A653_Benchmarks: classic WCET (worst-case execution time) kernels run
+as periodic ARINC 653 processes, to measure their execution time under JetOS.
+Each period the process runs the kernel once; with GET_STAT enabled
+(BenchmarksTools/benc_config.h) it also prints the execution time and the
+running WCET, BCET and ACET.
+
+What it tests
+-------------
+
+Execution time of a heavy floating-point workload with a lot of console output.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Runs the MiBench "basicmath" program: solves cubic equations, computes integer
+square roots (usqrt) and converts angles between degrees and radians. The
+"large" data set runs in a process with a 1 s period and a hard 1 s deadline.
+
+Expected output
+---------------
+
+Lines starting with "Solutions:", "sqrt(...)" and angle conversions; about 9500
+lines per second in QEMU.
+
+Notes
+-----
+
+In QEMU the large data set takes longer than its 1 s budget (mostly because of
+the console output), so the hard deadline is missed and the HM table restarts
+the partition ("Restarting partition P1 due to: Deadline Missed"). Set
+OUTPUT_ENABLED to 0 or use the small data set to stay within the budget.
+
+Origin
+------
+
+Ported from MiBench 1.0 (http://vhosts.eecs.umich.edu/mibench/).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/MIB_Basicmath/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/MIB_Basicmath/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

@@ -16,6 +16,16 @@
  * The private cache can be studied when the size of the walk is less or equals
  * to the size of the private caches.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: fixed a missing semicolon (the
+ * file did not compile); the data size is the last-level cache size
+ * (CACHE_SIZE_LLC, L2 on Cortex-A53, which has no L3); the write walk
+ * stores a byte value instead of a pointer; the L1 eviction uses
+ * CACHE_SIZE_L1_DATA.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -33,7 +43,7 @@
  * TESTS SETTINGS
  ******************************************************************************/
 
-#define DATA_SIZE (CACHE_SIZE_L3)
+#define DATA_SIZE (CACHE_SIZE_LLC)
 
 /* The walk size will be repeated infinitely, you can modify its value to
  * set the quantity of data to be walked, depending on the CLEAR_CACHE
@@ -56,6 +66,10 @@
  */
 #define CACHE_PRELOAD_L2 0
 #define CACHE_PRELOAD_L3 0
+
+#if CACHE_PRELOAD_L3 && CACHE_SIZE_L3 == 0
+#error "CACHE_PRELOAD_L3: this processor has no L3 cache"
+#endif
 
 /*******************************************************************************
  * PARTITION SPECIFIC VARIABLES
@@ -94,7 +108,7 @@ void* cache_thread_func_0(void)
     while(1)
     {
         start_address = data;
-        end_address =  MIN((data + DATA_SIZE), (data + WALK_SIZE))
+        end_address =  MIN((data + DATA_SIZE), (data + WALK_SIZE));
 
         /* Walk the memory */
         while(start_address < end_address)
@@ -102,7 +116,7 @@ void* cache_thread_func_0(void)
 #if CACHE_RDONLY
             tmp = *start_address;
 #else
-            *start_address = start_address;
+            *start_address = (uint8_t)(uintptr_t)start_address;
 #endif
             ++start_address;
         }
@@ -142,7 +156,7 @@ int main()
     tattr_cache_0.ENTRY_POINT   = cache_thread_func_0;
     tattr_cache_0.DEADLINE      = HARD;
     tattr_cache_0.PERIOD        = 200000000;
-    tattr_cache_0.STACK_SIZE    = 2000;
+    tattr_cache_0.STACK_SIZE    = 8192;
     tattr_cache_0.TIME_CAPACITY = 200000000;
     tattr_cache_0.BASE_PRIORITY = 1;
     memcpy(tattr_cache_0.NAME, "CACHE0_A653\0", 12 * sizeof(char));
@@ -173,7 +187,7 @@ int main()
     }
 
     /* Evict L1 caches */
-    end_address =  evict_data + CACHE_SIZE_L1;
+    end_address =  evict_data + CACHE_SIZE_L1_DATA;
     start_address = evict_data;
 
     while(start_address != end_address)

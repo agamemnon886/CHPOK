@@ -12,6 +12,14 @@
  *                                      Copyright (c) 2007-2009 POK team
  *
  * Created by Jean-Baptiste on 22/03/2018
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets:
+ * process IDs use PROCESS_ID_TYPE (GET_MY_ID wrote 4 bytes into a long),
+ * printf formats match their arguments, and the array initializer has no
+ * extra braces.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /*******************************************************************************
@@ -53,7 +61,7 @@
 /*******************************************************************************
  * PARTITION SPECIFIC VARIABLES
  ******************************************************************************/
-static volatile uint8_t __attribute__ ((aligned (LINE_SIZE))) tabs[NB_PROCESSES*WAY_SIZE] = {{0}};
+static volatile uint8_t __attribute__ ((aligned (LINE_SIZE))) tabs[NB_PROCESSES*WAY_SIZE] = {0};
 
 static uint32_t partition_id;
 
@@ -100,7 +108,7 @@ void* process_func(void)
     RETURN_CODE_TYPE ret;
     while(1)
     {
-        long my_id;
+        PROCESS_ID_TYPE my_id;
         GET_MY_ID(&my_id, &ret);
         if(ret != NO_ERROR)
         {
@@ -108,7 +116,6 @@ void* process_func(void)
                     partition_id, ret);
             STOP_SELF();
         }
-        register long id = my_id - 2;
         for(register int j = 0; j < NB_PROCESSES; ++j)
         {
             for(register int i=0; i < WAY_SIZE; i += LINE_SIZE)
@@ -116,7 +123,7 @@ void* process_func(void)
                 tabs[j*WAY_SIZE + i]++;
             }
         }
-        printf(".", id);    
+        printf(".");
         PERIODIC_WAIT(&ret);
     }
 }
@@ -164,9 +171,8 @@ int main ()
             printf("[Part %d] Cannot create ROUND_ARRAY_A653_PROC_%d process[%d]\n", 
                     partition_id, i, ret_type);
         }
-        printf("[Part %d] ", partition_id);
-        printf(tattr.NAME);
-        printf(" thread number: %ld\n", threads[i]);
+        printf("[Part %d] %s thread number: %d\n", (int) partition_id,
+               tattr.NAME, (int) threads[i]);
     }
 
     for (uint32_t i = 0; i < 1; ++i)

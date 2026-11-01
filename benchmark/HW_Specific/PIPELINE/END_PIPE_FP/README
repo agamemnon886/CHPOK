@@ -1,0 +1,51 @@
+Back-end pipeline stress (FPU)
+==============================
+
+Part of HW_Specific: tests that stress one hardware resource, to study how
+interference on it shows up in other partitions. The sizes come from
+BENCH_TOOLS/arch_config.h (cache and TLB geometry of the target).
+
+What it tests
+-------------
+
+Interference on the execution units at the end of the pipeline (integer units
+and FPU), with a minimal memory footprint.
+
+What it does
+------------
+
+Two partitions, P1 and P2, one periodic process each.
+
+P1 counts the primes in [1; 10000] (integer division); P2 sums square roots
+(floating point). Both processes have a 400 ms period and 200 ms time capacity;
+each partition has a 500 ms window in a 1000 ms major frame.
+
+Expected output
+---------------
+
+"[p1:...] 1230 primes exist in [1; 10000]" and "[p2:...] SQRT Sum:
+437535.218750" (the prime count includes 1, as is_prime() counts it).
+
+Notes
+-----
+
+The 400 ms period does not match the partition schedule: some releases fall
+outside the partition's window, the hard deadline is missed and the partition
+is restarted.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/HW_Specific/PIPELINE/END_PIPE_FP/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/HW_Specific/PIPELINE/END_PIPE_FP/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

@@ -16,6 +16,10 @@
  * These test also allow to stress the end pipeline, which contains shared FPU
  * etc...
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets:
+ * printf arguments are cast to the types their formats expect (partition
+ * status fields are 32- and 64-bit values).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -83,7 +87,7 @@ static void* prime_thread_func(void)
         }
 
         printf("\n[p%ld:%lld|%lld|%d] %u primes exist in [%u; %u]\n",
-               pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+               (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                pr_stat.OPERATING_MODE, count, PRIME_RANGE_BEGIN,
                PRIME_RANGE_END);
 

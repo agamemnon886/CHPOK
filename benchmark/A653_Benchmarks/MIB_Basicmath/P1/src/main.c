@@ -13,6 +13,10 @@
  * Ported from:
  *     MiBench Version 1.0 (http://vhosts.eecs.umich.edu/mibench/)
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include "../../../BenchmarksTools/benc_config.h"
@@ -307,7 +311,7 @@ int main()
     th_attr_large.ENTRY_POINT   = large_thread;
     th_attr_large.DEADLINE      = HARD;
     th_attr_large.PERIOD        = 1000000000;
-    th_attr_large.STACK_SIZE    = 1000;
+    th_attr_large.STACK_SIZE    = 8192;
     th_attr_large.TIME_CAPACITY = 1000000000;
     th_attr_large.BASE_PRIORITY = 1;
     memcpy(th_attr_large.NAME, "BASICMATH_LARGE_A653\0", 21 * sizeof(char));
@@ -337,7 +341,7 @@ int main()
     th_attr_small.ENTRY_POINT   = small_thread;
     th_attr_small.DEADLINE      = HARD;
     th_attr_small.PERIOD        = 1000000000;
-    th_attr_small.STACK_SIZE    = 1000;
+    th_attr_small.STACK_SIZE    = 8192;
     th_attr_small.TIME_CAPACITY = 1000000000;
     th_attr_small.BASE_PRIORITY = 1;
     memcpy(th_attr_small.NAME, "BASICMATH_SMALL_A653\0", 21 * sizeof(char));

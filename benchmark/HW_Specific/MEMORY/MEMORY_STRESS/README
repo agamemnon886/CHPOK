@@ -1,0 +1,43 @@
+Main memory stress
+==================
+
+Part of HW_Specific: tests that stress one hardware resource, to study how
+interference on it shows up in other partitions. The sizes come from
+BENCH_TOOLS/arch_config.h (cache and TLB geometry of the target).
+
+What it tests
+-------------
+
+Memory and bus contention: every access should miss in the last-level cache and
+go to main memory.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Every 200 ms reads one byte per last-level-cache line from one of two banks,
+each half the size of the last-level cache, alternating banks so that each walk
+misses.
+
+Expected output
+---------------
+
+"Memory read full miss 100 times" every 100 periods (20 s).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/HW_Specific/MEMORY/MEMORY_STRESS/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/HW_Specific/MEMORY/MEMORY_STRESS/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

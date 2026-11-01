@@ -1,0 +1,42 @@
+Round array, cache misses between processes
+===========================================
+
+Part of CACHE_FRAMEWORK: kernels kept as a separate set for cache studies
+(cache locking and cache-miss analysis).
+
+What it tests
+-------------
+
+Cache interference between processes of one partition that share an array: each
+process touches a different 4 KB "way" of the array line by line.
+
+What it does
+------------
+
+One partition, P1, with five periodic processes.
+
+Five processes (ROUND_ARRAY_A653_PROC_0..4), period 100 ms, each increment one
+byte per 32-byte line of a 5 x 4 KB array. P1 has two 500 ms windows per 1000
+ms major frame.
+
+Expected output
+---------------
+
+A "." per process activation.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/round_array_cache_miss/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/round_array_cache_miss/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

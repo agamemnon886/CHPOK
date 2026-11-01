@@ -1,0 +1,44 @@
+Private and shared cache stress
+===============================
+
+Part of HW_Specific: tests that stress one hardware resource, to study how
+interference on it shows up in other partitions. The sizes come from
+BENCH_TOOLS/arch_config.h (cache and TLB geometry of the target).
+
+What it tests
+-------------
+
+Cache management by the OS: hits, misses and eviction when the caches are
+filled.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Every 200 ms walks byte by byte over data the size of the last-level cache (L3
+on x86_64, L2 on Cortex-A53), reading it (CACHE_RDONLY = 1) or writing it.
+Smaller WALK_SIZE values study the private caches; CACHE_PRELOAD_L2/L3 preload
+a level and evict the ones above it.
+
+Expected output
+---------------
+
+"Cache flooded 100 times" every 100 periods (20 s).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/HW_Specific/CACHES/CACHE_PRIVATE_SHARED/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/HW_Specific/CACHES/CACHE_PRIVATE_SHARED/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

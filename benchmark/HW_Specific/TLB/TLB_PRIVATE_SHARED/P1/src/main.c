@@ -14,6 +14,10 @@
  * delay induced by the use of the TLB. Both the private levels and the shared
  * levels of data TLB can be studied depending on the WALK_SIZE parameter.
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -141,7 +145,7 @@ int main()
     tattr_tlb_0.ENTRY_POINT   = tlb_flood;
     tattr_tlb_0.DEADLINE      = HARD;
     tattr_tlb_0.PERIOD        = 200000000;
-    tattr_tlb_0.STACK_SIZE    = 2000;
+    tattr_tlb_0.STACK_SIZE    = 8192;
     tattr_tlb_0.TIME_CAPACITY = 200000000;
     tattr_tlb_0.BASE_PRIORITY = 1;
     memcpy(tattr_tlb_0.NAME, "TLB0_A653\0", 11 * sizeof(char));

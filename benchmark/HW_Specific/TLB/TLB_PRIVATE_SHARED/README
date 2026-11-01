@@ -1,0 +1,43 @@
+Data TLB stress
+===============
+
+Part of HW_Specific: tests that stress one hardware resource, to study how
+interference on it shows up in other partitions. The sizes come from
+BENCH_TOOLS/arch_config.h (cache and TLB geometry of the target).
+
+What it tests
+-------------
+
+TLB interference: every access misses in the data TLB. Depending on WALK_SIZE
+the private (L1) or the shared (L2) TLB level is studied.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Every 200 ms reads one byte per 4 KB page over (TLB_SIZE_SHARED +
+TLB_SIZE_DATA) pages, alternating between two banks (CLEAR_TLB) so that each
+walk misses.
+
+Expected output
+---------------
+
+"TLB flooded 100 times" every 100 periods (20 s).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/HW_Specific/TLB/TLB_PRIVATE_SHARED/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/HW_Specific/TLB/TLB_PRIVATE_SHARED/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

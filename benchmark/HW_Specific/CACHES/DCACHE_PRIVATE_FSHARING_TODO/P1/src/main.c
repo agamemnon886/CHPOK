@@ -34,6 +34,14 @@
  *    WCET/ACET/BCET
  *    Cache Miss/Hit
  *    Write to MEM
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets:
+ * addresses are kept in uintptr_t instead of uint32_t (arm64 partitions are
+ * above 4 GB) and the data size comes from the last-level cache
+ * (CACHE_SIZE_LLC; Cortex-A53 has no L3); printf arguments are cast to the
+ * types their formats expect (partition status fields are 32- and 64-bit
+ * values); the process stack is 8192 bytes (1000 to 2500 bytes overflowed
+ * on 64-bit targets, whose call frames are larger).
  ******************************************************************************/
 
 #include <stdio.h>
@@ -51,7 +59,7 @@
  * TESTS SETTINGS
  ******************************************************************************/
 
-#define DATA_SIZE (CACHE_SIZE_L3 / 2)
+#define DATA_SIZE (CACHE_SIZE_LLC / 2)
 
 /*******************************************************************************
  * PARTITION SPECIFIC VARIABLES
@@ -74,13 +82,14 @@ void* cache_thread_func_0(void)
 
     uint32_t nb_exec = 0;
 
-    uint32_t start_address;
-    uint32_t end_address;
+    uintptr_t start_address;
+    uintptr_t end_address;
     uint32_t inc_address = CACHE_SIZE_L1_DATA / CACHE_SETS_NUMBER_L1_DATA;
 
     uint32_t target_cache_line, current_target;
 
-    uint32_t i, j;
+    uintptr_t i;
+    uint32_t j;
 
     SYSTEM_TIME_TYPE wcet, acet, bcet, ex_time, start_time, end_time;
 
@@ -103,14 +112,14 @@ void* cache_thread_func_0(void)
             if(start_size > DATA_SIZE)
             {
                 printf("---- [p%ld:%lld|%lld|%d] Benchmark END",
-                       pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+                       (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                        pr_stat.OPERATING_MODE);
 
                 STOP_SELF();
             }
 
             /* Compute the start address of the range */
-            start_address = (uint32_t)data;
+            start_address = (uintptr_t)data;
             current_target = (start_address %
                               (CACHE_SIZE_L1_DATA / CACHE_SETS_NUMBER_L1_DATA)) /
                              CACHE_LINE_SIZE_L1_DATA;
@@ -128,24 +137,26 @@ void* cache_thread_func_0(void)
 
             /* Compute the usable address range */
             end_address = start_address + start_size;
-            end_address = end_address > ((uint32_t)data + DATA_SIZE) ?
-                                        ((uint32_t)data + DATA_SIZE) :
+            end_address = end_address > ((uintptr_t)data + DATA_SIZE) ?
+                                        ((uintptr_t)data + DATA_SIZE) :
                                         end_address;
 
             if(nb_exec != 0)
             {
                 printf("---- [p%ld:%lld|%lld|%d] End walk:\n\tWCET = %llu\n\
     \tACET = %llu\n\tBCET = %llu\n",
-                       pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+                       (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                        pr_stat.OPERATING_MODE,
-                       wcet, acet, bcet);
+                       (unsigned long long) wcet, (unsigned long long) acet,
+                       (unsigned long long) bcet);
             }
 
-            printf("\n[p%ld:%lld|%lld|%d] Starting new walk:\n\tStart = 0x%08x\n\
-\tEnd = 0x%08x\n\tStep = 0x%08x\n\tDataset size = %uB\n",
-                   pr_stat.IDENTIFIER, pr_stat.PERIOD, pr_stat.DURATION,
+            printf("\n[p%ld:%lld|%lld|%d] Starting new walk:\n\tStart = 0x%08lx\n\
+\tEnd = 0x%08lx\n\tStep = 0x%08x\n\tDataset size = %uB\n",
+                   (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                    pr_stat.OPERATING_MODE,
-                   start_address, end_address, inc_address, start_size);
+                   (unsigned long) start_address, (unsigned long) end_address,
+                   inc_address, start_size);
 
             nb_exec = 1;
             wcet = 0;
@@ -205,7 +216,7 @@ int main()
     tattr_cache_0.ENTRY_POINT   = cache_thread_func_0;
     tattr_cache_0.DEADLINE      = HARD;
     tattr_cache_0.PERIOD        = 200000000;
-    tattr_cache_0.STACK_SIZE    = 2000;
+    tattr_cache_0.STACK_SIZE    = 8192;
     tattr_cache_0.TIME_CAPACITY = 200000000;
     tattr_cache_0.BASE_PRIORITY = 1;
     memcpy(tattr_cache_0.NAME, "CACHE0_A653\0", 12 * sizeof(char));

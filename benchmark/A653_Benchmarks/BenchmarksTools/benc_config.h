@@ -8,6 +8,11 @@
  *
  * Global tests configuration and settings. You may define architecture
  * specific values here
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the processor description
+ * (cache geometry, ARCH_* selection) comes from BENCH_TOOLS/arch_config.h
+ * and depends on the target (x86_64 or aarch64) instead of a fixed PowerPC
+ * e200z7 one.
  ******************************************************************************/
 
 #ifndef __CONFIG_H_
@@ -17,44 +22,7 @@
  * PROCESSOR
  ******************************************************************************/
 
-/* PPC e200z7 */
-#define CACHE_SIZE_L1_INST 16384      /* Bytes */
-#define CACHE_SIZE_L1_DATA 16384      /* Bytes */
-#define CACHE_SIZE_L2      0          /* Bytes */
-#define CACHE_SIZE_L3      0          /* Bytes */
-
-#define CACHE_LINE_SIZE_L1_INST 32    /* Bytes */
-#define CACHE_LINE_SIZE_L1_DATA 32    /* Bytes */
-#define CACHE_LINE_SIZE_L2      0     /* Bytes */
-#define CACHE_LINE_SIZE_L3      0     /* Bytes */
-
-#define CACHE_ASSOC_NUMBER_L1_INST 4  /* Ways */
-#define CACHE_ASSOC_NUMBER_L1_DATA 4  /* Ways */
-#define CACHE_ASSOC_NUMBER_L2      0  /* Ways */
-#define CACHE_ASSOC_NUMBER_L3      0  /* Ways */
-
-#define SYSTEM_PAGE_SIZE 4096 /* Bytes */
-
-/* General */
-#define CACHE_SETS_NUMBER_L1_INST (CACHE_SIZE_L1_INST /     \
-    (CACHE_ASSOC_NUMBER_L1_INST * CACHE_LINE_SIZE_L1_INST))
-
-#define CACHE_SETS_NUMBER_L1_DATA (CACHE_SIZE_L1_DATA /     \
-    (CACHE_ASSOC_NUMBER_L1_DATA * CACHE_LINE_SIZE_L1_DATA))
-
-#define CACHE_SETS_NUMBER_L2 (CACHE_SIZE_L2 /     \
-    (CACHE_ASSOC_NUMBER_L2 * CACHE_LINE_SIZE_L2))
-
-#define CACHE_SETS_NUMBER_L3 (CACHE_SIZE_L3 /     \
-    (CACHE_ASSOC_NUMBER_L3 * CACHE_LINE_SIZE_L3))
-
-/*******************************************************************************
- * ARCHITECTURES
- ******************************************************************************/
-
-#define ARCH_X86 0
-#define ARCH_PPC 1
-#define ARCH_ARM 0
+#include "../../BENCH_TOOLS/arch_config.h"
 
 
 /*******************************************************************************

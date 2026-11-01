@@ -13,6 +13,16 @@
  * Ported from:
  *     Mälardalen WCET Benchmarks (http://www.mrtc.mdh.se/projects/wcet/benchmarks.html)
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: the hash index stays inside
+ * htab: with HSIZE 257 the computed shift was negative (undefined
+ * behaviour) and the index was not reduced modulo the table size. On 64-bit
+ * targets the out-of-bounds accesses (8-byte entries) left the partition's
+ * memory and faulted.
+ *
+ * Modified by Kirill Brazhnikov, 2026-10-31: ported to 64-bit targets: the
+ * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
+ * targets, whose call frames are larger).
+ *
  ******************************************************************************/
 
 #include "../../../BenchmarksTools/benc_config.h"
@@ -331,6 +341,11 @@ void compress(void)
    }
 
    hshift = 8 - hshift;     /* set hash code range bound */
+   /* With hsize below 65536 (257 here) the loop above gives a negative
+    * shift, which is undefined: use no shift. */
+   if ( hshift < 0 ) {
+      hshift = 0;
+   }
 
    hsize_reg = hsize;
    cl_hash( (count_int) hsize_reg);     /* clear hash table */
@@ -344,7 +359,7 @@ void compress(void)
 
       in_count++;
       fcode = (long) (((long) c << maxbits) + ent);
-      i = ((c << hshift) ^ ent);    /* xor hashing */
+      i = ((c << hshift) ^ ent) % hsize_reg;    /* xor hashing, inside htab */
 
       if ( htabof (i) == fcode ) {
          ent = codetabof (i);
@@ -591,7 +606,7 @@ int main()
     th_attr_compress.ENTRY_POINT   = compress_thread;
     th_attr_compress.DEADLINE      = HARD;
     th_attr_compress.PERIOD        = 10000000000;
-    th_attr_compress.STACK_SIZE    = 1000;
+    th_attr_compress.STACK_SIZE    = 8192;
     th_attr_compress.TIME_CAPACITY = 10000000000;
     th_attr_compress.BASE_PRIORITY = 1;
     memcpy(th_attr_compress.NAME, "COMPRESS_A653\0", 9 * sizeof(char));

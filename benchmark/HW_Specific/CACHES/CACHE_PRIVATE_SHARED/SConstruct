@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -15,6 +16,9 @@
 #
 # See the GNU General Public License version 3 for more details.
 #
+# Modified by Kirill Brazhnikov, 2026-10-31: the benchmark has one
+# partition (P1); P2 was listed but does not exist.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import os
@@ -23,7 +27,7 @@ cflags = ''
 SConscript(os.environ['POK_PATH']+'/misc/SConscript', exports = 'cflags')
 
 Import('env')
-env['PARTITIONS'] = ['P1', 'P2']
+env['PARTITIONS'] = ['P1']
 env['XML'] = os.path.join(Dir('.').abspath, 'config.xml')
 SConscript(env['POK_PATH']+'/misc/SConscript_base')
 

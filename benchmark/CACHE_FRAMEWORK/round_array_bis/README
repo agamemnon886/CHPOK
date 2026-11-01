@@ -1,0 +1,51 @@
+Round array, unrolled cache-line walk
+=====================================
+
+Part of CACHE_FRAMEWORK: kernels kept as a separate set for cache studies
+(cache locking and cache-miss analysis).
+
+What it tests
+-------------
+
+Data-cache misses of an exactly known access sequence: the array covers 128
+sets x 5 ways of 32-byte lines, one more way than a 4-way cache holds, so every
+walk evicts what the previous one loaded.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Every 100 ms the process reads one word from each of the 640 consecutive
+32-byte blocks of a 20 KB array (access_array.c: 640 unrolled loads, written in
+assembly for x86_64 and AArch64).
+
+Expected output
+---------------
+
+"Finished loop" every period.
+
+Notes
+-----
+
+The loads can be bracketed by start/stop markers for an external memory tracer
+(the byte sequences 0F A7 00 00 / 0F A6 00 00). They fault on real x86_64 CPUs
+and in QEMU, so they are emitted only on x86_64 and only when
+CACHE_TRACE_MARKERS is defined.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/round_array_bis/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/CACHE_FRAMEWORK/round_array_bis/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

@@ -1,0 +1,57 @@
+Non-recursive quicksort
+=======================
+
+Part of A653_Benchmarks: classic WCET (worst-case execution time) kernels run
+as periodic ARINC 653 processes, to measure their execution time under JetOS.
+Each period the process runs the kernel once; with GET_STAT enabled
+(BenchmarksTools/benc_config.h) it also prints the execution time and the
+running WCET, BCET and ACET.
+
+What it tests
+-------------
+
+Execution time of sorting, with data-dependent memory accesses.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Fills an array of 2000 random floats and sorts it with the non-recursive
+quicksort from Numerical Recipes (explicit index stack, insertion sort for
+small ranges), then checks the result. Period and time capacity: 100 ms.
+
+Expected output
+---------------
+
+"Sorting 2000 floating points." every period; "Error, sorting did not go well"
+would report a wrong result.
+
+Notes
+-----
+
+sort() works on arr[0..n-1]: the 1-based Numerical Recipes code had been used
+with 0-based arrays and accessed memory outside arr.
+
+Origin
+------
+
+Ported from SNU-RT benchmark suite (Seoul National University real-time
+benchmarks).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/QSort/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/QSort/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

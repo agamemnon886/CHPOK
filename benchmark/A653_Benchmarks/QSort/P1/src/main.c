@@ -14,6 +14,12 @@
  * Ported from:
  *     SNU-RT Benchmarks (http://www.cprover.org/goto-cc/examples/snu.html)
  *
+ * Modified by Kirill Brazhnikov, 2026-10-31: sort() stays inside
+ * arr[0..n-1]: the 1-based Numerical Recipes code was used with 0-based
+ * arrays, so it accessed arr[n] (overwriting istack) and its insertion pass
+ * wrapped the unsigned index below 0, reading before arr. The process stack
+ * is 8192 bytes (1000 overflowed on 64-bit targets).
+ *
  ******************************************************************************/
 
 #include "../../../BenchmarksTools/benc_config.h"
@@ -39,7 +45,7 @@ int istack[NSTACK];
 
 void sort(unsigned long n)
 {
-	unsigned long i,ir=n,j,k,l=0;
+	unsigned long i,ir=n-1,j,k,l=0;	/* sorts arr[0..n-1] */
 	int jstack=0;
 	float a,temp;
 
@@ -47,11 +53,11 @@ void sort(unsigned long n)
 		if (ir-l < M) {
 			for (j=l+1;j<=ir;j++) {
 				a=arr[j];
-				for (i=j-1;i>=l;i--) {
-					if (arr[i] <= a) break;
-					arr[i+1]=arr[i];
+				/* i stops at l: i-- below 0 would wrap (unsigned) */
+				for (i=j;i>l && arr[i-1]>a;i--) {
+					arr[i]=arr[i-1];
 				}
-				arr[i+1]=a;
+				arr[i]=a;
 			}
 			if (jstack == 0) break;
 			ir=istack[jstack--];
@@ -149,7 +155,7 @@ int main()
     th_attr_qsort.ENTRY_POINT   = qsort_thread;
     th_attr_qsort.DEADLINE      = HARD;
     th_attr_qsort.PERIOD        = 100000000;
-    th_attr_qsort.STACK_SIZE    = 1000;
+    th_attr_qsort.STACK_SIZE    = 8192;
     th_attr_qsort.TIME_CAPACITY = 100000000;
     th_attr_qsort.BASE_PRIORITY = 1;
     memcpy(th_attr_qsort.NAME, "QSORT_A653\0", 9 * sizeof(char));

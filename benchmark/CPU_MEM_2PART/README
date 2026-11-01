@@ -1,0 +1,43 @@
+CPU and memory stress, two partitions
+=====================================
+
+A stress test that uses the CPU and memory at a balanced rate, in two identical
+partitions, to study interference between partitions.
+
+What it tests
+-------------
+
+Execution time of matrix generation and multiplication when two partitions with
+the same workload share the processor and memory.
+
+What it does
+------------
+
+Two partitions, P1 and P2, each with six periodic processes.
+
+Each partition has a generator process that fills two 500x500 matrices and five
+processes that multiply them, each taking a fifth of the rows (NB_DIVISIONS =
+5). Period 10 s; each partition has a 2 s window in a 4 s major frame.
+
+Expected output
+---------------
+
+"[Part n] Generating matrix A and B", "Done multiplying rows a to rows b" from
+both partitions.
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/CPU_MEM_2PART/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/CPU_MEM_2PART/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.

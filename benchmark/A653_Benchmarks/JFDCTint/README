@@ -1,0 +1,49 @@
+JPEG integer forward DCT
+========================
+
+Part of A653_Benchmarks: classic WCET (worst-case execution time) kernels run
+as periodic ARINC 653 processes, to measure their execution time under JetOS.
+Each period the process runs the kernel once; with GET_STAT enabled
+(BenchmarksTools/benc_config.h) it also prints the execution time and the
+running WCET, BCET and ACET.
+
+What it tests
+-------------
+
+Execution time of integer arithmetic on an 8x8 block, as in JPEG encoding.
+
+What it does
+------------
+
+One partition, P1, with one periodic process.
+
+Runs the Independent JPEG Group's slow-but-accurate integer forward Discrete
+Cosine Transform (DCT) on an 8x8 block. Period and time capacity: 100 ms.
+
+Expected output
+---------------
+
+"Computing DCT" every period.
+
+Origin
+------
+
+Ported from SNU-RT benchmark suite (Seoul National University real-time
+benchmarks).
+
+Build and run
+-------------
+
+From the top-level directory (builds every benchmark; QEMU needs only the one):
+
+    make benchmarks                     # x86_64
+    make BSP=arm64-qemu benchmarks      # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/JFDCTint/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel benchmark/A653_Benchmarks/JFDCTint/build/arm64-qemu/pok.elf
+
+To build only this benchmark, run "scons bsp=x86_64-qemu" (or bsp=arm64-qemu)
+in this directory with POK_PATH set. The benchmark runs forever; quit QEMU with
+Ctrl-A X.
