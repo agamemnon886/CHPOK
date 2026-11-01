@@ -12,6 +12,14 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-01: added PROCESS_INDEX_TYPE and
+ * the ARINC 653P1-4 multicore services INITIALIZE_PROCESS_CORE_AFFINITY,
+ * GET_MY_PROCESSOR_CORE_ID and GET_MY_INDEX; added NULL_PROCESS_ID,
+ * MAIN_PROCESS_ID and the FAULTED process state (ARINC 653P1-4).
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -31,6 +39,10 @@
 typedef NAME_TYPE            PROCESS_NAME_TYPE;
 
 typedef APEX_INTEGER         PROCESS_ID_TYPE;
+#define NULL_PROCESS_ID      0      /* no process; never a valid process ID */
+#define MAIN_PROCESS_ID     -1      /* the partition's main process */
+
+typedef APEX_INTEGER         PROCESS_INDEX_TYPE;
 
 typedef APEX_INTEGER         LOCK_LEVEL_TYPE;
 
@@ -45,7 +57,8 @@ typedef enum
    DORMANT = 0,
    READY    = 1,
    RUNNING = 2,
-   WAITING = 3
+   WAITING = 3,
+   FAULTED = 4      /* not reported by JetOS yet */
 } PROCESS_STATE_TYPE;
 
 typedef enum
@@ -129,6 +142,19 @@ extern void GET_PROCESS_STATUS (
       /*in */ PROCESS_ID_TYPE     PROCESS_ID,
       /*out*/ PROCESS_STATUS_TYPE *PROCESS_STATUS,
       /*out*/ RETURN_CODE_TYPE    *RETURN_CODE );
+
+extern void INITIALIZE_PROCESS_CORE_AFFINITY (
+      /*in */ PROCESS_ID_TYPE        PROCESS_ID,
+      /*in */ PROCESSOR_CORE_ID_TYPE PROCESSOR_CORE_ID,
+      /*out*/ RETURN_CODE_TYPE       *RETURN_CODE );
+
+extern void GET_MY_PROCESSOR_CORE_ID (
+      /*out*/ PROCESSOR_CORE_ID_TYPE *PROCESSOR_CORE_ID,
+      /*out*/ RETURN_CODE_TYPE       *RETURN_CODE );
+
+extern void GET_MY_INDEX (
+      /*out*/ PROCESS_INDEX_TYPE     *PROCESS_INDEX,
+      /*out*/ RETURN_CODE_TYPE       *RETURN_CODE );
 
 #endif
 #endif

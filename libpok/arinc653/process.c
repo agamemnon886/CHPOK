@@ -38,6 +38,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: CREATE_PROCESS checks the
  * BASE_PRIORITY range before narrowing it to the kernel's 8-bit type, so an
  * out-of-range priority returns INVALID_PARAM instead of wrapping around.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-01: added the ARINC 653P1-4
+ * multicore services INITIALIZE_PROCESS_CORE_AFFINITY,
+ * GET_MY_PROCESSOR_CORE_ID and GET_MY_INDEX.
  */
 
 #include <config.h>
@@ -327,6 +331,88 @@ void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_co
         MAP_ERROR(POK_ERRNO_EINVAL, NO_ACTION); // ...but here it's just NO_ACTION
         MAP_ERROR_DEFAULT(INVALID_PARAM); // shouldn't happen
     }
+}
+
+/*
+ * Multicore services (ARINC 653P1-4).
+ *
+ * JetOS runs every partition on a single processor core, with
+ * partition-relative core ID 0. All processes run on that core, so a core
+ * affinity can't change anything and isn't stored.
+ */
+
+void INITIALIZE_PROCESS_CORE_AFFINITY (
+    PROCESS_ID_TYPE        process_id,
+    PROCESSOR_CORE_ID_TYPE processor_core_id,
+    RETURN_CODE_TYPE       *return_code)
+{
+    char name[MAX_NAME_LENGTH];
+    void *entry;
+    pok_thread_status_t status;
+
+    // Check the range before narrowing to the kernel's 8-bit thread ID.
+    // The kernel rejects the main process, the error handler and
+    // processes that aren't created yet.
+    if (process_id < 1 || process_id > kshd.max_n_threads
+        || pok_thread_get_status(process_id - 1, name, &entry, &status)
+           != POK_ERRNO_OK) {
+        *return_code = INVALID_PARAM;
+        return;
+    }
+
+    if (processor_core_id != CORE_AFFINITY_NO_PREFERENCE
+        && processor_core_id != 0) {
+        *return_code = INVALID_CONFIG;
+        return;
+    }
+
+    if (kshd.partition_mode == POK_PARTITION_MODE_NORMAL) {
+        *return_code = INVALID_MODE;
+        return;
+    }
+
+    *return_code = NO_ERROR;
+}
+
+void GET_MY_PROCESSOR_CORE_ID (
+    PROCESSOR_CORE_ID_TYPE *processor_core_id,
+    RETURN_CODE_TYPE       *return_code)
+{
+    *processor_core_id = 0;
+    *return_code = NO_ERROR;
+}
+
+/*
+ * The process index is the position of the process in creation order:
+ * 1 for the first process created by CREATE_PROCESS, up to the number of
+ * processes in the configuration (Threads Count). Unlike PROCESS_ID_TYPE,
+ * it can be used directly as an array index (minus one) for per-process
+ * data.
+ */
+void GET_MY_INDEX (
+    PROCESS_INDEX_TYPE *process_index,
+    RETURN_CODE_TYPE   *return_code)
+{
+    pok_thread_id_t current = kshd.current_thread_id;
+    PROCESS_INDEX_TYPE index;
+
+    // Like GET_MY_ID: the main process (runs only during initialization)
+    // and the error handler have no index.
+    if (kshd.partition_mode != POK_PARTITION_MODE_NORMAL
+        || current == kshd.error_thread_id) {
+        *return_code = INVALID_MODE;
+        return;
+    }
+
+    // Kernel thread 0 is the main process; the error handler, if created
+    // before this process, takes one more thread slot.
+    index = current;
+    if (kshd.error_thread_id != JET_THREAD_ID_NONE
+        && kshd.error_thread_id < current)
+        index--;
+
+    *process_index = index;
+    *return_code = NO_ERROR;
 }
 
 #endif
