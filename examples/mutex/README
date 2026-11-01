@@ -1,0 +1,112 @@
+Mutex example
+=============
+
+Shows the ARINC 653 mutex services (Part 1, added in Supplement 4) in a
+partition with several processes that share data:
+
+  CREATE_MUTEX             creates a mutex during initialization, with a
+                           priority and a queuing discipline (FIFO or
+                           PRIORITY) for waiting processes. The number of
+                           mutexes is set by <ARINC653_Mutexes Count="..."/>
+                           in the partition's config.xml.
+  GET_MUTEX_ID             finds a mutex by name (case insensitive).
+  ACQUIRE_MUTEX            takes the mutex; if another process owns it,
+                           waits up to TIME_OUT (0: don't wait,
+                           INFINITE_TIME_VALUE: wait as long as needed).
+  RELEASE_MUTEX            releases it; the first waiting process becomes
+                           the owner.
+  GET_MUTEX_STATUS         owner, state, priority, lock count and number of
+                           waiting processes.
+  GET_PROCESS_MUTEX_STATE  which mutex a process owns.
+  RESET_MUTEX              releases a mutex owned by another process, e.g.
+                           one that failed while owning it.
+
+Priority ceiling: the priority given to CREATE_MUTEX is the mutex's
+ceiling. The owner runs at that priority until it releases the mutex, then
+gets its own priority back, so no process with a priority up to the
+ceiling can preempt it while it uses the shared data. A process with a
+higher priority than the ceiling can't acquire the mutex (INVALID_MODE).
+A process owns at most one mutex at a time; it may acquire it again (the
+lock count goes up) and must release it as many times.
+
+What P1 does
+------------
+
+P1 shares a navigation data record (update number, altitude, valid flag)
+between four processes, protected by the mutex NAV_DATA with priority 20
+and PRIORITY queuing. Each process waits until a fixed time after the
+start of NORMAL mode, so the run is the same every time:
+
+  writer (12)   updates the record. At 0 ms it acquires NAV_DATA (running
+                at priority 20) and holds it for 100 ms; at 500 ms it
+                writes a second update.
+  display (14)  reads the record. At 20 ms it waits for NAV_DATA and gets
+                it when writer releases it; at about 320 ms it waits again.
+  monitor (10)  at 40 ms shows the mutex status (owned by writer, one
+                waiting process), tries ACQUIRE_MUTEX with TIME_OUT 0
+                (NOT_AVAILABLE) and 20 ms (TIMED_OUT); at 150 ms the mutex
+                is free and it gets it at once.
+  faulty (13)   at 300 ms acquires NAV_DATA, starts an update (the record
+                is marked invalid) and at 350 ms fails with
+                RAISE_APPLICATION_ERROR, while it still owns the mutex.
+
+The error handler gets the error, finds the mutex with
+GET_PROCESS_MUTEX_STATE, stops faulty and calls RESET_MUTEX. The waiting
+display process becomes the owner and sees that the update didn't finish.
+Without RESET_MUTEX, display would wait forever: stopping a process
+doesn't release its mutex.
+
+During initialization, main also shows that a second CREATE_MUTEX fails
+with INVALID_CONFIG, because the configuration allows one mutex.
+
+Build and run
+-------------
+
+From the top-level directory:
+
+    make mutex                      # x86_64
+    make BSP=arm64-qemu mutex       # arm64
+
+    qemu-system-x86_64 -vga none -m 1G -nographic \
+        -kernel examples/mutex/build/x86_64-qemu/pok.elf
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -nographic \
+        -kernel examples/mutex/build/arm64-qemu/pok.elf
+
+Quit QEMU with Ctrl-A X.
+
+Expected output (x86_64). The numbers in brackets are milliseconds since
+NORMAL mode started, rounded to 10 ms; they may differ by 10 ms or so,
+for example on arm64.
+
+    P1: CREATE_MUTEX(NAV_DATA, priority 20, PRIORITY): NO_ERROR
+    P1: CREATE_MUTEX(SECOND): INVALID_CONFIG (Count is 1)
+    P1: SET_PARTITION_MODE(NORMAL)
+    [   0] writer: ACQUIRE_MUTEX: NO_ERROR, priority 20 (base 12)
+    [  20] display: ACQUIRE_MUTEX, waiting...
+    [  40] monitor: NAV_DATA is OWNED, owner writer, lock count 1, 1 waiting
+    [  40] monitor: ACQUIRE_MUTEX, TIME_OUT 0: NOT_AVAILABLE
+    [  60] monitor: ACQUIRE_MUTEX, TIME_OUT 20 ms: TIMED_OUT
+    [ 100] writer: wrote update #1, RELEASE_MUTEX
+    [ 100] display: ACQUIRE_MUTEX: NO_ERROR, priority 20 (base 14)
+    [ 100] display: update #1, altitude 10500 ft
+    [ 100] writer: priority 12 again
+    [ 150] monitor: ACQUIRE_MUTEX, TIME_OUT 0: NO_ERROR, update #1
+    [ 300] faulty: ACQUIRE_MUTEX: NO_ERROR, starting update #2
+    [ 330] display: ACQUIRE_MUTEX, waiting...
+    [ 350] faulty: RAISE_APPLICATION_ERROR("update aborted")
+    [ 350] error handler: error in faulty: "update aborted"
+    [ 350] error handler: STOP: NO_ERROR
+    [ 350] error handler: it owns NAV_DATA (GET_PROCESS_MUTEX_STATE)
+    [ 350] error handler: NAV_DATA is OWNED, owner faulty, lock count 1, 1 waiting
+    [ 360] error handler: RESET_MUTEX: NO_ERROR
+    [ 360] error handler: NAV_DATA is OWNED, owner display, lock count 1, 0 waiting
+    [ 360] display: ACQUIRE_MUTEX: NO_ERROR, priority 20 (base 14)
+    [ 360] display: data invalid (update #2 didn't finish)
+    [ 500] writer: ACQUIRE_MUTEX: NO_ERROR, priority 20 (base 12)
+    [ 500] writer: wrote update #2, RELEASE_MUTEX
+    [ 500] writer: priority 12 again
+    [ 500] writer: NAV_DATA is AVAILABLE, owner nobody, lock count 0, 0 waiting
+    [ 500] writer: done
+
+Note the order at 100 ms: writer releases NAV_DATA, and display, now the
+owner at priority 20, runs before writer can print its next line.

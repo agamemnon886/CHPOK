@@ -1,0 +1,35 @@
+<!--
+    Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+    Distributed under the 2-clause BSD license (see the top-level Makefile).
+
+    P1: processes writer, display, monitor and faulty share the navigation
+    data, protected by mutex NAV_DATA.
+-->
+<Partition>
+    <Definition Identifier="1" Name="P1" />
+    <Memory Bytes="300K" />
+    <!-- writer, display, monitor, faulty; the error handler isn't counted. -->
+    <Threads Count="4" />
+
+    <ARINC653_Buffers Data_Size="0" Count="0" />
+    <ARINC653_Blackboards Data_Size="0" Count="0" />
+    <ARINC653_Events Count="0" />
+    <ARINC653_Semaphores Count="0" />
+    <!-- Number of mutexes the partition may create (CREATE_MUTEX). -->
+    <ARINC653_Mutexes Count="1" />
+
+    <!-- No ports; the configurator requires the element. -->
+    <ARINC653_Ports />
+
+    <!-- Process-level errors: in NORMAL mode they go to the error handler. -->
+    <HM_Table>
+        <Error Code="POK_ERROR_KIND_DEADLINE_MISSED" Level="PROCESS" ErrorCode="DEADLINE_MISSED" Action="IDLE" />
+        <Error Code="POK_ERROR_KIND_APPLICATION_ERROR" Level="PROCESS" ErrorCode="APPLICATION_ERROR" Action="IDLE" />
+        <Error Code="POK_ERROR_KIND_NUMERIC_ERROR" Level="PROCESS" ErrorCode="NUMERIC_ERROR" Action="IDLE" />
+        <Error Code="POK_ERROR_KIND_ILLEGAL_REQUEST" Level="PROCESS" ErrorCode="ILLEGAL_REQUEST" Action="IDLE" />
+        <Error Code="POK_ERROR_KIND_STACK_OVERFLOW" Level="PROCESS" ErrorCode="STACK_OVERFLOW" Action="IDLE" />
+        <Error Code="POK_ERROR_KIND_MEMORY_VIOLATION" Level="PROCESS" ErrorCode="MEMORY_VIOLATION" Action="IDLE" />
+        <Error Code="POK_ERROR_KIND_HARDWARE_FAULT" Level="PROCESS" ErrorCode="HARDWARE_FAULT" Action="IDLE" />
+        <Error Code="POK_ERROR_KIND_POWER_FAIL" Level="PROCESS" ErrorCode="POWER_FAIL" Action="IDLE" />
+    </HM_Table>
+</Partition>
