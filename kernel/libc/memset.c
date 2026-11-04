@@ -12,19 +12,33 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: memset() takes an
+ * int value, as in the C standard; the loop doesn't modify the parameter.
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
 #include <libc.h>
 
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the standard memset() takes
+ * and returns pointers to void; the bytes are accessed through pointers to
+ * unsigned char.
+ */
+
 __attribute__ ((weak))
-void* memset (void *dest, unsigned char val, size_t count)
+void* memset (void *dest, int val, size_t count)
 {
   unsigned char *d = (unsigned char *) dest;
 
-  while (count--)
+  for (size_t i = 0U; i < count; i++)
   {
-    *d++ = val;
+    d[i] = (unsigned char) val;
   }
 
   return dest;

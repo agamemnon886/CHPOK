@@ -18,6 +18,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * boards/x86-qemu/bsp.c to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: includes
+ * <bsp/bsp.h>, which declares the functions defined here.
  */
 
 #include "cons.h"
@@ -26,6 +29,7 @@
 #include <asp/entries.h>
 
 #include <assert.h>
+#include <bsp/bsp.h>
 
 void ja_bsp_init (void)
 {

@@ -15,12 +15,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-01: added
  * arinc_config_nmutexes.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
 /* Configuration parameters for ARINC. */
 
-#ifndef __LIBJET_ARINC_CONFIG_H__
-#define __LIBJET_ARINC_CONFIG_H__
+#ifndef LIBJET_ARINC_CONFIG_H
+#define LIBJET_ARINC_CONFIG_H
 
 #include <config.h>
 #include <types.h>
@@ -57,4 +60,4 @@ extern size_t arinc_config_messages_memory_size;
 
 
 
-#endif /* __LIBJET_ARINC_CONFIG_H__ */
+#endif /* LIBJET_ARINC_CONFIG_H */

@@ -1,4 +1,9 @@
 /*
+ * COPIED! DO NOT MODIFY!
+ *
+ * Instead of modifying this file, modify original one (kernel/include/uapi/memblock_types.h).
+ */
+/*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
  *
@@ -13,8 +18,8 @@
  * See the GNU General Public License version 3 for more details.
  */
 
-#ifndef __JET_UAPI_MEMBLOCK_TYPES_H__
-#define __JET_UAPI_MEMBLOCK_TYPES_H__
+#ifndef JET_UAPI_MEMBLOCK_TYPES_H
+#define JET_UAPI_MEMBLOCK_TYPES_H
 
 #include <uapi/types.h>
 
@@ -30,4 +35,4 @@ typedef struct {
 } jet_memory_block_status_t;
 
 
-#endif /* __JET_UAPI_MEMBLOCK_TYPES_H__ */
+#endif /* JET_UAPI_MEMBLOCK_TYPES_H */

@@ -16,6 +16,21 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; operands of the
+ * same essential type; the name is copied with strncpy(), so a shorter
+ * name isn't read past its end.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters and the message parameter of the send or write service are
+ * const (they are only read), so callers can pass string literals and
+ * const data.
  */
 
 #include <config.h>
@@ -37,16 +52,28 @@
 #include <arinc_config.h>
 #include "arinc_process_queue.h"
 
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the allocator returns its
+ * memory as a pointer to void, which is converted to the type of the object
+ * allocated; the kernel passes message addresses to waiting processes as
+ * pointers to void.
+ * MISRA C:2025 Rule 18.4 deviation (this file): thread and object IDs are
+ * the index of an element, computed as the difference between its address
+ * and the start of its array; a message is found at the start of the message
+ * array plus its index times the message stride.
+ */
+
 static size_t nbuffers_used = 0;
 
 /* Find buffer by name (in UPPERCASE). Returns NULL if not found. */
 static struct arinc_buffer* find_buffer(const char* name)
 {
-   for(int32_t i = 0; i < nbuffers_used; i++)
+   for(size_t i = 0U; i < nbuffers_used; i++)
    {
       struct arinc_buffer* buffer = &arinc_buffers[i];
-      if(strncasecmp(buffer->buffer_name, name, MAX_NAME_LENGTH) == 0)
+      if(strncasecmp(buffer->buffer_name, name, MAX_NAME_LENGTH) == 0) {
          return buffer;
+      }
    }
 
    return NULL;
@@ -56,9 +83,11 @@ static struct arinc_buffer* find_buffer(const char* name)
 static MESSAGE_RANGE_TYPE
 message_index(struct arinc_buffer* buffer, MESSAGE_RANGE_TYPE offset)
 {
-   size_t res = buffer->base_offset + offset;
+   MESSAGE_RANGE_TYPE res = buffer->base_offset + offset;
 
-   if(res >= buffer->max_nb_message) res -= buffer->max_nb_message;
+   if(res >= buffer->max_nb_message) {
+      res -= buffer->max_nb_message;
+   }
 
    return res;
 }
@@ -67,11 +96,11 @@ message_index(struct arinc_buffer* buffer, MESSAGE_RANGE_TYPE offset)
 static char*
 message_at(struct arinc_buffer* buffer, MESSAGE_RANGE_TYPE index)
 {
-   return buffer->messages + buffer->message_stride * index;
+   return buffer->messages + (buffer->message_stride * index);
 }
 
 void CREATE_BUFFER (
-       /*in */ BUFFER_NAME_TYPE         BUFFER_NAME,
+       /*in */ const BUFFER_NAME_TYPE         BUFFER_NAME,
        /*in */ MESSAGE_SIZE_TYPE        MAX_MESSAGE_SIZE,
        /*in */ MESSAGE_RANGE_TYPE       MAX_NB_MESSAGE,
        /*in */ QUEUING_DISCIPLINE_TYPE  QUEUING_DISCIPLINE,
@@ -97,13 +126,15 @@ void CREATE_BUFFER (
       return;
    }
 
-   if(MAX_MESSAGE_SIZE <= 0 || MAX_MESSAGE_SIZE > SYSTEM_LIMIT_MESSAGE_SIZE) {
+   if((MAX_MESSAGE_SIZE <= 0)
+      || (MAX_MESSAGE_SIZE > SYSTEM_LIMIT_MESSAGE_SIZE)) {
       // Message size is non-positive or too high.
       *RETURN_CODE = INVALID_PARAM;
       return;
    }
 
-   if(MAX_NB_MESSAGE <= 0 || MAX_NB_MESSAGE > SYSTEM_LIMIT_NUMBER_OF_MESSAGES) {
+   if((MAX_NB_MESSAGE <= 0)
+      || (MAX_NB_MESSAGE > SYSTEM_LIMIT_NUMBER_OF_MESSAGES)) {
       // Number of messages is non-positive or too high.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -126,10 +157,11 @@ void CREATE_BUFFER (
    arinc_allocator_state astate = arinc_allocator_get_state();
 
    buffer->messages = arinc_alloc(buffer->message_stride * buffer->max_nb_message, __alignof__(int32_t));
-   buffer->messages_size = arinc_alloc(buffer->max_nb_message * sizeof(*buffer->messages_size),
+   buffer->messages_size = arinc_alloc(
+       (size_t)buffer->max_nb_message * sizeof(*buffer->messages_size),
       __alignof__(*buffer->messages_size));
 
-   if(buffer->messages == NULL || buffer->messages_size == NULL)
+   if((buffer->messages == NULL) || (buffer->messages_size == NULL))
    {
       // Failed to allocate message queue.
       arinc_allocator_reset_state(astate);
@@ -137,13 +169,14 @@ void CREATE_BUFFER (
       return;
    }
 
-   memcpy(buffer->buffer_name, BUFFER_NAME, MAX_NAME_LENGTH);
+   // The name may be shorter than MAX_NAME_LENGTH: don't read past its end.
+   (void) strncpy(buffer->buffer_name, BUFFER_NAME, MAX_NAME_LENGTH);
    msection_init(&buffer->section);
    msection_wq_init(&buffer->process_queue);
    buffer->base_offset = 0;
    buffer->discipline = QUEUING_DISCIPLINE;
 
-   *BUFFER_ID = nbuffers_used + 1;// Avoid 0 value.
+   *BUFFER_ID = nbuffers_used + 1U;// Avoid 0 value.
 
    nbuffers_used++;
 
@@ -152,12 +185,12 @@ void CREATE_BUFFER (
 
 void SEND_BUFFER (
        /*in */ BUFFER_ID_TYPE           BUFFER_ID,
-       /*in */ MESSAGE_ADDR_TYPE        MESSAGE_ADDR,       /* by reference */
+       /*in */ const APEX_BYTE *       MESSAGE_ADDR,       /* by reference */
        /*in */ MESSAGE_SIZE_TYPE        LENGTH,
        /*in */ SYSTEM_TIME_TYPE         TIME_OUT,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
-   if (BUFFER_ID <= 0 || BUFFER_ID > nbuffers_used) {
+   if ((BUFFER_ID <= 0) || ((size_t)BUFFER_ID > nbuffers_used)) {
       // Incorrect buffer identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -165,7 +198,7 @@ void SEND_BUFFER (
 
    struct arinc_buffer* buffer = &arinc_buffers[BUFFER_ID - 1];
 
-   if(LENGTH <= 0 || LENGTH > buffer->max_message_size) {
+   if((LENGTH <= 0) || (LENGTH > buffer->max_message_size)) {
       // LENGTH is non-positive or too big.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -183,7 +216,7 @@ void SEND_BUFFER (
 
          char* dst = kshd.tshd[t_awoken].wq_buffer.dst;
 
-         memcpy(dst, MESSAGE_ADDR, LENGTH);
+         (void) memcpy(dst, MESSAGE_ADDR, LENGTH);
          kshd.tshd[t_awoken].wq_len = LENGTH;
 
          msection_wq_del(&buffer->process_queue, t_awoken);
@@ -195,7 +228,7 @@ void SEND_BUFFER (
 
          char* message_dest = message_at(buffer, index);
 
-         memcpy(message_dest, MESSAGE_ADDR, LENGTH);
+         (void) memcpy(message_dest, MESSAGE_ADDR, LENGTH);
          buffer->messages_size[index] = LENGTH;
 
          buffer->nb_message++;
@@ -235,6 +268,7 @@ void SEND_BUFFER (
          break;
       default:
          assert_os(FALSE);
+         break;
       }
    }
 
@@ -248,7 +282,7 @@ void RECEIVE_BUFFER (
        /*out*/ MESSAGE_SIZE_TYPE        *LENGTH,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
-   if (BUFFER_ID <= 0 || BUFFER_ID > nbuffers_used) {
+   if ((BUFFER_ID <= 0) || ((size_t)BUFFER_ID > nbuffers_used)) {
       // Incorrect buffer identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -265,7 +299,7 @@ void RECEIVE_BUFFER (
       const char* src = message_at(buffer, index);
       MESSAGE_SIZE_TYPE len = buffer->messages_size[index];
 
-      memcpy(MESSAGE_ADDR, src, len);
+      (void) memcpy(MESSAGE_ADDR, src, len);
 
       buffer->base_offset = message_index(buffer, 1);
       buffer->nb_message--;
@@ -284,7 +318,7 @@ void RECEIVE_BUFFER (
          const char* w_src = kshd.tshd[t_awoken].wq_buffer.src;
          MESSAGE_SIZE_TYPE w_len = kshd.tshd[t_awoken].wq_len;
 
-         memcpy(w_dest, w_src, w_len);
+         (void) memcpy(w_dest, w_src, w_len);
          buffer->messages_size[w_index] = w_len;
 
          buffer->nb_message++;
@@ -327,6 +361,7 @@ void RECEIVE_BUFFER (
          break;
       default:
          assert_os(FALSE);
+         break;
       }
    }
 
@@ -334,7 +369,7 @@ void RECEIVE_BUFFER (
 }
 
 void GET_BUFFER_ID (
-       /*in */ BUFFER_NAME_TYPE         BUFFER_NAME,
+       /*in */ const BUFFER_NAME_TYPE         BUFFER_NAME,
        /*out*/ BUFFER_ID_TYPE           *BUFFER_ID,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
@@ -354,7 +389,7 @@ void GET_BUFFER_STATUS (
        /*out*/ BUFFER_STATUS_TYPE       *BUFFER_STATUS,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
-   if (BUFFER_ID <= 0 || BUFFER_ID > nbuffers_used) {
+   if ((BUFFER_ID <= 0) || ((size_t)BUFFER_ID > nbuffers_used)) {
       // Incorrect buffer identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;

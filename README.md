@@ -30,8 +30,8 @@ example directory).
 
 ## Testing
 
-The tests under `tests/` check the APEX services against ARINC 653. They
-are built like the examples and run in QEMU on the host, so
+The tests under `tests/` check the APEX services against ARINC 653 and
+libpok's C library (`tests/libc`). They are built like the examples and run in QEMU on the host, so
 `qemu-system-x86_64` / `qemu-system-aarch64` must be installed:
 
     make run                     # build and run all tests for x86_64
@@ -40,3 +40,11 @@ are built like the examples and run in QEMU on the host, so
     make run VERBOSE=0           # only the results, not the test output
 
 See `tests/README` for what each test covers and how to add one.
+
+## MISRA C:2025
+
+The kernel, libpok, the architecture code, the boards and syspart follow
+MISRA C:2025. Where a guideline can't be followed, a comment that starts with
+`MISRA C:2025` names it and gives the reason:
+
+    grep -rn "MISRA C:2025" kernel libpok boards syspart misc

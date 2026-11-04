@@ -1,9 +1,14 @@
 /* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; essentially Boolean conditions;
+ * deviations are documented where a guideline can't be followed;
+ * list_empty() returns bool; macro parameters are parenthesized.
  */
-#ifndef __POK_LIST_H__
-#define __POK_LIST_H__
+#ifndef POK_LIST_H
+#define POK_LIST_H
 
 /*
  * Embedded double-linked lists.
@@ -11,6 +16,7 @@
  * Mostly originated from Linux kernel.
  */
 #include "common.h"
+#include <stdbool.h>
 
 /**
  * One element in the list or head of the list.
@@ -34,6 +40,7 @@ struct list_head {
 
 #define LIST_HEAD_INIT(name) { &(name), &(name) }
   
+/* 'name' is a declarator, not an expression (MISRA C:2025 Rule 20.7). */
 #define LIST_HEAD(name) \
     struct list_head name = LIST_HEAD_INIT(name)
 
@@ -125,7 +132,7 @@ static inline void list_del_init(struct list_head *entry)
  * list_empty - tests whether a list is empty
  * @head: the list to test.
  */
-static inline int32_t list_empty(const struct list_head *head)
+static inline bool list_empty(const struct list_head *head)
 {
     return head->next == head;
 }
@@ -135,6 +142,10 @@ static inline int32_t list_empty(const struct list_head *head)
  * @ptr:        the &struct list_head pointer.
  * @type:       the type of the struct this is embedded in.
  * @member:     the name of the list_head within the struct.
+ */
+/*
+ * MISRA C:2025 Rule 11.3 deviation: see container_of(); list elements are
+ * struct list_head members of the 'type' objects.
  */
  #define list_entry(ptr, type, member) \
          container_of(ptr, type, member)
@@ -183,7 +194,7 @@ static inline int32_t list_empty(const struct list_head *head)
  * @head:       the head for your list.
  */
 #define list_for_each(pos, head) \
-        for (pos = (head)->next; pos != (head); pos = pos->next)
+        for ((pos) = (head)->next; (pos) != (head); (pos) = (pos)->next)
 
 /**
  * list_for_each_entry  -       iterate over list of given type
@@ -191,14 +202,15 @@ static inline int32_t list_empty(const struct list_head *head)
  * @head:       the head for your list.
  * @member:     the name of the list_head within the struct.
  */
+/* 'member' is a member name, not an expression (MISRA C:2025 Rule 20.7). */
 #define list_for_each_entry(pos, head, member)                          \
-        for (pos = list_first_entry(head, typeof(*pos), member);        \
-             &pos->member != (head);                                    \
-             pos = list_next_entry(pos, member))
+        for ((pos) = list_first_entry(head, typeof(*(pos)), member);    \
+             &(pos)->member != (head);                                  \
+             (pos) = list_next_entry(pos, member))
 
 /*
  * There are more macros in Linux kernel sources `include/linux/list.h`.
  * If some missed macro is needed, feel free to copy it from there.
  */
 
-#endif /* __POK_LIST_H__ */
+#endif /* POK_LIST_H */

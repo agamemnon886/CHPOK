@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * libpok/arch/x86/arch.c for arm64.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
+ * Boolean conditions; U suffixes for unsigned constants; deviations are
+ * documented where a guideline can't be followed.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -25,10 +28,16 @@
 #ifndef POK_CONFIG_OPTIMIZE_FOR_GENERATED_CODE
 
 #include <arch.h>
+#include <asp/alloc.h>
 
+/*
+ * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (pok_arch_idle()): privileged
+ * instructions are written as GNU inline assembly, each isolated in a small
+ * function.
+ */
 void pok_arch_idle (void)
 {
-   while (1)
+   while (true)
    {
       asm ("nop");
    }
@@ -38,16 +47,16 @@ void pok_arch_idle (void)
 
 size_t libja_mem_get_alignment(size_t obj_size)
 {
-   if(obj_size <= 1) {
+   if(obj_size <= 1U) {
       return 1;
    }
-   else if(obj_size < 4) {
+   else if(obj_size < 4U) {
       return 2;
    }
-   else if(obj_size < 8) {
+   else if(obj_size < 8U) {
       return 4;
    }
-   else if(obj_size < 16) {
+   else if(obj_size < 16U) {
       return 8;
    }
    else {

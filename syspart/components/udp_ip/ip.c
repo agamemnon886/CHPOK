@@ -16,6 +16,11 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: U suffixes for
+ * unsigned constants; operands of mixed precedence are parenthesized; the
+ * header checksum reads the header as bytes (the 16-bit words of the
+ * packed header may be unaligned).
  */
 
 #include <net/ip.h>
@@ -24,13 +29,18 @@ uint16_t ip_hdr_checksum(const struct ip_hdr *ip_hdr)
 {
     uint32_t acc = 0;
 
-    // TODO does it break aliasing?
-    const uint16_t *words = (const uint16_t*) ip_hdr;
+    // The header is read as bytes (Rule 11.3 allows a pointer to a
+    // character type): its 16-bit words may be unaligned in the packed
+    // structure. Each word is assembled in the byte order of the CPU
+    // (little-endian on x86_64 and arm64), as a uint16_t load did.
+    const uint8_t *bytes = (const uint8_t *) ip_hdr;
 
-    int32_t i;
-    for (i = 0; i < (ip_hdr->version_len & 0xf) * 2; i++) {
-        acc += words[i];
+    uint32_t i;
+    for (i = 0U; i < ((ip_hdr->version_len & 0xfU) * 2U); i++) {
+        acc += (uint32_t) bytes[2U * i]
+               | ((uint32_t) bytes[(2U * i) + 1U] << 8);
     }
 
-    return ~((acc & 0xFFFF) + (acc >> 16));
+    uint32_t folded = (acc & 0xFFFFU) + (acc >> 16);
+    return (uint16_t) ~folded;
 }

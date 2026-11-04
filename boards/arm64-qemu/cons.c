@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants.
  */
 
 /* Console on the PL011 UART. */
@@ -35,14 +39,16 @@
 
 #ifdef POK_NEEDS_CONSOLE
 
-#define UART_DR 0x00
-#define UART_FR 0x18
-#define   UART_FR_RXFE (1 << 4)
-#define   UART_FR_TXFF (1 << 5)
+#define UART_DR 0x00U
+#define UART_FR 0x18U
+#define   UART_FR_RXFE (1U << 4)
+#define   UART_FR_TXFF (1U << 5)
 
 static void uart_putc(char c)
 {
-    while (ja_mmio_read32(BOARD_UART_BASE + UART_FR) & UART_FR_TXFF);
+    while ((ja_mmio_read32(BOARD_UART_BASE + UART_FR) & UART_FR_TXFF) != 0U) {
+        ;
+    }
     ja_mmio_write32(BOARD_UART_BASE + UART_DR, (uint8_t)c);
 }
 
@@ -51,8 +57,9 @@ static size_t iostream_write(const char* s, size_t length)
     for (size_t i = 0; i < length; i++)
     {
         // Same as on x86: serial terminals need "\r\n".
-        if (s[i] == '\n')
+        if (s[i] == '\n') {
             uart_putc('\r');
+        }
         uart_putc(s[i]);
     }
     return length;
@@ -63,8 +70,9 @@ static size_t iostream_read(char* s, size_t length)
     size_t i;
     for (i = 0; i != length; i++)
     {
-        if (ja_mmio_read32(BOARD_UART_BASE + UART_FR) & UART_FR_RXFE)
+        if ((ja_mmio_read32(BOARD_UART_BASE + UART_FR) & UART_FR_RXFE) != 0U) {
             break;
+        }
         s[i] = (char)ja_mmio_read32(BOARD_UART_BASE + UART_DR);
     }
     return i;

@@ -18,6 +18,8 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: U suffixes for
+ * unsigned constants.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -103,7 +105,7 @@ typedef struct
 } Elf64_Phdr;
 
 /* Segment types (p_type). */
-#define PT_LOAD 1
+#define PT_LOAD 1U
 
 /* ELF class of the target: partitions are built for the same arch as the kernel. */
 #if __SIZEOF_POINTER__ == 8

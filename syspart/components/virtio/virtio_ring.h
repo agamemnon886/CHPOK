@@ -1,5 +1,5 @@
-#ifndef _POK_VIRTIO_RING_H
-#define _POK_VIRTIO_RING_H
+#ifndef POK_VIRTIO_RING_H
+#define POK_VIRTIO_RING_H
 /* An interface for efficient virtio implementation, currently for use by KVM
  * and lguest, but hopefully others soon.  Do NOT change this since it will
  * break existing servers and clients.
@@ -35,12 +35,19 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types
  * (unsigned, unsigned long) are replaced with the fixed-width types
- * from <stdint.h>. */
+ * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header guard
+ * isn't a reserved identifier; U suffixes for unsigned constants; operands
+ * of mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed; vring_init() doesn't do arithmetic on a void
+ * pointer.
+ */
 
 #include <types.h>
 
 /* This marks a buffer as continuing via the next field. */
-#define VRING_DESC_F_NEXT	1
+#define VRING_DESC_F_NEXT	1U
 /* This marks a buffer as write-only (otherwise read-only). */
 #define VRING_DESC_F_WRITE	2
 /* This means the buffer contains a list of buffer descriptors. */
@@ -79,6 +86,8 @@ struct vring_desc {
 struct vring_avail {
 	uint16_t flags;
 	uint16_t idx;
+	/* MISRA C:2025 Rule 18.7 deviation: the ring has the queue size,
+	 * which the device sets. */
 	uint16_t ring[];
 };
 
@@ -93,6 +102,8 @@ struct vring_used_elem {
 struct vring_used {
 	uint16_t flags;
 	uint16_t idx;
+	/* MISRA C:2025 Rule 18.7 deviation: the ring has the queue size,
+	 * which the device sets. */
 	struct vring_used_elem ring[];
 };
 
@@ -140,16 +151,21 @@ static inline void vring_init(struct vring *vr, uint32_t num, void *p,
 {
 	vr->num = num;
 	vr->desc = p;
-	vr->avail = p + num*sizeof(struct vring_desc);
+	vr->avail = (void *) ((char *) p + (num * sizeof(struct vring_desc)));
+	/* MISRA C:2025 Rule 11.4 and Rule 11.6 deviation: the used ring
+	 * starts at the next multiple of align after the available ring, as
+	 * the virtio specification lays the rings out. */
 	vr->used = (void *)(((uintptr_t)&vr->avail->ring[num] + sizeof(uint16_t)
-		+ align-1) & ~(align - 1));
+		+ align-1U) & ~(align - 1U));
 }
 
 static inline uint32_t vring_size(uint32_t num, uintptr_t align)
 {
-	return ((sizeof(struct vring_desc) * num + sizeof(uint16_t) * (3 + num)
-		 + align - 1) & ~(align - 1))
-		+ sizeof(uint16_t) * 3 + sizeof(struct vring_used_elem) * num;
+	return (((sizeof(struct vring_desc) * num)
+                 + (sizeof(uint16_t) * (3U + num))
+		 + align - 1U) & ~(align - 1U))
+		+ (sizeof(uint16_t) * 3U)
+		    + (sizeof(struct vring_used_elem) * num);
 }
 
 /* The following is used with USED_EVENT_IDX and AVAIL_EVENT_IDX */
@@ -163,7 +179,9 @@ static inline int32_t vring_need_event(uint16_t event_idx, uint16_t new_idx, uin
 	 * corresponding to event_idx + 1 and new_idx respectively.
 	 * Note also that req_event and req_prod in Xen start at 1,
 	 * event indexes in virtio start at 0. */
-	return (uint16_t)(new_idx - event_idx - 1) < (uint16_t)(new_idx - old);
+	return ((uint16_t)(new_idx - event_idx - 1U)
+                < (uint16_t)(new_idx - old))
+		? 1 : 0;
 }
 
-#endif /* _POK_VIRTIO_RING_H */
+#endif /* POK_VIRTIO_RING_H */

@@ -15,6 +15,11 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/thread.c to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: discarded
+ * results are cast to void; the RFLAGS interrupt flag is an unsigned long
+ * constant; deviations are documented where a guideline can't be
+ * followed.
  */
 
 #include <asp/arch.h>
@@ -27,11 +32,17 @@
 /* This function starts kernel thread and is defined in cswitch.S.*/
 void ja_kernel_thread(void);
 
+/*
+ * MISRA C:2025 Rule 11.1 and Rule 11.4 deviation: the initial context is
+ * built on the new thread's stack, which is given as an address, and the
+ * entry point is stored as an integer in the register slot that the
+ * context switch code jumps to.
+ */
 struct jet_context* ja_context_init (jet_stack_t sp, void (*entry)(void))
 {
     struct jet_context* ctx = (struct jet_context*)(sp - sizeof(*ctx));
 
-    memset (ctx, 0, sizeof (*ctx));
+    (void) memset (ctx, 0, sizeof (*ctx));
     /*
     * TODO: Current implementation of context switching requires
     * Interrupt Enabled flag to be specified when context for the switch
@@ -43,7 +54,7 @@ struct jet_context* ja_context_init (jet_stack_t sp, void (*entry)(void))
     * In the future Interrupt Enabled flag should be same as one for
     * context we switched from.
     */
-    ctx->rflags  = ja_preempt_enabled()? 1 << 9 : 0;
+    ctx->rflags  = ja_preempt_enabled() ? (1UL << 9) : 0UL;
     // Registers below are filled in accordance to ja_kernel_thread().
     ctx->rbp = 0;
     ctx->rbx = (uint64_t)entry;

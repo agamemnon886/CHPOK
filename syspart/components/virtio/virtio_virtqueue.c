@@ -16,6 +16,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * results are cast to void; U suffixes for unsigned constants; operands
+ * of mixed precedence are parenthesized.
  */
 
 #include "virtio_virtqueue.h"
@@ -28,7 +32,7 @@ void* virtio_virtqueue_setup(struct virtio_virtqueue *vq, uint16_t size, size_t 
     size_t mem_size = vring_size(size, alignment);
 
     void *mem = smalloc_aligned(mem_size, alignment);
-    memset(mem, 0, mem_size);
+    (void) memset(mem, 0, mem_size);
 
     vring_init(&vq->vring, size, mem, alignment);
 
@@ -37,9 +41,9 @@ void* virtio_virtqueue_setup(struct virtio_virtqueue *vq, uint16_t size, size_t 
     vq->last_seen_used = 0;
 
     // establish linked list
-    int32_t i;
-    for (i = 0; i < size - 1; i++) {
-        vq->vring.desc[i].next = i + 1;
+    uint16_t i;
+    for (i = 0U; i < (size - 1U); i++) {
+        vq->vring.desc[i].next = (uint16_t) (i + 1U);
     }
 
     return mem;

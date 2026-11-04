@@ -15,11 +15,31 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: printf format fix for
  * 64-bit targets.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; if-else-if
+ * chains end with else; deviations are documented where a guideline can't
+ * be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of mixed
+ * precedence are parenthesized; deviations are documented where a guideline
+ * can't be followed; thread_set_eligible() finds the insertion point with a
+ * while loop that doesn't change the list, without a goto; the deadline miss
+ * message prints handler_id. Long lines are wrapped at 80 columns.
+ * thread_suspend_timed() adds the time with pok_time_add(), which cannot
+ * overflow.
  */
 
 #include "thread_internal.h"
 #include <core/sched_arinc.h>
 #include <core/space.h>
+
+/*
+ * MISRA C:2025 Rule 18.4 deviation (this file): thread and object IDs are
+ * the index of an element, computed as the difference between its address
+ * and the start of its array.
+ */
 
 pok_bool_t thread_create(pok_thread_t* t)
 {
@@ -29,7 +49,9 @@ pok_bool_t thread_create(pok_thread_t* t)
         part->base_part.space_id,
         t->user_stack_size);
 
-    if(t->init_stack_addr == 0) return FALSE;
+    if(t->init_stack_addr == 0U) {
+        return FALSE;
+    }
 
     // Initialize thread shared data
     struct jet_thread_shared_data* tshd_t = part->kshd->tshd
@@ -40,7 +62,7 @@ pok_bool_t thread_create(pok_thread_t* t)
     /*
      * Do not modify stack here: it will be filled when thread will run.
      */
-    t->sp = 0;
+    t->sp = NULL;
 #ifdef POK_NEEDS_GDB
     t->entry_sp_user = NULL;
 #endif
@@ -84,26 +106,26 @@ static pok_bool_t thread_is_eligible(pok_thread_t* t)
  */
 static void thread_set_eligible(pok_thread_t* t)
 {
-    pok_thread_t* other_thread;
     pok_partition_arinc_t* part = current_partition_arinc;
+    /* t is inserted before this element (the list head: at the end). */
+    struct list_head* next = part->eligible_threads.next;
 
     assert(part->mode == POK_PARTITION_MODE_NORMAL);
     assert(!thread_is_eligible(t));
 
-    list_for_each_entry(other_thread,
-        &part->eligible_threads,
-        eligible_elem)
+    while(next != &part->eligible_threads)
     {
+        const pok_thread_t* other_thread =
+            list_entry(next, pok_thread_t, eligible_elem);
+
         if(other_thread->priority < t->priority)
         {
-            list_add_tail(&t->eligible_elem, &other_thread->eligible_elem);
-            goto out;
+            break;
         }
-
+        next = next->next;
     }
-    list_add_tail(&t->eligible_elem, &part->eligible_threads);
+    list_add_tail(&t->eligible_elem, next);
 
-out:
     if(t->eligible_elem.prev == &part->eligible_threads)
     {
         // Thread is inserted into the first position.
@@ -179,7 +201,7 @@ static void thread_deadline_occured(uint16_t handler_id)
     pok_thread_t* thread = &current_partition_arinc->threads[handler_id];
     printf_debug("[%lld] Deadline miss occured for thread %s (Id: %d, Part: %d)\n",
                  (long long)jet_system_time(), thread->name,
-                 (int)(thread - current_partition_arinc->threads),
+                 (int)handler_id,
              current_partition->partition_id);
     pok_thread_emit_deadline_missed(thread);
 
@@ -222,7 +244,7 @@ void thread_stop(pok_thread_t* t)
 
     pok_thread_wq_remove(t);
 
-    if(part->lock_level && part->thread_locked == t)
+    if((part->lock_level != 0U) && (part->thread_locked == t))
     {
         current_partition_arinc->lock_level = 0;
 	pok_sched_local_invalidate(); // Thread could be non-highest priority thread when stopped.
@@ -242,9 +264,11 @@ pok_bool_t thread_is_waiting_allowed(void)
     pok_partition_arinc_t* part = current_partition_arinc;
     pok_thread_t* thread_current = part->thread_current;
 
-    if(part->lock_level // In the INIT_* mode lock level is positive, no need to check it explicitely.
+    // In the INIT_* mode lock level is positive, no need to check it
+    // explicitely.
+    if((part->lock_level != 0U)
 #ifdef POK_NEEDS_ERROR_HANDLING
-	|| part->thread_error == thread_current /* error thread cannot wait */
+	|| (part->thread_error == thread_current) /* error thread cannot wait */
 #endif
     ) {
         return FALSE;
@@ -254,7 +278,7 @@ pok_bool_t thread_is_waiting_allowed(void)
 	+ (thread_current - part->threads);
 
     // It is prohibited to call waiting function inside msection.
-    assert_os(kshd_current->msection_count == 0);
+    assert_os(kshd_current->msection_count == 0U);
 
     /*
      * It is prohibited to call waiting function when someone waits us for terminate.
@@ -303,9 +327,13 @@ void thread_wake_up(pok_thread_t* t)
         // Set flag that we has been interrupted by timeout.
         t->wait_result = POK_ERRNO_TIMEOUT;
     }
-    else if(t->msection_entering)
+    else if(t->msection_entering != NULL)
     {
 	t->wait_result = POK_ERRNO_TIMEOUT;
+    }
+    else
+    {
+        // Neither waiting on an object nor entering a section.
     }
 
     if(!t->suspended)
@@ -317,7 +345,7 @@ void thread_wake_up(pok_thread_t* t)
 
 void thread_wait_timed(pok_thread_t *thread, pok_time_t time)
 {
-    assert(thread);
+    assert(thread != NULL);
     assert(!pok_time_is_infinity(time));
 
     thread_wait(thread);
@@ -350,7 +378,8 @@ void thread_suspend_timed(pok_thread_t* t, pok_time_t time)
     t->suspended = TRUE;
     thread_set_uneligible(t);
     thread_wait(t);
-    thread_delay_event(t, jet_system_time() + time, &thread_resume_waited);
+    thread_delay_event(t, pok_time_add(jet_system_time(), time),
+        &thread_resume_waited);
 }
 
 
@@ -358,7 +387,7 @@ void thread_resume(pok_thread_t* t)
 {
     t->suspended = FALSE;
     if(delayed_event_is_active(&t->thread_delayed_event)
-	&& t->thread_delayed_func == &thread_resume_waited)
+	&& (t->thread_delayed_func == &thread_resume_waited))
     {
 	// We are waited on timer for suspencion. Cancel that waiting.
 	t->state = POK_STATE_RUNNABLE;

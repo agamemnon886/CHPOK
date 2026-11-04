@@ -23,6 +23,17 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; internal
+ * linkage for file-local definitions; system registers and PSCI calls are
+ * reached through small inline-assembly functions; the system time is
+ * computed in an unsigned variable before it is converted; deviations are
+ * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  */
 
 /*
@@ -39,21 +50,21 @@
 #include <arch/ioports.h>
 #include <bsp/bsp.h>
 
-#define GICD_CTLR           0x000
-#define GICD_ISENABLER(n)   (0x100 + 4 * (n))
-#define GICD_IPRIORITYR(n)  (0x400 + (n))
-#define GICC_CTLR           0x000
-#define GICC_PMR            0x004
-#define GICC_IAR            0x00c
-#define GICC_EOIR           0x010
+#define GICD_CTLR           0x000U
+#define GICD_ISENABLER(n)   (0x100U + (4U * (n)))
+#define GICD_IPRIORITYR(n)  (0x400U + (n))
+#define GICC_CTLR           0x000U
+#define GICC_PMR            0x004U
+#define GICC_IAR            0x00cU
+#define GICC_EOIR           0x010U
 
-#define GIC_SPURIOUS        1020
+#define GIC_SPURIOUS        1020U
 
-#define RTC_DR              0x000
+#define RTC_DR              0x000U
 
-#define CNTV_CTL_ENABLE     (1 << 0)
+#define CNTV_CTL_ENABLE     (1U << 0)
 
-#define PSCI_SYSTEM_RESET   0x84000009
+#define PSCI_SYSTEM_RESET   0x84000009U
 
 /* Set by entry.S. PSCI uses smc if the kernel was entered at EL2, hvc otherwise. */
 extern char ja_boot_from_el2;
@@ -65,6 +76,11 @@ static uint64_t timer_next;     /* counter value for the next tick */
 
 static time_t base_calendar_time;
 
+/*
+ * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (the functions below): system
+ * registers and privileged instructions are reached with GNU inline assembly,
+ * each isolated in a small function.
+ */
 static uint64_t read_cntvct(void)
 {
     uint64_t val;
@@ -72,12 +88,48 @@ static uint64_t read_cntvct(void)
     return val;
 }
 
+static uint64_t read_cntfrq(void)
+{
+    uint64_t val;
+    asm volatile("mrs %0, cntfrq_el0" : "=r" (val));
+    return val;
+}
+
+static void write_cntv_cval(uint64_t val)
+{
+    asm volatile("msr cntv_cval_el0, %0" :: "r" (val));
+}
+
+static void write_cntv_ctl(uint64_t val)
+{
+    asm volatile("msr cntv_ctl_el0, %0" :: "r" (val));
+}
+
+static void wait_for_interrupt(void)
+{
+    asm volatile("wfi");
+}
+
+/* Call the PSCI function 'fn' through the secure monitor (smc). */
+static void psci_call_smc(uint64_t fn)
+{
+    register uint64_t x0 asm("x0") = fn;
+    asm volatile("smc #0" : "+r" (x0) :: "memory");
+}
+
+/* Call the PSCI function 'fn' through the hypervisor (hvc). */
+static void psci_call_hvc(uint64_t fn)
+{
+    register uint64_t x0 asm("x0") = fn;
+    asm volatile("hvc #0" : "+r" (x0) :: "memory");
+}
+
 static void gic_init(void)
 {
     ja_mmio_write32(BOARD_GICD_BASE + GICD_CTLR, 0);
-    ja_mmio_write8(BOARD_GICD_BASE + GICD_IPRIORITYR(BOARD_IRQ_VTIMER), 0xa0);
-    ja_mmio_write32(BOARD_GICD_BASE + GICD_ISENABLER(BOARD_IRQ_VTIMER / 32),
-        1U << (BOARD_IRQ_VTIMER % 32));
+    ja_mmio_write8(BOARD_GICD_BASE + GICD_IPRIORITYR(BOARD_IRQ_VTIMER), 0xa0U);
+    ja_mmio_write32(BOARD_GICD_BASE + GICD_ISENABLER(BOARD_IRQ_VTIMER / 32U),
+        (uint32_t) 1U << (BOARD_IRQ_VTIMER % 32U));
     ja_mmio_write32(BOARD_GICD_BASE + GICD_CTLR, 1);
 
     ja_mmio_write32(BOARD_GICC_BASE + GICC_PMR, 0xff);
@@ -86,14 +138,14 @@ static void gic_init(void)
 
 static void timer_init(void)
 {
-    asm volatile("mrs %0, cntfrq_el0" : "=r" (timer_freq));
+    timer_freq = read_cntfrq();
     timer_period = timer_freq / POK_TIMER_FREQUENCY;
 
     timer_start = read_cntvct();
     timer_next = timer_start + timer_period;
 
-    asm volatile("msr cntv_cval_el0, %0" :: "r" (timer_next));
-    asm volatile("msr cntv_ctl_el0, %0" :: "r" ((uint64_t)CNTV_CTL_ENABLE));
+    write_cntv_cval(timer_next);
+    write_cntv_ctl(CNTV_CTL_ENABLE);
 }
 
 void ja_bsp_init (void)
@@ -116,7 +168,7 @@ static void process_timer(void)
         // Ticks were missed (e.g. the host was busy): don't try to catch up.
         timer_next = now + timer_period;
     }
-    asm volatile("msr cntv_cval_el0, %0" :: "r" (timer_next));
+    write_cntv_cval(timer_next);
 
     jet_on_tick();
 }
@@ -126,18 +178,20 @@ void ja_bsp_process_irq(interrupt_frame* frame)
     (void) frame;
 
     uint32_t iar = ja_mmio_read32(BOARD_GICC_BASE + GICC_IAR);
-    uint32_t irq = iar & 0x3ff;
+    uint32_t irq = iar & 0x3ffU;
 
-    if (irq >= GIC_SPURIOUS)
+    if (irq >= GIC_SPURIOUS) {
         return;
+    }
 
     // End of interrupt before jet_on_tick(), which may switch context.
     ja_mmio_write32(BOARD_GICC_BASE + GICC_EOIR, iar);
 
-    if (irq == BOARD_IRQ_VTIMER)
+    if (irq == BOARD_IRQ_VTIMER) {
         process_timer();
-    else
-        printf("Unexpected IRQ %u\n", (unsigned)irq);
+    } else {
+        (void) printf("Unexpected IRQ %u\n", (unsigned)irq);
+    }
 }
 
 pok_time_t ja_system_time(void)
@@ -145,8 +199,10 @@ pok_time_t ja_system_time(void)
     uint64_t ticks = read_cntvct() - timer_start;
 
     // Split to avoid overflow: (ticks % freq) * 1e9 < freq * 1e9.
-    return (pok_time_t)((ticks / timer_freq) * 1000000000ULL
-        + (ticks % timer_freq) * 1000000000ULL / timer_freq);
+    uint64_t ns = ((ticks / timer_freq) * 1000000000ULL)
+        + (((ticks % timer_freq) * 1000000000ULL) / timer_freq);
+
+    return (pok_time_t) ns;
 }
 
 time_t ja_calendar_time(void)
@@ -156,14 +212,14 @@ time_t ja_calendar_time(void)
 
 void ja_bsp_reset(void)
 {
-    register uint64_t x0 asm("x0") = PSCI_SYSTEM_RESET;
-
-    if (ja_boot_from_el2)
-        asm volatile("smc #0" : "+r" (x0) :: "memory");
-    else
-        asm volatile("hvc #0" : "+r" (x0) :: "memory");
+    if (ja_boot_from_el2 != '\0') {
+        psci_call_smc(PSCI_SYSTEM_RESET);
+    } else {
+        psci_call_hvc(PSCI_SYSTEM_RESET);
+    }
 
     // PSCI isn't available.
-    while (1)
-        asm volatile("wfi");
+    while (true) {
+        wait_for_interrupt();
+    }
 }

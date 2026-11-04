@@ -15,8 +15,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: thread-safe output (see
  * stream.c).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: discarded
+ * results are cast to void; the character is converted to char
+ * explicitly; deviations are documented where a guideline can't be
+ * followed.
  */
 
+/*
+ * MISRA C:2025 Rule 21.6 deviation: this file implements putchar() of libpok's
+ * C library.
+ */
 #include <stdio.h>
 #include "stream.h"
 
@@ -25,8 +34,9 @@ int putchar(int c)
     struct stdio_operation op;
 
     stdio_operation_begin(&op, stdout);
-    stdio_operation_emit_character(c, &op);
-    stdio_operation_end(&op);
+    // The character is written as unsigned char converted to char.
+    stdio_operation_emit_character((char) c, &op);
+    (void) stdio_operation_end(&op);
 
     return c;
 }

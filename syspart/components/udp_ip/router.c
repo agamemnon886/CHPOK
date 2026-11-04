@@ -19,6 +19,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; discarded results are cast to void; U suffixes
+ * for unsigned constants; operands of mixed precedence are parenthesized.
  */
 
 #include <net/byteorder.h>
@@ -33,10 +37,11 @@
 /* Return index of (ip, port) pair in array in state. -1 if not found */
 static int32_t get_ip_port_index(ROUTER_state *state, uint32_t ip, uint16_t port)
 {
-    for (int32_t i=0; i<state->map_ip_port_to_idx_len; i++) {
+    for (size_t i = 0U; i < state->map_ip_port_to_idx_len; i++) {
         struct udp_ip_pair *cur_pair = &state->map_ip_port_to_idx[i];
-        if (cur_pair->ip == ip && cur_pair->port == port)
-            return i;
+        if ((cur_pair->ip == ip) && (cur_pair->port == port)) {
+            return (int32_t) i;
+        }
     }
     return -1;
 }
@@ -46,10 +51,13 @@ ret_t receive_packet(ROUTER *self, const char *payload, size_t payload_size, uin
     int32_t idx = get_ip_port_index(&self->state, ip, port);
 
     if (idx < 0) {
-        printf(C_NAME"packet not for us (from %u.%u.%u.%u:%d)\n", IP_PRINT(ip), port);
+        (void) printf(
+            C_NAME"packet not for us (from %u.%u.%u.%u:%d)\n", IP_PRINT(ip),
+                port);
         return EINVAL;
     }
-    ROUTER_call_portArray_handle_by_index(idx, self, payload, payload_size);
+    (void) ROUTER_call_portArray_handle_by_index(
+        idx, self, payload, payload_size);
 
     return EOK;
 }

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,532 +12,430 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: nested formats
+ * (%c, %D, %T, ...) are processed with a stack of formats instead of
+ * recursion, and numbers are printed without <stdarg.h>; every switch
+ * clause ends with break. Fixed conversions: %m and %j were one less, %C
+ * printed the year modulo 100, %e was zero-padded, %F used U+2212 instead of
+ * '-', %G printed two digits, %I printed 01 for noon, %U, %V and %W were
+ * computed wrongly and %U and %W were not zero-padded, %z treated the
+ * timezone as minutes, and %% printed "%??". A literal text that didn't fit
+ * was silently truncated instead of making strftime() return 0.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
+ * Long lines are wrapped at 80 columns.
  */
 
+/*
+ * MISRA C:2025 Rule 21.10 deviation: this file implements one of the
+ * <time.h> functions of libpok's C library.
+ */
 #include <time.h>
 
-#include <stdarg.h>
-#include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
-#include <assert.h>
 
 #include "time_internal.h"
 
-/* 
- * Return week number (from zero) in the year.
- * 
- * It is assumed that every week starts with 'first_week_day', and the
- * first such day in the year determines the first week in that year.
+/*
+ * MISRA C:2025 Rule 18.4 deviation (this file): the output position moves
+ * forward by the number of bytes written.
  */
-static int week_number(const struct tm* timeptr,
-    int first_week_day)
-{
-    /* Day in the year when the first week starts. */
-    int week_starts = (timeptr->tm_yday - timeptr->tm_wday + 7) % 7;
-    
-    if(timeptr->tm_yday >= week_starts) {
-        // Week in the current year.
-        return (timeptr->tm_yday - week_starts) / 7;
-    }
-    
-    int days_in_prev_year = days_in_year(timeptr->tm_year + tm0_year - 1); 
-    // Week corresponds to previous year.
-    int week_prev_starts = (days_in_prev_year + 7 - week_starts) % 7;
-    
-    return (timeptr->tm_yday + days_in_prev_year - week_prev_starts) / 7;
-}
-
-/* 
- * Return year in weak-based coordinates. 
- * 
- * In these coordinates:
- * 
- *  - If the first Monday of January is the 2nd, 3rd, or 4th,
- * the preceding days are part of the last week of the preceding year
- * 
- *  - If December 29th, 30th, or 31st is a Monday, it and any following
- * days are part of week 1 of the following year.
- */
-static int weak_based_year(const struct tm* timeptr)
-{
-    if(timeptr->tm_yday < 3)
-    {
-        /* 
-         * January, 1st, 2nd or 3rd.
-         * 
-         * Check that year is not actually the preceeding one.
-         */
-        
-        /* Compute day when the first Monday occures.
-         *  +7 is used for force it to be non-negative.
-         */
-        int monday_first = (timeptr->tm_yday + 1 + 7 - timeptr->tm_wday) % 7;
-        
-        switch(monday_first) {
-            case 1: //Monday is at January, 2nd
-            case 2: //Monday is at January, 3nd
-            case 3: //Monday is at January, 4nd
-                if(timeptr->tm_yday < monday_first) return timeptr->tm_year - 1;
-        }
-    }
-    else if(timeptr->tm_yday >= 362) {
-        /* 
-         * Definitely December. Possibly at December, 29 or after.
-         * 
-         * Check that year is not actually the following one.
-         */
-
-        /* 
-         * Compute week day of December, 31.
-         */
-        int wday_dec_31 = timeptr->tm_wday + (31 - timeptr->tm_mday);
-        
-        switch(wday_dec_31) {
-            case 1: // Monday is at December, 31
-            case 2: // Monday is at December, 30
-            case 3: // Monday is at December, 29
-                if((timeptr->tm_mday + wday_dec_31) >= 32) return timeptr->tm_year + 1;
-        }
-    }
-    return timeptr->tm_year;
-}
 
 /*
- * Similar for weak_based_year, but returns week number instead of year.
- * 
- *  - weeks begin on a Monday
+ * Conversions may be defined by other formats ("%c" is "%a %b %e %T %Y",
+ * whose "%T" is "%H:%M:%S"). The formats being processed are kept in a
+ * small stack instead of calling the formatter recursively (Rule 17.2).
  */
-static int weak_based_week(const struct tm* timeptr)
-{
-    /* 
-     * Compute day when the first Monday occures.
-     *  +7 is used for force it to be non-negative.
-     */
-    int monday_first = (timeptr->tm_yday + 1 + 7 - timeptr->tm_wday) % 7;
-    
-    /* Monday when the first week starts.*/
-    int week_first;
-    
-    switch(monday_first) {
-        case 0: //Monday is at January, 1nd
-            week_first = monday_first;
-            break;
-        case 1: //Monday is at January, 2nd
-            if(timeptr->tm_yday < monday_first) return 51;
-            week_first = monday_first;
-            break;
-        case 2: //Monday is at January, 3nd
-            if(timeptr->tm_yday < monday_first) {
-                // Weak number depends whether previous year is leap or not.
-                return leap_year(timeptr->tm_year + tm0_year - 1) ? 52 : 51;
-            week_first = monday_first;
-            break;
-            }
-        case 3: //Monday is at January, 4nd
-            if(timeptr->tm_yday < monday_first) return 52;
-            week_first = monday_first;
-            break;
-        case 4:
-        case 5:
-        case 6:
-            week_first = monday_first - 7;
-    }
-    
-    if(timeptr->tm_yday >= 362) {
-        /* 
-         * Definitely December. Possibly at December, 29 or after.
-         * 
-         * Check that year is not actually the following one.
-         */
-
-        /* 
-         * Compute week day of December, 31.
-         */
-        int wday_dec_31 = timeptr->tm_wday + (31 - timeptr->tm_mday);
-        
-        switch(wday_dec_31) {
-            case 1: // Monday is at December, 31
-            case 2: // Monday is at December, 30
-            case 3: // Monday is at December, 29
-                if((timeptr->tm_mday + wday_dec_31) >= 32) return 0;
-        }
-    }
-    
-    return (timeptr->tm_yday - week_first) / 7 + 1;
-}
-
+#define TIME_FORMAT_DEPTH 3U
 
 struct time_format_state {
     char* out; // String for current output
-    size_t n; // Limit for bytes rest
-    
-    const char* format; // Symbol in the format to process next.
-    
+    size_t n; // Bytes left in the output, including the terminating '\0'.
+
     size_t bytes_used_total; // Total number of bytes used.
 };
 
-/* 
- * Produce string for formatted time accordinf to printf-like format.
- * 
- * Return 0 on success, 1 if bytes limit has been encountered.
+/*
+ * Append a single character.
+ *
+ * Return true on success, false if there is no room for it.
  */
-static int time_printf(struct time_format_state* tfs,
-    const char* format, ...)
+static bool time_print_char(struct time_format_state* tfs, char c)
 {
-    va_list args;
-    va_start(args, format);
-    
-    size_t bytes_needed = vsnprintf(tfs->out, tfs->n, format, args);
-    
-    va_end(args);
-    
-    if(bytes_needed >= tfs->n) return 1;
-    tfs->bytes_used_total += bytes_needed;
-    // Advance position
-    tfs->out += bytes_needed;
-    tfs->n -= bytes_needed;
-    
-    return 0;
+    bool ok = false;
+
+    if(tfs->n > 1U) {
+        *tfs->out = c;
+        tfs->out++;
+        tfs->n--;
+        tfs->bytes_used_total++;
+        ok = true;
+    }
+    return ok;
 }
 
-
-/* 
- * Produce string for formatted time.
- * 
- * Return 0 on success, 1 if bytes limit has been encountered.
+/*
+ * Append a string.
+ *
+ * Return true on success, false if there is no room for it.
  */
-static int time_print_string(struct time_format_state* tfs, const char* s)
+static bool time_print_string(struct time_format_state* tfs, const char* s)
 {
     size_t bytes_needed = strlen(s);
-    
-    if(bytes_needed == 0) return 0; // Nothing to do
-    if(bytes_needed >= tfs->n) return 1;
-    
-    memcpy(tfs->out, s, bytes_needed);
-    tfs->bytes_used_total += bytes_needed;
-    // Advance position
-    tfs->out += bytes_needed;
-    tfs->n -= bytes_needed;
-    
-    return 0;
+    bool ok = false;
+
+    if(bytes_needed < tfs->n) {
+        (void) memcpy(tfs->out, s, bytes_needed);
+        tfs->bytes_used_total += bytes_needed;
+        // Advance position
+        tfs->out += bytes_needed;
+        tfs->n -= bytes_needed;
+        ok = true;
+    }
+    return ok;
 }
 
-/* 
+/*
+ * Append a decimal number of at least 'width' characters, padded on the left
+ * with 'pad' ('0' or ' '). A negative number is prefixed with '-'.
+ *
+ * Return true on success, false if there is no room for it.
+ */
+static bool time_print_number(struct time_format_state* tfs, int64_t value,
+    uint32_t width, char pad)
+{
+    static const char digits[] = "0123456789";
+    char buf[24];
+    uint32_t len = 0U;
+    uint64_t magnitude = (value < 0) ? (0U - (uint64_t) value)
+        : (uint64_t) value;
+    bool ok = true;
+
+    do {
+        buf[len] = digits[magnitude % 10U];
+        len++;
+        magnitude /= 10U;
+    } while(magnitude != 0U);
+
+    if(value < 0) {
+        buf[len] = '-';
+        len++;
+    }
+    while((len < width) && (len < (uint32_t) sizeof(buf))) {
+        buf[len] = pad;
+        len++;
+    }
+    while(ok && (len > 0U)) {
+        len--;
+        ok = time_print_char(tfs, buf[len]);
+    }
+    return ok;
+}
+
+/* Append a name from a locale table, or "?" if the index is out of range. */
+static bool time_print_name(struct time_format_state* tfs,
+    const char* const names[], int32_t count, int32_t index)
+{
+    return time_print_string(tfs,
+        ((index >= 0) && (index < count)) ? names[index] : "?");
+}
+
+/*
+ * ISO 8601 (week-based) year and week:
+ *
+ *  - weeks begin on a Monday;
+ *  - week 1 of a year is the week which contains January 4th, so the days
+ *    before it belong to the last week of the preceding year, and
+ *    December 29th-31st may belong to week 1 of the following year.
+ */
+static int32_t iso_weeks_in_year(int32_t year)
+{
+    // A year has 53 weeks if it starts on a Thursday, or if it is a leap year
+    // which starts on a Wednesday (December 31st is a Thursday then).
+    int32_t dec31_wday = (year + (year / 4) - (year / 100) + (year / 400)) % 7;
+    int32_t prev = year - 1;
+    int32_t prev_dec31_wday =
+        (prev + (prev / 4) - (prev / 100) + (prev / 400)) % 7;
+
+    return ((dec31_wday == 4) || (prev_dec31_wday == 3)) ? 53 : 52;
+}
+
+static void iso_week(const struct tm* timeptr, int32_t* year, int32_t* week)
+{
+    int32_t y = timeptr->tm_year + tm0_year;
+    // 1 (Monday) - 7 (Sunday)
+    int32_t wday_monday = ((timeptr->tm_wday + 6) % 7) + 1;
+    int32_t w = (((timeptr->tm_yday + 1) - wday_monday) + 10) / 7;
+
+    if(w < 1) {
+        y--;
+        w = iso_weeks_in_year(y);
+    }
+    else if(w > iso_weeks_in_year(y)) {
+        y++;
+        w = 1;
+    }
+    else {
+        // The week belongs to the year of the date.
+    }
+    *year = y;
+    *week = w;
+}
+
+/*
+ * Return the format which defines conversion 'spec', or NULL if the
+ * conversion is not defined by another format.
+ */
+static const char* time_composite_format(char spec)
+{
+    const char* format;
+
+    switch(spec) {
+        case 'c':
+            format = current_locale_time->date_time_format;
+            break;
+        case 'D':
+            format = "%m/%d/%y";
+            break;
+        case 'F':
+            format = "%Y-%m-%d";
+            break;
+        case 'h':
+            format = "%b";
+            break;
+        case 'r':
+            format = current_locale_time->time_12_format;
+            break;
+        case 'R':
+            format = "%H:%M";
+            break;
+        case 'T':
+            format = "%H:%M:%S";
+            break;
+        case 'x':
+            format = current_locale_time->date_format;
+            break;
+        case 'X':
+            format = current_locale_time->time_format;
+            break;
+        default:
+            format = NULL;
+            break;
+    }
+    return format;
+}
+
+/*
+ * Append the result of a conversion which is not defined by another format.
+ *
+ * Return true on success, false if there is no room for it.
+ */
+static bool time_convert(struct time_format_state* tfs, char spec,
+    const struct tm* timeptr)
+{
+    const struct locale_time* locale = current_locale_time;
+    int32_t year = timeptr->tm_year + tm0_year;
+    int32_t iso_year;
+    int32_t iso_week_number;
+    bool ok;
+
+    switch(spec) {
+        case 'a':
+            ok = time_print_name(tfs, locale->weekday_abbrev, 7,
+                                 timeptr->tm_wday);
+            break;
+        case 'A':
+            ok = time_print_name(tfs, locale->weekday, 7, timeptr->tm_wday);
+            break;
+        case 'b':
+            ok = time_print_name(tfs, locale->month_abbrev, 12,
+                                 timeptr->tm_mon);
+            break;
+        case 'B':
+            ok = time_print_name(tfs, locale->month, 12, timeptr->tm_mon);
+            break;
+        case 'C': // 00-99, the year divided by 100.
+            ok = time_print_number(tfs, year / 100, 2U, '0');
+            break;
+        case 'd': // 01-31
+            ok = time_print_number(tfs, timeptr->tm_mday, 2U, '0');
+            break;
+        case 'e': // 1-31, single digit prepended by space.
+            ok = time_print_number(tfs, timeptr->tm_mday, 2U, ' ');
+            break;
+        case 'g': // 00-99, week-based.
+            iso_week(timeptr, &iso_year, &iso_week_number);
+            ok = time_print_number(tfs, ((iso_year % 100) + 100) % 100, 2U,
+                                   '0');
+            break;
+        case 'G': // Week-based.
+            iso_week(timeptr, &iso_year, &iso_week_number);
+            ok = time_print_number(tfs, iso_year, 1U, '0');
+            break;
+        case 'H': // 00-23.
+            ok = time_print_number(tfs, timeptr->tm_hour, 2U, '0');
+            break;
+        case 'I': // 01-12.
+            ok = time_print_number(tfs,
+                ((timeptr->tm_hour % 12) == 0) ? 12 : (timeptr->tm_hour % 12),
+                2U, '0');
+            break;
+        case 'j': // 001-366.
+            ok = time_print_number(tfs, timeptr->tm_yday + 1, 3U, '0');
+            break;
+        case 'm': // 01-12.
+            ok = time_print_number(tfs, timeptr->tm_mon + 1, 2U, '0');
+            break;
+        case 'M': // 00-59.
+            ok = time_print_number(tfs, timeptr->tm_min, 2U, '0');
+            break;
+        case 'n':
+            ok = time_print_char(tfs, '\n');
+            break;
+        case 'p':
+            ok = time_print_name(tfs, locale->am_pm, 2, timeptr->tm_hour / 12);
+            break;
+        case 'S': // 00-60.
+            ok = time_print_number(tfs, timeptr->tm_sec, 2U, '0');
+            break;
+        case 't':
+            ok = time_print_char(tfs, '\t');
+            break;
+        case 'u': // 1-7, since Monday
+            ok = time_print_number(tfs, ((timeptr->tm_wday + 6) % 7) + 1, 1U,
+                                   '0');
+            break;
+        case 'U': // 00-53, the first Sunday is the first day of week 1.
+            ok = time_print_number(tfs,
+                ((timeptr->tm_yday + 7) - timeptr->tm_wday) / 7, 2U, '0');
+            break;
+        case 'V': // 01-53, week-based.
+            iso_week(timeptr, &iso_year, &iso_week_number);
+            ok = time_print_number(tfs, iso_week_number, 2U, '0');
+            break;
+        case 'w': // 0-6, since Sunday
+            ok = time_print_number(tfs, timeptr->tm_wday, 1U, '0');
+            break;
+        case 'W': // 00-53, the first Monday is the first day of week 1.
+            ok = time_print_number(tfs,
+                ((timeptr->tm_yday + 7) - ((timeptr->tm_wday + 6) % 7)) / 7,
+                2U, '0');
+            break;
+        case 'y': // 00-99.
+            ok = time_print_number(tfs, ((year % 100) + 100) % 100, 2U, '0');
+            break;
+        case 'Y':
+            ok = time_print_number(tfs, year, 1U, '0');
+            break;
+        case 'z':
+            {
+                // 'timezone' is the number of seconds west of UTC; %z is
+                // +hhmm east of it.
+                int64_t east = -(int64_t) timezone;
+                int64_t minutes = ((east < 0) ? -east : east) / 60;
+
+                ok = time_print_char(tfs, (east < 0) ? '-' : '+');
+                if(ok) {
+                    ok = time_print_number(tfs,
+                        ((minutes / 60) * 100) + (minutes % 60), 4U, '0');
+                }
+            }
+            break;
+        case 'Z':
+            ok = time_print_string(tfs, locale->tz_name);
+            break;
+        case '%':
+            ok = time_print_char(tfs, '%');
+            break;
+        default: // Behaviour is undefined.
+            ok = time_print_string(tfs, "??");
+            break;
+    }
+    return ok;
+}
+
+/*
  * Produce string for formatted time according to rules of strftime
  * except appending terminating '\0'.
- * 
- * Return 0 on success, 1 if insufficient space.
+ *
+ * Return true on success, false if there is not enough space.
  */
-static int time_format(struct time_format_state* tfs,
+static bool time_format(struct time_format_state* tfs, const char* format,
     const struct tm * timeptr)
 {
-    while(1) {
-        size_t bytes_used_tmp;
-        
-        char* first_spec = strchr(tfs->format, '%');
-        
-        if(first_spec == NULL) {
-            // No needs to update format at the end.
-            return time_print_string(tfs, tfs->format);
-        }
+    const char* formats[TIME_FORMAT_DEPTH]; // Formats being processed.
+    uint32_t depth = 0U; // Index of the innermost format in 'formats'.
+    bool ok = true;
+    bool done = false;
 
-        // first_spec points to '%'.
-        bytes_used_tmp = first_spec - tfs->format;
-        if(bytes_used_tmp > 0) {
-            if(bytes_used_tmp > tfs->n) return 0;
-            
-            memcpy(tfs->out, tfs->format, bytes_used_tmp);
-            tfs->bytes_used_total += bytes_used_tmp;
-            // Advance position.
-            tfs->format += bytes_used_tmp;
-            tfs->out += bytes_used_tmp;
-            tfs->n -= bytes_used_tmp;
-        }
-        
-        tfs->format++; // First character after '%'
-        
-        /* Whether is continued after the character. */
-        int format_continue;
+    formats[0] = format;
 
-        do {
-            // By default the character is assumed to terminate the format.
-            format_continue = 0;
-            switch(*(tfs->format++)) {
-                case '\0':
-                    // Missed actual specifier after '%'
-                    return 0;
-                    break;
-                case 'E':
-                    // Currently 'E' modifier is ignored
-                    format_continue = 1;
-                    break;
-                case 'O':
-                    // Currently 'O' modifier is ignored
-                    format_continue = 1;
-                    break;
-                case 'a':
-                    if(time_print_string(tfs, 
-                        current_locale_time->weekday_abbrev[timeptr->tm_wday])) {
-                        return 1;
-                    }
-                    break;
-                case 'A':
-                    if(time_print_string(tfs, 
-                        current_locale_time->weekday[timeptr->tm_wday])) {
-                        return 1;
-                    }
-                    break;
-                case 'b':
-                    if(time_print_string(tfs, 
-                        current_locale_time->month_abbrev[timeptr->tm_mon])) {
-                        return 1;
-                    }
-                    break;
-                case 'B':
-                    if(time_print_string(tfs, 
-                        current_locale_time->month[timeptr->tm_mon])) {
-                        return 1;
-                    }
-                    break;
-                case 'c':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = current_locale_time->date_time_format;
-                        if(time_format(tfs, timeptr)) return 1;
+    while(ok && !done) {
+        const char* sub_format;
+        char spec;
 
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'C': // 00-99
-                    if(time_printf(tfs, "%2d", (timeptr->tm_year + tm0_year) % 100)) {
-                        return 1;
-                    }
-                    break;
-                case 'd': // 01-31
-                    if(time_printf(tfs, "%02d", timeptr->tm_mday)) {
-                        return 1;
-                    }
-                    break;
-                case 'D':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = "%m/%d/%y";
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'e': // 1-31, single digit prepended by space.
-                    if(time_printf(tfs, "%.2d", timeptr->tm_mday)) {
-                        return 1;
-                    }
-                    break;
-                case 'F':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = "%Y−%m−%d";
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'g': // 00-99, Weak-based.
-                    if(time_printf(tfs, "%02d", weak_based_year(timeptr) % 100)) {
-                        return 1;
-                    }
-                    break;
-                case 'G': // Weak-based.
-                    if(time_printf(tfs, "%d", weak_based_year(timeptr) % 100)) {
-                        return 1;
-                    }
-                    break;
-                case 'h':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = "%b";
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'H': // 00-23.
-                    if(time_printf(tfs, "%02d", timeptr->tm_hour)) {
-                        return 1;
-                    }
-                    break;
-                case 'I': // 01-12.
-                    if(time_printf(tfs, "%02d", (timeptr->tm_hour % 12) + 1)) {
-                        return 1;
-                    }
-                    break;
-                case 'j': // 001-366.
-                    if(time_printf(tfs, "%03d", timeptr->tm_yday)) {
-                        return 1;
-                    }
-                    break;
-                case 'm': // 01-12.
-                    if(time_printf(tfs, "%02d", timeptr->tm_mon)) {
-                        return 1;
-                    }
-                    break;
-                case 'M': // 00-59.
-                    if(time_printf(tfs, "%02d", timeptr->tm_min)) {
-                        return 1;
-                    }
-                    break;
-                case 'n':
-                    if(time_print_string(tfs, "\n")) {
-                        return 1;
-                    }
-                    break;
-                case 'p':
-                    if(time_print_string(tfs, current_locale_time->am_pm[timeptr->tm_hour / 12])) {
-                        return 1;
-                    }
-                    break;
-                case 'r':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = current_locale_time->time_12_format;
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'R':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = "%H:%M";
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'S': // 00-60.
-                    if(time_printf(tfs, "%02d", timeptr->tm_sec)) {
-                        return 1;
-                    }
-                    break;
-                case 't':
-                    if(time_print_string(tfs, "\t")) {
-                        return 1;
-                    }
-                    break;
-                case 'T':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = "%H:%M:%S";
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'u': // 1-7, since Monday
-                    if(time_printf(tfs, "%d", ((timeptr->tm_wday + 6) % 7) + 1)) {
-                        return 1;
-                    }
-                    break;
-                case 'U': // 00-53, the first Sunday is the first day of the first weak.
-                    if(time_printf(tfs, "%d", week_number(timeptr, 0))) {
-                        return 1;
-                    }
-                    break;
-                case 'V': // 01-53.
-                    if(time_printf(tfs, "%02d", weak_based_week(timeptr) + 1)) {
-                        return 1;
-                    }
-                    break;
-                case 'w': // 0-6, since Sunday
-                    if(time_printf(tfs, "%d", timeptr->tm_wday)) {
-                        return 1;
-                    }
-                    break;
-                case 'W': // 00-53, the first Monday is the first day of the first weak.
-                    if(time_printf(tfs, "%d", week_number(timeptr, 1))) {
-                        return 1;
-                    }
-                    break;
-                case 'x':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = current_locale_time->date_format;
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'X':
-                    {
-                        const char* format_old = tfs->format;
-                        tfs->format = current_locale_time->time_format;
-                        if(time_format(tfs, timeptr)) return 1;
-
-                        tfs->format = format_old;
-                    }
-                    break;
-                case 'y': // 00-99.
-                    if(time_printf(tfs, "%02d", (timeptr->tm_year + tm0_year) % 100)) {
-                        return 1;
-                    }
-                    break;
-                case 'Y':
-                    if(time_printf(tfs, "%d", timeptr->tm_year + tm0_year)) {
-                        return 1;
-                    }
-                    break;
-                case 'z':
-                    {
-                        int tz_hours, tz_minutes_abs;
-                        if(timezone >= 0) {
-                            tz_hours = timezone / 60;
-                            tz_minutes_abs = timezone - tz_hours * 60;
-                        }
-                        else {
-                            tz_hours = - (-timezone) / 60;
-                            tz_minutes_abs = tz_hours * 60 - timezone;
-                        }
-                        if(time_printf(tfs, "%+02d%02d", tz_hours, tz_minutes_abs)) {
-                            return 1;
-                        }
-                    }
-                    break;
-                case 'Z':
-                    if(time_printf(tfs, "%s", current_locale_time->tz_name)) {
-                        return 1;
-                    }
-                    break;
-                case '%':
-                    if(time_print_string(tfs, "%")) {
-                        return 1;
-                    }
-                default: // Behaviour is undefined.
-                    if(time_print_string(tfs, "??")) {
-                        return 1;
-                    }
-                    break;
+        if(*formats[depth] == '\0') {
+            // End of this format: continue with the enclosing one.
+            if(depth == 0U) {
+                done = true;
             }
-        } while(format_continue);
+            else {
+                depth--;
+            }
+        }
+        else if(*formats[depth] != '%') {
+            ok = time_print_char(tfs, *formats[depth]);
+            formats[depth]++;
+        }
+        else {
+            formats[depth]++; // First character after '%'
 
+            // Currently 'E' and 'O' modifiers are ignored.
+            while((*formats[depth] == 'E') || (*formats[depth] == 'O')) {
+                formats[depth]++;
+            }
+
+            spec = *formats[depth];
+            if(spec == '\0') {
+                // Missed actual specifier after '%': stop here.
+                done = true;
+            }
+            else {
+                formats[depth]++;
+                sub_format = time_composite_format(spec);
+                if((sub_format != NULL) && (depth < (TIME_FORMAT_DEPTH - 1U))) {
+                    depth++;
+                    formats[depth] = sub_format;
+                }
+                else {
+                    ok = time_convert(tfs, spec, timeptr);
+                }
+            }
+        }
     }
+    return ok;
 }
 
-size_t strftime(char * restrict s, size_t maxsize, const char * restrict format, const struct tm * restrict timeptr)
+size_t strftime(char * s, size_t maxsize, const char * format,
+                const struct tm * timeptr)
 {
-    struct time_format_state tfs = {
-        .out = s,
-        .n = maxsize,
-        
-        .format = format,
-        
-        .bytes_used_total = 0
-    };
-    
-    if(tfs.n == 0) return 0;
-    
-    if(time_format(&tfs, timeptr)) return 0;
-    
-    // Append terminating null.
-    *tfs.out = '\0';
-    
-    return tfs.bytes_used_total;
+    struct time_format_state tfs;
+    size_t result = 0U;
+
+    tfs.out = s;
+    tfs.n = maxsize;
+    tfs.bytes_used_total = 0U;
+
+    if(maxsize != 0U) {
+        if(time_format(&tfs, format, timeptr)) {
+            // Append terminating null.
+            *tfs.out = '\0';
+            result = tfs.bytes_used_total;
+        }
+    }
+    return result;
 }

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; __user/__kuser are renamed
+ * JET_USER/JET_KUSER; essentially Boolean conditions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  */
 
-#ifndef __JET_ASP_UACCESS_H__
-#define __JET_ASP_UACCESS_H__
+#ifndef JET_ASP_UACCESS_H
+#define JET_ASP_UACCESS_H
 
 #include <types.h>
 #include <common.h>
@@ -26,7 +34,7 @@
  * 
  * If given area cannot be written by the user space, returns NULL.
  */
-void* __kuser ja_user_to_kernel_space(void* __user addr, size_t size,
+void* JET_KUSER ja_user_to_kernel_space(void* JET_USER addr, size_t size,
     jet_space_id space_id);
 
 /* 
@@ -35,7 +43,8 @@ void* __kuser ja_user_to_kernel_space(void* __user addr, size_t size,
  * 
  * If given area cannot be read by the user space, returns NULL.
  */
-const void* __kuser ja_user_to_kernel_ro_space(const void* __user addr, size_t size,
+const void* JET_KUSER ja_user_to_kernel_ro_space(const void* JET_USER addr,
+                                                 size_t size,
     jet_space_id space_id);
 
 /*
@@ -45,7 +54,7 @@ const void* __kuser ja_user_to_kernel_ro_space(const void* __user addr, size_t s
  * Used mainly for additional checks.
  * Kernel doesn't perform r/w to given address.
  */
-pok_bool_t ja_check_access_exec(void* __user addr, jet_space_id space_id);
+pok_bool_t ja_check_access_exec(void* JET_USER addr, jet_space_id space_id);
 
 #ifdef POK_NEEDS_GDB
 
@@ -73,4 +82,4 @@ const void* ja_addr_to_gdb_ro(const void* addr, size_t size,
 
 #endif /* POK_NEEDS_GDB */
 
-#endif /* __JET_ASP_UACCESS_H__ */
+#endif /* JET_ASP_UACCESS_H */

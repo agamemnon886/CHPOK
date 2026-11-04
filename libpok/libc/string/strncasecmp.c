@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized.
  */
  
 #include <core/dependencies.h>
@@ -26,12 +33,15 @@ int strncasecmp(const char *s1, const char *s2, size_t n)
   unsigned int i;
   for (i = 0; i < n; i++)
   { 
-      if (s1[i] == '\0' && s2[i] == '\0')
+      if ((s1[i] == '\0') && (s2[i] == '\0')) {
           return 0;
+      }
       
       int diff = tolower(s1[i]) - tolower(s2[i]); // As POSIX.1-2008 requires.
       
-      if(diff) return diff;
+      if(diff != 0) {
+        return diff;
+      }
   }
   return 0;
 }

@@ -17,6 +17,8 @@
  * Modified by Kirill Brazhnikov, 2026-11-01: added
  * ERROR_HANDLER_CONCURRENCY_CONTROL_TYPE and CONFIGURE_ERROR_HANDLER
  * (ARINC 653P1-4).
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: message
+ * parameters that are only read are const (callers can pass const data).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -76,7 +78,7 @@ typedef enum {
 /*----------------------------------------------------------------------*/
 /*----------------------------------------------------------------------*/
 
-extern void REPORT_APPLICATION_MESSAGE (MESSAGE_ADDR_TYPE    MESSAGE,
+extern void REPORT_APPLICATION_MESSAGE (const APEX_BYTE *   MESSAGE,
                                         MESSAGE_SIZE_TYPE    LENGTH,
                                         RETURN_CODE_TYPE     *RETURN_CODE);
 
@@ -88,7 +90,7 @@ extern void GET_ERROR_STATUS (ERROR_STATUS_TYPE  *ERROR_STATUS,
                               RETURN_CODE_TYPE   *RETURN_CODE );
 
 extern void RAISE_APPLICATION_ERROR (ERROR_CODE_TYPE            ERROR_CODE,
-                                     MESSAGE_ADDR_TYPE          MESSAGE,
+                                     const APEX_BYTE *         MESSAGE,
                                      ERROR_MESSAGE_SIZE_TYPE    LENGTH,
                                      RETURN_CODE_TYPE           *RETURN_CODE);
 

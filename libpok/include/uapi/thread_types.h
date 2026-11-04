@@ -18,8 +18,8 @@
  * See the GNU General Public License version 3 for more details.
  */
 
-#ifndef __JET_UAPI_THREAD_TYPES_H__
-#define __JET_UAPI_THREAD_TYPES_H__
+#ifndef JET_UAPI_THREAD_TYPES_H
+#define JET_UAPI_THREAD_TYPES_H
 
 #include <uapi/types.h>
 
@@ -55,4 +55,4 @@ typedef struct
 } pok_thread_status_t;
 
 
-#endif /* __JET_UAPI_THREAD_TYPES_H__ */
+#endif /* JET_UAPI_THREAD_TYPES_H */

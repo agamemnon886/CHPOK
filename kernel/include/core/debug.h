@@ -19,12 +19,17 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; discarded results are cast to void;
+ * pok_fatal() is _Noreturn; printf_debug() discards the result of
+ * printf() itself.
  */
 
 #include <config.h>
 
-#ifndef __POK_KERNEL_DEBUG_H_
-#define __POK_KERNEL_DEBUG_H_
+#ifndef POK_KERNEL_DEBUG_H
+#define POK_KERNEL_DEBUG_H
 
 #ifdef POK_NEEDS_DEBUG
 
@@ -33,21 +38,22 @@
 #include <libc.h>
 
 __attribute__((__noreturn__))
-void		pok_fatal(const char* message);
+_Noreturn void pok_fatal(const char* message);
 
 int32_t  debug_strlen (const char* str);
 
 void hexdump (const void *addr, int32_t len);
 
 /* Print formatted message if debugging enabled. Otherwise do nothing.*/
-#define printf_debug printf
+#define printf_debug (void) printf
 
 #define POK_FATAL(arg) pok_fatal(arg)
 
+void pok_debug_print_current_state(void);
 #define POK_DEBUG_PRINT_CURRENT_STATE pok_debug_print_current_state();
 
 #else /* POK_NEEDS_DEBUG */
-#define printf_debug(...) do {} while(0)
+#define printf_debug(...) ((void) 0)
 #define POK_DEBUG_PRINT_CURRENT_STATE
 #define POK_FATAL(arg)
 #endif /* POK_NEEDS_DEBUG */

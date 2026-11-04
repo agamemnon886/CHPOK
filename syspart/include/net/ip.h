@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,15 +12,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants;
+ * deviations are documented where a guideline can't be followed;
+ * ip_hdr_payload() doesn't do arithmetic on a void pointer.
  */
 
-#ifndef __POK_NET_IP_H__
-#define __POK_NET_IP_H__
+#ifndef POK_NET_IP_H
+#define POK_NET_IP_H
 
 #include <types.h>
 
 #define IPPROTO_ICMP 1
-#define IPPROTO_UDP 17
+#define IPPROTO_UDP 17U
 
 struct ip_hdr {
     uint8_t version_len;
@@ -34,6 +40,7 @@ struct ip_hdr {
 
     uint32_t src, dst;
     
+    /* MISRA C:2025 Rule 18.7 deviation: the options follow the fixed header. */
     char options[];
 } __attribute__((packed)); 
 
@@ -42,7 +49,7 @@ uint16_t ip_hdr_checksum(const struct ip_hdr *ip_hdr);
 static inline void* ip_hdr_payload(struct ip_hdr *ip_hdr)
 {
     char *p = (char *) ip_hdr;
-    return (void*) p + (ip_hdr->version_len & 0xf) * 4;
+    return &p[(ip_hdr->version_len & 0xfU) * 4U];
 }
 
 #endif

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,21 +12,33 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the local
+ * variable no longer hides time(); deviations are documented where a
+ * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: one declarator
+ * per declaration.
  */
 
+/*
+ * MISRA C:2025 Rule 21.10 deviation: this file implements some of the
+ * <time.h> functions of libpok's C library.
+ */
 #include <time.h>
 
 #include "time_internal.h"
 
 struct tm *gmtime_r(const time_t *timer, struct tm* timeptr)
 {
-    time_t time = *timer;
-    int dayclock, dayno;
+    time_t t = *timer;
+    int dayclock;
+    int dayno;
     int year = t0_year;
  
     /* Extract total number of days and number of seconds since day starts. */
-    dayclock = (int)(time % SECS_DAY);
-    dayno = (int)(time / SECS_DAY);
+    dayclock = (int)(t % SECS_DAY);
+    dayno = (int)(t / SECS_DAY);
  
     timeptr->tm_sec = dayclock % 60;
     timeptr->tm_min = (dayclock % 3600) / 60;

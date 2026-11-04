@@ -16,6 +16,8 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/space.h to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -24,8 +26,8 @@
  * \file    arch/x86_64/space.h
  */
 
-#ifndef __POK_X86_64_SPACE_H__
-#define __POK_X86_64_SPACE_H__
+#ifndef POK_X86_64_SPACE_H
+#define POK_X86_64_SPACE_H
 
 #include <types.h>
 #include "thread.h"
@@ -54,4 +56,4 @@
 /* Build page tables for all spaces and switch to the kernel's ones. */
 void ja_space_init(void);
 
-#endif /* !__POK_X86_64_SPACE_H__ */
+#endif /* !POK_X86_64_SPACE_H */

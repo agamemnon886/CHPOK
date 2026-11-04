@@ -15,16 +15,35 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: thread-safe output:
  * per-stream lock and per-call output buffer.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
+ * Boolean conditions; U suffixes for unsigned constants; discarded
+ * results are cast to void; internal linkage for file-local definitions;
+ * characters are emitted as char; the console system call's result is
+ * discarded explicitly; deviations are documented where a guideline can't
+ * be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: increments and
+ * assignments are separate statements; operands of mixed precedence are
+ * parenthesized; deviations are documented where a guideline can't be
+ * followed. Long lines are wrapped at 80 columns.
  */
 
 #include "stream.h"
 #include <core/syscall.h>
 #include <assert.h>
 
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the callback gets its
+ * private data as a pointer to void, which points to the object named by the
+ * type it is converted to.
+ */
+
 // Flush stream with *non-empty* buffer.
-void stream_flush(struct stdio_stream* stream)
+static void stream_flush(struct stdio_stream* stream)
 {
-    assert(stream->buffer_pos > 0);
+    /* MISRA C:2025 Rule 21.8: see the deviation for assert() in <assert.h>. */
+    assert(stream->buffer_pos > 0U);
 
     stream->s_ops->write_bytes(stream, stream->buffer,
         stream->buffer_pos);
@@ -32,15 +51,14 @@ void stream_flush(struct stdio_stream* stream)
     stream->buffer_pos = 0;
 }
 
-void stdio_stream_emit_character(int c, void* _stream)
+void stdio_stream_emit_character(char c, void* _stream)
 {
     struct stdio_stream* stream = _stream;
-    // Unconditionally convert character into 'char'.
-    char c_real = (char)c;
+    char c_real = c;
 
     if(stream->buffer_pos == stream->buffer_size) {
         // Buffer is full or doesn't exist.
-        if(stream->buffer_pos) {
+        if(stream->buffer_pos != 0U) {
             // Buffer is full. Need to flush it before continue.
             stream_flush(stream);
         }
@@ -54,9 +72,10 @@ void stdio_stream_emit_character(int c, void* _stream)
     }
 
     // Buffer is available. Use it.
-    stream->buffer[stream->buffer_pos++] = c_real;
+    stream->buffer[stream->buffer_pos] = c_real;
+    stream->buffer_pos++;
     stream->bytes_written++;
-    if(c_real == '\n' && stream->buffer_mode == _IOLBF) {
+    if((c_real == '\n') && (stream->buffer_mode == _IOLBF)) {
         // In case of newline and per-line mode, flush buffer immediately.
         stream_flush(stream);
     }
@@ -64,7 +83,7 @@ void stdio_stream_emit_character(int c, void* _stream)
 
 void stdio_stream_complete_operation(struct stdio_stream* stream)
 {
-    if(stream->buffer_pos > 0 && stream->buffer_mode == _IONBF) {
+    if((stream->buffer_pos > 0U) && (stream->buffer_mode == _IONBF)) {
         // Flush buffer in non-buffered mode.
         stream_flush(stream);
     }
@@ -99,7 +118,7 @@ static void stdio_operation_write(struct stdio_operation* op)
     op->pos = 0;
 }
 
-void stdio_operation_emit_character(int c, void* _op)
+void stdio_operation_emit_character(char c, void* _op)
 {
     struct stdio_operation* op = _op;
 
@@ -108,13 +127,14 @@ void stdio_operation_emit_character(int c, void* _op)
         stdio_operation_write(op);
     }
 
-    op->buffer[op->pos++] = (char)c;
+    op->buffer[op->pos] = c;
+    op->pos++;
     op->bytes_written++;
 }
 
 size_t stdio_operation_end(struct stdio_operation* op)
 {
-    if(op->pos > 0) {
+    if(op->pos > 0U) {
         stdio_operation_write(op);
     }
 
@@ -131,7 +151,12 @@ static size_t console_write_bytes(struct stdio_stream* stream,
 {
     (void)stream;
 
-    pok_syscall2 (POK_SYSCALL_CONSWRITE, (unsigned long)bytes, (unsigned long)size);
+    /*
+     * MISRA C:2025 Rule 11.4 deviation: system call arguments are passed as
+     * integers; the kernel converts the address back to a pointer.
+     */
+    (void) pok_syscall2 (POK_SYSCALL_CONSWRITE, (uintptr_t)bytes,
+                         (uintptr_t)size);
     // TODO: Check errors.
     return size;
 }

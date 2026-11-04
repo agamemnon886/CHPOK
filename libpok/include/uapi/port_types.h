@@ -18,16 +18,15 @@
  * See the GNU General Public License version 3 for more details.
  */
 
-#ifndef __JET_UAPI_PORT_TYPES_H__
-#define __JET_UAPI_PORT_TYPES_H__
+#ifndef JET_UAPI_PORT_TYPES_H
+#define JET_UAPI_PORT_TYPES_H
 
 #include <uapi/types.h>
 
-typedef enum
-{
-	 POK_PORT_DIRECTION_IN   = 1,
-	 POK_PORT_DIRECTION_OUT  = 2
-} pok_port_directions_t;
+/* Port directions: values of pok_port_direction_t. */
+#define POK_PORT_DIRECTION_IN   1U
+#define POK_PORT_DIRECTION_OUT  2U
+typedef pok_port_direction_t pok_port_directions_t;
 
 /* Status for queuing port, for return into user space. */
 typedef struct
@@ -60,4 +59,4 @@ typedef struct
    pok_bool_t           validity;
 }pok_port_sampling_status_t;
 
-#endif /* __JET_UAPI_PORT_TYPES_H__ */
+#endif /* JET_UAPI_PORT_TYPES_H */

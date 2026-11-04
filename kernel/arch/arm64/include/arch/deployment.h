@@ -22,12 +22,15 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; ja_spaces_n is a uint32_t.
  */
 
 /* Definitions which are used in deployment.c */
 
-#ifndef __JET_ARM64_DEPLOYMENT_H__
-#define __JET_ARM64_DEPLOYMENT_H__
+#ifndef JET_ARM64_DEPLOYMENT_H
+#define JET_ARM64_DEPLOYMENT_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -94,6 +97,6 @@ struct ja_arm64_space
  * Should be defined in deployment.c.
  */
 extern struct ja_arm64_space ja_spaces[];
-extern int32_t ja_spaces_n;
+extern uint32_t ja_spaces_n;
 
-#endif /* __JET_ARM64_DEPLOYMENT_H__ */
+#endif /* JET_ARM64_DEPLOYMENT_H */

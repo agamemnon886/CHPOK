@@ -19,11 +19,19 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; essentially Boolean conditions;
+ * preempt_local_disabled is a pok_bool_t.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: the structure
+ * tag is pok_partition instead of the reserved _pok_partition, and
+ * pok_partition_t points to its ARINC partition (part_arinc).
  */
 
 
-#ifndef __POK_PARTITION_H__
-#define __POK_PARTITION_H__
+#ifndef POK_PARTITION_H
+#define POK_PARTITION_H
 
 #include <config.h>
 
@@ -39,7 +47,8 @@
 
 #include <asp/space.h>
 
-struct _pok_partition;
+struct pok_partition;
+struct pok_partition_arinc;
 
 /* Scheduling operations specific for given partition. */
 struct pok_partition_sched_operations
@@ -65,7 +74,7 @@ struct pok_partition_sched_operations
      * NOTE: Called (possibly) outside of partition's timeslot, so
      * 'current_partition' doesn't correspond to given partition.
      */
-    int32_t (*get_number_of_threads)(struct _pok_partition* part);
+    int32_t (*get_number_of_threads)(struct pok_partition* part);
 
     /*
      * Return index of current thread within partition.
@@ -77,13 +86,13 @@ struct pok_partition_sched_operations
      * NOTE: Called (possibly) outside of partition's timeslot, so
      * 'current_partition' doesn't correspond to given partition.
      */
-    int32_t (*get_current_thread_index)(struct _pok_partition* part);
+    int32_t (*get_current_thread_index)(struct pok_partition* part);
 
     /*
      * Return 0 if thread with given index exists. Fill 'private' with
      * value, which will be passed for callbacks below.
      */
-    int32_t (*get_thread_at_index)(struct _pok_partition* part,
+    int32_t (*get_thread_at_index)(struct pok_partition* part,
         int32_t index, void** private);
 
     /*
@@ -94,8 +103,8 @@ struct pok_partition_sched_operations
      * NOTE: Called (possibly) outside of partition's timeslot, so
      * 'current_partition' doesn't correspond to given partition.
      */
-    void (*get_thread_info)(struct _pok_partition* part, int32_t index, void* private,
-        print_cb_t print_cb, void* cb_data);
+    void (*get_thread_info)(struct pok_partition* part, int32_t index,
+        void* private, print_cb_t print_cb, void* cb_data);
 
     /*
      * Get interrupt context for non-current thread. It is used for extract registers.
@@ -104,7 +113,8 @@ struct pok_partition_sched_operations
      *
      * TODO: naming is bad.
      */
-    struct jet_interrupt_context* (*get_thread_registers)(struct _pok_partition* part, int32_t index, void* private);
+    struct jet_interrupt_context* (*get_thread_registers)(
+        struct pok_partition* part, int32_t index, void* private);
 #endif /* POK_NEEDS_GDB */
 };
 
@@ -130,7 +140,7 @@ struct pok_partition_operations
      */
     void (*process_partition_error)(pok_system_state_t partition_state,
         pok_error_id_t error_id,
-        uint8_t state_byte_preempt_local,
+        pok_bool_t state_byte_preempt_local,
         void* failed_address);
 };
 
@@ -159,7 +169,7 @@ struct jet_partition_event
  * \struct pok_partition_t
  * \brief This structure contains all needed information for partition management
  */
-typedef struct _pok_partition
+typedef struct pok_partition
 {
 #ifdef POK_NEEDS_MONITOR
     pok_bool_t               is_paused;      /*Partition paused or not*/
@@ -167,6 +177,12 @@ typedef struct _pok_partition
 
     const struct pok_partition_sched_operations* part_sched_ops;
     const struct pok_partition_operations* part_ops;
+
+    /*
+     * The ARINC partition whose base_part this is, or NULL for the other
+     * partitions (idle, monitor, GDB). Set by pok_partition_arinc_init().
+     */
+    struct pok_partition_arinc* part_arinc;
 
     /*
      * Circular buffer with partition events.
@@ -213,7 +229,7 @@ typedef struct _pok_partition
      * Flag is set and checked by the global scheduler,
      * when it need to call partition's callbacks.
      */
-    uint8_t preempt_local_disabled;
+    pok_bool_t preempt_local_disabled;
 
     pok_partition_generation_t partition_generation;
 
@@ -366,4 +382,4 @@ void for_each_partition(void (*f)(pok_partition_t* part));
  */
 extern const struct pok_partition_sched_operations partition_sched_ops_kernel;
 
-#endif /* __POK_PARTITION_H__ */
+#endif /* POK_PARTITION_H */

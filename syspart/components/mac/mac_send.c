@@ -16,6 +16,12 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; discarded results are cast to void; U suffixes
+ * for unsigned constants; deviations are documented where a guideline
+ * can't be followed; mac_send() is renamed mac_sender_send() (the
+ * interface member is named mac_send).
  */
 
 #include <net/byteorder.h>
@@ -26,10 +32,20 @@
 #include "MAC_SENDER_gen.h"
 
 
-#define MAC_HEADER_SIZE 14
+#define MAC_HEADER_SIZE 14U
+
+/*
+ * MISRA C:2025 Rule 11.3 deviation (this file): network packets arrive and
+ * are built in byte buffers; their headers are accessed through the packed
+ * header structures.
+ */
 
 struct mac_packet {
     struct ether_hdr ether_hdr;
+    /*
+     * MISRA C:2025 Rule 18.7 deviation: the payload of a packet follows its
+     * header; its length is that of the received or sent frame.
+     */
     char payload[];
 } __attribute__((packed));
 
@@ -49,7 +65,7 @@ static void fill_in_mac_header(
 
 }
 
-ret_t mac_send(MAC_SENDER *self,
+ret_t mac_sender_send(MAC_SENDER *self,
         char *payload,
         size_t payload_size,
         size_t max_backstep,
@@ -57,8 +73,9 @@ ret_t mac_send(MAC_SENDER *self,
         enum ethertype ethertype
         )
 {
-    if (max_backstep < MAC_HEADER_SIZE)
+    if (max_backstep < MAC_HEADER_SIZE) {
         return EINVAL;
+    }
 
     void *mac_packet = payload - MAC_HEADER_SIZE;
     fill_in_mac_header(
@@ -68,7 +85,7 @@ ret_t mac_send(MAC_SENDER *self,
         ethertype
         );
 
-    MAC_SENDER_call_portB_send(self,
+    (void) MAC_SENDER_call_portB_send(self,
             mac_packet,
             payload_size + MAC_HEADER_SIZE,
             max_backstep - MAC_HEADER_SIZE
@@ -78,6 +95,6 @@ ret_t mac_send(MAC_SENDER *self,
 
 
 ret_t mac_flush(MAC_SENDER *self) {
-    MAC_SENDER_call_portB_flush(self);
+    (void) MAC_SENDER_call_portB_flush(self);
     return EOK;
 }

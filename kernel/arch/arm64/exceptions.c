@@ -23,6 +23,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; U suffixes for unsigned constants; discarded
+ * results are cast to void; the exception class is converted to uint32_t
+ * explicitly.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed. Long lines are wrapped at 80 columns.
  */
 
 /* C handlers for exceptions, called from vectors.S. */
@@ -36,10 +45,15 @@
 #include "interrupt.h"
 #include "sysreg.h"
 
+/*
+ * MISRA C:2025 Dir 1.2 deviation (this file): read_sysreg() is a GNU
+ * statement expression, see sysreg.h.
+ */
+
 /* Exception classes (ESR_EL1.EC). */
 #define EC_UNKNOWN          0x00
 #define EC_ILLEGAL_STATE    0x0e
-#define EC_SVC64            0x15
+#define EC_SVC64            0x15U
 #define EC_IABORT_LOWER     0x20
 #define EC_IABORT_CUR       0x21
 #define EC_PC_ALIGN         0x22
@@ -52,14 +66,15 @@
 static void dump_registers(const interrupt_frame* frame)
 {
     for (int32_t i = 0; i < 31; i += 2) {
-        if (i == 30)
-            printf("x30 = 0x%016lx\n", (unsigned long)frame->x[30]);
-        else
-            printf("x%-2d = 0x%016lx  x%-2d = 0x%016lx\n",
+        if (i == 30) {
+            (void) printf("x30 = 0x%016lx\n", (unsigned long)frame->x[30]);
+        } else {
+            (void) printf("x%-2d = 0x%016lx  x%-2d = 0x%016lx\n",
                 i, (unsigned long)frame->x[i],
                 i + 1, (unsigned long)frame->x[i + 1]);
+        }
     }
-    printf("sp_el0 = 0x%016lx elr = 0x%016lx spsr = 0x%lx\n",
+    (void) printf("sp_el0 = 0x%016lx elr = 0x%016lx spsr = 0x%lx\n",
         (unsigned long)frame->sp_el0, (unsigned long)frame->elr,
         (unsigned long)frame->spsr);
 }
@@ -98,7 +113,7 @@ static void return_user(void)
 void ja_exception_sync_user(interrupt_frame* frame)
 {
     uint64_t esr = read_sysreg(esr_el1);
-    uint32_t ec = (esr >> 26) & 0x3f;
+    uint32_t ec = (uint32_t) ((esr >> 26) & 0x3fU);
 
     if (ec == EC_SVC64) {
         process_syscall(frame);
@@ -108,6 +123,8 @@ void ja_exception_sync_user(interrupt_frame* frame)
             (unsigned long)esr, (unsigned long)read_sysreg(far_el1),
             (unsigned long)frame->elr);
 
+        /* MISRA C:2025 Rule 11.6 deviation: the faulting instruction address is
+         * reported as a pointer. */
         pok_raise_error(error_id_for(ec), TRUE, (void*)frame->elr);
     }
 
@@ -117,13 +134,16 @@ void ja_exception_sync_user(interrupt_frame* frame)
 void ja_exception_sync_kernel(interrupt_frame* frame)
 {
     uint64_t esr = read_sysreg(esr_el1);
-    uint32_t ec = (esr >> 26) & 0x3f;
+    uint32_t ec = (uint32_t) ((esr >> 26) & 0x3fU);
 
-    printf("[KERNEL] Exception in kernel: ESR=0x%lx FAR=0x%lx ELR=0x%lx\n",
+    (void) printf(
+        "[KERNEL] Exception in kernel: ESR=0x%lx FAR=0x%lx ELR=0x%lx\n",
         (unsigned long)esr, (unsigned long)read_sysreg(far_el1),
         (unsigned long)frame->elr);
     dump_registers(frame);
 
+    /* MISRA C:2025 Rule 11.6 deviation: the faulting instruction address is
+     * reported as a pointer. */
     pok_raise_error(error_id_for(ec), FALSE, (void*)frame->elr);
 
     // Returning would re-execute the faulting instruction.
@@ -152,7 +172,7 @@ void ja_exception_unexpected(interrupt_frame* frame, int32_t kind)
         "exception from AArch32 user space",
     };
 
-    printf("[KERNEL] Unexpected %s: ESR=0x%lx FAR=0x%lx\n", names[kind],
+    (void) printf("[KERNEL] Unexpected %s: ESR=0x%lx FAR=0x%lx\n", names[kind],
         (unsigned long)read_sysreg(esr_el1), (unsigned long)read_sysreg(far_el1));
     dump_registers(frame);
     pok_fatal("Unexpected exception");

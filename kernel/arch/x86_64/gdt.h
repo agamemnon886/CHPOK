@@ -16,15 +16,17 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/gdt.h to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
-#ifndef __POK_X86_64_GDT_H__
-#define __POK_X86_64_GDT_H__
+#ifndef POK_X86_64_GDT_H
+#define POK_X86_64_GDT_H
 
 /* Segment selectors, see ja_gdt in entry.S. */
-#define GDT_KERNEL_CODE 0x08
+#define GDT_KERNEL_CODE 0x08U
 #define GDT_KERNEL_DATA 0x10
 #define GDT_USER_DATA   (0x18 | 3)
 #define GDT_USER_CODE   (0x20 | 3)
@@ -42,4 +44,4 @@ void ja_tss_set_rsp0(uint64_t rsp0);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* !__POK_X86_64_GDT_H__ */
+#endif /* !POK_X86_64_GDT_H */

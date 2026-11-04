@@ -12,6 +12,14 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: strlen() and
+ * strnlen() return size_t, as in the C standard; strncpy() fills the rest of
+ * the n bytes with null characters, as in the C standard (it wrote one null
+ * character only).
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -19,15 +27,12 @@
 
 #ifdef POK_NEEDS_DEBUG
 
-int strlen (const char* str)
+size_t strlen (const char* str)
 {
-   int i;
+   size_t i = 0U;
 
-   i = 0;
-
-   while (*str != '\0')
+   while (str[i] != '\0')
    {
-      str++;
       i++;
    }
 
@@ -35,15 +40,12 @@ int strlen (const char* str)
 }
 
 // TODO: move into own file?
-int strnlen (const char* str, size_t n)
+size_t strnlen (const char* str, size_t n)
 {
-   int i;
+   size_t i = 0U;
 
-   i = 0;
-
-   while (i < (int)n && *str != '\0')
+   while ((i < n) && (str[i] != '\0'))
    {
-      str++;
       i++;
    }
 
@@ -53,14 +55,20 @@ int strnlen (const char* str, size_t n)
 // TODO: move into own file?
 char* strncpy(char* dest, const char* src, size_t n)
 {
-   int m = strnlen(src, n);
+   size_t i = 0U;
 
-   if(m < n) m++;
-   
-   memcpy(dest, src, m);
-   
+   while ((i < n) && (src[i] != '\0')) {
+      dest[i] = src[i];
+      i++;
+   }
+
+   // The rest of the n bytes are filled with null characters.
+   while (i < n) {
+      dest[i] = '\0';
+      i++;
+   }
+
    return dest;
 }
 
 #endif
-

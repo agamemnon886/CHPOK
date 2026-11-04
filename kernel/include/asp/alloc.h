@@ -16,10 +16,13 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __JET_ASP_ALLOC_H__
-#define __JET_ASP_ALLOC_H__
+#ifndef JET_ASP_ALLOC_H
+#define JET_ASP_ALLOC_H
 
 #include <types.h>
 
@@ -41,4 +44,4 @@ void* ja_mem_alloc_aligned(size_t size, uint32_t alignment);
  */
 uint32_t ja_mem_get_alignment(size_t size);
 
-#endif /* __JET_ASP_ALLOC_H__ */
+#endif /* JET_ASP_ALLOC_H */

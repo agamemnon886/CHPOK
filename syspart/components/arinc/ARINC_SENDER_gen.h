@@ -21,10 +21,15 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
  * the generated code are replaced with the fixed-width types from
  * <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; the parameters of the prototypes are
+ * named; __<component>_init__() and __<component>_activity__() are
+ * declared.
  */
 
-#ifndef __ARINC_SENDER_GEN_H__
-#define __ARINC_SENDER_GEN_H__
+#ifndef ARINC_SENDER_GEN_H
+#define ARINC_SENDER_GEN_H
 
     #include <arinc653/queueing.h>
     #include <arinc653/sampling.h>
@@ -59,14 +64,26 @@ typedef struct {
 
 
 
-      ret_t ARINC_SENDER_call_portA_send(ARINC_SENDER *, char *, size_t, size_t);
-      ret_t ARINC_SENDER_call_portA_flush(ARINC_SENDER *);
+      ret_t
+      ARINC_SENDER_call_portA_send(
+          ARINC_SENDER *self, char * arg1, size_t arg2, size_t arg3);
+      ret_t
+      ARINC_SENDER_call_portA_flush(
+          ARINC_SENDER *self);
 
 
 
-    void arinc_sender_init(ARINC_SENDER *);
+    void arinc_sender_init(ARINC_SENDER *self);
 
-    void arinc_sender_activity(ARINC_SENDER *);
+    void arinc_sender_activity(ARINC_SENDER *self);
+
+/*
+ * MISRA C:2025 Rule 5.10 deviation: the glue code generated from
+ * misc/templates/glue.c.tpl calls the component's init and activity
+ * functions by these names.
+ */
+void __ARINC_SENDER_init__(ARINC_SENDER *self);
+void __ARINC_SENDER_activity__(ARINC_SENDER *self);
 
 
 #endif

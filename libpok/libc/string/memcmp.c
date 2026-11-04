@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,22 +12,38 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: an index loop
+ * with a single exit; the bytes are compared as int; deviations are
+ * documented where a guideline can't be followed.
  */
 
 #include <string.h>
+
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the standard memcmp() takes
+ * and returns pointers to void; the bytes are accessed through pointers to
+ * unsigned char.
+ */
 
 /* GCC requires this function even for freestanding environment. */
 int memcmp(const void *s1, const void *s2, size_t n)
 {
     const unsigned char *mem1 = s1;
     const unsigned char *mem2 = s2;
-    const unsigned char *mem1_end = mem1 + n;
+    size_t i = 0U;
+    int result = 0;
 
-    for(; mem1 != mem1_end; ++mem1, ++mem2)
+    while((i < n) && (mem1[i] == mem2[i]))
     {
-        int d = *mem1 - *mem2;
-        if(d) return d;
+        i++;
     }
 
-    return 0;
+    if(i < n) {
+        result = (int) mem1[i] - (int) mem2[i];
+    }
+    return result;
 }

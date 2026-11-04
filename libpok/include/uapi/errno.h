@@ -6,6 +6,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,10 +20,13 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __JET_UAPI_ERRNO_H__
-#define __JET_UAPI_ERRNO_H__
+#ifndef JET_UAPI_ERRNO_H
+#define JET_UAPI_ERRNO_H
 
 typedef enum
 {
@@ -69,4 +73,4 @@ typedef enum
 		POK_ERRNO_PARTITION            =  401
 } pok_ret_t;
 
-#endif /* __JET_UAPI_ERRNO_H__ */
+#endif /* JET_UAPI_ERRNO_H */

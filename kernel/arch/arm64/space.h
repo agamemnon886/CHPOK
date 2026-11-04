@@ -16,12 +16,14 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * kernel/arch/x86/space.h for arm64.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
-#ifndef __POK_ARM64_SPACE_H__
-#define __POK_ARM64_SPACE_H__
+#ifndef POK_ARM64_SPACE_H
+#define POK_ARM64_SPACE_H
 
 #include <types.h>
 #include <arch/deployment.h>
@@ -48,4 +50,4 @@
 /* Build translation tables for all spaces and enable the MMU. */
 void ja_space_init(void);
 
-#endif /* !__POK_ARM64_SPACE_H__ */
+#endif /* !POK_ARM64_SPACE_H */

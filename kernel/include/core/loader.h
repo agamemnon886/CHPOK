@@ -12,11 +12,17 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
-#ifndef __JET_LOADER_H__
-#define __JET_LOADER_H__
+#ifndef JET_LOADER_H
+#define JET_LOADER_H
 
 #include <types.h>
 #include <errno.h>
@@ -33,5 +39,5 @@
 void jet_loader_elf_load   (uint8_t elf_id,
                                  jet_space_id space_id,
                                  void (** entry)(void));
-#endif /* __JET_LOADER_H__ */
+#endif /* JET_LOADER_H */
 

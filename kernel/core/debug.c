@@ -20,6 +20,15 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; pok_fatal() is
+ * _Noreturn.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: debug_strlen()
+ * doesn't modify its parameter; deviations are documented where a
+ * guideline can't be followed.
  */
 
 #include <config.h>
@@ -34,19 +43,23 @@
 #include <core/thread.h>
 #include <core/partition.h>
 
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the code at an address is
+ * dumped as bytes.
+ */
+
 int32_t debug_strlen (const char* str)
 {
   int32_t		i = 0;
 
-  while (*str != '\0')
+  while (str[i] != '\0')
   {
-    str++;
     i++;
   }
   return i;
 }
 
-void pok_debug_print_current_state ()
+void pok_debug_print_current_state (void)
 {
    /*uint32_t i;
    printf ("\nCurrent state\n");
@@ -83,7 +96,7 @@ void pok_debug_print_current_state ()
    printf ("entry             : 0x%p\n", POK_CURRENT_THREAD.entry);*/
 }
 
-void pok_fatal (const char* message)
+_Noreturn void pok_fatal (const char* message)
 {
   // it can be called from a kernel thread
   // with preemption enabled
@@ -91,13 +104,11 @@ void pok_fatal (const char* message)
   // where it shouldn't be enabled
   ja_preempt_disable();
 
-  jet_console_write ("FATAL ERROR: \n", 13);
-  jet_console_write (message , debug_strlen(message));
+  (void) jet_console_write ("FATAL ERROR: \n", 13);
+  (void) jet_console_write (message , debug_strlen(message));
 
   POK_DEBUG_PRINT_CURRENT_STATE
   ja_inf_loop();
-
-  __builtin_unreachable();
 }
 
 void hexdump (const void *addr, int32_t len)
@@ -107,7 +118,7 @@ void hexdump (const void *addr, int32_t len)
     const uint8_t *pc = (const uint8_t*)addr;
 
     if (len == 0) {
-        printf("Len is zero\n");
+        (void) printf("Len is zero\n");
         return;
     }
 
@@ -117,32 +128,34 @@ void hexdump (const void *addr, int32_t len)
 
         if ((i % 16) == 0) {
             // Just don't print ASCII for the zeroth line.
-            if (i != 0)
-                printf("  %s\n", buff);
+            if (i != 0) {
+                (void) printf("  %s\n", buff);
+            }
 
             // Output the offset.
-            printf("  %04x ", i);
+            (void) printf("  %04x ", i);
         }
 
         // Now the hex code for the specific character.
-        printf(" %02x", pc[i]);
+        (void) printf(" %02x", pc[i]);
 
         // And store a printable ASCII character for later.
-        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+        if ((pc[i] < 0x20U) || (pc[i] > 0x7eU)) {
             buff[i % 16] = '.';
-        else
+        } else {
             buff[i % 16] = pc[i];
+        }
         buff[(i % 16) + 1] = '\0';
     }
 
     // Pad out last line if not exactly 16 characters.
     while ((i % 16) != 0) {
-        printf("   ");
+        (void) printf("   ");
         i++;
     }
 
     // And print the final ASCII bit.
-    printf("  %s\n", buff);
+    (void) printf("  %s\n", buff);
 }
 
 #endif /* POK_CONFIG_NEEDS_DEBUG */

@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters are const (they are only read), so callers can pass string
+ * literals.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -88,7 +95,7 @@ typedef struct {
 /*----------------------------------------------------------------------*/
 /*----------------------------------------------------------------------*/
 extern void CREATE_EVENT (
-      /*IN */ EVENT_NAME_TYPE EVENT_NAME,
+      /*IN */ const EVENT_NAME_TYPE EVENT_NAME,
       /*OUT*/ EVENT_ID_TYPE *EVENT_ID,
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
 /*----------------------------------------------------------------------*/
@@ -106,7 +113,7 @@ extern void WAIT_EVENT (
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
 /*----------------------------------------------------------------------*/
 extern void GET_EVENT_ID (
-      /*IN */ EVENT_NAME_TYPE EVENT_NAME,
+      /*IN */ const EVENT_NAME_TYPE EVENT_NAME,
       /*OUT*/ EVENT_ID_TYPE *EVENT_ID,
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
 /*----------------------------------------------------------------------*/

@@ -19,6 +19,16 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; U suffixes for unsigned constants; discarded
+ * results are cast to void; deviations are documented where a guideline
+ * can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: heap_end is
+ * defined in the function that uses it; operands of mixed precedence are
+ * parenthesized; deviations are documented where a guideline can't be
+ * followed.
  */
 
 #include <asp/alloc.h>
@@ -28,19 +38,34 @@
 #include <core/debug.h>
 #include <bsp/bsp.h>
 
-extern char __pok_end[];
-static char *heap_end = __pok_end;
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the allocator returns its
+ * memory as a pointer to void, which is converted to the type of the object
+ * allocated.
+ * MISRA C:2025 Rule 18.4 deviation (this file): the heap and the stacks are
+ * carved out of memory by adding sizes to addresses.
+ */
 
+extern char __pok_end[];
+
+/*
+ * MISRA C:2025 Rule 11.4 deviation (this file): the kernel heap and the
+ * stacks are carved out of physical memory; their addresses are aligned and
+ * compared with the board's limits as integers.
+ */
 void *ja_mem_alloc_aligned (size_t size, uint32_t alignment)
 {
+  static char *heap_end = __pok_end;
+
   char *res;
 
   res = (char *)(ALIGN_VAL((uintptr_t)heap_end, alignment));
   heap_end = res + size;
 
   // Kernel heap must not overlap with partitions' memory.
-  if ((uintptr_t)heap_end > BOARD_PARTITION_PHYS_START)
+  if ((uintptr_t)heap_end > BOARD_PARTITION_PHYS_START) {
     pok_fatal("Kernel heap overflow");
+  }
 
   return res;
 }
@@ -50,8 +75,9 @@ uint32_t ja_mem_get_alignment (size_t size)
   uint32_t alignment = 1;
 
   // The largest power of 2 not greater than the size, up to 16 (long double).
-  while (alignment < 16 && alignment * 2 <= size)
-    alignment *= 2;
+  while ((alignment < 16U) && ((alignment * 2U) <= size)) {
+    alignment *= 2U;
+  }
 
   return alignment;
 }
@@ -74,8 +100,8 @@ jet_stack_t pok_stack_alloc(uint32_t stack_size)
      *
      * See also comments for type 'jet_stack_t' on x86_64.
      */
-    char* stack_head = stack_tail + stack_size_real - 2 * sizeof(uint64_t);
-    memset(stack_head, 0, 2 * sizeof(uint64_t));
+    char* stack_head = stack_tail + stack_size_real - (2U * sizeof(uint64_t));
+    (void) memset(stack_head, 0, 2U * sizeof(uint64_t));
 
     return (jet_stack_t)stack_head;
 }

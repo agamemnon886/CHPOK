@@ -19,13 +19,15 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; pok_pic_init() returns void.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
-#ifndef __POK_X86_PIC_H__
-#define __POK_X86_PIC_H__
+#ifndef POK_X86_PIC_H
+#define POK_X86_PIC_H
 #include <stdint.h>
 
 #define PIC_MASTER_BASE 0x20
@@ -41,7 +43,7 @@
 #define PIC_SLAVE_ICW3 0x02
 #define PIC_SLAVE_ICW4 0x01
 
-int32_t		pok_pic_init();
+void		pok_pic_init(void);
 int32_t		pok_pic_mask(uint8_t irq);
 int32_t		pok_pic_unmask(uint8_t irq);
 void		pok_pic_eoi(uint8_t irq);

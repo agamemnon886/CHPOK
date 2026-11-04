@@ -16,20 +16,22 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/interrupt.h to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
-#ifndef __POK_INTERRUPT_H__
-#define __POK_INTERRUPT_H__
+#ifndef POK_INTERRUPT_H
+#define POK_INTERRUPT_H
 
 /* Vector of the syscall gate (int $0x80), see libpok/arch/x86_64/syscall.c. */
-#define EXCEPTION_SYSCALL 0x80
+#define EXCEPTION_SYSCALL 0x80U
 
 /* Vectors of the exceptions and IRQs (remapped by the PIC, see boards/). */
 #define EXCEPTION_COUNT 32
-#define IRQ_VECTOR_FIRST 32
-#define IRQ_VECTOR_LAST  47
+#define IRQ_VECTOR_FIRST 32U
+#define IRQ_VECTOR_LAST  47U
 
 #ifndef __ASSEMBLER__
 
@@ -46,4 +48,4 @@ void process_syscall(interrupt_frame* frame);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* !__POK_INTERRUPT_H__ */
+#endif /* !POK_INTERRUPT_H */

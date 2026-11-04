@@ -12,6 +12,14 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters and the message parameter of the send or write service are
+ * const (they are only read), so callers can pass string literals and
+ * const data.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -40,7 +48,7 @@ typedef struct {
 } QUEUING_PORT_STATUS_TYPE;
 
 extern void CREATE_QUEUING_PORT (
-      /*in */ QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
+      /*in */ const QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
       /*in */ MESSAGE_SIZE_TYPE         MAX_MESSAGE_SIZE,
       /*in */ MESSAGE_RANGE_TYPE        MAX_NB_MESSAGE,
       /*in */ PORT_DIRECTION_TYPE       PORT_DIRECTION,
@@ -50,7 +58,7 @@ extern void CREATE_QUEUING_PORT (
 
 extern void SEND_QUEUING_MESSAGE (
       /*in */ QUEUING_PORT_ID_TYPE      QUEUING_PORT_ID,
-      /*in */ MESSAGE_ADDR_TYPE         MESSAGE_ADDR,       /* by reference */
+      /*in */ const APEX_BYTE *        MESSAGE_ADDR,       /* by reference */
       /*in */ MESSAGE_SIZE_TYPE         LENGTH,
       /*in */ SYSTEM_TIME_TYPE          TIME_OUT,
       /*out*/ RETURN_CODE_TYPE          *RETURN_CODE);
@@ -63,7 +71,7 @@ extern void RECEIVE_QUEUING_MESSAGE (
       /*out*/ RETURN_CODE_TYPE          *RETURN_CODE );
 
 extern void GET_QUEUING_PORT_ID (
-      /*in */ QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
+      /*in */ const QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
       /*out*/ QUEUING_PORT_ID_TYPE      *QUEUING_PORT_ID,
       /*out*/ RETURN_CODE_TYPE          *RETURN_CODE );
 

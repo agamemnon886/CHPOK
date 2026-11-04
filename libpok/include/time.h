@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,23 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; no restrict qualifiers; deviations
+ * are documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  */
 
-#ifndef __LIBJET_TIME_H__
-#define __LIBJET_TIME_H__
+/*
+ * MISRA C:2025 Rule 5.10 and Rule 20.15 deviation (this header): this is
+ * the <time.h> header of libpok's own C library (partitions are built
+ * freestanding, without the system one), so it declares the standard
+ * names and defines CLOCKS_PER_SEC.
+ */
+#ifndef LIBJET_TIME_H
+#define LIBJET_TIME_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -45,7 +59,8 @@ char *asctime(const struct tm *timeptr);
 char *ctime(const time_t *timer);
 struct tm *gmtime(const time_t *timer);
 struct tm *localtime(const time_t *timer);
-size_t strftime(char * restrict s, size_t maxsize, const char * restrict format, const struct tm * restrict timeptr);
+size_t strftime(char * s, size_t maxsize, const char * format,
+                const struct tm * timeptr);
 
 /* POSIX */
 
@@ -58,4 +73,4 @@ struct tm *localtime_r(const time_t *timer, struct tm* timeptr);
 
 int clock_gettime(clockid_t clock_id, struct timespec* tp);
 
-#endif /* __LIBJET_TIME_H__ */
+#endif /* LIBJET_TIME_H */

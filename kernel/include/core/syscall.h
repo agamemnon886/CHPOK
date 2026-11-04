@@ -18,10 +18,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: syscall arguments are
  * uintptr_t (64-bit support).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed; the core headers that
+ * declare the syscall implementations are included, so that the generated
+ * syscall map doesn't declare them again (Rule 8.5).
  */
 
-#ifndef __POK_SYSCALL_H__
-#define __POK_SYSCALL_H__
+#ifndef POK_SYSCALL_H
+#define POK_SYSCALL_H
 
 #include <config.h>
 
@@ -30,6 +38,14 @@
 #include <common.h>
 
 #include <uapi/syscall_types.h>
+
+/* The syscall implementations called by <uapi/syscall_map_arinc.h>. */
+#include <core/thread.h>
+#include <core/sched_arinc.h>
+#include <core/partition_arinc.h>
+#include <core/error_arinc.h>
+#include <core/port.h>
+#include <core/memblocks.h>
 
 /*
  * Arguments are pointer-sized: user code passes pointers through them.
@@ -53,7 +69,10 @@ typedef struct
    uint32_t             base_addr;
 }pok_syscall_info_t;
 
-// Should come after definitions of types 'pok_syscall_args_t' and 'pok_syscall_info_t'
+/*
+ * MISRA C:2025 Rule 20.1 deviation: the generated header uses the types
+ * 'pok_syscall_args_t' and 'pok_syscall_info_t' defined above.
+ */
 #include <uapi/syscall_map_arinc.h>
 
 
@@ -87,6 +106,6 @@ pok_ret_t	pok_core_syscall (const pok_syscall_id_t     syscall_id,
  * This part is defined in low-level layers, each architecture/bsp
  * initiate the syscall in a different way.
  */
-pok_ret_t pok_syscall_init();
+pok_ret_t pok_syscall_init(void);
 
-#endif /* __POK_SYSCALL_H__ */
+#endif /* POK_SYSCALL_H */

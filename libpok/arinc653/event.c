@@ -16,6 +16,20 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; operands of the
+ * same essential type; the name is copied with strncpy(), so a shorter
+ * name isn't read past its end.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters are const (they are only read), so callers can pass string
+ * literals.
  */
 
 #include <config.h>
@@ -36,23 +50,30 @@
 #include <arinc_config.h>
 #include "arinc_process_queue.h"
 
+/*
+ * MISRA C:2025 Rule 18.4 deviation (this file): thread and object IDs are
+ * the index of an element, computed as the difference between its address
+ * and the start of its array.
+ */
+
 static size_t nevents_used = 0;
 
 /* Find event by name (in UPPERCASE). Returns NULL if not found. */
 static struct arinc_event* find_event(const char* name)
 {
-   for(int32_t i = 0; i < nevents_used; i++)
+   for(size_t i = 0U; i < nevents_used; i++)
    {
       struct arinc_event* event = &arinc_events[i];
-      if(strncasecmp(event->event_name, name, MAX_NAME_LENGTH) == 0)
+      if(strncasecmp(event->event_name, name, MAX_NAME_LENGTH) == 0) {
          return event;
+      }
    }
 
    return NULL;
 }
 
 
-void CREATE_EVENT (EVENT_NAME_TYPE EVENT_NAME,
+void CREATE_EVENT (const EVENT_NAME_TYPE EVENT_NAME,
                    EVENT_ID_TYPE *EVENT_ID,
                    RETURN_CODE_TYPE *RETURN_CODE)
 {
@@ -76,12 +97,13 @@ void CREATE_EVENT (EVENT_NAME_TYPE EVENT_NAME,
 
    struct arinc_event* event = &arinc_events[nevents_used];
 
-   memcpy(event->event_name, EVENT_NAME, MAX_NAME_LENGTH);
+   // The name may be shorter than MAX_NAME_LENGTH: don't read past its end.
+   (void) strncpy(event->event_name, EVENT_NAME, MAX_NAME_LENGTH);
    msection_init(&event->section);
    msection_wq_init(&event->process_queue);
    event->event_state = DOWN;
 
-   *EVENT_ID = nevents_used + 1;// Avoid 0 value.
+   *EVENT_ID = nevents_used + 1U;// Avoid 0 value.
 
    nevents_used++;
 
@@ -91,7 +113,7 @@ void CREATE_EVENT (EVENT_NAME_TYPE EVENT_NAME,
 void SET_EVENT (EVENT_ID_TYPE EVENT_ID,
                 RETURN_CODE_TYPE *RETURN_CODE)
 {
-   if (EVENT_ID <= 0 || EVENT_ID > nevents_used) {
+   if ((EVENT_ID <= 0) || ((size_t)EVENT_ID > nevents_used)) {
       // Incorrect event identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -123,7 +145,7 @@ void SET_EVENT (EVENT_ID_TYPE EVENT_ID,
 void RESET_EVENT (EVENT_ID_TYPE EVENT_ID,
                   RETURN_CODE_TYPE *RETURN_CODE)
 {
-   if (EVENT_ID <= 0 || EVENT_ID > nevents_used) {
+   if ((EVENT_ID <= 0) || ((size_t)EVENT_ID > nevents_used)) {
       // Incorrect event identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -142,7 +164,7 @@ void WAIT_EVENT (EVENT_ID_TYPE EVENT_ID,
                  SYSTEM_TIME_TYPE TIME_OUT,
                  RETURN_CODE_TYPE *RETURN_CODE)
 {
-   if (EVENT_ID <= 0 || EVENT_ID > nevents_used) {
+   if ((EVENT_ID <= 0) || ((size_t)EVENT_ID > nevents_used)) {
       // Incorrect event identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -194,12 +216,13 @@ void WAIT_EVENT (EVENT_ID_TYPE EVENT_ID,
          break;
       default:
          assert_os(FALSE);
+         break;
       }
    }
    msection_leave(&event->section);
 }
 
-void GET_EVENT_ID (EVENT_NAME_TYPE EVENT_NAME,
+void GET_EVENT_ID (const EVENT_NAME_TYPE EVENT_NAME,
                    EVENT_ID_TYPE *EVENT_ID,
                    RETURN_CODE_TYPE *RETURN_CODE)
 {
@@ -218,7 +241,7 @@ void GET_EVENT_STATUS (EVENT_ID_TYPE EVENT_ID,
                        EVENT_STATUS_TYPE *EVENT_STATUS,
                        RETURN_CODE_TYPE *RETURN_CODE)
 {
-   if (EVENT_ID <= 0 || EVENT_ID > nevents_used) {
+   if ((EVENT_ID <= 0) || ((size_t)EVENT_ID > nevents_used)) {
       // Incorrect event identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;

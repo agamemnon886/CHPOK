@@ -23,6 +23,17 @@
  * any positive refresh period, rejects MAX_MESSAGE_SIZE values above
  * SYSTEM_LIMIT_MESSAGE_SIZE (they were truncated before the kernel
  * compared them) and sets SAMPLING_PORT_ID only on success.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters and the message parameter of the send or write service are
+ * const (they are only read), so callers can pass string literals and
+ * const data.
  */
 
 #include <config.h>
@@ -37,11 +48,16 @@
 #include <core/thread.h>
 #include <utils.h>
 
+/*
+ * Each MAP_ERROR()/MAP_ERROR_DEFAULT() expands to a whole switch-clause ending
+ * with break (MISRA C:2025 Rule 16.3); cppcheck's MISRA addon doesn't see the
+ * break inside the macro and reports these switches by mistake.
+ */
 #define MAP_ERROR(from, to) case (from): *RETURN_CODE = (to); break
 #define MAP_ERROR_DEFAULT(to) default: *RETURN_CODE = (to); break
 
 void CREATE_SAMPLING_PORT (
-			 /*in */ SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME,
+	 /*in */ const SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME,
 			 /*in */ MESSAGE_SIZE_TYPE          MAX_MESSAGE_SIZE,
 			 /*in */ PORT_DIRECTION_TYPE        PORT_DIRECTION,
 			 /*in */ SYSTEM_TIME_TYPE           REFRESH_PERIOD,
@@ -58,8 +74,9 @@ void CREATE_SAMPLING_PORT (
 	  * configured size. INFINITE_TIME_VALUE (-1) and other negative
 	  * refresh periods are out of range; the kernel also rejects 0.
 	  */
-	 if (MAX_MESSAGE_SIZE <= 0 || MAX_MESSAGE_SIZE > SYSTEM_LIMIT_MESSAGE_SIZE
-		 || REFRESH_PERIOD < 0)
+	 if ((MAX_MESSAGE_SIZE <= 0)
+             || (MAX_MESSAGE_SIZE > SYSTEM_LIMIT_MESSAGE_SIZE)
+		 || (REFRESH_PERIOD < 0))
 		 {
 			 *RETURN_CODE = INVALID_CONFIG;
 			 return ;
@@ -83,8 +100,9 @@ void CREATE_SAMPLING_PORT (
      // SYSTEM_TIME_TYPE and pok_time_t are both int64_t.
      core_ret = pok_port_sampling_create (SAMPLING_PORT_NAME, MAX_MESSAGE_SIZE, core_direction, &REFRESH_PERIOD, &core_id);
 
-	 if (core_ret == POK_ERRNO_OK)
-		 *SAMPLING_PORT_ID = core_id + 1;
+	 if (core_ret == POK_ERRNO_OK) {
+		 *SAMPLING_PORT_ID = (SAMPLING_PORT_ID_TYPE) core_id + 1;
+	 }
 
    switch (core_ret) {
       MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
@@ -100,7 +118,7 @@ void CREATE_SAMPLING_PORT (
 
 void WRITE_SAMPLING_MESSAGE (
 			 /*in */ SAMPLING_PORT_ID_TYPE      SAMPLING_PORT_ID,
-			 /*in */ MESSAGE_ADDR_TYPE          MESSAGE_ADDR,     /* by reference */
+	 /*in */ const APEX_BYTE *         MESSAGE_ADDR,     /* by reference */
 			 /*in */ MESSAGE_SIZE_TYPE          LENGTH,
 			 /*out*/ RETURN_CODE_TYPE           *RETURN_CODE )
 {
@@ -158,7 +176,7 @@ void READ_SAMPLING_MESSAGE (
 }
 
 void GET_SAMPLING_PORT_ID (
-			 /*in */ SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME,
+	 /*in */ const SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME,
 			 /*out*/ SAMPLING_PORT_ID_TYPE      *SAMPLING_PORT_ID,
 			 /*out*/ RETURN_CODE_TYPE           *RETURN_CODE )
 {
@@ -166,7 +184,7 @@ void GET_SAMPLING_PORT_ID (
     pok_port_id_t id;
 
     core_ret = pok_port_sampling_id(SAMPLING_PORT_NAME, &id);
-    *SAMPLING_PORT_ID = id + 1;
+    *SAMPLING_PORT_ID = (SAMPLING_PORT_ID_TYPE) id + 1;
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR_DEFAULT(INVALID_CONFIG);

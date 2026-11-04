@@ -23,10 +23,13 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __POK_ARM64_THREAD_H__
-#define __POK_ARM64_THREAD_H__
+#ifndef POK_ARM64_THREAD_H
+#define POK_ARM64_THREAD_H
 
 #include <types.h>
 #include <asp/cswitch.h>
@@ -46,4 +49,4 @@ struct jet_context
   uint64_t pad;
 };
 
-#endif /* !__POK_ARM64_THREAD_H__ */
+#endif /* !POK_ARM64_THREAD_H */

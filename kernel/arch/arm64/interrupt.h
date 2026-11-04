@@ -23,10 +23,13 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __POK_ARM64_INTERRUPT_H__
-#define __POK_ARM64_INTERRUPT_H__
+#ifndef POK_ARM64_INTERRUPT_H
+#define POK_ARM64_INTERRUPT_H
 
 #include <types.h>
 #include <arch/interrupt_frame.h>
@@ -41,4 +44,4 @@ void ja_exception_unexpected(interrupt_frame* frame, int32_t kind);
 /* Handle 'svc' from user space. */
 void process_syscall(interrupt_frame* frame);
 
-#endif /* !__POK_ARM64_INTERRUPT_H__ */
+#endif /* !POK_ARM64_INTERRUPT_H */

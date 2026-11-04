@@ -19,11 +19,14 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
 
-#ifndef __POK_SYSPART_X86_64_IOPORTS_H__
-#define __POK_SYSPART_X86_64_IOPORTS_H__
+#ifndef POK_SYSPART_X86_64_IOPORTS_H
+#define POK_SYSPART_X86_64_IOPORTS_H
 #include <stdint.h>
 
 #define outb(port, data)                                        \
@@ -68,4 +71,4 @@
   res;                                                          \
 })
 
-#endif /* __POK_SYSPART_X86_64_IOPORTS_H__ */
+#endif /* POK_SYSPART_X86_64_IOPORTS_H */

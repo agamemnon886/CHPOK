@@ -16,10 +16,14 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants;
+ * deviations are documented where a guideline can't be followed.
  */
 
-#ifndef __POK_NET_ETHER_H__
-#define __POK_NET_ETHER_H__
+#ifndef POK_NET_ETHER_H
+#define POK_NET_ETHER_H
 
 #include <types.h>
 
@@ -35,12 +39,14 @@ struct ether_hdr {
     uint8_t dst[ETH_ALEN];
     uint8_t src[ETH_ALEN];
     uint16_t ethertype;
+    /* MISRA C:2025 Rule 18.7 deviation: the frame's payload follows the
+     * header. */
     char payload[];
 } __attribute__((packed));
 
 static inline int32_t ether_is_multicast(const uint8_t addr[ETH_ALEN])
 {
-    return (addr[0] & 0x01) != 0;
+    return (addr[0] & 0x01U) != 0U;
 }
 
 #endif

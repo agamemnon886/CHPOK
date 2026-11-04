@@ -16,12 +16,14 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/tss.h to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
-#ifndef __POK_X86_64_TSS_H__
-#define __POK_X86_64_TSS_H__
+#ifndef POK_X86_64_TSS_H
+#define POK_X86_64_TSS_H
 
 #include <types.h>
 
@@ -39,4 +41,4 @@ typedef struct
    uint16_t iomap_base;
 } __attribute__((packed)) tss_t;
 
-#endif /* !__POK_X86_64_TSS_H__ */
+#endif /* !POK_X86_64_TSS_H */

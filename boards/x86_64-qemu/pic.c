@@ -19,6 +19,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; U suffixes for unsigned constants;
+ * pok_pic_init() returns void (it always succeeded); the new masks are
+ * computed as uint8_t.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -31,7 +35,7 @@
 
 #include "pic.h"
 
-int32_t pok_pic_init ()
+void pok_pic_init (void)
 {
    outb (PIC_MASTER_BASE, PIC_MASTER_ICW1);
    outb (PIC_SLAVE_BASE, PIC_SLAVE_ICW1);
@@ -48,28 +52,26 @@ int32_t pok_pic_init ()
    /* Mask everything */
    outb (PIC_MASTER_BASE + 1, 0xfb);
    outb (PIC_SLAVE_BASE + 1, 0xff);
-
-   return (POK_ERRNO_OK);
 }
 
 int32_t pok_pic_mask (uint8_t irq)
 {
    uint8_t mask;
 
-   if (irq > 15)
+   if (irq > 15U)
    {
       return (POK_ERRNO_EINVAL);
    }
 
-   if (irq < 8)
+   if (irq < 8U)
    {
       mask = inb (PIC_MASTER_BASE + 1);
-      outb (PIC_MASTER_BASE + 1, mask | (1 << irq));
+      outb (PIC_MASTER_BASE + 1, (uint8_t) (mask | (1U << irq)));
    }
    else
    {
       mask = inb (PIC_SLAVE_BASE + 1);
-      outb (PIC_SLAVE_BASE + 1, mask | (1 << (irq - 8)));
+      outb (PIC_SLAVE_BASE + 1, (uint8_t) (mask | (1U << (irq - 8U))));
    }
 
    return (POK_ERRNO_OK);
@@ -79,18 +81,19 @@ int32_t pok_pic_unmask(uint8_t irq)
 {
    uint8_t mask;
 
-   if (irq > 15)
+   if (irq > 15U) {
       return (POK_ERRNO_EINVAL);
+   }
 
-   if (irq < 8)
+   if (irq < 8U)
    {
       mask = inb(PIC_MASTER_BASE + 1);
-      outb(PIC_MASTER_BASE + 1, mask & ~(1 << irq));
+      outb(PIC_MASTER_BASE + 1, (uint8_t) (mask & ~(1U << irq)));
    }
    else
    {
       mask = inb(PIC_SLAVE_BASE + 1);
-      outb(PIC_SLAVE_BASE + 1, mask & ~(1 << (irq - 8)));
+      outb(PIC_SLAVE_BASE + 1, (uint8_t) (mask & ~(1U << (irq - 8U))));
    }
 
    return (POK_ERRNO_OK);
@@ -98,7 +101,7 @@ int32_t pok_pic_unmask(uint8_t irq)
 
 void pok_pic_eoi (uint8_t irq)
 {
-   if (irq >= 8)
+   if (irq >= 8U)
    {
       outb (PIC_SLAVE_BASE, 0x20);
    }

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,11 +12,24 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; braces around all if/else/loop
+ * bodies; essentially Boolean conditions; deviations are documented where
+ * a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: the date
+ * constants are defined once, in time_internal.c, instead of in each file
+ * that includes this header.
  */
 
-#ifndef __LIBJET_TIME_TIME_INTERNAL_H__
-#define __LIBJET_TIME_TIME_INTERNAL_H__
+#ifndef LIBJET_TIME_TIME_INTERNAL_H
+#define LIBJET_TIME_TIME_INTERNAL_H
 
+/*
+ * MISRA C:2025 Rule 21.10 deviation: this header is internal to the
+ * <time.h> implementation of libpok's C library.
+ */
 #include <time.h>
 
 /* 
@@ -23,16 +37,13 @@
  * and whether the year is LEAP(1) or not(0).
  */
 
-static const int days_in_month[2][12] = {
-    { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 },
-    { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
-};
+extern const int days_in_month[2][12];
 
 /* Base point for year in tm structure. */
-static const int tm0_year = 1900;
+extern const int tm0_year;
 
 /* Base point for year in time_t. */
-static const int t0_year = 1970;
+extern const int t0_year;
 
 /* Number or seconds in single day. */
 #define SECS_DAY (60 * 60 * 24)
@@ -40,11 +51,17 @@ static const int t0_year = 1970;
 /* Return 1 if year is LEAP and 0 otherwise. */
 static inline int leap_year(int year)
 {
-    if(year % 4) return 0; // non-divisible on 4
+    if((year % 4) != 0) {
+        return 0; // non-divisible on 4
+    }
     
-    if(year % 100) return 1; // divisible on 4 but non-divisible on 100
+    if((year % 100) != 0) {
+        return 1; // divisible on 4 but non-divisible on 100
+    }
     
-    if(year % 400) return 0; // divisible on 100 but non-divisible on 400
+    if((year % 400) != 0) {
+        return 0; // divisible on 100 but non-divisible on 400
+    }
     
     return 1; // divisible on 400.
 }
@@ -52,7 +69,7 @@ static inline int leap_year(int year)
 /* Return number of the days in the given year.*/
 static inline int days_in_year(int year)
 {
-    return leap_year(year) ? 366 : 365;
+    return (leap_year(year) != 0) ? 366 : 365;
 }
 
 /* Global tm structure for non-reentrant functions.*/
@@ -80,4 +97,4 @@ struct locale_time {
 
 extern struct locale_time* current_locale_time;
 
-#endif /*__LIBJET_TIME_TIME_INTERNAL_H__*/
+#endif /*LIBJET_TIME_TIME_INTERNAL_H*/

@@ -16,6 +16,11 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; discarded results are cast to void;
+ * essentially Boolean conditions; operands of mixed precedence are
+ * parenthesized.
  */
 #include <arinc653/queueing.h>
 #include <arinc653/sampling.h>
@@ -42,8 +47,10 @@ static int32_t receive_msg_queuing(ARINC_SENDER *self)
             );
 
     if (ret != NO_ERROR) {
-        if (ret != NOT_AVAILABLE)
-            printf(C_NAME"%s port error: %u\n", self->state.port_name, ret);
+        if (ret != NOT_AVAILABLE) {
+            (void) printf(
+                C_NAME"%s port error: %d\n", self->state.port_name, (int) ret);
+        }
         return -1;
     }
     return 0;
@@ -54,8 +61,9 @@ static int32_t receive_msg_samping(ARINC_SENDER *self)
     RETURN_CODE_TYPE ret;
     sys_port_data_t *dst_place = self->state.port_buffer;
 
-    if (!SYS_SAMPLING_PORT_CHECK_IS_NEW_DATA(self->state.port_id))
+    if (!SYS_SAMPLING_PORT_CHECK_IS_NEW_DATA(self->state.port_id)) {
         return -1;
+    }
 
     READ_SAMPLING_MESSAGE(
             self->state.port_id,
@@ -66,8 +74,10 @@ static int32_t receive_msg_samping(ARINC_SENDER *self)
             );
 
     if (ret != NO_ERROR) {
-        if (ret != NOT_AVAILABLE)
-            printf(C_NAME"%s port error: %u\n", self->state.port_name, ret);
+        if (ret != NOT_AVAILABLE) {
+            (void) printf(
+                C_NAME"%s port error: %d\n", self->state.port_name, (int) ret);
+        }
         return -1;
     }
 
@@ -77,13 +87,15 @@ static int32_t receive_msg_samping(ARINC_SENDER *self)
 void arinc_sender_activity(ARINC_SENDER *self)
 {
     int32_t receive_error;
-    if (self->state.is_queuing_port)
+    if (self->state.is_queuing_port != 0) {
         receive_error = receive_msg_queuing(self);
-    else
+    } else {
         receive_error = receive_msg_samping(self);
+    }
 
-    if (receive_error != 0)
+    if (receive_error != 0) {
         return;
+    }
 
     sys_port_data_t *dst_place = self->state.port_buffer;
     ret_t res = ARINC_SENDER_call_portA_send(self,
@@ -92,16 +104,17 @@ void arinc_sender_activity(ARINC_SENDER *self)
             self->state.overhead
             );
 
-    if (res != EOK)
-        printf(C_NAME"Error in send_udp\n");
+    if (res != EOK) {
+        (void) printf(C_NAME"Error in send_udp\n");
+    }
 
-    ARINC_SENDER_call_portA_flush(self);
+    (void) ARINC_SENDER_call_portA_flush(self);
 }
 
 void arinc_sender_init(ARINC_SENDER *self)
 {
     RETURN_CODE_TYPE ret;
-    if (self->state.is_queuing_port) {
+    if (self->state.is_queuing_port != 0) {
         CREATE_QUEUING_PORT(
                 self->state.port_name,
                 self->state.port_max_message_size,
@@ -121,14 +134,16 @@ void arinc_sender_init(ARINC_SENDER *self)
     }
 
     if (ret != NO_ERROR) {
-        printf(C_NAME"error %d during creation %s port\n", ret, self->state.port_name);
+        (void) printf(
+            C_NAME"error %d during creation %s port\n", ret,
+                self->state.port_name);
         return;
     }
 
-    printf(C_NAME"successfuly create %s port\n", self->state.port_name);
+    (void) printf(C_NAME"successfuly create %s port\n", self->state.port_name);
 
     self->state.port_buffer = smalloc(
             sizeof(*self->state.port_buffer) +
             self->state.overhead +
-            self->state.port_max_message_size);
+            (size_t) self->state.port_max_message_size);
 }

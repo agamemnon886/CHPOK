@@ -1,3 +1,6 @@
+/* Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
+ * Boolean conditions; the partition error handler takes a pok_bool_t.
+ */
 #include <config.h>
 
 #ifdef POK_NEEDS_GDB
@@ -43,7 +46,7 @@ void pok_gdb_thread(void)
 
 void gdb_process_error(pok_system_state_t partition_state,
         pok_error_id_t error_id,
-        uint8_t state_byte_preempt_local,
+        pok_bool_t state_byte_preempt_local,
         void* failed_address)
 {
     pok_fatal("Error in gdb");

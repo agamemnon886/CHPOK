@@ -23,25 +23,39 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; essentially Boolean conditions; U
+ * suffixes for unsigned constants; the macros use no reserved
+ * identifiers; deviations are documented where a guideline can't be
+ * followed.
  */
 
 /* Access to AArch64 system registers. */
 
-#ifndef __JET_ARM64_SYSREG_H__
-#define __JET_ARM64_SYSREG_H__
+#ifndef JET_ARM64_SYSREG_H
+#define JET_ARM64_SYSREG_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
+/*
+ * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this header): system registers
+ * are reached with GNU inline assembly, isolated in these macros and in
+ * isb(); read_sysreg() is a GNU statement expression, so that it yields the
+ * value read. Rule 20.10 (advisory): # makes the register name a part of the
+ * instruction.
+ */
 #define read_sysreg(reg) ({                                 \
-    uint64_t __val;                                         \
-    asm volatile("mrs %0, " #reg : "=r" (__val));           \
-    __val;                                                  \
+    uint64_t sysreg_val;                                    \
+    asm volatile("mrs %0, " #reg : "=r" (sysreg_val));      \
+    sysreg_val;                                             \
 })
 
 #define write_sysreg(reg, val) do {                         \
-    uint64_t __val = (uint64_t)(val);                       \
-    asm volatile("msr " #reg ", %0" : : "r" (__val));       \
-} while(0)
+    uint64_t sysreg_val = (uint64_t)(val);                  \
+    asm volatile("msr " #reg ", %0" : : "r" (sysreg_val));  \
+} while(false)
 
 static inline void isb(void)
 {
@@ -49,6 +63,6 @@ static inline void isb(void)
 }
 
 /* DAIF.I: IRQs are masked. */
-#define DAIF_I (1 << 7)
+#define DAIF_I (1U << 7)
 
-#endif /* __JET_ARM64_SYSREG_H__ */
+#endif /* JET_ARM64_SYSREG_H */

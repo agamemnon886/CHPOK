@@ -21,10 +21,15 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
  * the generated code are replaced with the fixed-width types from
  * <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; the parameters of the prototypes are
+ * named; __<component>_init__() and __<component>_activity__() are
+ * declared.
  */
 
-#ifndef __ROUTER_GEN_H__
-#define __ROUTER_GEN_H__
+#ifndef ROUTER_GEN_H
+#define ROUTER_GEN_H
 
     #include "state_structs.h"
     #include "ip_addr.h"
@@ -55,13 +60,24 @@ typedef struct {
 
 
 
-      ret_t receive_packet(ROUTER *, const char *, size_t, uint32_t, uint16_t);
+      ret_t receive_packet(
+          ROUTER *self, const char * arg1, size_t arg2, uint32_t arg3, uint16_t arg4);
 
-      ret_t ROUTER_call_portArray_handle_by_index(int32_t, ROUTER *, const char *, size_t);
+      ret_t
+      ROUTER_call_portArray_handle_by_index(
+          int32_t idx, ROUTER *self, const char * arg1, size_t arg2);
 
 
 
 
+
+/*
+ * MISRA C:2025 Rule 5.10 deviation: the glue code generated from
+ * misc/templates/glue.c.tpl calls the component's init and activity
+ * functions by these names.
+ */
+void __ROUTER_init__(ROUTER *self);
+void __ROUTER_activity__(ROUTER *self);
 
 
 #endif

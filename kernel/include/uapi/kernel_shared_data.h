@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants;
+ * deviations are documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
  */
 
-#ifndef __JET_UAPI_KERNEL_SHARED_DATA_H__
-#define __JET_UAPI_KERNEL_SHARED_DATA_H__
+#ifndef JET_UAPI_KERNEL_SHARED_DATA_H
+#define JET_UAPI_KERNEL_SHARED_DATA_H
 
 #include <types.h>
 #include <uapi/partition_arinc_types.h>
@@ -72,6 +80,10 @@ struct jet_thread_shared_data
      * 
      * Used only by user space.
      */
+    /*
+     * MISRA C:2025 Rule 19.2 deviation: the buffer holds the data of one wait
+     * reason at a time; its layout is shared with the kernel.
+     */
     union
     {
         const void* src;
@@ -96,7 +108,7 @@ struct jet_thread_shared_data
 };
 
 /* Thread is killed. When last msection is leaved, jet_sched() should be called. */
-#define THREAD_KERNEL_FLAG_KILLED 1
+#define THREAD_KERNEL_FLAG_KILLED 1U
 
 /* Instance of this struct will be shared between kernel and user spaces. */
 struct jet_kernel_shared_data
@@ -165,8 +177,15 @@ struct jet_kernel_shared_data
      */
     char* heap_end;
 
-    /* Open-bounds array of thread shared data. */
+    /*
+     * Open-bounds array of thread shared data.
+     *
+     * MISRA C:2025 Rule 18.7 deviation: the number of threads is set by the
+     * configuration of each partition; the kernel allocates the shared
+     * memory for that number, and the user indexes it with thread IDs below
+     * max_n_threads.
+     */
     struct jet_thread_shared_data tshd[];
 };
 
-#endif /* __JET_UAPI_KERNEL_SHARED_DATA_H__ */
+#endif /* JET_UAPI_KERNEL_SHARED_DATA_H */

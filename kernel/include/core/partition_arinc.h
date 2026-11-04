@@ -15,10 +15,21 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-01: added the error handler
  * configuration set by CONFIGURE_ERROR_HANDLER.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; __user/__kuser are renamed
+ * JET_USER/JET_KUSER; U suffixes for unsigned constants; deviations are
+ * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed; the structure tag is
+ * pok_partition_arinc instead of the reserved _pok_patition_arinc, and
+ * current_partition_arinc is base_part.part_arinc instead of a
+ * container_of() conversion.
  */
 
-#ifndef __POK_PARTITION_ARINC_H__
-#define __POK_PARTITION_ARINC_H__
+#ifndef POK_PARTITION_ARINC_H
+#define POK_PARTITION_ARINC_H
 
 #include <core/partition.h>
 #include <core/error_arinc.h>
@@ -30,7 +41,7 @@
  * \struct pok_partition_t
  * \brief This structure contains all needed information for partition management
  */
-typedef struct _pok_patition_arinc
+typedef struct pok_partition_arinc
 {
     pok_partition_t        base_part;
     
@@ -110,7 +121,7 @@ typedef struct _pok_patition_arinc
     int32_t                error_handler_core; /**< Core ID or POK_CORE_AFFINITY_NO_PREFERENCE. */
     
     pok_error_id_t         sync_error;
-    void* __user           sync_error_failed_addr;
+    void* JET_USER           sync_error_failed_addr;
     
     /* 
      * Select level for the partition error.
@@ -176,7 +187,8 @@ typedef struct _pok_patition_arinc
     struct jet_context*               idle_sp;
 } pok_partition_arinc_t;
 
-#define current_partition_arinc container_of(current_partition, pok_partition_arinc_t, base_part)
+/* The current partition, which must be an ARINC partition. */
+#define current_partition_arinc (current_partition->part_arinc)
 #define current_thread (current_partition_arinc->thread_current)
 
 /* 
@@ -216,7 +228,7 @@ void partition_arinc_im_rollback(void* prev_state);
 
 
 // Main thread is always first allocated (Do not change this!).
-#define POK_PARTITION_ARINC_MAIN_THREAD_ID 0
+#define POK_PARTITION_ARINC_MAIN_THREAD_ID 0U
 
 
 /* Initialize ARINC partitions. */
@@ -263,4 +275,4 @@ pok_ret_t pok_current_partition_dec_lock_level(int32_t *lock_level);
 // TODO: this should raise partition-level error.
 #define assert_os(expr) assert(expr)
 
-#endif /* !__POK_PARTITION_ARINC_H__ */
+#endif /* !POK_PARTITION_ARINC_H */

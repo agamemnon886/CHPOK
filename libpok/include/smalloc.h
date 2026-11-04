@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __LIBJET_ALLOC_H__
-#define __LIBJET_ALLOC_H__
+#ifndef LIBJET_ALLOC_H
+#define LIBJET_ALLOC_H
 
 #include <types.h>
 #include <asp/alloc.h>
@@ -51,5 +55,5 @@ void* scalloc(size_t nmemb, size_t size);
 // Set by the init, used by the alloc implementation.
 extern char* heap_current;
 
-#endif /* __LIBJET_ALLOC_H__ */
+#endif /* LIBJET_ALLOC_H */
 

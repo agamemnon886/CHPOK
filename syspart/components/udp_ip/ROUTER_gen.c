@@ -21,6 +21,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
  * the generated code are replaced with the fixed-width types from
  * <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * printf() results are cast to void; the static wrappers aren't named with
+ * reserved identifiers.
  */
 
 #include <lib/common.h>
@@ -28,7 +32,8 @@
 
 
 
-    static ret_t __wrapper_receive_packet(self_t *arg0, const char * arg1, size_t arg2, uint32_t arg3, uint16_t arg4)
+    static ret_t wrapper_receive_packet(
+        self_t *arg0, const char * arg1, size_t arg2, uint32_t arg3, uint16_t arg4)
     {
         return receive_packet((ROUTER*) arg0, arg1, arg2, arg3, arg4);
     }
@@ -38,7 +43,8 @@
       ret_t ROUTER_call_portArray_handle_by_index(int32_t idx, ROUTER *self, const char * arg1, size_t arg2)
       {
          if (self->out.portArray[idx].ops == NULL) {
-             printf("WRONG CONFIG: out port portArray of component ROUTER was not initialized\n");
+             (void) printf("WRONG CONFIG: out port portArray of component "
+                           "ROUTER was not initialized\n");
              //fatal_error?
          }
          return self->out.portArray[idx].ops->handle(self->out.portArray[idx].owner, arg1, arg2);
@@ -47,7 +53,7 @@
 
 void __ROUTER_init__(ROUTER *self)
 {
-            self->in.portA.ops.udp_message_handle = __wrapper_receive_packet;
+            self->in.portA.ops.udp_message_handle = wrapper_receive_packet;
 
 }
 

@@ -16,6 +16,20 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; operands of the
+ * same essential type; the name is copied with strncpy(), so a shorter
+ * name isn't read past its end.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters are const (they are only read), so callers can pass string
+ * literals.
  */
 
 /**
@@ -40,22 +54,29 @@
 #include <arinc_config.h>
 #include "arinc_process_queue.h"
 
+/*
+ * MISRA C:2025 Rule 18.4 deviation (this file): thread and object IDs are
+ * the index of an element, computed as the difference between its address
+ * and the start of its array.
+ */
+
 static size_t nsemaphores_used = 0;
 
 /* Find semaphore by name (in UPPERCASE). Returns NULL if not found. */
 static struct arinc_semaphore* find_semaphore(const char* name)
 {
-   for(int32_t i = 0; i < nsemaphores_used; i++)
+   for(size_t i = 0U; i < nsemaphores_used; i++)
    {
       struct arinc_semaphore* semaphore = &arinc_semaphores[i];
-      if(strncasecmp(semaphore->semaphore_name, name, MAX_NAME_LENGTH) == 0)
+      if(strncasecmp(semaphore->semaphore_name, name, MAX_NAME_LENGTH) == 0) {
          return semaphore;
+      }
    }
 
    return NULL;
 }
 
-void CREATE_SEMAPHORE (SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
+void CREATE_SEMAPHORE (const SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
                        SEMAPHORE_VALUE_TYPE CURRENT_VALUE,
                        SEMAPHORE_VALUE_TYPE MAXIMUM_VALUE,
                        QUEUING_DISCIPLINE_TYPE QUEUING_DISCIPLINE,
@@ -80,14 +101,14 @@ void CREATE_SEMAPHORE (SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
       return;
    }
 
-   if(MAXIMUM_VALUE < 0 || MAXIMUM_VALUE > MAX_SEMAPHORE_VALUE) {
+   if((MAXIMUM_VALUE < 0) || (MAXIMUM_VALUE > MAX_SEMAPHORE_VALUE)) {
       // Maximum value is negative or too high.
       // DEV: Current implementation SIGNAL_SEMAPHORE allows to signal semaphore with maximum value, if there are waiters.
       *RETURN_CODE = INVALID_PARAM;
       return;
    }
 
-   if(CURRENT_VALUE < 0 || CURRENT_VALUE > MAXIMUM_VALUE) {
+   if((CURRENT_VALUE < 0) || (CURRENT_VALUE > MAXIMUM_VALUE)) {
       // Current value is negative or too high.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -101,7 +122,8 @@ void CREATE_SEMAPHORE (SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
 
    struct arinc_semaphore* semaphore = &arinc_semaphores[nsemaphores_used];
 
-   memcpy(semaphore->semaphore_name, SEMAPHORE_NAME, MAX_NAME_LENGTH);
+   // The name may be shorter than MAX_NAME_LENGTH: don't read past its end.
+   (void) strncpy(semaphore->semaphore_name, SEMAPHORE_NAME, MAX_NAME_LENGTH);
    semaphore->maximum_value = MAXIMUM_VALUE;
    semaphore->current_value = CURRENT_VALUE;
    semaphore->discipline = QUEUING_DISCIPLINE;
@@ -109,7 +131,7 @@ void CREATE_SEMAPHORE (SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
    msection_init(&semaphore->section);
    msection_wq_init(&semaphore->process_queue);
 
-   *SEMAPHORE_ID = nsemaphores_used + 1;// Avoid 0 value.
+   *SEMAPHORE_ID = nsemaphores_used + 1U;// Avoid 0 value.
 
    nsemaphores_used++;
 
@@ -120,7 +142,7 @@ void WAIT_SEMAPHORE (SEMAPHORE_ID_TYPE SEMAPHORE_ID,
                      SYSTEM_TIME_TYPE TIME_OUT,
                      RETURN_CODE_TYPE *RETURN_CODE )
 {
-   if (SEMAPHORE_ID <= 0 || SEMAPHORE_ID > nsemaphores_used) {
+   if ((SEMAPHORE_ID <= 0) || ((size_t)SEMAPHORE_ID > nsemaphores_used)) {
       // Incorrect semaphore identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -166,6 +188,7 @@ void WAIT_SEMAPHORE (SEMAPHORE_ID_TYPE SEMAPHORE_ID,
          break;
       default:
          assert_os(FALSE);
+         break;
       }
    }
 
@@ -175,7 +198,7 @@ void WAIT_SEMAPHORE (SEMAPHORE_ID_TYPE SEMAPHORE_ID,
 void SIGNAL_SEMAPHORE (SEMAPHORE_ID_TYPE SEMAPHORE_ID,
                        RETURN_CODE_TYPE *RETURN_CODE )
 {
-   if (SEMAPHORE_ID <= 0 || SEMAPHORE_ID > nsemaphores_used) {
+   if ((SEMAPHORE_ID <= 0) || ((size_t)SEMAPHORE_ID > nsemaphores_used)) {
       // Incorrect semaphore identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -212,7 +235,7 @@ void SIGNAL_SEMAPHORE (SEMAPHORE_ID_TYPE SEMAPHORE_ID,
    msection_leave(&semaphore->section);
 }
 
-void GET_SEMAPHORE_ID (SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
+void GET_SEMAPHORE_ID (const SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
                        SEMAPHORE_ID_TYPE *SEMAPHORE_ID,
                        RETURN_CODE_TYPE *RETURN_CODE )
 {
@@ -231,7 +254,7 @@ void GET_SEMAPHORE_STATUS (SEMAPHORE_ID_TYPE SEMAPHORE_ID,
                            SEMAPHORE_STATUS_TYPE *SEMAPHORE_STATUS,
                            RETURN_CODE_TYPE *RETURN_CODE )
 {
-   if (SEMAPHORE_ID <= 0 || SEMAPHORE_ID > nsemaphores_used) {
+   if ((SEMAPHORE_ID <= 0) || ((size_t)SEMAPHORE_ID > nsemaphores_used)) {
       // Incorrect semaphore identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;

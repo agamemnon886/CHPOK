@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,21 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the formatting
+ * code is rewritten like libpok's printf_emitter.c (fixed-width and Boolean
+ * types, a parsed conversion specification, one break per switch clause,
+ * characters emitted as char); vprintf(), which had a non-standard
+ * signature, is now the static format_output(); the commented-out
+ * floating-point code is removed. %p and %z now read a pointer and a size_t
+ * (they read an unsigned int, which truncated 64-bit values), and the most
+ * negative %d value is printed without overflow. snprintf() takes a size_t
+ * and returns the number of characters written, as documented in libc.h (it
+ * returned the space left).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: digits is
+ * defined in the function that uses it; deviations are documented where a
+ * guideline can't be followed. Long lines are wrapped at 80 columns.
  */
 
 #include <config.h>
@@ -19,13 +35,26 @@
 
 #include <types.h>
 #include <libc.h>
+/*
+ * MISRA C:2025 Rule 17.1 deviation (this file): printf() and snprintf() are
+ * the kernel's formatted output; their arguments are read with va_arg().
+ */
 #include <stdarg.h>
 #include <asp/arch.h>
 #include <cons.h>
 
-static const char digits[] = "0123456789abcdef";
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the callback gets its
+ * private data as a pointer to void, which points to the object named by the
+ * type it is converted to.
+ * MISRA C:2025 Rule 18.4 deviation (this file): the format string is walked
+ * with a pointer into it.
+ */
 
-#define BUF_SIZE 128
+/* Emit single character. */
+typedef void (*emit_character_t)(char c, void *private_data);
+
+#define BUF_SIZE 128U
 
 /*
  * some types
@@ -40,7 +69,8 @@ struct s_file
 struct s_sprintf
 {
     char  *ptr;
-    size_t size;
+    size_t size; // Size of the buffer, including the terminating '\0'.
+    size_t written; // Number of characters written into the buffer.
 };
 
 /*
@@ -56,51 +86,45 @@ static void buf_flush(struct s_file *file)
      */
     pok_bool_t need_critical_section = ja_preempt_enabled();
     
-    if(need_critical_section)
+    if(need_critical_section) {
         ja_preempt_disable();
-    pok_cons_write (file->buff, file->pos);
-    if(need_critical_section)
+    }
+    (void) pok_cons_write (file->buff, file->pos);
+    if(need_critical_section) {
         ja_preempt_enable();
+    }
 
-    file->pos = 0;
+    file->pos = 0U;
 }
 
 static struct s_file* init_buffered_output(void)
 {
     static struct s_file res;
 
-    res.pos = 0;
+    res.pos = 0U;
     return &res;
 }
 
-static void buf_putc(int c, void *out)
+static void buf_putc(char c, void *out)
 {
-    if (c < 0) 
-        return;
-
     struct s_file * file = out;
-    file->buff[file->pos++] = c;
 
-    if (file->pos == BUF_SIZE)
+    file->buff[file->pos] = c;
+    file->pos++;
+
+    if (file->pos == BUF_SIZE) {
         buf_flush(file);
+    }
 }
 
-static void sprintf_putc(int c, void *out)
+static void sprintf_putc(char c, void *out)
 {
-    if (c < 0) 
-        return;
-
     struct s_sprintf *out_s = out;
 
-    switch (out_s->size)
-    {
-        case 1:
-            c = 0;
-        default:
-            *(out_s->ptr++) = c;
-             out_s->size--;
-        case 0:
-            break;
+    // The last byte of the buffer is kept for the terminating '\0'.
+    if ((out_s->written + 1U) < out_s->size) {
+        out_s->ptr[out_s->written] = c;
+        out_s->written++;
     }
 }
 
@@ -109,218 +133,249 @@ static void close_buffered_output(struct s_file *file)
     buf_flush(file);
 }
 
-static void print_num(t_putc putc,
-                      void *out,
-                      unsigned long long value, 
-                      unsigned base, 
-                      int pad,
-                      int neg,
-                      int pad_with_zero)
-{
-    unsigned char digit_str[32]; //64-bit number in octal base is 32 digits long
-    int size = 0;
-    do {
-        unsigned mod = value%base;
-        value /= base;
-        digit_str[size] = digits[mod];
-        size++;
 
-    } while (value);
+/* Where the characters go. */
+struct emitter {
+    emit_character_t emit_character;
+    void *private_data;
+};
+
+/* Conversion specification: flags, field width, precision and length. */
+struct format_spec {
+    uint32_t length; // Number of 'l' modifiers; 'z' counts as one.
+    int32_t pad; // Field width.
+    int32_t precision;
+    bool pad_with_zero; // The '0' flag: pad with zeros instead of spaces.
+};
+
+static void emit(const struct emitter *e, char c)
+{
+    e->emit_character(c, e->private_data);
+}
+
+/* Emit characters, produced by a number with given modificators.*/
+static void print_num(const struct emitter *e,
+                      uint64_t value,
+                      uint32_t base,
+                      int32_t pad,
+                      bool neg,
+                      bool pad_with_zero)
+{
+    static const char digits[] = "0123456789abcdef";
+
+    char digit_str[32]; //64-bit number in octal base is 22 digits long
+    int32_t size = 0;
+    int32_t width = pad;
+    uint64_t rest = value;
+
+    do {
+        digit_str[size] = digits[rest % base];
+        rest /= base;
+        size++;
+    } while (rest != 0U);
+
+    if (neg) {
+        width--;
+    }
 
     if (pad_with_zero) {
         if (neg) {
-            putc('-', out);
-            pad--;
+            emit(e, '-');
         }
-        while (size < pad--)
-            putc('0', out);
-
+        while (size < width) {
+            emit(e, '0');
+            width--;
+        }
     } else {
-        if (neg)
-            pad--;
-
-        while (size < pad--)
-            putc(' ', out);
-
-        if (neg)
-            putc('-', out);
+        while (size < width) {
+            emit(e, ' ');
+            width--;
+        }
+        if (neg) {
+            emit(e, '-');
+        }
     }
 
-    while (size--)
-        putc(digit_str[size], out);
+    while (size > 0) {
+        size--;
+        emit(e, digit_str[size]);
+    }
 }
 
-/* DON'T USE floating point register in kernel
-static void print_float(t_putc putc,
-                        void *out,
-                        long double value, 
-                        int pad, 
-                        int precision, 
-                        int neg,
-                        int pad_with_zero)
+/* Emit a string, cut to the precision if one is given. */
+static void print_string(const struct emitter *e, const char *str,
+                         const struct format_spec *spec)
 {
-    long long floor = value;
-    long double fractional = 0;
+    const char *s = (str != NULL) ? str : "(null)";
+    size_t len = strlen(s);
+    size_t width = (spec->pad > 0) ? (size_t) spec->pad : 0U;
 
-    print_num(putc, out, floor, 10, pad-(precision+1), neg, pad_with_zero);
+    if ((spec->precision > 0) && ((size_t) spec->precision < len)) {
+        len = (size_t) spec->precision;
+    }
 
-    putc('.', out);
-
-    fractional = (value - floor);
-    for (int i=0; i<precision; i++)
-        fractional *= 10;
-    print_num(putc, out, fractional, 10, precision, 0, 1);
+    while (width > len) {
+        emit(e, ' ');
+        width--;
+    }
+    for (size_t i = 0U; i < len; i++) {
+        emit(e, s[i]);
+    }
 }
-*/
+
+/* Unsigned argument of the length given by the specification. */
+static uint64_t get_unsigned(const struct format_spec *spec, va_list *parg)
+{
+    uint64_t value;
+
+    if (spec->length == 2U) {
+        value = va_arg(*parg, unsigned long long);
+    } else if (spec->length == 1U) {
+        value = va_arg(*parg, unsigned long);
+    } else {
+        value = va_arg(*parg, unsigned int);
+    }
+    return value;
+}
+
+/* Signed argument of the length given by the specification. */
+static int64_t get_signed(const struct format_spec *spec, va_list *parg)
+{
+    int64_t value;
+
+    if (spec->length == 2U) {
+        value = va_arg(*parg, long long);
+    } else if (spec->length == 1U) {
+        value = va_arg(*parg, long);
+    } else {
+        value = va_arg(*parg, int);
+    }
+    return value;
+}
+
+/* Emit characters, produced by one conversion with its specification. */
+static void print_conversion(const struct emitter *e, char conversion,
+                             const struct format_spec *spec, va_list *parg)
+{
+    switch (conversion) {
+        case 's':
+            print_string(e, va_arg(*parg, const char *), spec);
+            break;
+        case 'p':
+            {
+                /*
+                 * MISRA C:2025 Rule 11.6 deviation: %p prints the address
+                 * held by a pointer.
+                 */
+                uintptr_t address = (uintptr_t) va_arg(*parg, void *);
+
+                emit(e, '0');
+                emit(e, 'x');
+                print_num(e, address, 16U, spec->pad, false,
+                          spec->pad_with_zero);
+            }
+            break;
+        case 'x':
+            print_num(e, get_unsigned(spec, parg), 16U, spec->pad, false,
+                      spec->pad_with_zero);
+            break;
+        case 'd':
+        case 'i':
+            {
+                int64_t value = get_signed(spec, parg);
+                uint64_t magnitude = (value < 0) ? (0U - (uint64_t) value)
+                    : (uint64_t) value;
+
+                print_num(e, magnitude, 10U, spec->pad, value < 0,
+                          spec->pad_with_zero);
+            }
+            break;
+        case 'u':
+            print_num(e, get_unsigned(spec, parg), 10U, spec->pad, false,
+                      spec->pad_with_zero);
+            break;
+        case 'c':
+            //TODO implement l!=0 case
+            emit(e, (char) va_arg(*parg, int));
+            break;
+        case '%':
+            emit(e, '%');
+            break;
+        default:
+            emit(e, '%');
+            emit(e, conversion);
+            break;
+    }
+}
 
 /*
- * finally, printf
+ * Parse format specifier (without leading '%') from format and emit
+ * characters it produces.
+ *
+ * Return pointer to the character followed format specifier.
  */
-//XXX for now precision is used only for floating points
-const char * handle_fmt(t_putc putc, void * out, const char* format, va_list *args)
+//XXX for now precision is used only for strings
+static const char * handle_fmt(const struct emitter *e,
+    const char* format, va_list* parg)
 {
-    unsigned l = 0;
-    int pad = 0;
-    int pad_with_zero = 0; // if 1 than add zeros for padding
-    int precision = 0;
-    int was_dot = 0; //if 1 than there were '.' in fmt before
-    while (*format) {
-        switch (*format) {
-            case '0':
-                if (was_dot)
-                    precision *= 10;
-                else if (pad == 0)
-                    pad_with_zero = 1;
-                else
-                    pad *= 10;
-                format++;
-                break;
-            case '1'...'9':
-                if (was_dot)
-                    precision = *format - '0' + precision*10;
-                else
-                    pad = *format - '0' + pad*10;
-                format++;
-                break;
-            case 'l':
-                l++;
-                format++;
-                break;
-           case '.':
-                was_dot = 1;
-                format++;
-                break;
-           case 'z':		// size_t modifier
-                l = 0;
-                format++;
-                break;
-           case 's':
-                {
-                    //TODO implement l!=0 case
-                    const char *s = va_arg(*args, const char *);
-                    if (!s)
-                        s = (const char *)"(null)";
-                    int len = strlen(s);
+    struct format_spec spec = { 0U, 0, 0, false };
+    bool was_dot = false; // There was '.' in the specification.
+    bool parsing = true;
+    const char *f = format;
 
-                    if (precision != 0 && precision<len)
-                        len = precision;
+    while (parsing) {
+        char c = *f;
 
-                    while (len < pad--)
-                        putc(' ', out);
-                    while (*s && len-- ) 
-                        putc(*s++, out);
-                    return ++format;
-                }
-           case 'p':
-                putc('0', out);
-                putc('x', out);
-           case 'x':
-                {
-                    long long value;
+        if ((c >= '0') && (c <= '9')) {
+            int32_t digit = c - '0';
 
-                    if (l == 2)
-                        value = va_arg(*args, unsigned long long);
-                    else if (l == 1)
-                        value = va_arg(*args, unsigned long);
-                    else 
-                        value = va_arg(*args, unsigned );
-
-                    print_num(putc, out, value, 16, pad, 0, pad_with_zero);
-                    return ++format;
-                }
-           case 'd':
-           case 'i':
-                {
-                    long long value;
-                    if (l == 2)
-                        value = va_arg(*args, long long);
-                    else if (l == 1)
-                        value = va_arg(*args, long);
-                    else 
-                        value = va_arg(*args, int);
-                    int neg = value < 0;
-                    if (neg)
-                        value = -value;
-                    print_num(putc, out, value, 10, pad, neg, pad_with_zero);
-                    return ++format;
-                }
-            case 'u':
-                {
-                    long long value;
-                    if (l == 2)
-                        value = va_arg(*args, unsigned long long);
-                    else if (l == 1)
-                        value = va_arg(*args, unsigned long);
-                    else 
-                        value = va_arg(*args, unsigned );
-
-                    print_num(putc, out, value, 10, pad, 0, pad_with_zero);
-                    return ++format;
-                }
-            /* DON'T USE floating point register in kernel
-            case 'f':
-                {
-                    long double value;
-                    if (l == 2)
-                        value = va_arg(*args, long double);
-                    else
-                        value = va_arg(*args, double);
-                    int neg = value < 0;
-                    if (neg)
-                        value = -value;
-                    if (precision == 0)
-                        precision = 6;
-                    print_float(putc, out, value, pad, precision, neg, pad_with_zero);
-                    return ++format;
-                }
-            */
-            case 'c':
-                //TODO implement l!=0 case
-                putc(va_arg(*args, unsigned ), out);
-                return ++format;
-            case '%':
-                putc('%', out);
-                return ++format;
-            case 0:
-                return format;
-            default:
-                putc('%', out);
-                putc(*format, out);
-                return ++format;
+            if (was_dot) {
+                spec.precision = (spec.precision * 10) + digit;
+            } else if ((digit == 0) && (spec.pad == 0)) {
+                spec.pad_with_zero = true;
+            } else {
+                spec.pad = (spec.pad * 10) + digit;
+            }
+            f++;
+        } else if (c == 'l') {
+            spec.length++;
+            f++;
+        } else if (c == 'z') {
+            // size_t is unsigned long on the LP64 targets.
+            spec.length = 1U;
+            f++;
+        } else if (c == '.') {
+            was_dot = true;
+            f++;
+        } else {
+            parsing = false;
         }
     }
-    return format;
+
+    if (*f != '\0') {
+        print_conversion(e, *f, &spec, parg);
+        f++;
+    }
+    return f;
 }
 
-void vprintf(t_putc putc, void *out, const char* format, va_list *args)
+/* Generic printf-like function. */
+static void format_output(emit_character_t emit_character, void *out,
+    const char* format, va_list *args)
 {
-    while(*format) {
-        if (*format == '%') {
-            format++;
-            format = handle_fmt(putc, out, format, args);
+    struct emitter e;
+    const char *f = format;
+
+    e.emit_character = emit_character;
+    e.private_data = out;
+
+    while (*f != '\0') {
+        if (*f == '%') {
+            f = handle_fmt(&e, f + 1, args);
+        } else {
+            emit(&e, *f);
+            f++;
         }
-        else
-            putc(*format++, out);
     }
 }
 
@@ -334,35 +389,36 @@ int printf(const char *format, ...)
     struct s_file* out_file = init_buffered_output();
 
     va_start(args, format);
-    vprintf (buf_putc, out_file, format, &args);
+    format_output(buf_putc, out_file, format, &args);
     va_end(args);
 
     close_buffered_output(out_file);
 
-    if(preempt_enabled)
+    if(preempt_enabled) {
         ja_preempt_enable();
+    }
 
     return 0;
 }
 
-int snprintf(char *dst, unsigned size, const char *format, ...)
+int snprintf(char *dst, size_t size, const char *format, ...)
 {
-    int res;
-
     struct s_sprintf out;
     out.ptr = dst;
     out.size = size;
+    out.written = 0U;
 
     va_list args;
     va_start(args, format);
-    vprintf(sprintf_putc, &out, format, &args);
-
-    res = out.size;
-
-    sprintf_putc('\0', &out);
+    format_output(sprintf_putc, &out, format, &args);
     va_end(args);
 
-    return res;
+    if (size > 0U) {
+        dst[out.written] = '\0';
+    }
+
+    // The count doesn't fit into int only for outputs of 2 GiB or more.
+    return (int) out.written;
 }
 
 

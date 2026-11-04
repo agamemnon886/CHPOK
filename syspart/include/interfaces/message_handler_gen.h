@@ -3,12 +3,13 @@
  *
  * Instead of modifying this file, modify the one it generated from (syspart/include/interfaces/network.yaml).
  */
-#ifndef __INTERFACES_MESSAGE_HANDLER_H__
-#define __INTERFACES_MESSAGE_HANDLER_H__
+#ifndef INTERFACES_MESSAGE_HANDLER_H
+#define INTERFACES_MESSAGE_HANDLER_H
 
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,6 +20,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; the parameters of the operations are
+ * named.
  */
 
 
@@ -26,7 +31,10 @@
     #include <ret_type.h>
 
 typedef struct {
-    ret_t (*handle)(self_t *, const char *, size_t);
+    ret_t (*handle)(
+        self_t * arg0,
+        const char * arg1,
+        size_t arg2);
 } message_handler;
 
 

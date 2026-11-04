@@ -15,11 +15,14 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * kernel/arch/x86/include/arch/uaccess.h for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __JET_ARM64_UACCESS_H__
-#define __JET_ARM64_UACCESS_H__
+#ifndef JET_ARM64_UACCESS_H
+#define JET_ARM64_UACCESS_H
 
 // All definitions are generic.
 
-#endif /* __JET_ARM64_UACCESS_H__ */
+#endif /* JET_ARM64_UACCESS_H */

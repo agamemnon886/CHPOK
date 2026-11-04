@@ -17,6 +17,19 @@
  * libpok/arinc653/semaphore.c; implements the ARINC 653P1-4 mutex
  * services CREATE_MUTEX, ACQUIRE_MUTEX, RELEASE_MUTEX, RESET_MUTEX,
  * GET_MUTEX_ID, GET_MUTEX_STATUS and GET_PROCESS_MUTEX_STATE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; operands of the
+ * same essential type; if-else-if chains end with else.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters are const (they are only read), so callers can pass string
+ * literals.
  */
 
 /**
@@ -58,7 +71,13 @@
 #include <arinc_config.h>
 #include "arinc_process_queue.h"
 
-#define MAIN_THREAD_ID  0   /* kernel thread of the main process */
+/*
+ * MISRA C:2025 Rule 18.4 deviation (this file): thread and object IDs are
+ * the index of an element, computed as the difference between its address
+ * and the start of its array.
+ */
+
+#define MAIN_THREAD_ID  0U  /* kernel thread of the main process */
 
 static size_t nmutexes_used = 0;
 
@@ -77,8 +96,9 @@ static struct arinc_mutex* find_mutex(const char* name)
    for(size_t i = 0; i < nmutexes_used; i++)
    {
       struct arinc_mutex* mutex = &arinc_mutexes[i];
-      if(strncasecmp(mutex->mutex_name, name, MAX_NAME_LENGTH) == 0)
+      if(strncasecmp(mutex->mutex_name, name, MAX_NAME_LENGTH) == 0) {
          return mutex;
+      }
    }
 
    return NULL;
@@ -90,8 +110,9 @@ static struct arinc_mutex* find_mutex(const char* name)
  */
 static struct arinc_mutex* get_mutex(MUTEX_ID_TYPE mutex_id)
 {
-   if(mutex_id <= 0 || mutex_id > (MUTEX_ID_TYPE)nmutexes_used)
+   if((mutex_id <= 0) || (mutex_id > (MUTEX_ID_TYPE)nmutexes_used)) {
       return NULL;
+   }
 
    return &arinc_mutexes[mutex_id - 1];
 }
@@ -106,8 +127,9 @@ static struct arinc_mutex* find_owned(pok_thread_id_t thread)
 {
    for(size_t i = 0; i < nmutexes_used; i++)
    {
-      if(arinc_mutexes[i].owner == thread)
+      if(arinc_mutexes[i].owner == thread) {
          return &arinc_mutexes[i];
+      }
    }
 
    return NULL;
@@ -116,7 +138,8 @@ static struct arinc_mutex* find_owned(pok_thread_id_t thread)
 /* ARINC process ID of a kernel thread. */
 static PROCESS_ID_TYPE process_id_of(pok_thread_id_t thread)
 {
-   return thread == MAIN_THREAD_ID ? MAIN_PROCESS_ID : (PROCESS_ID_TYPE)thread + 1;
+   return (thread == MAIN_THREAD_ID) ? MAIN_PROCESS_ID
+       : ((PROCESS_ID_TYPE)thread + 1);
 }
 
 /*
@@ -136,13 +159,16 @@ static pok_bool_t thread_of(PROCESS_ID_TYPE process_id, pok_thread_id_t* thread)
    }
 
    // Check the range before narrowing to the 8-bit kernel thread ID.
-   if(process_id < 1 || process_id > (PROCESS_ID_TYPE)kshd.max_n_threads)
+   if((process_id < 1) || (process_id > (PROCESS_ID_TYPE)kshd.max_n_threads)) {
       return FALSE;
+   }
 
    // The kernel rejects the main thread, the error handler and threads
    // which aren't created yet.
-   if(pok_thread_get_status(process_id - 1, name, &entry, &status) != POK_ERRNO_OK)
+   if(pok_thread_get_status(process_id - 1, name, &entry,
+                            &status) != POK_ERRNO_OK) {
       return FALSE;
+   }
 
    *thread = process_id - 1;
    return TRUE;
@@ -155,10 +181,14 @@ static pok_bool_t thread_of(PROCESS_ID_TYPE process_id, pok_thread_id_t* thread)
  */
 static void set_thread_priority(pok_thread_id_t thread, PRIORITY_TYPE priority)
 {
-   if(thread == MAIN_THREAD_ID || kshd.tshd[thread].priority == priority)
+   if((thread == MAIN_THREAD_ID)
+      || ((PRIORITY_TYPE)kshd.tshd[thread].priority == priority)) {
       return;
+   }
 
-   pok_thread_set_priority(thread, priority);
+   // Fails only for a stopped thread, which gets its base priority when
+   // it's started again.
+   (void) pok_thread_set_priority(thread, priority);
 }
 
 /* Make thread the owner of an available mutex. Call inside mutex_section. */
@@ -193,7 +223,7 @@ static void release_mutex(struct arinc_mutex* mutex)
    }
 }
 
-void CREATE_MUTEX (MUTEX_NAME_TYPE MUTEX_NAME,
+void CREATE_MUTEX (const MUTEX_NAME_TYPE MUTEX_NAME,
                    PRIORITY_TYPE MUTEX_PRIORITY,
                    QUEUING_DISCIPLINE_TYPE QUEUING_DISCIPLINE,
                    MUTEX_ID_TYPE *MUTEX_ID,
@@ -210,7 +240,8 @@ void CREATE_MUTEX (MUTEX_NAME_TYPE MUTEX_NAME,
       return;
    }
 
-   if(MUTEX_PRIORITY < MIN_PRIORITY_VALUE || MUTEX_PRIORITY > MAX_PRIORITY_VALUE) {
+   if((MUTEX_PRIORITY < MIN_PRIORITY_VALUE)
+      || (MUTEX_PRIORITY > MAX_PRIORITY_VALUE)) {
       *RETURN_CODE = INVALID_PARAM;
       return;
    }
@@ -229,7 +260,7 @@ void CREATE_MUTEX (MUTEX_NAME_TYPE MUTEX_NAME,
 
    // Names may be shorter than MAX_NAME_LENGTH (NUL-terminated); don't
    // read past them.
-   strncpy(mutex->mutex_name, MUTEX_NAME, MAX_NAME_LENGTH);
+   (void) strncpy(mutex->mutex_name, MUTEX_NAME, MAX_NAME_LENGTH);
    mutex->priority = MUTEX_PRIORITY;
    mutex->discipline = QUEUING_DISCIPLINE;
    mutex->owner = JET_THREAD_ID_NONE;
@@ -237,7 +268,7 @@ void CREATE_MUTEX (MUTEX_NAME_TYPE MUTEX_NAME,
    mutex->retained_priority = 0;
    msection_wq_init(&mutex->process_queue);
 
-   *MUTEX_ID = nmutexes_used + 1; // Avoid 0 and the negative special IDs.
+   *MUTEX_ID = nmutexes_used + 1U; // Avoid 0 and the negative special IDs.
 
    nmutexes_used++;
 
@@ -257,7 +288,7 @@ void ACQUIRE_MUTEX (MUTEX_ID_TYPE MUTEX_ID,
       return;
    }
 
-   if(TIME_OUT < 0 && TIME_OUT != INFINITE_TIME_VALUE) {
+   if((TIME_OUT < 0) && (TIME_OUT != INFINITE_TIME_VALUE)) {
       *RETURN_CODE = INVALID_PARAM;
       return;
    }
@@ -266,7 +297,7 @@ void ACQUIRE_MUTEX (MUTEX_ID_TYPE MUTEX_ID,
 
    struct arinc_mutex* owned = find_owned(t);
 
-   if(owned != NULL && owned != mutex) {
+   if((owned != NULL) && (owned != mutex)) {
       // A process owns at most one mutex at a time.
       *RETURN_CODE = INVALID_MODE;
    }
@@ -276,7 +307,8 @@ void ACQUIRE_MUTEX (MUTEX_ID_TYPE MUTEX_ID,
       *RETURN_CODE = INVALID_MODE;
    }
 
-   else if(t != MAIN_THREAD_ID && kshd.tshd[t].priority > mutex->priority) {
+   else if((t != MAIN_THREAD_ID)
+           && ((PRIORITY_TYPE)kshd.tshd[t].priority > mutex->priority)) {
       // Priority ceiling: the process mustn't have a higher priority
       // than the mutex.
       *RETURN_CODE = INVALID_MODE;
@@ -325,6 +357,7 @@ void ACQUIRE_MUTEX (MUTEX_ID_TYPE MUTEX_ID,
          break;
       default:
          assert_os(FALSE);
+         break;
       }
    }
 
@@ -349,8 +382,9 @@ void RELEASE_MUTEX (MUTEX_ID_TYPE MUTEX_ID,
    }
 
    else {
-      if(--mutex->lock_count == 0)
+      if(--mutex->lock_count == 0) {
          release_mutex(mutex);
+      }
 
       *RETURN_CODE = NO_ERROR;
    }
@@ -391,7 +425,7 @@ void RESET_MUTEX (MUTEX_ID_TYPE MUTEX_ID,
    msection_leave(&mutex_section);
 }
 
-void GET_MUTEX_ID (MUTEX_NAME_TYPE MUTEX_NAME,
+void GET_MUTEX_ID (const MUTEX_NAME_TYPE MUTEX_NAME,
                    MUTEX_ID_TYPE *MUTEX_ID,
                    RETURN_CODE_TYPE *RETURN_CODE)
 {
@@ -448,19 +482,22 @@ void GET_PROCESS_MUTEX_STATE (PROCESS_ID_TYPE PROCESS_ID,
       return;
    }
 
-   pok_current_partition_get_status(&status);
+   if(pok_current_partition_get_status(&status) != POK_ERRNO_OK) {
+      status.lock_level = 0;     // treated as "no preemption lock"
+   }
 
    msection_enter(&mutex_section);
 
    struct arinc_mutex* owned = find_owned(t);
 
-   if(owned != NULL)
+   if(owned != NULL) {
       *MUTEX_ID = mutex_id_of(owned);
-   else if(kshd.partition_mode == POK_PARTITION_MODE_NORMAL
-      && status.lock_level > 0 && arinc_preemption_lock_holder == t)
+   } else if((kshd.partition_mode == POK_PARTITION_MODE_NORMAL)
+      && (status.lock_level > 0) && (arinc_preemption_lock_holder == t)) {
       *MUTEX_ID = PREEMPTION_LOCK_MUTEX;
-   else
+   } else {
       *MUTEX_ID = NO_MUTEX_OWNED;
+   }
 
    msection_leave(&mutex_section);
 
@@ -475,18 +512,20 @@ pok_ret_t arinc_mutex_set_priority(pok_thread_id_t thread, PRIORITY_TYPE priorit
 
    struct arinc_mutex* owned = find_owned(thread);
 
-   if(owned != NULL && thread != MAIN_THREAD_ID) {
+   if((owned != NULL) && (thread != MAIN_THREAD_ID)) {
       char name[MAX_NAME_LENGTH];
       void* entry;
       pok_thread_status_t status;
 
       ret = pok_thread_get_status(thread, name, &entry, &status);
-      if(ret == POK_ERRNO_OK && status.state == POK_STATE_STOPPED) {
+      if((ret == POK_ERRNO_OK) && (status.state == POK_STATE_STOPPED)) {
          // Like pok_thread_set_priority() for a DORMANT process.
          ret = POK_ERRNO_UNAVAILABLE;
       } else if(ret == POK_ERRNO_OK) {
          // The owner keeps the mutex priority until it releases the mutex.
          owned->retained_priority = priority;
+      } else {
+         // ret is the error from pok_thread_get_status().
       }
    } else {
       ret = pok_thread_set_priority(thread, priority);

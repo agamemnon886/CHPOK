@@ -19,16 +19,26 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; deviations are documented where a
+ * guideline can't be followed.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
-#ifndef __POK_X86_64_IOPORTS_H__
-#define __POK_X86_64_IOPORTS_H__
+#ifndef POK_X86_64_IOPORTS_H
+#define POK_X86_64_IOPORTS_H
 #include <stdint.h>
 
 #define JET_ARCH_DECLARE_IO_PORT 1
+
+/*
+ * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this header): the I/O port
+ * instructions are GNU inline assembly, isolated in these macros; the
+ * reading macros are GNU statement expressions, so that they yield the
+ * value read.
+ */
 
 #define ja_outb(port, data)                                        \
   asm volatile ("outb %b0,%w1"                                  \
@@ -72,4 +82,4 @@
   res;                                                          \
 })
 
-#endif /* __POK_X86_64_IOPORTS_H__ */
+#endif /* POK_X86_64_IOPORTS_H */

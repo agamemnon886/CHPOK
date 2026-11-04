@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: rewritten
+ * without arithmetic on two characters: both characters are converted to
+ * upper case and compared as unsigned char (the result is unchanged for
+ * ASCII text); a single loop exit.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  */
 
 #include <config.h>
@@ -19,35 +28,42 @@
 
 #include <libc.h>
 
+/* The upper-case letter for a lower-case one; other characters are returned as
+ * is. */
+static char to_upper(char c)
+{
+    char upper = c;
+
+    if ((c >= 'a') && (c <= 'z')) {
+        upper = (c - 'a') + 'A';
+    }
+    return upper;
+}
+
+/*
+ * MISRA C:2025 Dir 1.2 deviation: __attribute__((weak)) is a GNU extension;
+ * it lets a board or a configuration provide its own implementation.
+ */
 __attribute__ ((weak))
 int strncasecmp(const char *s1, const char *s2, size_t size)
 {
-  unsigned int i;
-  for (i = 0; i < size; i++)
-  { 
-      if (s1[i] == '\0' && s2[i] == '\0')
-          return 0;
-      if ((s1[i]>='a' && s1[i]<='z')&&(s2[i]<'a' || s2[i]>'z'))
-      {
-          if (s1[i]+'A' - 'a' < s2[i])
-                return -1;
-          if (s1[i]+'A' - 'a' > s2[i])
-                return 1;
-      }else
-          if ((s2[i]>='a' && s2[i]<='z')&&(s1[i]<'a' || s1[i]>'z'))
-          {    if (s1[i] < s2[i]+'A' - 'a')
-                  return -1;
-              if (s1[i] > s2[i]+'A' - 'a')
-                  return 1;
-      }
-      else
-      {
-              if (s1[i] < s2[i])
-                  return -1;
-              if (s1[i] > s2[i])
-                  return 1;
-      }
-  }
-  return 0;
+    int result = 0;
+    size_t i = 0U;
+    bool done = false;
+
+    while ((!done) && (i < size)) {
+        uint8_t c1 = (uint8_t) to_upper(s1[i]);
+        uint8_t c2 = (uint8_t) to_upper(s2[i]);
+
+        if (c1 != c2) {
+            result = (c1 < c2) ? -1 : 1;
+            done = true;
+        } else if (c1 == 0U) {
+            done = true; // Both strings end here.
+        } else {
+            i++;
+        }
+    }
+    return result;
 }
 #endif

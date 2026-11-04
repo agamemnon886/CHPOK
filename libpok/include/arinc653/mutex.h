@@ -67,7 +67,7 @@ typedef struct {
 } MUTEX_STATUS_TYPE;
 
 extern void CREATE_MUTEX (
-      /*in */ MUTEX_NAME_TYPE          MUTEX_NAME,
+      /*in */ const MUTEX_NAME_TYPE          MUTEX_NAME,
       /*in */ PRIORITY_TYPE            MUTEX_PRIORITY,
       /*in */ QUEUING_DISCIPLINE_TYPE  QUEUING_DISCIPLINE,
       /*out*/ MUTEX_ID_TYPE            *MUTEX_ID,
@@ -88,7 +88,7 @@ extern void RESET_MUTEX (
       /*out*/ RETURN_CODE_TYPE         *RETURN_CODE );
 
 extern void GET_MUTEX_ID (
-      /*in */ MUTEX_NAME_TYPE          MUTEX_NAME,
+      /*in */ const MUTEX_NAME_TYPE          MUTEX_NAME,
       /*out*/ MUTEX_ID_TYPE            *MUTEX_ID,
       /*out*/ RETURN_CODE_TYPE         *RETURN_CODE );
 

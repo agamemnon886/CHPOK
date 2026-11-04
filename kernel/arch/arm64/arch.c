@@ -23,6 +23,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
+ * Boolean conditions; U suffixes for unsigned constants; ja_inf_loop() is
+ * declared _Noreturn; privileged instructions are documented as isolated
+ * inline assembly; deviations are documented where a guideline can't be
+ * followed.
  */
 
 #include <errno.h>
@@ -43,6 +49,11 @@ void pok_arch_init (void)
   ja_bsp_init();
 }
 
+/*
+ * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this file): privileged
+ * instructions are written as GNU inline assembly, each isolated in a small
+ * function.
+ */
 void ja_preempt_disable(void)
 {
   asm volatile ("msr daifset, #2" ::: "memory");
@@ -55,12 +66,17 @@ void ja_preempt_enable(void)
 
 pok_bool_t ja_preempt_enabled(void)
 {
-  return !(read_sysreg(daif) & DAIF_I);
+  return ((read_sysreg(daif) & DAIF_I) == 0U);
 }
 
-void ja_inf_loop(void)
+/*
+ * MISRA C:2025 Dir 1.2 deviation: _Noreturn is a C11 keyword, accepted by GCC
+ * in gnu99 mode; it tells the compiler and the reader that the function
+ * doesn't return.
+ */
+_Noreturn void ja_inf_loop(void)
 {
-   while (1)
+   while (true)
    {
       asm volatile ("wfi");
    }

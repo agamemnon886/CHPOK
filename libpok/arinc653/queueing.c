@@ -18,6 +18,14 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: message length is passed
  * with the type the kernel expects (64-bit support).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the kernel
+ * port ID is converted to the APEX type before the addition.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters and the message parameter of the send or write service are
+ * const (they are only read), so callers can pass string literals and
+ * const data.
  */
 
 #include <config.h>
@@ -32,11 +40,16 @@
 #include <arinc653/queueing.h>
 #include <utils.h>
 
+/*
+ * Each MAP_ERROR()/MAP_ERROR_DEFAULT() expands to a whole switch-clause ending
+ * with break (MISRA C:2025 Rule 16.3); cppcheck's MISRA addon doesn't see the
+ * break inside the macro and reports these switches by mistake.
+ */
 #define MAP_ERROR(from, to) case (from): *RETURN_CODE = (to); break
 #define MAP_ERROR_DEFAULT(to) default: *RETURN_CODE = (to); break
 
 void CREATE_QUEUING_PORT (
-      /*in */ QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
+      /*in */ const QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
       /*in */ MESSAGE_SIZE_TYPE         MAX_MESSAGE_SIZE,
       /*in */ MESSAGE_RANGE_TYPE        MAX_NB_MESSAGE,
       /*in */ PORT_DIRECTION_TYPE       PORT_DIRECTION,
@@ -83,7 +96,7 @@ void CREATE_QUEUING_PORT (
       MAX_MESSAGE_SIZE, MAX_NB_MESSAGE, core_direction, core_discipline,
       &core_id);
 
-   *QUEUING_PORT_ID = core_id + 1;
+   *QUEUING_PORT_ID = (QUEUING_PORT_ID_TYPE) core_id + 1;
 
    switch (core_ret) {
       MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
@@ -95,7 +108,7 @@ void CREATE_QUEUING_PORT (
 
 void SEND_QUEUING_MESSAGE (
       /*in */ QUEUING_PORT_ID_TYPE      QUEUING_PORT_ID,
-      /*in */ MESSAGE_ADDR_TYPE         MESSAGE_ADDR,       /* by reference */
+      /*in */ const APEX_BYTE *        MESSAGE_ADDR,       /* by reference */
       /*in */ MESSAGE_SIZE_TYPE         LENGTH,
       /*in */ SYSTEM_TIME_TYPE          TIME_OUT,
       /*out*/ RETURN_CODE_TYPE          *RETURN_CODE)
@@ -151,7 +164,7 @@ void RECEIVE_QUEUING_MESSAGE (
 }
 
 void GET_QUEUING_PORT_ID (
-      /*in */ QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
+      /*in */ const QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
       /*out*/ QUEUING_PORT_ID_TYPE      *QUEUING_PORT_ID,
       /*out*/ RETURN_CODE_TYPE          *RETURN_CODE)
 {
@@ -161,7 +174,7 @@ void GET_QUEUING_PORT_ID (
     core_ret = pok_port_queuing_id(QUEUING_PORT_NAME, &id);
 
     if (core_ret == POK_ERRNO_OK) {
-        *QUEUING_PORT_ID = id + 1;
+        *QUEUING_PORT_ID = (QUEUING_PORT_ID_TYPE) id + 1;
     }
    
     switch (core_ret) {

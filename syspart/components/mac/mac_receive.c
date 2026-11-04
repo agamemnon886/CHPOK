@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * results are cast to void; essentially Boolean conditions; U suffixes
+ * for unsigned constants; deviations are documented where a guideline
+ * can't be followed; an unused update of data is removed.
  */
 
 #include <net/byteorder.h>
@@ -21,7 +27,13 @@
 
 #include "MAC_RECEIVER_gen.h"
 
-#define MAC_HEADER_SIZE 14
+#define MAC_HEADER_SIZE 14U
+
+/*
+ * MISRA C:2025 Rule 11.3 deviation (this file): network packets arrive and
+ * are built in byte buffers; their headers are accessed through the packed
+ * header structures.
+ */
 
 #define C_NAME "MAC_RECEIVER: "
 ret_t mac_receive(MAC_RECEIVER *self, const char *data, size_t len)
@@ -29,18 +41,19 @@ ret_t mac_receive(MAC_RECEIVER *self, const char *data, size_t len)
     // TODO validate checksums, TTL, and all that stuff
 
     if (len < sizeof(struct ether_hdr)) {
-        printf(C_NAME"Received packet is too small (even Ethernet header doesn't fit).");
+        (void) printf(
+            C_NAME"Received packet is too small (even Ethernet header doesn't "
+                  "fit).");
         return EINVAL;
     }
 
-    struct ether_hdr *ether_hdr = (struct ether_hdr *) data;
-    data += sizeof(*ether_hdr);
+    const struct ether_hdr *ether_hdr = (const struct ether_hdr *) data;
     len -= sizeof(*ether_hdr);
 
-    if (!ether_is_multicast(ether_hdr->dst) &&
-        memcmp(ether_hdr->dst, self->state.my_mac, ETH_ALEN) != 0)
+    if ((ether_is_multicast(ether_hdr->dst) == 0) &&
+        (memcmp(ether_hdr->dst, self->state.my_mac, ETH_ALEN) != 0))
     {
-        printf(C_NAME"packet NOT for us: dst= %x %x %x %x %x %x\n",
+        (void) printf(C_NAME"packet NOT for us: dst= %x %x %x %x %x %x\n",
             ether_hdr->dst[0],
             ether_hdr->dst[1],
             ether_hdr->dst[2],

@@ -15,6 +15,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-01: allocates and initializes the
  * ARINC 653 mutexes.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
  */
 
 #include <init_arinc.h>
@@ -28,6 +31,12 @@
 #include "event.h"
 #include "semaphore.h"
 #include "mutex.h"
+
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the allocator returns its
+ * memory as a pointer to void, which is converted to the type of the object
+ * allocated.
+ */
 
 #ifdef POK_NEEDS_ARINC653_BUFFER
 struct arinc_buffer* arinc_buffers;

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; __user/__kuser are renamed
+ * JET_USER/JET_KUSER.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns. ja_space_switch()'s parameter has the name of its definitions (Rule
+ * 8.3).
  */
 
-#ifndef __JET_ASP_SPACE_H__
-#define __JET_ASP_SPACE_H__
+#ifndef JET_ASP_SPACE_H
+#define JET_ASP_SPACE_H
 
 #include <types.h>
 #include <asp/cswitch.h>
@@ -61,7 +70,8 @@ void ja_space_layout_get(jet_space_id space_id,
 void* ja_space_get_heap(jet_space_id space_id);
 
 /* Return pointer to the kernel shared data for given space. */
-struct jet_kernel_shared_data* __kuser ja_space_shared_data(jet_space_id space_id);
+struct jet_kernel_shared_data* JET_KUSER ja_space_shared_data(
+    jet_space_id space_id);
 
 /**
  * Jump to the user space.
@@ -71,13 +81,13 @@ struct jet_kernel_shared_data* __kuser ja_space_shared_data(jet_space_id space_i
 void ja_user_space_jump(
     jet_stack_t stack_kernel,
     jet_space_id space_id, /* Actually, unused (should already be set with ja_space_switch). */
-    void (__user * entry_user)(void),
+    void (JET_USER * entry_user)(void),
     jet_ustack_t stack_user);
 
 /**
  * Switch to given space.
  */
-void   ja_space_switch (jet_space_id new_space_id);
+void   ja_space_switch (jet_space_id space_id);
 
 /*
  * Return id of current space.
@@ -126,4 +136,4 @@ void ja_fp_restore(struct jet_fp_store* fp_store);
 void ja_fp_init(void);
 
 
-#endif /* __JET_ASP_SPACE_H__ */
+#endif /* JET_ASP_SPACE_H */

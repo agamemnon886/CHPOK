@@ -15,15 +15,27 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: thread-safe output:
  * per-stream lock and per-call output buffer.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants;
+ * characters are emitted as char; deviations are documented where a
+ * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  */
 
 /* 
  * Generic definition of the stream.
  */
 
-#ifndef __LIBJET_STDIO_STREAM_H__
-#define __LIBJET_STDIO_STREAM_H__
+#ifndef LIBJET_STDIO_STREAM_H
+#define LIBJET_STDIO_STREAM_H
 
+/*
+ * MISRA C:2025 Rule 21.6 deviation: this header is internal to the
+ * <stdio.h> implementation of libpok's C library.
+ */
 #include <stdio.h>
 #include <msection.h>
 
@@ -57,7 +69,8 @@ struct stdio_stream
 };
 
 /* Initializer of 'lock' field: free msection (see msection_init()). */
-#define STDIO_STREAM_LOCK_INIT { .owner = JET_THREAD_ID_NONE, .msection_kernel_flags = 0 }
+#define STDIO_STREAM_LOCK_INIT \
+    { .owner = JET_THREAD_ID_NONE, .msection_kernel_flags = 0U }
 
 struct stdio_stream_ops
 {
@@ -72,7 +85,7 @@ struct stdio_stream_ops
 };
 
 /* Callback of type 'emit_character_t' for emit characters into stream.*/
-void stdio_stream_emit_character(int c, void* _stream);
+void stdio_stream_emit_character(char c, void* _stream);
 /* 
  * Complete operation for the stream.
  * 
@@ -105,7 +118,7 @@ struct stdio_operation
 void stdio_operation_begin(struct stdio_operation* op, struct stdio_stream* stream);
 
 /* Callback of type 'emit_character_t' for emit characters into operation.*/
-void stdio_operation_emit_character(int c, void* _op);
+void stdio_operation_emit_character(char c, void* _op);
 
 /*
  * Complete the operation: write remaining characters into the stream

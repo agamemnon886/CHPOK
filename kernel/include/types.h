@@ -16,11 +16,17 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: added pok_time_add(), which
+ * saturates instead of overflowing (times and durations from the user).
  */
 
 
-#ifndef __POK_TYPES_H__
-#define __POK_TYPES_H__
+#ifndef POK_TYPES_H
+#define POK_TYPES_H
 
 #include <uapi/types.h>
 
@@ -31,6 +37,22 @@
 static inline pok_bool_t pok_time_is_infinity(pok_time_t t)
 {
     return (t<0);
+}
+
+/*
+ * time + duration, for a time that is not negative (such as
+ * jet_system_time()), saturated at INT64_MAX, which no time reaches: a
+ * duration from the user can't make the sum overflow (MISRA C:2025
+ * Dir 4.14).
+ */
+static inline pok_time_t pok_time_add(pok_time_t time, pok_time_t duration)
+{
+    pok_time_t sum = INT64_MAX;
+
+    if (duration <= (INT64_MAX - time)) {
+        sum = time + duration;
+    }
+    return sum;
 }
 
 /* 

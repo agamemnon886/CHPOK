@@ -15,10 +15,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: removed the P3041 driver
  * option (PowerPC only).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __POK_SYSPART_CONFIG_H__
-#define __POK_SYSPART_CONFIG_H__
+#ifndef POK_SYSPART_CONFIG_H
+#define POK_SYSPART_CONFIG_H
 
 //#define SYS_NEEDS_DRIVER_NE2000 1
 

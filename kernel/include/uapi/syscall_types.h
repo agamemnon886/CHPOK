@@ -24,10 +24,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-01: added
  * POK_SYSCALL_ERROR_HANDLER_CONFIGURE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __LIBJET_SYSCALL_TYPES_H__
-#define __LIBJET_SYSCALL_TYPES_H__
+#ifndef LIBJET_SYSCALL_TYPES_H
+#define LIBJET_SYSCALL_TYPES_H
 
 #include <config.h>
 
@@ -113,4 +116,4 @@ typedef enum
      POK_SYSCALL_MEMORY_BLOCK_GET_STATUS             = 704,
 } pok_syscall_id_t;
 
-#endif /* __LIBJET_SYSCALL_TYPES_H__ */
+#endif /* LIBJET_SYSCALL_TYPES_H */

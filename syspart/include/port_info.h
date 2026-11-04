@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,14 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; deviations are documented where a
+ * guideline can't be followed.
  */
 
-#ifndef __POK_SYSPART_PORTS_H__
-#define __POK_SYSPART_PORTS_H__
+#ifndef POK_SYSPART_PORTS_H
+#define POK_SYSPART_PORTS_H
 
 #include <middleware/port.h>
 #include <arinc653/types.h>
@@ -29,6 +34,7 @@ typedef struct
 typedef struct
 {
     MESSAGE_SIZE_TYPE           message_size;
+    /* MISRA C:2025 Rule 18.7 deviation: the message follows its size. */
     char                        data[];
 } sys_port_data_t;
 

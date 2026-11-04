@@ -15,10 +15,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/include/arch/interrupt_frame.h to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __JA_X86_64_INTERRUPT_FRAME
-#define __JA_X86_64_INTERRUPT_FRAME
+#ifndef JA_X86_64_INTERRUPT_FRAME
+#define JA_X86_64_INTERRUPT_FRAME
 
 #include <stdint.h>
 
@@ -58,4 +61,4 @@ typedef struct jet_interrupt_context
   uint64_t ss;
 } interrupt_frame;
 
-#endif /* __JA_X86_64_INTERRUPT_FRAME */
+#endif /* JA_X86_64_INTERRUPT_FRAME */

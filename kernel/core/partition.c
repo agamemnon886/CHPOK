@@ -16,15 +16,29 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; operands of the same essential type.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed.
  */
 
 #include <config.h>
 #include <core/partition_arinc.h>
 #include <alloc.h>
 
-#ifdef POK_NEEDS_MONITOR
-extern pok_partition_t partition_monitor;
-#endif /* POK_NEEDS_MONITOR */
+#include <core/sched.h>    // partition_monitor
+
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the allocator returns its
+ * memory as a pointer to void, which is converted to the type of the object
+ * allocated.
+ * MISRA C:2025 Rule 18.4 deviation (this file): partition events are stored
+ * in a ring, addressed by the start of the ring plus an index.
+ */
 
 #ifdef POK_NEEDS_GDB
 extern pok_partition_t partition_gdb;
@@ -32,7 +46,7 @@ extern pok_partition_t partition_gdb;
 
 void pok_partition_init(pok_partition_t* part)
 {
-   if(part->partition_event_max != 0)
+   if(part->partition_event_max != 0U)
    {
       /*
        * DEV: Allocate one element more than required.
@@ -41,7 +55,7 @@ void pok_partition_init(pok_partition_t* part)
        * extracting messages may be concurrent with adding them.
        */ 
       part->partition_events = ja_mem_alloc_aligned(
-         sizeof(*part->partition_events) * (part->partition_event_max + 1),
+         sizeof(*part->partition_events) * (part->partition_event_max + 1U),
          __alignof__(*part->partition_events));
    }
    else
@@ -61,7 +75,7 @@ void for_each_partition(void (*f)(pok_partition_t* part))
 #endif /* POK_NEEDS_GDB */
 
 
-   for(int32_t i = 0; i < pok_partitions_arinc_n; i++)
+   for(uint32_t i = 0U; i < pok_partitions_arinc_n; i++)
    {
       f(&pok_partitions_arinc[i].base_part);
    }
@@ -83,7 +97,7 @@ void pok_partition_add_event(pok_partition_t* part,
     * TODO: This is a result of configuration error, when partition
     * doesn't expect events at all.
     */
-   assert(part->partition_event_max != 0);
+   assert(part->partition_event_max != 0U);
 
    struct jet_partition_event* partition_event = part->partition_events
       + part->partition_event_end;
@@ -92,8 +106,9 @@ void pok_partition_add_event(pok_partition_t* part,
    partition_event->event_type = event_type;
 
    part->partition_event_end++;
-   if(part->partition_event_end > part->partition_event_max)
+   if(part->partition_event_end > part->partition_event_max) {
       part->partition_event_end = 0;
+   }
 
    /*
     * TODO: This is a result of configuration error, when partition
@@ -121,13 +136,15 @@ pok_bool_t pok_partition_get_event(struct jet_partition_event* event)
    uint16_t partition_event_begin = part->partition_event_begin;
    uint16_t partition_event_end = ACCESS_ONCE(part->partition_event_end);
 
-   if(partition_event_end == partition_event_begin) return FALSE;
+   if(partition_event_end == partition_event_begin) {
+      return FALSE;
+   }
 
    *event = ACCESS_ONCE(part->partition_events[partition_event_begin]);
 
    ACCESS_ONCE(part->partition_event_begin) =
       (partition_event_begin == part->partition_event_max) ?
-         0: partition_event_begin + 1;
+         0U: (partition_event_begin + 1U);
 
    return TRUE;
 }

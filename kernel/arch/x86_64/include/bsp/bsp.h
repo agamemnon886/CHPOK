@@ -15,15 +15,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/include/bsp/bsp.h to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: #include
+ * directives come before the declarations.
  */
 
-#ifndef __JA_X86_64_BSP_BSP_H__
-#define __JA_X86_64_BSP_BSP_H__
+#ifndef JA_X86_64_BSP_BSP_H
+#define JA_X86_64_BSP_BSP_H
 
 #include <arch/interrupt_frame.h>
-
-/* Initialize all board-specific stuff. */
-void ja_bsp_init(void);
 
 /*
  * Board-specific header should define:
@@ -36,7 +39,10 @@ void ja_bsp_init(void);
  */
 #include <board/bsp.h>
 
+/* Initialize all board-specific stuff. */
+void ja_bsp_init(void);
+
 /* Called when interrupt from the timer occures. */
 void ja_bsp_process_timer(interrupt_frame* frame);
 
-#endif /* __JA_X86_64_BSP_BSP_H__ */
+#endif /* JA_X86_64_BSP_BSP_H */

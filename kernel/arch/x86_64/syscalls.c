@@ -16,8 +16,12 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/syscalls.c to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: __user/__kuser
+ * are renamed JET_USER/JET_KUSER.
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
  * The modifications are distributed under the POK licence
- * (BSD-2-Clause, see POK-LICENSE).
+ * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
 
 /**
@@ -32,6 +36,12 @@
 #include <core/syscall.h>
 #include <core/uaccess.h>
 #include <interrupt.h>
+
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the jet_user_to_kernel*()
+ * helpers return the kernel address of user memory as a pointer to void,
+ * which is converted to the type of the object the user passed.
+ */
 
 void process_syscall(interrupt_frame* frame)
 {
@@ -54,7 +64,9 @@ void process_syscall(interrupt_frame* frame)
    syscall_id = (pok_syscall_id_t) frame->rax;
 
    // Address of the array of args is passed through rbx register.
-   pok_syscall_args_t* __user syscall_args_user = (void*)frame->rbx;
+   /* MISRA C:2025 Rule 11.6 deviation: the user-space address of the arguments
+    * is passed in a register. */
+   pok_syscall_args_t* JET_USER syscall_args_user = (void*)frame->rbx;
    // Get kernel address of them.
    syscall_args = jet_user_to_kernel_typed(syscall_args_user);
    if(syscall_args == NULL)

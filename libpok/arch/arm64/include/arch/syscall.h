@@ -18,10 +18,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * libpok/arch/x86/include/arch/syscall.h for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants;
+ * macro parameters are parenthesized.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  */
 
-#ifndef __LIBPOK_ARM64_SYSCALL_H__
-#define __LIBPOK_ARM64_SYSCALL_H__
+#ifndef LIBPOK_ARM64_SYSCALL_H
+#define LIBPOK_ARM64_SYSCALL_H
 
 #include <uapi/syscall_types.h>
 #include <types.h>
@@ -43,21 +50,27 @@ typedef struct
 pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args);
 
 #define lja_syscall0(sid) \
-			 lja_do_syscall(sid,&((pok_syscall_args_t){0,0,0,0,0,0}))
+			 lja_do_syscall((sid), \
+	     &((pok_syscall_args_t){0U,0U,0U,0U,0U,0U}))
 
 #define lja_syscall1(sid,arg1) \
-			 lja_do_syscall(sid,&((pok_syscall_args_t){1,arg1,0,0,0,0}))
+			 lja_do_syscall((sid), \
+	     &((pok_syscall_args_t){1U,(arg1),0U,0U,0U,0U}))
 
 #define lja_syscall2(sid,arg1,arg2) \
-			 lja_do_syscall(sid,&((pok_syscall_args_t){2,arg1,arg2,0,0,0}))
+			 lja_do_syscall((sid), \
+	     &((pok_syscall_args_t){2U,(arg1),(arg2),0U,0U,0U}))
 
 #define lja_syscall3(sid,arg1,arg2,arg3) \
-			 lja_do_syscall(sid,&((pok_syscall_args_t){3,arg1,arg2,arg3,0,0}))
+			 lja_do_syscall((sid), \
+	     &((pok_syscall_args_t){3U,(arg1),(arg2),(arg3),0U,0U}))
 
 #define lja_syscall4(sid,arg1,arg2,arg3,arg4) \
-			 lja_do_syscall(sid,&((pok_syscall_args_t){4,arg1,arg2,arg3,arg4,0}))
+			 lja_do_syscall((sid), \
+	     &((pok_syscall_args_t){4U,(arg1),(arg2),(arg3),(arg4),0U}))
 
 #define lja_syscall5(sid,arg1,arg2,arg3,arg4,arg5) \
-			 lja_do_syscall(sid,&((pok_syscall_args_t){5,arg1,arg2,arg3,arg4,arg5}))
+			 lja_do_syscall((sid), \
+	     &((pok_syscall_args_t){5U,(arg1),(arg2),(arg3),(arg4),(arg5)}))
 
-#endif /* __LIBPOK_ARM64_SYSCALL_H__ */
+#endif /* LIBPOK_ARM64_SYSCALL_H */

@@ -17,6 +17,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: GET_PARTITION_STATUS
  * converts the start condition to START_CONDITION_TYPE explicitly and
  * fills NUM_ASSIGNED_CORES.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the status
+ * switches have a default clause and the status syscall is checked.
+ * Modified by Kirill Brazhnikov, 2026-11-03: the parameters have the names of
+ * the declarations in <arinc653/partition.h> (Rule 8.3).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -32,54 +36,65 @@
 
 #include <errno.h>
 #include <utils.h>
+#include <core/assert_os.h>
 
-#define MAP_ERROR(from, to) case (from): *return_code = (to); break
-#define MAP_ERROR_DEFAULT(to) default: *return_code = (to); break
+/*
+ * Each MAP_ERROR()/MAP_ERROR_DEFAULT() expands to a whole switch-clause ending
+ * with break (MISRA C:2025 Rule 16.3); cppcheck's MISRA addon doesn't see the
+ * break inside the macro and reports these switches by mistake.
+ */
+#define MAP_ERROR(from, to) case (from): *RETURN_CODE = (to); break
+#define MAP_ERROR_DEFAULT(to) default: *RETURN_CODE = (to); break
 
-void GET_PARTITION_STATUS (PARTITION_STATUS_TYPE *partition_status,
-                           RETURN_CODE_TYPE      *return_code)
+void GET_PARTITION_STATUS (PARTITION_STATUS_TYPE *PARTITION_STATUS,
+                           RETURN_CODE_TYPE      *RETURN_CODE)
 {
   pok_partition_status_t core_status;
 
-  pok_current_partition_get_status(&core_status);
+  // Can't fail: core_status is a local object.
+  pok_ret_t core_ret = pok_current_partition_get_status(&core_status);
+  assert_os(core_ret == POK_ERRNO_OK);
 
-  partition_status->IDENTIFIER = core_status.id;
-  partition_status->PERIOD = core_status.period;
-  partition_status->DURATION = core_status.duration;
-  partition_status->LOCK_LEVEL = core_status.lock_level;
+  PARTITION_STATUS->IDENTIFIER = core_status.id;
+  PARTITION_STATUS->PERIOD = core_status.period;
+  PARTITION_STATUS->DURATION = core_status.duration;
+  PARTITION_STATUS->LOCK_LEVEL = core_status.lock_level;
 
-#define MAP(from, to) case (from): partition_status->OPERATING_MODE = (to); break
+#define MAP(from, to) \
+    case (from): PARTITION_STATUS->OPERATING_MODE = (to); break
   switch (core_status.mode) {
     MAP(POK_PARTITION_MODE_IDLE, IDLE);
     MAP(POK_PARTITION_MODE_NORMAL, NORMAL);
     MAP(POK_PARTITION_MODE_INIT_COLD, COLD_START);
     MAP(POK_PARTITION_MODE_INIT_WARM, WARM_START);
+    default: assert_os(FALSE); break;   // the kernel has no other modes
   }
 #undef MAP
 
-#define MAP(from, to) case (from): partition_status->START_CONDITION = (to); break
+#define MAP(from, to) \
+    case (from): PARTITION_STATUS->START_CONDITION = (to); break
   switch (core_status.start_condition) {
     MAP(POK_START_CONDITION_PARTITION_RESTART, PARTITION_RESTART);
     MAP(POK_START_CONDITION_HM_MODULE_RESTART, HM_MODULE_RESTART);
     MAP(POK_START_CONDITION_HM_PARTITION_RESTART, HM_PARTITION_RESTART);
     MAP(POK_START_CONDITION_NORMAL_START, NORMAL_START);
-    default: partition_status->START_CONDITION = NORMAL_START; break;
+    default: PARTITION_STATUS->START_CONDITION = NORMAL_START; break;
   }
 #undef MAP
 
   // The kernel is single-core: each partition runs on one core.
-  partition_status->NUM_ASSIGNED_CORES = 1;
+  PARTITION_STATUS->NUM_ASSIGNED_CORES = 1;
 
-  *return_code = NO_ERROR;
+  *RETURN_CODE = NO_ERROR;
 }
 
-void SET_PARTITION_MODE (OPERATING_MODE_TYPE operating_mode,
-                         RETURN_CODE_TYPE *return_code)
+void SET_PARTITION_MODE (OPERATING_MODE_TYPE OPERATING_MODE,
+                         RETURN_CODE_TYPE *RETURN_CODE)
 {
   pok_partition_mode_t core_mode;
   pok_ret_t            core_ret;
 
-   switch (operating_mode)
+   switch (OPERATING_MODE)
    {
       case IDLE:
          core_mode = POK_PARTITION_MODE_IDLE;
@@ -98,7 +113,7 @@ void SET_PARTITION_MODE (OPERATING_MODE_TYPE operating_mode,
          break;
 
       default:
-         *return_code = INVALID_PARAM;
+         *RETURN_CODE = INVALID_PARAM;
          return;
    }
 

@@ -23,15 +23,25 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; deviations are documented where a
+ * guideline can't be followed.
  */
 
 /* Memory-mapped device registers (arm64 has no I/O ports). */
 
-#ifndef __JET_ARM64_IOPORTS_H__
-#define __JET_ARM64_IOPORTS_H__
+#ifndef JET_ARM64_IOPORTS_H
+#define JET_ARM64_IOPORTS_H
 
 #include <stdint.h>
 
+/*
+ * MISRA C:2025 Rule 11.4 deviation (the functions below): a device register
+ * is accessed at its physical address, which is converted to a pointer to
+ * volatile. Dir 1.2 and Dir 4.3: the memory barriers are inline assembly,
+ * a GNU extension, kept in these small functions.
+ */
 static inline uint32_t ja_mmio_read32(uintptr_t addr)
 {
     uint32_t val = *(volatile uint32_t*)addr;
@@ -51,4 +61,4 @@ static inline void ja_mmio_write8(uintptr_t addr, uint8_t val)
     *(volatile uint8_t*)addr = val;
 }
 
-#endif /* __JET_ARM64_IOPORTS_H__ */
+#endif /* JET_ARM64_IOPORTS_H */

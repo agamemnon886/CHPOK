@@ -23,12 +23,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants.
  */
 
 /* QEMU 'virt' machine (qemu-system-aarch64 -M virt -m 1G). */
 
-#ifndef __JET_ARM64_QEMU_BSP_H__
-#define __JET_ARM64_QEMU_BSP_H__
+#ifndef JET_ARM64_QEMU_BSP_H
+#define JET_ARM64_QEMU_BSP_H
 
 /* Devices occupy the first GiB of the physical address space. */
 #define BOARD_DEVICE_BASE 0x00000000ULL
@@ -50,6 +53,6 @@
 #define BOARD_RTC_BASE    0x09010000ULL /* PL031 */
 
 /* PPI of the EL1 virtual timer. */
-#define BOARD_IRQ_VTIMER  27
+#define BOARD_IRQ_VTIMER  27U
 
-#endif /* __JET_ARM64_QEMU_BSP_H__ */
+#endif /* JET_ARM64_QEMU_BSP_H */

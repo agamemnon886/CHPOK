@@ -23,6 +23,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
  */
 
 #include <arch/syscall.h>
@@ -33,6 +39,11 @@
  *
  *   svc #0, x0 - syscall id, x1 - address of the arguments.
  *   Result is returned in x0, other registers are preserved.
+ */
+/*
+ * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation: the system call instruction
+ * is GNU inline assembly, isolated in this function. Rule 11.4: the address
+ * of the arguments is passed in a register, as an integer.
  */
 pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args)
 {

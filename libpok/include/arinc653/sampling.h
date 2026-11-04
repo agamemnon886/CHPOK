@@ -12,6 +12,14 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters and the message parameter of the send or write service are
+ * const (they are only read), so callers can pass string literals and
+ * const data.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -46,7 +54,7 @@ typedef struct
 } SAMPLING_PORT_STATUS_TYPE; 
  
 extern void CREATE_SAMPLING_PORT ( 
-       /*in */ SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME, 
+       /*in */ const SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME, 
        /*in */ MESSAGE_SIZE_TYPE          MAX_MESSAGE_SIZE, 
        /*in */ PORT_DIRECTION_TYPE        PORT_DIRECTION, 
        /*in */ SYSTEM_TIME_TYPE           REFRESH_PERIOD, 
@@ -55,7 +63,7 @@ extern void CREATE_SAMPLING_PORT (
  
 extern void WRITE_SAMPLING_MESSAGE ( 
        /*in */ SAMPLING_PORT_ID_TYPE      SAMPLING_PORT_ID, 
-       /*in */ MESSAGE_ADDR_TYPE          MESSAGE_ADDR,     /* by reference */ 
+       /*in */ const APEX_BYTE *         MESSAGE_ADDR,     /* by reference */ 
        /*in */ MESSAGE_SIZE_TYPE          LENGTH, 
        /*out*/ RETURN_CODE_TYPE           *RETURN_CODE ); 
  
@@ -67,7 +75,7 @@ extern void READ_SAMPLING_MESSAGE (
        /*out*/ RETURN_CODE_TYPE           *RETURN_CODE ); 
  
 extern void GET_SAMPLING_PORT_ID ( 
-       /*in */ SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME, 
+       /*in */ const SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME, 
        /*out*/ SAMPLING_PORT_ID_TYPE      *SAMPLING_PORT_ID, 
        /*out*/ RETURN_CODE_TYPE           *RETURN_CODE ); 
  

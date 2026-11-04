@@ -15,15 +15,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * kernel/arch/x86/include/arch/space.h for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
 /* (Memory) space. */
 
-#ifndef __JET_ARM64_SPACE_H__
-#define __JET_ARM64_SPACE_H__
+#ifndef JET_ARM64_SPACE_H
+#define JET_ARM64_SPACE_H
 
 #include <stdint.h>
 
 typedef uintptr_t jet_ustack_t;
 
-#endif /* __JET_ARM64_SPACE_H__ */
+#endif /* JET_ARM64_SPACE_H */

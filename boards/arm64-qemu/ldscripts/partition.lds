@@ -13,11 +13,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * boards/x86-qemu/ldscripts/partition.lds for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the partition
+ * entry point is pok_partition_start (__pok_partition_start was a
+ * reserved identifier).
  */
 
 OUTPUT_FORMAT("elf64-littleaarch64");
 OUTPUT_ARCH("aarch64")
-ENTRY(__pok_partition_start)
+ENTRY(pok_partition_start)
 
 SECTIONS
 {

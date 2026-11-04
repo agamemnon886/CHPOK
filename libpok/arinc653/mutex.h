@@ -15,10 +15,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-01: derived from
  * libpok/arinc653/semaphore.h for the ARINC 653 mutexes.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __LIBJET_ARINC_MUTEX_H__
-#define __LIBJET_ARINC_MUTEX_H__
+#ifndef LIBJET_ARINC_MUTEX_H
+#define LIBJET_ARINC_MUTEX_H
 
 #include <config.h>
 
@@ -66,4 +69,4 @@ pok_ret_t arinc_mutex_set_priority(pok_thread_id_t thread, PRIORITY_TYPE priorit
  */
 extern pok_thread_id_t arinc_preemption_lock_holder;
 
-#endif /* __LIBJET_ARINC_MUTEX_H__ */
+#endif /* LIBJET_ARINC_MUTEX_H */

@@ -20,6 +20,23 @@
  * Modified by Kirill Brazhnikov, 2026-11-01: added the
  * POK_SYSCALL_ERROR_HANDLER_CONFIGURE syscall, used by
  * CONFIGURE_ERROR_HANDLER.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed. Parameters named "time"
+ * are renamed (libpok defines the function time()), and the parameters of
+ * pok_thread_delayed_start() have the names of its definition.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed. In the kernel, the
+ * syscall implementations are no longer declared again next to their
+ * wrappers (Rule 8.5).
+ */
+
+/*
+ * MISRA C:2025 Rule 11.4, Rule 11.6 and Rule 10.5 deviation: the wrappers
+ * pass their arguments to the kernel as uintptr_t (see pok_syscall_args_t),
+ * so pointers and Boolean values are converted to integers; the kernel
+ * converts them back.
  */
 
 //!
@@ -60,12 +77,12 @@ SYSCALL_DECLARE(POK_SYSCALL_THREAD_CREATE, pok_thread_create,
 //! User function accepts int64_t arg, checks that it fits into int32_t and transforms it.
 #ifdef POK_NEEDS_THREAD_SLEEP
 SYSCALL_DECLARE(POK_SYSCALL_THREAD_SLEEP, pok_thread_sleep,
-   const pok_time_t*, time)
+   const pok_time_t*, duration)
 #endif
 
 #ifdef POK_NEEDS_THREAD_SLEEP_UNTIL
 SYSCALL_DECLARE(POK_SYSCALL_THREAD_SLEEP_UNTIL, pok_thread_sleep_until,
-   const pok_time_t*, time)
+   const pok_time_t*, until)
 #endif
 //! User name - pok_thread_period
 SYSCALL_DECLARE(POK_SYSCALL_THREAD_PERIOD, pok_sched_end_period)
@@ -73,7 +90,7 @@ SYSCALL_DECLARE(POK_SYSCALL_THREAD_PERIOD, pok_sched_end_period)
 #if defined (POK_NEEDS_THREAD_SUSPEND) || defined (POK_NEEDS_ERROR_HANDLING)
 //! User function accepts int64_t arg, checks that it fits into int32_t and transforms it.
 SYSCALL_DECLARE(POK_SYSCALL_THREAD_SUSPEND, pok_thread_suspend,
-   const pok_time_t*, time)
+   const pok_time_t*, timeout)
 #endif
 
 //! User name - pok_thread_status
@@ -85,8 +102,8 @@ SYSCALL_DECLARE(POK_SYSCALL_THREAD_STATUS, pok_thread_get_status,
 
 //! User function accepts int64_t arg, checks that it fits into int32_t and transforms it.
 SYSCALL_DECLARE(POK_SYSCALL_THREAD_DELAYED_START, pok_thread_delayed_start,
-   pok_thread_id_t, thread_id,
-   const pok_time_t*, time)
+   pok_thread_id_t, id,
+   const pok_time_t*, delay_time)
 
 SYSCALL_DECLARE(POK_SYSCALL_THREAD_SET_PRIORITY, pok_thread_set_priority,
    pok_thread_id_t, thread_id,

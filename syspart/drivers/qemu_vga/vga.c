@@ -16,6 +16,14 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; discarded results are cast to void; functions
+ * without parameters are declared with (void); file-local definitions
+ * have internal linkage; essentially Boolean conditions; U suffixes for
+ * unsigned constants; operands of mixed precedence are parenthesized;
+ * deviations are documented where a guideline can't be followed; file-
+ * local objects are static.
  */
 
 #include <pci.h>
@@ -27,12 +35,18 @@
 #include "vbe.h"
 
 #include <fb.h>
-struct pci_dev vga_dev;
-char initialized = 0;
+/*
+ * MISRA C:2025 Rule 11.4 and Rule 11.6 deviation (this file): the device's
+ * registers, ROM and frame buffer are at addresses that the PCI
+ * configuration gives as integers.
+ */
+
+static struct pci_dev vga_dev;
+static int32_t initialized = 0;
 
 
 
-void vbe_write(uint16_t reg, uint16_t val)
+static void vbe_write(uint16_t reg, uint16_t val)
 {
     iowrite16(reg, (void *)pci_convert_legacy_port(&vga_dev, VBE_DISPI_IOPORT_INDEX));
     iowrite16(val, (void *)pci_convert_legacy_port(&vga_dev, VBE_DISPI_IOPORT_DATA));
@@ -44,28 +58,32 @@ void vbe_write(uint16_t reg, uint16_t val)
 #define SCREEN_HEIGHT 600
 #define SCREEN_BPP VBE_DISPI_BPP_32
 
-void vga_init()
+void vga_init(void)
 {
-    printf("qemu-vga: initializing\n");
+    (void) printf("qemu-vga: initializing\n");
 
     pci_get_dev_by_bdf(0, 1, 0, &vga_dev);
-    if (vga_dev.vendor_id == 0xFFFF) {
-        printf("qemu-vga: have not found vga device\n");
+    if (vga_dev.vendor_id == 0xFFFFU) {
+        (void) printf("qemu-vga: have not found vga device\n");
         return;
     }
 
-    if (vga_dev.resources[PCI_RESOURCE_BAR0].addr == 0) {
-        printf("qemu-vga: BAR0 not mapped\n");
+    if (vga_dev.resources[PCI_RESOURCE_BAR0].addr == 0U) {
+        (void) printf("qemu-vga: BAR0 not mapped\n");
         return;
     }
 
-    if (vga_dev.resources[PCI_RESOURCE_ROM].addr == 0) {
-        printf("qemu-vga: ROM not mapped\n");
+    if (vga_dev.resources[PCI_RESOURCE_ROM].addr == 0U) {
+        (void) printf("qemu-vga: ROM not mapped\n");
         return;
     }
 
-    printf("qemu-vga: bios[0] 0x%x\n", ioread8((uint8_t *)vga_dev.resources[PCI_RESOURCE_ROM].addr));
-    printf("qemu-vga: bios[1] 0x%x\n", ioread8((uint8_t *)vga_dev.resources[PCI_RESOURCE_ROM].addr + 1));
+    (void) printf(
+        "qemu-vga: bios[0] 0x%x\n",
+            ioread8((uint8_t *)vga_dev.resources[PCI_RESOURCE_ROM].addr));
+    (void) printf(
+        "qemu-vga: bios[1] 0x%x\n",
+            ioread8((uint8_t *)vga_dev.resources[PCI_RESOURCE_ROM].addr + 1));
 
     vbe_write(VBE_DISPI_INDEX_ENABLE, 0);
     vbe_write(VBE_DISPI_INDEX_XRES, SCREEN_WIDTH);
@@ -82,22 +100,25 @@ void vga_init()
 
 uint32_t rgba_to_argb(uint32_t rgba_color)
 {
-    return rgba_color>>8 | (rgba_color&0xff)<<24;
+    return (rgba_color>>8) | ((rgba_color&0xffU)<<24);
 }
 
 
 #define DEFAULT_FB_DESCRIPTOR 1
 
-int32_t first = 1;
-int32_t fb_initialized = 0;
+static int32_t first = 1;
+static int32_t fb_initialized = 0;
 
 int32_t uwrm_scm_get_direct_fb(struct uwrm_scm_direct_fb * fb)
 {
-    if (fb_initialized)
+    if (fb_initialized != 0) {
         return UWRM_ERROR;
+    }
     fb_initialized = 1;
     fb->hfb = DEFAULT_FB_DESCRIPTOR;
-    fb->back_surface = (uint32_t *)vga_dev.resources[PCI_RESOURCE_BAR0].addr + SCREEN_WIDTH*SCREEN_HEIGHT;
+    fb->back_surface =
+        (uint32_t *)vga_dev.resources[PCI_RESOURCE_BAR0].addr
+            + (SCREEN_WIDTH*SCREEN_HEIGHT);
     fb->front_surface = (void *) vga_dev.resources[PCI_RESOURCE_BAR0].addr;
     fb->width = SCREEN_WIDTH;
     fb->height = SCREEN_HEIGHT;
@@ -108,8 +129,9 @@ int32_t uwrm_scm_get_direct_fb(struct uwrm_scm_direct_fb * fb)
 
 int32_t uwrm_scm_fb_swap(struct uwrm_scm_direct_fb *fb)
 {
-    if (fb->hfb != DEFAULT_FB_DESCRIPTOR)
+    if (fb->hfb != DEFAULT_FB_DESCRIPTOR) {
         return UWRM_ERROR;
+    }
 
     void *tmp = fb->front_surface;
     fb->front_surface = fb->back_surface;

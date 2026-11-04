@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -14,6 +15,10 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
 # See the GNU General Public License version 3 for more details.
+#
+# Modified by Kirill Brazhnikov, 2026-11-03: the generator runs with
+# Python 3, and the generated table source includes its header, which
+# declares the tables (MISRA C:2025 Rule 8.4).
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -62,7 +67,7 @@ class C99Locale:
 
         elif type(test) is dict:
             # Operation (NOT or AND)
-            op = test.keys() [0]
+            op = list(test.keys())[0]
             if op == 'NOT':
                 return not self.test_char(c, test[op])
             elif op == 'AND':
@@ -167,7 +172,11 @@ if libpok_env.get('jdeveloper'):
         with open(source.path) as f:
             defs = yaml.load(f, Loader=yaml.SafeLoader)
 
-        return dict(locale = C99Locale(defs['name'], defs))
+        # ctype_<l>.yaml generates ctype_tables_<l>.c and .h.
+        lname = os.path.splitext(os.path.basename(source.path))[0]
+        lname = lname[len('ctype_'):]
+        return dict(locale = C99Locale(defs['name'], defs),
+            header = 'ctype_tables_' + lname + '.h')
 
     lfiles = []
     for l in locales:

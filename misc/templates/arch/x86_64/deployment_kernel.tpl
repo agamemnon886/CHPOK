@@ -19,9 +19,13 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
  * the generated code are replaced with the fixed-width types from
  * <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: ja_spaces_n is a
+ * uint32_t.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: <arch/deployment.h>
+ * is included at the top of deployment_kernel.tpl (Rule 20.1).
  */
-
-#include <arch/deployment.h>
 
 struct ja_x86_64_space ja_spaces[{{conf.spaces | length}}] =
 {
@@ -36,4 +40,4 @@ struct ja_x86_64_space ja_spaces[{{conf.spaces | length}}] =
 {%endfor%}
 };
 
-int32_t ja_spaces_n = {{conf.spaces | length}};
+uint32_t ja_spaces_n = {{conf.spaces | length}};

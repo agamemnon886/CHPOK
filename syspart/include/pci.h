@@ -22,6 +22,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: U suffixes for
+ * unsigned constants; the register masks and flags are 32-bit unsigned
+ * constants.
  */
 
 
@@ -62,20 +66,20 @@
 #define PCI_BASE_ADDRESS_4      0x20    /* 32 bits */
 #define PCI_BASE_ADDRESS_5      0x24    /* 32 bits */
 
-#define  PCI_BASE_ADDRESS_SPACE         0x01    /* 0 = memory, 1 = I/O */
-#define  PCI_BASE_ADDRESS_SPACE_IO      0x01
-#define  PCI_BASE_ADDRESS_SPACE_MEMORY  0x00
-#define  PCI_BASE_ADDRESS_MEM_TYPE_MASK 0x06
-#define  PCI_BASE_ADDRESS_MEM_TYPE_32   0x00    /* 32 bit address */
-#define  PCI_BASE_ADDRESS_MEM_TYPE_1M   0x02    /* Below 1M [obsolete] */
-#define  PCI_BASE_ADDRESS_MEM_TYPE_64   0x04    /* 64 bit address */
-#define  PCI_BASE_ADDRESS_MEM_PREFETCH  0x08    /* prefetchable? */
-#define  PCI_BASE_ADDRESS_MEM_MASK      (~0x0fUL)
-#define  PCI_BASE_ADDRESS_IO_MASK       (~0x03UL)
+#define  PCI_BASE_ADDRESS_SPACE         0x01U   /* 0 = memory, 1 = I/O */
+#define  PCI_BASE_ADDRESS_SPACE_IO      0x01U
+#define  PCI_BASE_ADDRESS_SPACE_MEMORY  0x00U
+#define  PCI_BASE_ADDRESS_MEM_TYPE_MASK 0x06U
+#define  PCI_BASE_ADDRESS_MEM_TYPE_32   0x00U   /* 32 bit address */
+#define  PCI_BASE_ADDRESS_MEM_TYPE_1M   0x02U   /* Below 1M [obsolete] */
+#define  PCI_BASE_ADDRESS_MEM_TYPE_64   0x04U   /* 64 bit address */
+#define  PCI_BASE_ADDRESS_MEM_PREFETCH  0x08U   /* prefetchable? */
+#define  PCI_BASE_ADDRESS_MEM_MASK      0xfffffff0U
+#define  PCI_BASE_ADDRESS_IO_MASK       0xfffffffcU
 
 #define PCI_ROM_ADDRESS         0x30    /* Bits 31..11 are address, 10..1 reserved */
-#define  PCI_ROM_ADDRESS_ENABLE 0x01
-#define PCI_ROM_ADDRESS_MASK    (~0x7ffUL)
+#define  PCI_ROM_ADDRESS_ENABLE 0x01U
+#define PCI_ROM_ADDRESS_MASK    0xfffff800U
 
 /*
  * Useful defines...
@@ -85,8 +89,8 @@
 #  define PCI_FN_MAX		8
 
 /* Command regs*/
-#define  PCI_COMMAND_IO           0x1     /* Enable response in I/O space */
-#define  PCI_COMMAND_MEMORY       0x2     /* Enable response in Memory space */
+#define  PCI_COMMAND_IO           0x1U    /* Enable response in I/O space */
+#define  PCI_COMMAND_MEMORY       0x2U    /* Enable response in Memory space */
 #define  PCI_COMMAND_MASTER       0x4     /* Enable bus mastering */
 #define  PCI_COMMAND_SPECIAL      0x8     /* Enable response to special cycles */
 #define  PCI_COMMAND_INVALIDATE   0x10    /* Use memory write and invalidate */

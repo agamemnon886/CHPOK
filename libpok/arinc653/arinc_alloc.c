@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; internal linkage for file-local definitions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
  */
 
 #include "arinc_alloc.h"
@@ -19,7 +26,12 @@
 #include <arinc_config.h>
 #include <utils.h>
 
-size_t arinc_intra_heap_size_current = 0;
+/*
+ * MISRA C:2025 Rule 18.4 deviation (this file): memory is carved out of the
+ * heap by adding offsets to its start.
+ */
+
+static size_t arinc_intra_heap_size_current = 0;
 
 /* 
  * Allocate memory of given size.
@@ -32,7 +44,9 @@ void* arinc_alloc(size_t size, size_t alignment)
     size_t size_start = ALIGN(arinc_intra_heap_size_current, alignment);
     size_t size_end = size_start + size;
 
-    if(size_end > arinc_config_messages_memory_size) return NULL;
+    if(size_end > arinc_config_messages_memory_size) {
+        return NULL;
+    }
 
     arinc_intra_heap_size_current = size_end;
 
@@ -42,7 +56,6 @@ void* arinc_alloc(size_t size, size_t alignment)
 /*
  * State of the arinc allocator.
  */
-typedef size_t arinc_allocator_state;
 
 /*
  * Return current state of the allocator.

@@ -16,6 +16,16 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: __user/__kuser
+ * are renamed JET_USER/JET_KUSER; braces around all if/else/loop bodies;
+ * essentially Boolean conditions; U suffixes for unsigned constants;
+ * flag_test_and_reset() takes the flag's address.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: the backward
+ * goto is replaced by a loop; operands of mixed precedence are
+ * parenthesized; deviations are documented where a guideline can't be
+ * followed. Long lines are wrapped at 80 columns.
  */
 
 #include <core/sched_arinc.h>
@@ -28,6 +38,16 @@
 #include <asp/arch.h>
 #include <core/syscall.h>
 #include <core/uaccess.h>
+
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the jet_user_to_kernel*()
+ * helpers return the kernel address of user memory as a pointer to void,
+ * which is converted to the type of the object the user passed.
+ * MISRA C:2025 Rule 18.4 deviation (this file): thread and object IDs are
+ * the index of an element, computed as the difference between its address
+ * and the start of its array, and a thread is found from its ID the same
+ * way.
+ */
 
 static void thread_start_func(void)
 {
@@ -43,7 +63,7 @@ void sched_arinc_start(void)
 {
     pok_partition_arinc_t* part = current_partition_arinc;
 
-    part->idle_sp = 0;
+    part->idle_sp = NULL;
 
     pok_thread_t* thread_main
         = &part->threads[POK_PARTITION_ARINC_MAIN_THREAD_ID];
@@ -76,9 +96,10 @@ static void port_queuing_fired(pok_port_queuing_t* port_queuing)
             pok_thread_t* t;
             pok_message_size_t message_size; // Just for function's call.
 
-            if(!pok_channel_queuing_r_get_message(port_queuing->channel,
-                &message_size, TRUE))
+            if((pok_channel_queuing_r_get_message(port_queuing->channel,
+                &message_size, TRUE)) == NULL) {
                 break; // wait again
+            }
 
             t = pok_thread_wq_wake_up(&port_queuing->waiters);
 
@@ -91,8 +112,10 @@ static void port_queuing_fired(pok_port_queuing_t* port_queuing)
         {
             pok_thread_t* t;
 
-            if(!pok_channel_queuing_s_get_message(port_queuing->channel, TRUE))
+            if(pok_channel_queuing_s_get_message(port_queuing->channel,
+                                                 TRUE) == NULL) {
                 break; // wait again
+            }
 
             t = pok_thread_wq_wake_up(&port_queuing->waiters);
 
@@ -122,18 +145,20 @@ static pok_thread_t* select_thread(pok_thread_t* selected_thread)
     pok_partition_arinc_t* part = current_partition_arinc;
 
     part->thread_selected = selected_thread;
-    if(part->waiting_section)
+    if(part->waiting_section != NULL)
     {
         // Clear waiting section for possibly set it after.
         part->waiting_section->msection_kernel_flags = 0;
         part->waiting_section = NULL;
     }
 
-    if(selected_thread == NULL) return NULL;
+    if(selected_thread == NULL) {
+        return NULL;
+    }
 
     pok_thread_t* new_thread = selected_thread;
 
-    if(new_thread->relations_stop.donate_target)
+    if(new_thread->relations_stop.donate_target != NULL)
     {
         /* We should wait for other thread to stop. */
         new_thread = new_thread->relations_stop.donate_target;
@@ -148,7 +173,8 @@ static pok_thread_t* select_thread(pok_thread_t* selected_thread)
 
         do {
             pok_thread_id_t owner = waiting_section->owner;
-            if(owner == JET_THREAD_ID_NONE || owner == (new_thread - part->threads))
+            if((owner == JET_THREAD_ID_NONE)
+               || (owner == (new_thread - part->threads)))
             {
                 waiting_section->owner = (new_thread - part->threads);
                 new_thread->msection_entering = NULL;
@@ -166,13 +192,13 @@ static pok_thread_t* select_thread(pok_thread_t* selected_thread)
 
             waiting_section = new_thread->msection_entering;
 
-            assert(n_attempts);
+            assert(n_attempts != 0);
             n_attempts--;
 
         } while(waiting_section != NULL);
     }
 
-    if(part->waiting_section)
+    if(part->waiting_section != NULL)
     {
         part->waiting_section->msection_kernel_flags = MSECTION_KERNEL_FLAG_RESCHED_AFTER_LEAVE;
     }
@@ -185,50 +211,59 @@ static void sched_arinc(void)
 {
     pok_partition_arinc_t* part = current_partition_arinc;
 
-again:
-    if(flag_test_and_reset(part->base_part.is_event))
-    {
-        struct jet_partition_event event;
+    pok_bool_t recheck;
 
-        while(pok_partition_get_event(&event))
+    do {
+        recheck = FALSE;
+        if(flag_test_and_reset(&part->base_part.is_event))
         {
-            switch(event.event_type) {
-                case JET_PARTITION_EVENT_TYPE_TIMER:
-                    delayed_event_queue_check(&part->partition_delayed_events, jet_system_time());
-                    break;
-                case JET_PARTITION_EVENT_TYPE_PORT_SEND_AVAILABLE:
-                case JET_PARTITION_EVENT_TYPE_PORT_RECEIVE_AVAILABLE:
-                    port_queuing_fired(&part->ports_queuing[event.handler_id]);
-                    break;
-                default:
-                    unreachable();
+            struct jet_partition_event event;
+
+            while(pok_partition_get_event(&event))
+            {
+                switch(event.event_type) {
+                    case JET_PARTITION_EVENT_TYPE_TIMER:
+                        delayed_event_queue_check(
+                            &part->partition_delayed_events, jet_system_time());
+                        break;
+                    case JET_PARTITION_EVENT_TYPE_PORT_SEND_AVAILABLE:
+                    case JET_PARTITION_EVENT_TYPE_PORT_RECEIVE_AVAILABLE:
+                        port_queuing_fired(
+                            &part->ports_queuing[event.handler_id]);
+                        break;
+                    default:
+                        unreachable();
+                }
             }
         }
-    }
 
-    // Update timer.
-    pok_time_t timer_new = delayed_event_queue_get_check_time(
-        &part->partition_delayed_events);
+        // Update timer.
+        pok_time_t timer_new = delayed_event_queue_get_check_time(
+            &part->partition_delayed_events);
 
-    pok_partition_set_timer(&part->base_part, timer_new);
+        pok_partition_set_timer(&part->base_part, timer_new);
 
-    if(timer_new != 0) {
-        /* 
-         * Check wether timer is not expired before we set it.
-         * 
-         * Such a way we eliminate consiquenses of possible race between
-         * setting the timer and checking it in the global scheduler.
-         */
-        pok_time_t time_now = jet_system_time();
-        if(time_now >= timer_new) {
-            // Recheck delayed events.
-            delayed_event_queue_check(&part->partition_delayed_events, time_now);
-            // Need to redrain events before setting timer again.
-            goto again;
+        if(timer_new != 0) {
+            /* 
+             * Check wether timer is not expired before we set it.
+             * 
+             * Such a way we eliminate consiquenses of possible race between
+             * setting the timer and checking it in the global scheduler.
+             */
+            pok_time_t time_now = jet_system_time();
+            if(time_now >= timer_new) {
+                // Recheck delayed events.
+                delayed_event_queue_check(&part->partition_delayed_events,
+                                          time_now);
+                // Need to redrain events before setting timer again.
+                recheck = TRUE;
+            }
         }
-    }
+    } while(recheck);
 
-    if(!flag_test_and_reset(part->sched_local_recheck_needed)) return;
+    if(!flag_test_and_reset(&part->sched_local_recheck_needed)) {
+        return;
+    }
 
     part->base_part.is_error_handler = FALSE; // Will be set if needed.
 
@@ -253,7 +288,8 @@ again:
         }
     }
 #ifdef POK_NEEDS_ERROR_HANDLING
-    else if(part->thread_error && part->thread_error->state != POK_STATE_STOPPED)
+    else if((part->thread_error != NULL)
+            && (part->thread_error->state != POK_STATE_STOPPED))
     {
         // Continue error handler
         new_thread = part->thread_error;
@@ -272,7 +308,7 @@ again:
         part->base_part.is_error_handler = TRUE;
     }
 #endif
-    else if(part->lock_level)
+    else if(part->lock_level != 0U)
     {
         new_thread = part->thread_locked;
     }
@@ -290,9 +326,13 @@ again:
 
     if(new_thread == old_thread)
     {
-        if(new_thread == NULL) return; // "do_nothing" continues
+        if(new_thread == NULL) {
+            return; // "do_nothing" continues
+        }
 
-        if(new_thread->sp != 0) return; // Thread continues its execution.
+        if(new_thread->sp != NULL) {
+            return; // Thread continues its execution.
+        }
 
         /* 
          * None common thread can restart itself: someone *other* should
@@ -313,13 +353,15 @@ again:
     // Switch between different threads
     part->thread_current = new_thread;
     // Update kernel shared data
-    if(new_thread)
+    if(new_thread != NULL) {
         part->kshd->current_thread_id = new_thread - part->threads;
+    }
 
-    struct jet_context** old_sp = old_thread? &old_thread->sp : &part->idle_sp;
+    struct jet_context** old_sp = (old_thread != NULL)? &old_thread->sp
+        : &part->idle_sp;
     struct jet_context* new_sp;
 
-    if(new_thread)
+    if(new_thread != NULL)
     {
         new_sp = new_thread->sp;
         if(new_sp == NULL)
@@ -345,7 +387,9 @@ again:
      * If old_thread->sp is 0, this should be processed upon
      * returning to given thread, not now.
      */
-    if(*old_sp == NULL) old_sp = NULL;
+    if(*old_sp == NULL) {
+        old_sp = NULL;
+    }
 
 #ifdef POK_NEEDS_GDB
     if(old_thread && part->base_part.entry_sp_user)
@@ -360,7 +404,7 @@ again:
 #endif /* POK_NEEDS_GDB */
     part->base_part.fp_store_current = new_thread->fp_store;
 
-    if(old_sp)
+    if(old_sp != NULL)
     {
         jet_context_switch(old_sp, new_sp);
     }
@@ -408,7 +452,7 @@ void pok_sched_arinc_on_event(void)
     pok_partition_arinc_t* part = current_partition_arinc;
     pok_thread_t* thread_current = part->thread_current;
 
-    if(thread_current)
+    if(thread_current != NULL)
     {
         //Update information according to current kernel shared data.
         struct jet_thread_shared_data* tshd_current = part->kshd->tshd
@@ -416,10 +460,10 @@ void pok_sched_arinc_on_event(void)
 
         if(tshd_current->msection_entering != NULL)
         {
-            struct msection * __kuser msection_entering =
+            struct msection * JET_KUSER msection_entering =
                 jet_user_to_kernel_typed(tshd_current->msection_entering);
 
-            assert_os(msection_entering);
+            assert_os(msection_entering != NULL);
 
             thread_current->msection_entering = msection_entering;
         }
@@ -443,11 +487,13 @@ pok_ret_t jet_resched(void)
 
     pok_preemption_local_disable();
 
-    if(part->waiting_section != NULL && part->waiting_section->owner == JET_THREAD_ID_NONE)
+    if((part->waiting_section != NULL)
+       && (part->waiting_section->owner == JET_THREAD_ID_NONE)) {
         pok_sched_local_invalidate(); // msecation we await for has been released.
+    }
 
-    if(thread_current->relations_stop.first_donator != NULL
-        && tshd_current->msection_count == 0)
+    if((thread_current->relations_stop.first_donator != NULL)
+        && (tshd_current->msection_count == 0U))
     {
         // It is safe to terminate thread now and resume all its donators.
         pok_thread_t* donator = thread_current->relations_stop.first_donator;
@@ -460,12 +506,13 @@ pok_ret_t jet_resched(void)
             pok_thread_t* next_donator;
 
             donator->relations_stop.donate_target = NULL;
-            if(donator == part->thread_selected)
+            if(donator == part->thread_selected) {
                 pok_sched_local_invalidate();
+            }
 
             next_donator = donator->relations_stop.next_donator;
 
-            if(donator->relations_stop.first_donator)
+            if(donator->relations_stop.first_donator != NULL)
             {
                 donator->relations_stop.first_donator = NULL;
                 thread_stop(donator); // Donator itself needs to be terminated.

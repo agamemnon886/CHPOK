@@ -16,10 +16,14 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; __user/__kuser are renamed
+ * JET_USER/JET_KUSER.
  */
 
-#ifndef __JET_CONS_H__
-#define __JET_CONS_H__
+#ifndef JET_CONS_H
+#define JET_CONS_H
 
 #include <types.h>
 #include <asp/cons.h>
@@ -82,7 +86,7 @@ size_t jet_console_write_debug(const char* s, size_t length);
 
 
 /* Syscall for write into main console from user space. */
-pok_ret_t jet_console_write_user(const char* __user s, size_t length);
+pok_ret_t jet_console_write_user(const char* JET_USER s, size_t length);
 
 
 // Functions for backward compatibility. TODO: Remove them and their usage.
@@ -96,4 +100,4 @@ int32_t read_serial_0(void);
 int32_t data_to_read_1(void);
 int32_t read_serial_1(void);
 
-#endif /* __JET_CONS_H__ */
+#endif /* JET_CONS_H */

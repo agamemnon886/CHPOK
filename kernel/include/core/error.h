@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; essentially Boolean conditions; U
+ * suffixes for unsigned constants.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  */
 
-#ifndef __POK_CORE_ERROR_H__
-#define __POK_CORE_ERROR_H__
+#ifndef POK_CORE_ERROR_H
+#define POK_CORE_ERROR_H
 
 #include <assert.h>
 
@@ -23,51 +31,51 @@
 typedef uint8_t pok_error_id_t;
 
 /* Possible error identificators */
-#define POK_ERROR_ID_MODPOSTPROCEVENT_ELIST 0
-#define POK_ERROR_ID_ILLEGAL_REQUEST        1
-#define POK_ERROR_ID_APPLICATION_ERROR      2
-#define POK_ERROR_ID_PARTLOAD_ERROR         3
-#define POK_ERROR_ID_NUMERIC_ERROR          4
-#define POK_ERROR_ID_MEMORY_VIOLATION       5
-#define POK_ERROR_ID_DEADLINE_MISSED        6
-#define POK_ERROR_ID_HARDWARE_FAULT         7
-#define POK_ERROR_ID_POWER_FAIL             8
-#define POK_ERROR_ID_STACK_OVERFLOW         9
-#define POK_ERROR_ID_PROCINIT_ERROR         10
-#define POK_ERROR_ID_NOMEMORY_PROCDATA      11
-#define POK_ERROR_ID_ASSERT                 12
-#define POK_ERROR_ID_CONFIG_ERROR           13
-#define POK_ERROR_ID_CHECK_POOL             14
-#define POK_ERROR_ID_UNHANDLED_INT          15
+#define POK_ERROR_ID_MODPOSTPROCEVENT_ELIST 0U
+#define POK_ERROR_ID_ILLEGAL_REQUEST        1U
+#define POK_ERROR_ID_APPLICATION_ERROR      2U
+#define POK_ERROR_ID_PARTLOAD_ERROR         3U
+#define POK_ERROR_ID_NUMERIC_ERROR          4U
+#define POK_ERROR_ID_MEMORY_VIOLATION       5U
+#define POK_ERROR_ID_DEADLINE_MISSED        6U
+#define POK_ERROR_ID_HARDWARE_FAULT         7U
+#define POK_ERROR_ID_POWER_FAIL             8U
+#define POK_ERROR_ID_STACK_OVERFLOW         9U
+#define POK_ERROR_ID_PROCINIT_ERROR         10U
+#define POK_ERROR_ID_NOMEMORY_PROCDATA      11U
+#define POK_ERROR_ID_ASSERT                 12U
+#define POK_ERROR_ID_CONFIG_ERROR           13U
+#define POK_ERROR_ID_CHECK_POOL             14U
+#define POK_ERROR_ID_UNHANDLED_INT          15U
 
 // Not an error. This special value may be used somewhere.
-#define POK_ERROR_ID_NONE                   255
+#define POK_ERROR_ID_NONE                   255U
 /* Maximum error identificator */
-#define POK_ERROR_ID_MAX 15
+#define POK_ERROR_ID_MAX 15U
 
 typedef uint8_t pok_system_state_t;
 
 /* Possible system states */
-#define POK_SYSTEM_STATE_INIT_PARTOS        0
-#define POK_SYSTEM_STATE_INIT_PARTUSER      1
-#define POK_SYSTEM_STATE_INTERRUPT_HANDLER  2
-#define POK_SYSTEM_STATE_OS_MOD             3
+#define POK_SYSTEM_STATE_INIT_PARTOS        0U
+#define POK_SYSTEM_STATE_INIT_PARTUSER      1U
+#define POK_SYSTEM_STATE_INTERRUPT_HANDLER  2U
+#define POK_SYSTEM_STATE_OS_MOD             3U
 // This is a partition state while it is in kernel space.
-#define POK_SYSTEM_STATE_OS_PART            4
+#define POK_SYSTEM_STATE_OS_PART            4U
 /* 
  * This is a partition state while it is in user space
  * and .is_error_handler field is set.
  */
-#define POK_SYSTEM_STATE_ERROR_HANDLER      5
+#define POK_SYSTEM_STATE_ERROR_HANDLER      5U
 /* 
  * This is a partition state while it is in user space
  * and .is_error_handler field is NOT set.
  */
-#define POK_SYSTEM_STATE_USER               6
+#define POK_SYSTEM_STATE_USER               6U
 
 
 /* Maximum system state. Should be less than 7. */
-#define POK_SYSTEM_STATE_MAX                6
+#define POK_SYSTEM_STATE_MAX                6U
 /* 
  * Minimum system state identificator, which can be used for raise error
  * by partition.
@@ -79,7 +87,7 @@ typedef uint8_t pok_system_state_t;
  */
 typedef struct {
     // Bit levels[ID]:STATE selects one of two error levels.
-    uint8_t levels[POK_ERROR_ID_MAX + 1];
+    uint8_t levels[POK_ERROR_ID_MAX + 1U];
 } pok_error_level_selector_t;
 
 /* 
@@ -91,11 +99,11 @@ static inline pok_bool_t pok_error_level_select(
     pok_system_state_t system_state,
     pok_error_id_t error_id)
 {
-    assert(system_state < 8);
+    assert(system_state < 8U);
 
     uint8_t level_val = selector->levels[error_id];
     
-    return level_val & (1 << system_state)? TRUE: FALSE;
+    return (level_val & (1U << system_state)) != 0U;
 }
 
 
@@ -111,9 +119,9 @@ extern pok_error_level_selector_t pok_hm_module_selector;
 
 typedef uint8_t pok_error_module_action_t;
 
-#define POK_ERROR_MODULE_ACTION_IGNORE      0
-#define POK_ERROR_MODULE_ACTION_SHUTDOWN    1 
-#define POK_ERROR_MODULE_ACTION_RESET       2
+#define POK_ERROR_MODULE_ACTION_IGNORE      0U
+#define POK_ERROR_MODULE_ACTION_SHUTDOWN    1U 
+#define POK_ERROR_MODULE_ACTION_RESET       2U
 // Platform-specific actions could be added there.
 
 
@@ -129,7 +137,8 @@ typedef struct {
      * Only those [STATE][ID] cells are used, which corresponds to
      * module-level errors.
      */
-    pok_error_module_action_t actions[POK_SYSTEM_STATE_MAX + 1][POK_ERROR_ID_MAX + 1];
+    pok_error_module_action_t
+        actions[POK_SYSTEM_STATE_MAX + 1U][POK_ERROR_ID_MAX + 1U];
 } pok_error_module_action_table_t ;
 
 /*
@@ -178,4 +187,4 @@ extern pok_error_level_selector_t pok_hm_multi_partition_selector_default;
 // Default HM multi-partition table - shutdown for all errors.
 extern pok_error_module_action_table_t pok_hm_multi_partition_table_default;
 
-#endif /* __POK_CORE_ERROR_H__ */
+#endif /* POK_CORE_ERROR_H */

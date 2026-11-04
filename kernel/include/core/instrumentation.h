@@ -12,10 +12,16 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Sep 25 20:46:54 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
-#ifndef __POK_KERNEL_INSTRUMENTATION_H__
-#define __POK_KERNEL_INSTRUMENTATION_H__
+#ifndef POK_KERNEL_INSTRUMENTATION_H
+#define POK_KERNEL_INSTRUMENTATION_H
 
 #include <config.h>
 

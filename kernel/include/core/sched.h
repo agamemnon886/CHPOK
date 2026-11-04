@@ -15,11 +15,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: added
  * pok_partition_return_user_fp().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; __user/__kuser are renamed
+ * JET_USER/JET_KUSER; slot durations and offsets are pok_time_t.
  */
 
 
-#ifndef __POK_SCHED_H__
-#define __POK_SCHED_H__
+#ifndef POK_SCHED_H
+#define POK_SCHED_H
 
 #include <config.h>
 
@@ -64,8 +68,8 @@ extern pok_partition_t partition_gdb;
 
 typedef struct
 {
-    uint64_t duration; // Set in deployment.c
-    uint64_t offset; // Set in deployment.c
+    pok_time_t duration; // Set in deployment.c
+    pok_time_t offset; // Set in deployment.c
 
     pok_partition_t* partition; // Set in deployment.c
 
@@ -219,7 +223,7 @@ pok_time_t get_next_periodic_processing_start(void);
  * preemption-related things. Because of enabled local preemption
  * all pending callbacks for partition are triggered.
  */
-void pok_partition_jump_user(void (* __user entry)(void),
+void pok_partition_jump_user(void (* JET_USER entry)(void),
     jet_ustack_t stack_user,
     jet_stack_t stack_kernel);
 
@@ -257,4 +261,4 @@ void pok_partition_return_user_fp(void);
 void pok_partition_restart(void);
 
 
-#endif /* !__POK_SCHED_H__ */
+#endif /* !POK_SCHED_H */

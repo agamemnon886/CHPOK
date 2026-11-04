@@ -17,17 +17,19 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
-#ifndef __POK_MEMORY_BLOCKS_H__
-#define __POK_MEMORY_BLOCKS_H__
+#ifndef POK_MEMORY_BLOCKS_H
+#define POK_MEMORY_BLOCKS_H
 
 #include <uapi/types.h>
 // XXX HACK: should be fixed when move to proptree
-#define MAX_PID 32
+#define MAX_PID 32U
 enum mb_config_rights {
     MB_CONFIG_NO_ACCESS,
     MB_CONFIG_READ_ONLY,

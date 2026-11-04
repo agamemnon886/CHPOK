@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,31 +12,42 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; no restrict qualifiers.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: strcat() and
+ * strncat() use index loops that don't modify the parameters.
  */
 
 #include <string.h>
 
-char *strcat(char * restrict dest, const char * restrict src)
+char *strcat(char * dest, const char * src)
 {
-    char* dest_iter = dest;
+    size_t d = strlen(dest);
+    size_t i = 0U;
 
-    while(*dest_iter) ++dest_iter;
-    while(*src) *dest_iter++ = *src++;
+    while(src[i] != '\0') {
+        dest[d + i] = src[i];
+        i++;
+    }
 
-    *dest_iter = '\0';
+    dest[d + i] = '\0';
 
     return dest;
 }
 
-char *strncat(char * restrict dest, const char * restrict src, size_t n)
+char *strncat(char * dest, const char * src, size_t n)
 {
-    char* dest_iter = dest;
-    const char* src_end = src + n;
+    size_t d = strlen(dest);
+    size_t i = 0U;
 
-    while(*dest_iter) ++dest_iter;
-    while(*src && src != src_end) *dest_iter++ = *src++;
+    while((i < n) && (src[i] != '\0')) {
+        dest[d + i] = src[i];
+        i++;
+    }
 
-    *dest_iter = '\0';
+    dest[d + i] = '\0';
 
     return dest;
 }

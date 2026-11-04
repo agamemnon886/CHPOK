@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; declares pok_partition_start().
  */
 
-#ifndef __LIBJET_ARINC_INIT_H__
-#define __LIBJET_ARINC_INIT_H__
+#ifndef LIBJET_ARINC_INIT_H
+#define LIBJET_ARINC_INIT_H
+
+#include <stdint.h>
 
 /* 
  * Initialization function for ARINC.
@@ -23,4 +29,10 @@
  */
 void libjet_arinc_init(void);
 
-#endif /* __LIBJET_ARINC_INIT_H__ */
+/*
+ * Entry point of the partition (ENTRY in the partition linker script):
+ * initializes libjet and calls main().
+ */
+int32_t pok_partition_start(void);
+
+#endif /* LIBJET_ARINC_INIT_H */

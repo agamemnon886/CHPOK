@@ -12,41 +12,36 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: U suffixes for
+ * unsigned constants; the i386 assembly version is removed; the copy loop
+ * uses an index.
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
 #include <libc.h>
 
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the standard memcpy() takes
+ * and returns pointers to void; the bytes are accessed through pointers to
+ * unsigned char.
+ */
+
 void* memcpy (void*        to,
               const void*  from,
               size_t       n)
 {
-#ifdef __i386__
-  int d0;
-  int d1;
-  int d2;
-
-  __asm__ __volatile__(
-		       "rep ; movsl\n\t"
-		       "testb $2,%b4\n\t"
-		       "je 1f\n\t"
-		       "movsw\n"
-		       "1:\ttestb $1,%b4\n\t"
-		       "je 2f\n\t"
-		       "movsb\n"
-		       "2:"
-		       : "=&c" (d0), "=&D" (d1), "=&S" (d2)
-		       :"0" (n/4), "q" (n),"1" ((long) to),"2" ((long) from)
-		       : "memory");
-#else
   char *cto = (char *)to;
   const char *cfrom = (const char *)from;
 
-  for (; n > 0; n--)
+  for (size_t i = 0U; i < n; i++)
   {
-       *cto++ = *cfrom++;
+       cto[i] = cfrom[i];
   }
-#endif
   return (to);
 }
-

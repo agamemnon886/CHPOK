@@ -21,6 +21,14 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; discarded results are cast to void; functions
+ * without parameters are declared with (void); file-local definitions
+ * have internal linkage; essentially Boolean conditions; U suffixes for
+ * unsigned constants; pci_init() writes BAR r to its own register (all
+ * BARs were written to BAR0); the configuration address is computed in
+ * one helper with unsigned arithmetic.
  */
 
 #include <pci.h>
@@ -34,12 +42,21 @@
 
 #define OK 0
 
+/* Address of a configuration register (configuration mechanism #1). */
+static uint32_t pci_config_address(const struct pci_dev *dev, int32_t where)
+{
+    return 0x80000000U | ((uint32_t) dev->bus << 16)
+        | ((uint32_t) dev->dev << 11)
+        | ((uint32_t) dev->fn << 8) | ((uint32_t) where & 0xfcU);
+}
+
 #ifdef PCI_DEBUG
 static char *get_pci_class_name(int32_t classcode) {
     int32_t i = 0;
     while (pci_classnames[i].name != NULL) {
-        if (pci_classnames[i].classcode == (classcode & 0xFFFF00))
+        if (pci_classnames[i].classcode == (classcode & 0xFFFF00)) {
             return pci_classnames[i].name;
+        }
         i++;
     }
     return "Unknown";
@@ -49,8 +66,7 @@ static char *get_pci_class_name(int32_t classcode) {
 
 int32_t pci_read_config_byte(struct pci_dev *dev, int32_t where, uint8_t *val)
 {
-    uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
-        (dev->fn << 8) | (where & 0xfc);
+    uint32_t addr = pci_config_address(dev, where);
 
     outl(PCI_CONFIG_ADDRESS, addr);
     *val = inb(PCI_CONFIG_DATA + (where & 3));
@@ -59,8 +75,7 @@ int32_t pci_read_config_byte(struct pci_dev *dev, int32_t where, uint8_t *val)
 
 int32_t pci_read_config_word(struct pci_dev *dev, int32_t where, uint16_t *val)
 {
-    uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
-        (dev->fn << 8) | (where & 0xfc);
+    uint32_t addr = pci_config_address(dev, where);
 
     outl(PCI_CONFIG_ADDRESS, addr);
     *val = inw(PCI_CONFIG_DATA + (where & 2));
@@ -69,8 +84,7 @@ int32_t pci_read_config_word(struct pci_dev *dev, int32_t where, uint16_t *val)
 
 int32_t pci_read_config_dword(struct pci_dev *dev, int32_t where, uint32_t *val)
 {
-    uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
-        (dev->fn << 8) | (where & 0xfc);
+    uint32_t addr = pci_config_address(dev, where);
 
     outl(PCI_CONFIG_ADDRESS, addr);
     *val = inl(PCI_CONFIG_DATA);
@@ -79,8 +93,7 @@ int32_t pci_read_config_dword(struct pci_dev *dev, int32_t where, uint32_t *val)
 
 int32_t pci_write_config_byte(struct pci_dev *dev, int32_t where, uint8_t val)
 {
-    uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
-        (dev->fn << 8) | (where & 0xfc);
+    uint32_t addr = pci_config_address(dev, where);
 
     outl(PCI_CONFIG_ADDRESS, addr);
     outb(PCI_CONFIG_DATA + (where & 3), val);
@@ -89,8 +102,7 @@ int32_t pci_write_config_byte(struct pci_dev *dev, int32_t where, uint8_t val)
 
 int32_t pci_write_config_word(struct pci_dev *dev, int32_t where, uint16_t val)
 {
-    uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
-        (dev->fn << 8) | (where & 0xfc);
+    uint32_t addr = pci_config_address(dev, where);
 
     outl(PCI_CONFIG_ADDRESS, addr);
     outw(PCI_CONFIG_DATA + (where & 2), val);
@@ -99,8 +111,7 @@ int32_t pci_write_config_word(struct pci_dev *dev, int32_t where, uint16_t val)
 
 int32_t pci_write_config_dword(struct pci_dev *dev, int32_t where, uint32_t val)
 {
-    uint32_t addr = (uint32_t) (1 << 31) | (dev->bus << 16) | (dev->dev << 11) |
-        (dev->fn << 8) | (where & 0xfc);
+    uint32_t addr = pci_config_address(dev, where);
 
     outl(PCI_CONFIG_ADDRESS, addr);
     outl(PCI_CONFIG_DATA, val);
@@ -113,10 +124,11 @@ static uintptr_t get_resource_addr_from_config(uint8_t bus, uint8_t dev, uint8_t
 {
     //TODO optimize this linear search
     struct pci_dev_config *d;
-    for (int32_t i = 0; i < pci_configs_nb; i++) {
+    for (uint32_t i = 0U; i < pci_configs_nb; i++) {
         d = &pci_configs[i];
-        if (d->bus == bus && d->dev == dev && d->fn == fn)
+        if ((d->bus == bus) && (d->dev == dev) && (d->fn == fn)) {
             return d->resources[idx].addr;
+        }
     }
 
     return 0;
@@ -139,45 +151,49 @@ static void pci_fill_resource(struct pci_dev *dev, enum PCI_RESOURCE_INDEX res_i
     uint32_t val, size, mask;
 
     struct pci_resource *resource = &dev->resources[res_idx];
-    memset(resource, 0, sizeof(*resource));
+    (void) memset(resource, 0, sizeof(*resource));
 
 
     if (res_idx != PCI_RESOURCE_ROM) {
-        reg = PCI_BASE_ADDRESS_0 + res_idx*4;
-        mask =  0xffffffff;
+        reg = PCI_BASE_ADDRESS_0 + ((int32_t) res_idx * 4);
+        mask =  0xffffffffU;
     } else {
         reg = PCI_ROM_ADDRESS;
         mask = PCI_ROM_ADDRESS_MASK;
     }
 
-    pci_read_config_dword(dev, reg, &val);
-    pci_write_config_dword(dev, reg, mask);
-    pci_read_config_dword(dev, reg, &size);
-    pci_write_config_dword(dev, reg, val);
+    (void) pci_read_config_dword(dev, reg, &val);
+    (void) pci_write_config_dword(dev, reg, mask);
+    (void) pci_read_config_dword(dev, reg, &size);
+    (void) pci_write_config_dword(dev, reg, val);
 
     if (res_idx == PCI_RESOURCE_ROM)  {
         resource->type = PCI_RESOURCE_TYPE_ROM;
-        resource->pci_addr = val & PCI_ROM_ADDRESS_MASK;
+        uint32_t base = val & PCI_ROM_ADDRESS_MASK;
+        resource->pci_addr = base;
         size &= PCI_ROM_ADDRESS_MASK;
 
     } else if ((val&PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
         resource->type = PCI_RESOURCE_TYPE_BAR_IO;
-        resource->pci_addr = val & PCI_BASE_ADDRESS_IO_MASK;
+        uint32_t base = val & PCI_BASE_ADDRESS_IO_MASK;
+        resource->pci_addr = base;
         size &= PCI_BASE_ADDRESS_IO_MASK;
 
     } else {
         if ((val & PCI_BASE_ADDRESS_MEM_TYPE_MASK) == PCI_BASE_ADDRESS_MEM_TYPE_32) {
             resource->mem_flags |= PCI_RESOURCE_MEM_MASK_32;
         }
-        if (val & PCI_BASE_ADDRESS_MEM_PREFETCH) {
+        if ((val & PCI_BASE_ADDRESS_MEM_PREFETCH) != 0U) {
             resource->mem_flags |= PCI_RESOURCE_MEM_MASK_PREFETCH;
         }
         resource->type = PCI_RESOURCE_TYPE_BAR_MEM;
-        resource->pci_addr = val & PCI_BASE_ADDRESS_MEM_MASK;
+        uint32_t base = val & PCI_BASE_ADDRESS_MEM_MASK;
+        resource->pci_addr = base;
         size &= PCI_BASE_ADDRESS_MEM_MASK;
     }
 
-    resource->size = ~size + 1;
+    size = ~size + 1U;
+    resource->size = size;
     resource->addr = get_resource_addr_from_config(dev->bus, dev->dev, dev->fn, res_idx);
 }
 
@@ -186,21 +202,23 @@ static void pci_fill_resource(struct pci_dev *dev, enum PCI_RESOURCE_INDEX res_i
  */
 void pci_get_dev_by_bdf(uint8_t bus, uint8_t dev, uint8_t fn, struct pci_dev *pci_dev)
 {
-    memset(pci_dev, 0, sizeof(*pci_dev));
+    (void) memset(pci_dev, 0, sizeof(*pci_dev));
 
     pci_dev->bus = bus;
     pci_dev->dev = dev;
     pci_dev->fn = fn;
 
-    pci_read_config_word(pci_dev, PCI_VENDOR_ID, &pci_dev->vendor_id);
+    (void) pci_read_config_word(pci_dev, PCI_VENDOR_ID, &pci_dev->vendor_id);
     //if (vendor_id == 0xFFFF) {
     //}
-    pci_read_config_word(pci_dev, PCI_DEVICE_ID,    &pci_dev->device_id);
-    pci_read_config_word(pci_dev, PCI_CLASS_DEVICE, &pci_dev->class_code);
-    pci_read_config_byte(pci_dev, PCI_HEADER_TYPE,  &pci_dev->hdr_type);
+    (void) pci_read_config_word(pci_dev, PCI_DEVICE_ID,    &pci_dev->device_id);
+    (void) pci_read_config_word(
+        pci_dev, PCI_CLASS_DEVICE, &pci_dev->class_code);
+    (void) pci_read_config_byte(pci_dev, PCI_HEADER_TYPE,  &pci_dev->hdr_type);
 
-    if (pci_dev->hdr_type != 0)
+    if (pci_dev->hdr_type != 0U) {
         return;
+    }
 
     for (int32_t i = 0; i < PCI_NUM_RESOURCES; i++) {
         pci_fill_resource(pci_dev, i);
@@ -208,12 +226,12 @@ void pci_get_dev_by_bdf(uint8_t bus, uint8_t dev, uint8_t fn, struct pci_dev *pc
 
 }
 
-void pci_list()
+void pci_list(void)
 {
 #ifdef PCI_DEBUG
     struct pci_dev pci_dev;
-    for (uint32_t bus = 0; bus < PCI_BUS_MAX; bus++)
-      for (uint32_t dev = 0; dev < PCI_DEV_MAX; dev++)
+    for (uint32_t bus = 0; bus < PCI_BUS_MAX; bus++) {
+      for (uint32_t dev = 0; dev < PCI_DEV_MAX; dev++) {
         for (uint32_t fn = 0; fn < PCI_FN_MAX; fn++)
         {
             pci_get_dev_by_bdf(bus, dev, fn, &pci_dev);
@@ -264,8 +282,9 @@ void pci_list()
 
             for (int32_t i = 0; i < PCI_NUM_RESOURCES; i++) {
                 struct pci_resource *res = &pci_dev.resources[i];
-                if (res->size == 0)
+                if (res->size == 0) {
                     continue;
+                }
 
                 if (res->type != PCI_RESOURCE_TYPE_ROM){
                     printf("\t BAR%d: ", i);
@@ -293,6 +312,8 @@ void pci_list()
 
             }
         }
+      }
+    }
 #endif
 }
 
@@ -303,18 +324,18 @@ uintptr_t pci_convert_legacy_port(struct pci_dev *dev, uint16_t port)
     return port;
 }
 
-void pci_init()
+void pci_init(void)
 {
     //printf("PCI enumeration:\n");
     //pci_enumerate();
 
-    printf("PCI initialization using configuration:\n");
+    (void) printf("PCI initialization using configuration:\n");
 
-    for (int32_t i = 0; i < pci_configs_nb; i++) {
+    for (uint32_t i = 0U; i < pci_configs_nb; i++) {
         struct pci_dev_config *dev_config = &pci_configs[i];
         struct pci_dev pci_dev;
 
-        printf("%02x:%02x:%02x  ",
+        (void) printf("%02x:%02x:%02x  ",
                 dev_config->bus,
                 dev_config->dev,
                 dev_config->fn);
@@ -325,38 +346,47 @@ void pci_init()
 
         {
             uint16_t vendor_id;
-            pci_read_config_word(&pci_dev, PCI_VENDOR_ID, &vendor_id);
+            (void) pci_read_config_word(&pci_dev, PCI_VENDOR_ID, &vendor_id);
 
-            if (vendor_id == 0xFFFF) {
-                printf("Not found\n");
+            if (vendor_id == 0xFFFFU) {
+                (void) printf("Not found\n");
                 continue;
             }
-            printf("OK\n");
+            (void) printf("OK\n");
         }
 
-        int32_t command = 0;
-        for (int32_t i = 0; i < PCI_RESOURCE_ROM; i++) {
-            if (dev_config->resources[i].pci_addr == 0)
+        uint16_t command = 0U;
+        for (int32_t r = 0; r < (int32_t) PCI_RESOURCE_ROM; r++) {
+            if (dev_config->resources[r].pci_addr == 0U) {
                 continue;
+            }
 
-            pci_write_config_dword(&pci_dev, PCI_BASE_ADDRESS_0,
-                    dev_config->resources[i].pci_addr);
+            /* BAR r is at PCI_BASE_ADDRESS_0 + 4 * r (all BARs were
+             * written to BAR0). */
+            (void) pci_write_config_dword(&pci_dev,
+                    PCI_BASE_ADDRESS_0 + (r * 4),
+                    (uint32_t) dev_config->resources[r].pci_addr);
 
-            if (dev_config->resources[i].type == PCI_RESOURCE_TYPE_BAR_MEM)
+            if (dev_config->resources[r].type == PCI_RESOURCE_TYPE_BAR_MEM) {
                 command |= PCI_COMMAND_MEMORY;
-            else if (dev_config->resources[i].type == PCI_RESOURCE_TYPE_BAR_IO)
+            } else if (dev_config->resources[r].type
+                       == PCI_RESOURCE_TYPE_BAR_IO) {
                 command |= PCI_COMMAND_IO;
+            } else {
+                /* ROM: enabled below. */
+            }
         }
 
-        if (dev_config->resources[PCI_RESOURCE_ROM].pci_addr != 0) {
-            pci_write_config_dword(&pci_dev, PCI_ROM_ADDRESS,
-                    dev_config->resources[PCI_RESOURCE_ROM].pci_addr|PCI_ROM_ADDRESS_ENABLE);
+        if (dev_config->resources[PCI_RESOURCE_ROM].pci_addr != 0U) {
+            (void) pci_write_config_dword(&pci_dev, PCI_ROM_ADDRESS,
+                    (uint32_t) dev_config->resources[PCI_RESOURCE_ROM].pci_addr
+                    | PCI_ROM_ADDRESS_ENABLE);
             command |= PCI_COMMAND_MEMORY;
         }
 
-        pci_write_config_word(&pci_dev, PCI_COMMAND, command);
+        (void) pci_write_config_word(&pci_dev, PCI_COMMAND, command);
     }
     //printf("PCI init result:\n");
     pci_list();
-    printf("\n");
+    (void) printf("\n");
 }

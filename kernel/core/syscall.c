@@ -28,6 +28,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-01: dispatches the
  * POK_SYSCALL_ERROR_HANDLER_CONFIGURE syscall.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: __user/__kuser
+ * are renamed JET_USER/JET_KUSER; discarded results are cast to void;
+ * deviations are documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: the use of the
+ * SYSCALL_ENTRY() parameter with ## is explained; the unused infos
+ * parameter is cast to void; deviations are documented where a guideline
+ * can't be followed. Long lines are wrapped at 80 columns.
  */
 
 #include <config.h>
@@ -61,7 +70,14 @@ static pok_ret_t unprotected_syscall(
    return ret;
 }
 
-#define SYSCALL_ENTRY(id) case id: return unprotected_syscall(pok_syscall_wrapper_ ## id, args); break;
+/*
+ * MISRA C:2025 Rule 20.10 deviation: ## makes the name of the wrapper of the
+ * syscall. Rule 20.12: id is used with ## and as an operand, which is
+ * compliant because the arguments are enumerators of pok_syscall_id_t, not
+ * macros (cppcheck's MISRA addon can't see that and reports the macro).
+ */
+#define SYSCALL_ENTRY(id) case (id): \
+    return unprotected_syscall(pok_syscall_wrapper_ ## id, args); break;
 
 /**
  * \file kernel/core/syscalls.c
@@ -69,21 +85,31 @@ static pok_ret_t unprotected_syscall(
  * \author Julien Delange
  */
 
+/*
+ * MISRA C:2025 Rule 11.4 and Rule 11.6 deviation: syscall arguments arrive in
+ * registers as integers (pok_syscall_args_t) and are converted to the
+ * pointer types of the implementations, here and in the generated
+ * wrappers. The implementations check user pointers (see uaccess.h).
+ */
 static inline pok_ret_t pok_core_syscall_internal (const pok_syscall_id_t       syscall_id,
                             const pok_syscall_args_t*    args,
                             const pok_syscall_info_t*    infos)
 {
+   (void) infos;
+
    switch (syscall_id)
    {
 #if defined (POK_NEEDS_CONSOLE) || defined (POK_NEEDS_DEBUG)
       case POK_SYSCALL_CONSWRITE:
-         return jet_console_write_user((const char* __user)args->arg1, args->arg2);
+         return jet_console_write_user((const char* JET_USER)args->arg1,
+                                       args->arg2);
          break;
 #endif
 
 #if defined POK_NEEDS_GETTICK
       case POK_SYSCALL_CLOCK_GETTIME:
-         return pok_clock_gettime ((clockid_t)args->arg1, (pok_time_t* __user)args->arg2);
+         return pok_clock_gettime ((clockid_t)args->arg1,
+                                   (pok_time_t* JET_USER)args->arg2);
          break;
 #endif
       case POK_SYSCALL_TIME:
@@ -203,7 +229,7 @@ static inline pok_ret_t pok_core_syscall_internal (const pok_syscall_id_t       
         * Unrecognized system call ID.
         */
 #ifdef POK_NEEDS_DEBUG
-            printf ("Tried to use syscall %d\n", syscall_id);
+            (void) printf ("Tried to use syscall %d\n", syscall_id);
 #endif
          pok_raise_error(POK_ERROR_ID_ILLEGAL_REQUEST, TRUE, NULL);
          break;
@@ -224,7 +250,7 @@ pok_ret_t pok_core_syscall (const pok_syscall_id_t       syscall_id,
 
     ret = pok_core_syscall_internal(syscall_id, args, infos);
 
-#if POK_NEEDS_GDB
+#ifdef POK_NEEDS_GDB
     pok_in_user_space = TRUE;
 #endif
 

@@ -16,6 +16,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
  * the generated code are replaced with the fixed-width types from
  * <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * printf() results are cast to void; the static wrappers aren't named with
+ * reserved identifiers.
  */
 
 #include <lib/common.h>
@@ -28,7 +32,8 @@
 
 {% for p in component.in_ports %}
   {% for i_func in interfaces[p.type].functions %}
-    static {{i_func.return_type}} __wrapper_{{p.implementation[i_func.name]}}(self_t *arg0{{args(i_func)}})
+    static {{i_func.return_type}} wrapper_{{p.implementation[i_func.name]}}(
+        self_t *arg0{{args(i_func)}})
     {
         return {{p.implementation[i_func.name]}}(({{component.name}}*) arg0{%for i in range(1, i_func.args_type|length)%}, arg{{i}}{%endfor%});
     }
@@ -43,7 +48,8 @@
       {{i_func.return_type}} {{component.name}}_call_{{p.name}}_{{i_func.name}}_by_index(int32_t idx, {{component.name}} *self{{args(i_func)}})
       {
          if (self->out.{{p.name}}[idx].ops == NULL) {
-             printf("WRONG CONFIG: out port {{p.name}} of component {{component.name}} was not initialized\n");
+             (void) printf("WRONG CONFIG: out port {{p.name}} of component "
+                           "{{component.name}} was not initialized\n");
              //fatal_error?
          }
          return self->out.{{p.name}}[idx].ops->{{i_func.name}}(self->out.{{p.name}}[idx].owner{%for i in range(1, i_func.args_type|length)%}, arg{{i}}{%endfor%});
@@ -54,7 +60,8 @@
       {{i_func.return_type}} {{component.name}}_call_{{p.name}}_{{i_func.name}}({{component.name}} *self{{args(i_func)}})
       {
          if (self->out.{{p.name}}.ops == NULL) {
-             printf("WRONG CONFIG: out port {{p.name}} of component {{component.name}} was not initialized\n");
+             (void) printf("WRONG CONFIG: out port {{p.name}} of component "
+                           "{{component.name}} was not initialized\n");
              //fatal_error?
          }
          return self->out.{{p.name}}.ops->{{i_func.name}}(self->out.{{p.name}}.owner{%for i in range(1, i_func.args_type|length)%}, arg{{i}}{%endfor%});
@@ -68,7 +75,7 @@ void __{{component.name}}_init__({{component.name}} *self)
 {
     {% for p in component.in_ports %}
         {% for i_func, comp_func in p.implementation.items() %}
-            self->in.{{p.name}}.ops.{{i_func}} = __wrapper_{{comp_func}};
+            self->in.{{p.name}}.ops.{{i_func}} = wrapper_{{comp_func}};
         {% endfor %}
     {% endfor %}
 

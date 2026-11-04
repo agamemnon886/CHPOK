@@ -1,5 +1,8 @@
-#ifndef __POK_MEM_H__
-#define __POK_MEM_H__
+/* Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ */
+#ifndef POK_MEM_H
+#define POK_MEM_H
 
 /* TODO: Whole header should be removed when functionality becomes not needed. */
 

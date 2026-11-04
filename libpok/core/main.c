@@ -16,17 +16,21 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: discarded
+ * results are cast to void; the partition entry point is
+ * pok_partition_start (no reserved name).
  */
 
 #include <kernel_shared_data.h>
 #include <init_arinc.h>
 #include <smalloc.h>
 
-int main();
+int main(void);
 
 char* heap_current = NULL;
 
-int32_t __pok_partition_start (void)
+int32_t pok_partition_start (void)
 {
    // Setup user-only fields of kernel shared data.
    kshd.main_thread_id = kshd.current_thread_id;
@@ -36,6 +40,6 @@ int32_t __pok_partition_start (void)
 
    libjet_arinc_init();
 
-   main(); /* main loop from user */
+   (void) main(); /* main loop from user */
    return (0);
 }

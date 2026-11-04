@@ -2,6 +2,7 @@
 #
 # Institute for System Programming of the Russian Academy of Sciences
 # Copyright (C) 2016 ISPRAS
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
@@ -15,6 +16,9 @@
 #
 # See the GNU General Public License version 3 for more details.
 #
+# Modified by Kirill Brazhnikov, 2026-11-01: memblock_types.h is copied to
+# libpok like the other uapi headers (libpok had a hand-made copy).
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 # List of headers which are used both by kernel and user.
@@ -22,6 +26,7 @@ uapi_headers = [
     'errno.h',
     'error_arinc_types.h',
     'kernel_shared_data.h',
+    'memblock_types.h',
     'msection.h',
     'partition_arinc_types.h',
     'partition_types.h',

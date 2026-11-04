@@ -23,10 +23,13 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __JET_ARM64_GDB_H__
-#define __JET_ARM64_GDB_H__
+#ifndef JET_ARM64_GDB_H
+#define JET_ARM64_GDB_H
 
 /*
  * The gdb server (kernel/libc/gdbserver.c) supports only 32-bit
@@ -37,4 +40,4 @@
 #error "GDB is not supported on arm64"
 #endif
 
-#endif /* __JET_ARM64_GDB_H__ */
+#endif /* JET_ARM64_GDB_H */

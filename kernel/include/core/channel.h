@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,14 +12,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: one declarator
+ * per declaration.
  */
 
 /* 
  * Generic channels between partitions.
  */
 
-#ifndef __POK_KERNEL_CHANNEL_H__
-#define __POK_KERNEL_CHANNEL_H__
+#ifndef POK_KERNEL_CHANNEL_H
+#define POK_KERNEL_CHANNEL_H
 
 #include <types.h>
 
@@ -89,7 +96,8 @@ typedef struct {
     pok_message_size_t message_stride;
 
     /* Sides of the channel. */
-    struct pok_channel_queuing_side send, recv;
+    struct pok_channel_queuing_side send;
+    struct pok_channel_queuing_side recv;
 
     pok_message_range_t max_nb_message; // Total buffer capasity.
 
@@ -322,4 +330,4 @@ extern uint8_t pok_channels_sampling_n;
 
 void pok_channels_init_all(void);
 
-#endif /* __POK_KERNEL_CHANNEL_H__ */
+#endif /* POK_KERNEL_CHANNEL_H */

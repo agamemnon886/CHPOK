@@ -1,5 +1,6 @@
 /*  
  *  Copyright (C) 2014 Maxim Malkov, ISPRAS <malkov@ispras.ru> 
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -13,9 +14,12 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
-#ifndef __POK_KERNEL_VIRTIO_VIRTQUEUE_H__
-#define __POK_KERNEL_VIRTIO_VIRTQUEUE_H__
+#ifndef POK_KERNEL_VIRTIO_VIRTQUEUE_H
+#define POK_KERNEL_VIRTIO_VIRTQUEUE_H
 
 #include "virtio_ring.h"
 
@@ -34,4 +38,4 @@ struct virtio_virtqueue {
 
 void* virtio_virtqueue_setup(struct virtio_virtqueue *vq, uint16_t size, size_t alignment);
 
-#endif // __POK_KERNEL_VIRTIO_VIRTQUEUE_H__
+#endif // POK_KERNEL_VIRTIO_VIRTQUEUE_H

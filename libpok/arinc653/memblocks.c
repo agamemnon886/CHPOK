@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,14 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
+ * Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters are const (they are only read), so callers can pass string
+ * literals.
  */
 
 #include <config.h>
@@ -24,7 +33,7 @@
 
 
 void GET_MEMORY_BLOCK_STATUS (
-        /*in */ MEMORY_BLOCK_NAME_TYPE   MEMORY_BLOCK_NAME,
+        /*in */ const MEMORY_BLOCK_NAME_TYPE   MEMORY_BLOCK_NAME,
         /*out*/ MEMORY_BLOCK_STATUS_TYPE *MEMORY_BLOCK_STATUS,
         /*out*/ RETURN_CODE_TYPE         *RETURN_CODE)
 {
@@ -42,6 +51,8 @@ void GET_MEMORY_BLOCK_STATUS (
         *RETURN_CODE = INVALID_CONFIG;
     } else {
         *RETURN_CODE = NO_ERROR;
+        /* MISRA C:2025 Rule 11.6 deviation: the kernel reports the address of
+         * the block as an integer. */
         MEMORY_BLOCK_STATUS->MEMORY_BLOCK_ADDR = (void *)mb_status.addr;
         MEMORY_BLOCK_STATUS->MEMORY_BLOCK_MODE = mb_status.mode;
         MEMORY_BLOCK_STATUS->MEMORY_BLOCK_SIZE = mb_status.size;

@@ -1,6 +1,10 @@
 /* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
+ * Boolean conditions; the unused serial input code (cons_intr2(),
+ * cons_getc2() and their buffer) is removed.
  */
 #include <libc.h>
 #include <cons.h>
@@ -12,60 +16,10 @@
 */
 
 
-static int32_t
-serial_proc_data2(void) //Read data from DUART (1 word)
-{
-    if (!data_to_read_1())
-        return -1;
-    return read_serial_1();
-}
-
-
-#define CONSBUFSIZE 512
-
-static struct {
-    uint8_t buf[CONSBUFSIZE];
-    uint32_t rpos;
-    uint32_t wpos;
-} cons;
-
-static void
-cons_intr2() //read all elements from DUART
-{
-    int32_t c;
-
-    while ((c = serial_proc_data2()) != -1) {
-        if (c == 0)
-            continue;
-        cons.buf[cons.wpos++] = c;
-        if (cons.wpos == CONSBUFSIZE)
-            cons.wpos = 0;
-    }
-}
-
-// return the next input character from the console, or 0 if none waiting
-int32_t
-cons_getc2(void) //Get 1 element from cons
-{
-    int32_t c;
-
-    cons_intr2();
-
-    // grab the next character from the input buffer.
-    if (cons.rpos != cons.wpos) {
-        c = cons.buf[cons.rpos++];
-        if (cons.rpos == CONSBUFSIZE)
-            cons.rpos = 0;
-        return c;
-    }
-    return 0;
-}
-
-
 int32_t
 getchar2(void)
 {
-    while (!data_to_read_1()){
+    while (data_to_read_1() == 0){
     }
     return read_serial_1();
 }

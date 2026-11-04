@@ -19,9 +19,13 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: file-local
+ * definitions have internal linkage; the header guard isn't a reserved
+ * identifier.
  */
-# ifndef __POK__PCI_INTERNAL_H__
-# define __POK__PCI_INTERNAL_H__
+#ifndef POK_PCI_INTERNAL_H
+#define POK_PCI_INTERNAL_H
 #include <stdint.h>
 
 
@@ -29,7 +33,7 @@
  * These struct is based on http://www.jbox.dk/sanos/source/sys/krnl/pci.c.html 
  * Copyright (C) 2002 Michael Ringgaard. All rights reserved.
  */
-const struct {
+static const struct {
     int32_t classcode;
     char *name;
 } pci_classnames[] = {

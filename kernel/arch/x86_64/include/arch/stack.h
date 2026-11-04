@@ -15,12 +15,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * kernel/arch/x86/include/arch/stack.h to x86_64 (64-bit).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
 /* Stack for the (kernel) thread. */
 
-#ifndef __JET_X86_64_STACK_H__
-#define __JET_X86_64_STACK_H__
+#ifndef JET_X86_64_STACK_H
+#define JET_X86_64_STACK_H
 
 #include <stdint.h>
 
@@ -33,4 +36,4 @@
  */
 typedef uintptr_t jet_stack_t;
 
-#endif /* __JET_X86_64_STACK_H__ */
+#endif /* JET_X86_64_STACK_H */

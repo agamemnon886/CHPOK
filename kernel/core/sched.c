@@ -20,6 +20,19 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: __user/__kuser
+ * are renamed JET_USER/JET_KUSER; braces around all if/else/loop bodies;
+ * essentially Boolean conditions; U suffixes for unsigned constants;
+ * operands of the same essential type; internal linkage for file-local
+ * definitions; if-else-if chains end with else; file-local objects are
+ * static; slot loops use unsigned counters.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: increments and
+ * assignments are separate statements; first_frame_starts is defined in
+ * the function that uses it; operands of mixed precedence are
+ * parenthesized; deviations are documented where a guideline can't be
+ * followed. Long lines are wrapped at 80 columns.
  */
 
 #include <config.h>
@@ -44,7 +57,11 @@
 #include <cswitch.h>
 #include <core/space.h>
 
-static pok_time_t first_frame_starts; // Time when first major frame is started.
+/*
+ * MISRA C:2025 Rule 15.1 deviation (this file): forward gotos to
+ * same_partition and out share the code at those labels between the paths.
+ */
+
 
 static pok_time_t            pok_sched_next_deadline;
 static pok_time_t            pok_sched_next_major_frame;
@@ -52,7 +69,7 @@ static uint8_t               pok_sched_current_slot = 0; /* Which slot are we ex
 
 pok_partition_t* current_partition = NULL;
 
-#if POK_NEEDS_GDB
+#ifdef POK_NEEDS_GDB
 struct jet_interrupt_context* global_thread_stack = NULL;
 volatile pok_bool_t pok_in_user_space = 0;
 #endif
@@ -65,10 +82,10 @@ volatile pok_bool_t pok_in_user_space = 0;
  * be stored on context switch.
  * From the other side, the flag can be changed *outside* of scheduler.
  */
-pok_bool_t current_partition_is_paused;
+static pok_bool_t current_partition_is_paused;
 
-struct jet_context* idle_sp;
-uint32_t idle_stack;
+static struct jet_context* idle_sp;
+static uint32_t idle_stack;
 
 static void idle_function(void)
 {
@@ -83,20 +100,21 @@ static void idle_function(void)
  *
  * If no thread has been executed yet, or the last one dies, this is NULL.
  */
-struct jet_fp_store* fp_store_last = NULL;
+static struct jet_fp_store* fp_store_last = NULL;
 
 // Reset partition state, so scheduler may restart.
 static void pok_partition_reset(pok_partition_t* part)
 {
-    part->sp = 0;
+    part->sp = NULL;
     part->restarted_externally = TRUE;
     part->partition_generation++;
-    if(part->partition_generation == 0)
+    if(part->partition_generation == 0U)
     {
         part->partition_generation = 1;
     }
 
-    part->partition_event_begin = part->partition_event_end = 0;
+    part->partition_event_end = 0;
+    part->partition_event_begin = 0;
 }
 
 
@@ -107,15 +125,17 @@ static void start_partition(void)
     pok_partition_t* part = current_partition;
     // Initialize state for started partition.
     part->is_event = FALSE;
-    part->partition_event_begin = part->partition_event_end = 0;
+    part->partition_event_end = 0;
+    part->partition_event_begin = 0;
 
-    part->preempt_local_disabled = 1;
+    part->preempt_local_disabled = TRUE;
 
     /* It is safe to enable preemption on new stack. */
     pok_preemption_enable();
 
-    if(part->part_ops && part->part_ops->start)
+    if((part->part_ops != NULL) && (part->part_ops->start != NULL)) {
         part->part_ops->start();
+    }
 
     ja_inf_loop();
 }
@@ -127,8 +147,12 @@ static void intra_partition_switch(void)
 
 #ifdef POK_NEEDS_MONITOR
     struct jet_context** new_sp = old_sp;
-    if(current_partition_is_paused) old_sp = &idle_sp;
-    if(current_partition->is_paused) new_sp = &idle_sp;
+    if(current_partition_is_paused) {
+        old_sp = &idle_sp;
+    }
+    if(current_partition->is_paused) {
+        new_sp = &idle_sp;
+    }
 
     if(old_sp != new_sp)
     {
@@ -158,6 +182,10 @@ static void intra_partition_switch(void)
                 current_partition->initial_sp,
                 &start_partition);
         }
+        else
+        {
+            // Both contexts exist: a plain switch.
+        }
         jet_context_switch(old_sp, *new_sp);
         return;
     }
@@ -178,20 +206,23 @@ static void inter_partition_switch(pok_partition_t* part)
 {
     struct jet_context** old_sp = &current_partition->sp;
     struct jet_context** new_sp = &part->sp;
-#if POK_NEEDS_GDB
+#ifdef POK_NEEDS_GDB
     current_partition->entry_sp = global_thread_stack;
 #endif
     current_partition = part;
 
-    if(part->space_id != 0)
+    if(part->space_id != 0U) {
         pok_space_switch(part->space_id);
-    else
+    } else {
         pok_space_switch(0); // TODO: This should disable all user space tables
+    }
 #ifdef POK_NEEDS_MONITOR
-    if(current_partition_is_paused) old_sp = &idle_sp;
+    if(current_partition_is_paused) {
+        old_sp = &idle_sp;
+    }
     if(part->is_paused)
     {
-        assert(idle_sp); // Idle sp shouldn't be 0.
+        assert(idle_sp != NULL); // Idle sp shouldn't be 0.
         new_sp = &idle_sp;
     }
 
@@ -229,6 +260,9 @@ static void inter_partition_switch(pok_partition_t* part)
 
 void pok_sched_restart (void)
 {
+    // Time when first major frame is started.
+    static pok_time_t first_frame_starts;
+
     struct jet_context** new_sp;
 
     first_frame_starts = jet_system_time();
@@ -238,7 +272,7 @@ void pok_sched_restart (void)
 
     for_each_partition(&pok_partition_reset);
 
-    sched_need_recheck = 0; // Acquire semantic
+    sched_need_recheck = FALSE; // Acquire semantic
     barrier();
 
     // Navigate to the first slot
@@ -250,19 +284,22 @@ void pok_sched_restart (void)
 
     new_sp = &current_partition->sp;
 #ifdef POK_NEEDS_MONITOR
-    if(current_partition->is_paused) new_sp = &idle_sp;
+    if(current_partition->is_paused) {
+        new_sp = &idle_sp;
+    }
     current_partition_is_paused = current_partition->is_paused;
 #endif /*POK_NEEDS_MONITOR */
-    if(*new_sp == 0)
+    if(*new_sp == NULL)
     {
         *new_sp = jet_context_init(current_partition->initial_sp,
             &start_partition);
     }
 
-    if(current_partition->space_id != 0xff)
+    if(current_partition->space_id != 0xffU) {
         pok_space_switch(current_partition->space_id);
-    else
+    } else {
         pok_space_switch(0xff); // TODO: This should disable all user space tables
+    }
 
     kernel_state = POK_SYSTEM_STATE_OS_PART;
 
@@ -298,13 +335,17 @@ static void pok_sched(void)
     pok_partition_t* new_partition;
     pok_time_t now;
 
-    if(!flag_test_and_reset(sched_need_recheck)) return;
+    if(!flag_test_and_reset(&sched_need_recheck)) {
+        return;
+    }
 
     now = jet_system_time();
 
-    if(pok_sched_next_deadline > now) goto same_partition;
+    if(pok_sched_next_deadline > now) {
+        goto same_partition;
+    }
 
-    pok_sched_current_slot = (pok_sched_current_slot + 1);
+    pok_sched_current_slot = (pok_sched_current_slot + 1U);
     if(pok_sched_current_slot == pok_module_sched_n)
     {
         pok_sched_next_major_frame += pok_config_scheduling_major_frame;
@@ -330,7 +371,9 @@ static void pok_sched(void)
 
     new_partition = pok_module_sched[pok_sched_current_slot].partition;
 
-    if(new_partition == part) goto same_partition;
+    if(new_partition == part) {
+        goto same_partition;
+    }
 
     inter_partition_switch(new_partition);
 
@@ -339,7 +382,7 @@ static void pok_sched(void)
      * deliver timer event now.
      */
     now = jet_system_time();
-    if(part->timer != 0 && part->timer <= now)
+    if((part->timer != 0) && (part->timer <= now))
     {
         pok_partition_add_event(part, JET_PARTITION_EVENT_TYPE_TIMER, 0);
         part->timer = 0;
@@ -372,7 +415,7 @@ void pok_preemption_enable(void)
         return;
     }
 
-    current_partition->preempt_local_disabled = 1;
+    current_partition->preempt_local_disabled = TRUE;
 
     // Until partition "consume" all state bits or enables preemption.
     do
@@ -385,7 +428,7 @@ void pok_preemption_enable(void)
     } while(current_partition->preempt_local_disabled
         && current_partition->is_event);
 
-    current_partition->preempt_local_disabled = 0;
+    current_partition->preempt_local_disabled = FALSE;
     ja_preempt_enable();
 }
 
@@ -403,7 +446,7 @@ void __pok_preemption_enable(void)
  */
 pok_time_t get_next_periodic_processing_start(void)
 {
-    int32_t i;
+    uint32_t i;
 
     pok_time_t offset = pok_sched_next_deadline;
 
@@ -412,23 +455,28 @@ pok_time_t get_next_periodic_processing_start(void)
     // e.g. if we're currently in periodic processing window,
     // and it's the only one in schedule, we say that next one
     // will be major frame time units later
-    int32_t time_slot_index = pok_sched_current_slot;
+    uint32_t time_slot_index = pok_sched_current_slot;
 
-    for (i = 0; i < pok_module_sched_n; i++) {
+    for (i = 0U; i < pok_module_sched_n; i++) {
 
         time_slot_index++;
-        if(time_slot_index == pok_module_sched_n) time_slot_index = 0;
+        if(time_slot_index == pok_module_sched_n) {
+            time_slot_index = 0U;
+        }
 
         const pok_sched_slot_t *slot = &pok_module_sched[time_slot_index];
 
-        if (slot->periodic_processing_start && slot->partition == current_partition) {
+        if (slot->periodic_processing_start
+            && (slot->partition == current_partition)) {
             return offset;
         }
 
         offset += slot->duration;
     }
 
-    assert(FALSE && "Couldn't find next periodic processing window (configurator shouldn't have allowed that)");
+    // Couldn't find the next periodic processing window (the configurator
+    // shouldn't have allowed that).
+    unreachable();
 }
 
 void pok_sched_on_time_changed(void)
@@ -438,7 +486,7 @@ void pok_sched_on_time_changed(void)
     pok_partition_t* part = current_partition;
     sched_need_recheck = TRUE;
 
-#if POK_NEEDS_GDB
+#ifdef POK_NEEDS_GDB
     pok_bool_t in_user_space = pok_in_user_space;
 
     if(in_user_space)
@@ -449,34 +497,38 @@ void pok_sched_on_time_changed(void)
 #endif /* POK_NEEDS_GDB */
     pok_sched();
 
-    if(current_partition_is_paused) goto out;
+    if(current_partition_is_paused) {
+        goto out;
+    }
 
     pok_bool_t preempt_local_disabled_old = current_partition->preempt_local_disabled;
 
     pok_time_t current_time = jet_system_time();
 
-    if(part->timer != 0 && part->timer <= current_time)
+    if((part->timer != 0) && (part->timer <= current_time))
     {
         pok_partition_add_event(part, JET_PARTITION_EVENT_TYPE_TIMER, 0);
         part->timer = 0;
     }
 
-    if(preempt_local_disabled_old || !part->is_event) goto out;
+    if(preempt_local_disabled_old || !part->is_event) {
+        goto out;
+    }
     // Emit events for partition.
     do
     {
-        part->preempt_local_disabled = 1;
+        part->preempt_local_disabled = TRUE;
         ja_preempt_enable();
         part->part_sched_ops->on_event();
         ja_preempt_disable();
     } while(part->preempt_local_disabled && part->is_event);
 
-    part->preempt_local_disabled = 0;
+    part->preempt_local_disabled = FALSE;
 
     // Still with disabled preemption. It is needed for returning from interrupt.
 
 out:
-#if POK_NEEDS_GDB
+#ifdef POK_NEEDS_GDB
     // Restore user space indicator on return
     pok_in_user_space = in_user_space;
 #else
@@ -494,14 +546,14 @@ static void pok_partition_return_user_common(void)
     while(part->preempt_local_disabled
         && part->is_event)
     {
-        part->preempt_local_disabled = 1;
+        part->preempt_local_disabled = TRUE;
         ja_preempt_enable();
         part->part_sched_ops->on_event();
         ja_preempt_disable();
     }
 
-    part->preempt_local_disabled = 0;
-#if POK_NEEDS_GDB
+    part->preempt_local_disabled = FALSE;
+#ifdef POK_NEEDS_GDB
     pok_in_user_space = TRUE;
 #endif
 }
@@ -516,11 +568,11 @@ void pok_partition_return_user_fp(void)
 {
     pok_partition_t* part = current_partition;
 
-    assert(part->fp_store_current);
+    assert(part->fp_store_current != NULL);
 
     if(fp_store_last != part->fp_store_current)
     {
-        if(fp_store_last)
+        if(fp_store_last != NULL)
         {
             ja_fp_save(fp_store_last);
         }
@@ -530,7 +582,7 @@ void pok_partition_return_user_fp(void)
     }
 }
 
-void pok_partition_jump_user(void (* __user entry)(void),
+void pok_partition_jump_user(void (* JET_USER entry)(void),
     jet_ustack_t stack_user,
     jet_stack_t stack_kernel)
 {
@@ -538,9 +590,9 @@ void pok_partition_jump_user(void (* __user entry)(void),
 
     pok_partition_return_user_common();
 
-    assert(part->fp_store_current);
+    assert(part->fp_store_current != NULL);
 
-    if(fp_store_last && fp_store_last != part->fp_store_current)
+    if((fp_store_last != NULL) && (fp_store_last != part->fp_store_current))
     {
         ja_fp_save(fp_store_last);
     }
@@ -558,16 +610,18 @@ void pok_partition_jump_user(void (* __user entry)(void),
 void pok_partition_restart(void)
 {
     pok_partition_t* part = current_partition;
-    assert(part);
+    assert(part != NULL);
 
     pok_preemption_disable();
 
     // Assign new generation for partition.
     part->partition_generation++;
     // For the case of overflow.
-    if(part->partition_generation == 0) part->partition_generation = 1;
+    if(part->partition_generation == 0U) {
+        part->partition_generation = 1;
+    }
 
-    part->sp = 0;
+    part->sp = NULL;
     sched_need_recheck = TRUE;
 
     pok_preemption_enable();

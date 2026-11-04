@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team
  *
  * Created by julien on Thu Jan 15 23:34:13 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: discarded
+ * results are cast to void.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /**
@@ -66,7 +72,7 @@ void jet_boot (void)
 #endif
 
 #if defined (POK_NEEDS_DEBUG) || defined (POK_NEEDS_CONSOLE)
-  pok_cons_write ("JET OS kernel initialized\n", 26);
+  (void) pok_cons_write ("JET OS kernel initialized\n", 26);
 #endif
 
 #ifdef POK_NEEDS_INSTRUMENTATION

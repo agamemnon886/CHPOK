@@ -23,10 +23,13 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __JA_ARM64_INTERRUPT_FRAME
-#define __JA_ARM64_INTERRUPT_FRAME
+#ifndef JA_ARM64_INTERRUPT_FRAME
+#define JA_ARM64_INTERRUPT_FRAME
 
 #include <stdint.h>
 
@@ -45,4 +48,4 @@ typedef struct jet_interrupt_context
   uint64_t spsr;    /* saved processor state */
 } interrupt_frame;
 
-#endif /* __JA_ARM64_INTERRUPT_FRAME */
+#endif /* JA_ARM64_INTERRUPT_FRAME */

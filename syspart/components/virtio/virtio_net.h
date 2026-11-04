@@ -1,5 +1,5 @@
-#ifndef _POK_VIRTIO_NET_H
-#define _POK_VIRTIO_NET_H
+#ifndef POK_VIRTIO_NET_H
+#define POK_VIRTIO_NET_H
 
 // for ETH_ALEN
 #include <net/ether.h>
@@ -28,7 +28,12 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE. */
+ * SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header guard
+ * isn't a reserved identifier; deviations are documented where a guideline
+ * can't be followed.
+ */
 
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM	0	/* Host handles pkts w/ partial csum */
@@ -150,6 +155,8 @@ typedef uint8_t virtio_net_ctrl_ack;
  */
 struct virtio_net_ctrl_mac {
 	uint32_t entries;
+	/* MISRA C:2025 Rule 18.7 deviation: "entries" MAC addresses follow the
+	 * count. */
 	uint8_t macs[][ETH_ALEN];
 } __attribute__((packed));
 
@@ -201,4 +208,4 @@ struct virtio_net_ctrl_mq {
  #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN        1
  #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX        0x8000
 
-#endif /* _POK_VIRTIO_NET_H */
+#endif /* POK_VIRTIO_NET_H */

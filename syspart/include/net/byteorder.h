@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants.
  */
 
-#ifndef __POK_NET_BYTEORDER_H__
-#define __POK_NET_BYTEORDER_H__
+#ifndef POK_NET_BYTEORDER_H
+#define POK_NET_BYTEORDER_H
 
 #include <stdint.h>
 
@@ -22,8 +26,8 @@
 
 static inline uint16_t hton16(uint16_t x)
 {
-    return ((x >> 8) & 0xFF) |
-           ((x & 0xFF) << 8);
+    return (uint16_t) (((x >> 8) & 0xFFU) |
+                       ((x & 0xFFU) << 8));
 }
 
 static inline uint16_t ntoh16(uint16_t x)

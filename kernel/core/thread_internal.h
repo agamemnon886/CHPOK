@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: thread_wait_common() adds the
+ * duration with pok_time_add(), which cannot overflow.
  */
 
-#ifndef __POK_THREAD_INTERNAL_H__
-#define __POK_THREAD_INTERNAL_H__
+#ifndef POK_THREAD_INTERNAL_H
+#define POK_THREAD_INTERNAL_H
 
 #include <types.h>
 
@@ -105,7 +112,7 @@ static inline void thread_wait_common(pok_thread_t* t, pok_time_t duration)
         thread_wait(t);
     }
     else {
-        thread_wait_timed(t, jet_system_time() + duration);
+        thread_wait_timed(t, pok_time_add(jet_system_time(), duration));
     }
 }
 
@@ -192,4 +199,4 @@ void thread_start(pok_thread_t* t);
  * Called with local preemption disabled.
  */
 void thread_yield(pok_thread_t *t);
-#endif /* __POK_THREAD_INTERNAL_H__ */
+#endif /* POK_THREAD_INTERNAL_H */

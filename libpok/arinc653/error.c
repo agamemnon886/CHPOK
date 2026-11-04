@@ -24,8 +24,16 @@
  * from <stdint.h>.
  * Modified by Kirill Brazhnikov, 2026-11-01: added CONFIGURE_ERROR_HANDLER
  * (ARINC 653P1-4).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: U suffixes for
+ * unsigned constants.
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: MAP() in
+ * error_pok_to_arinc() no longer ends with a ";" of its own, so its
+ * switch-clauses don't end with an empty statement; operands of mixed
+ * precedence are parenthesized.
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: message
+ * parameters that are only read are const (callers can pass const data).
  * The modifications are distributed under the POK licence
- * (BSD-2-Clause, see POK-LICENSE).
+ * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
 
 #include <config.h>
@@ -38,14 +46,17 @@
 #include <core/error.h>
 #include <core/syscall.h>
 #include <string.h>
-#include <stdio.h>
 
+/*
+ * Each MAP_ERROR()/MAP_ERROR_DEFAULT() expands to a whole switch-clause ending
+ * with break (MISRA C:2025 Rule 16.3).
+ */
 #define MAP_ERROR(from, to) case (from): *RETURN_CODE = (to); break
 #define MAP_ERROR_DEFAULT(to) default: *RETURN_CODE = (to); break
 
 static ERROR_CODE_TYPE error_pok_to_arinc(int32_t pok_error)
 {
-    #define MAP(from, to) case (from): return (to);
+    #define MAP(from, to) case (from): return (to)
     switch (pok_error) {
         MAP(POK_ERROR_KIND_DEADLINE_MISSED, DEADLINE_MISSED);
         MAP(POK_ERROR_KIND_APPLICATION_ERROR, APPLICATION_ERROR);
@@ -68,13 +79,13 @@ static ERROR_CODE_TYPE error_pok_to_arinc(int32_t pok_error)
  * name of the reporting partition. No error is raised: the calling
  * process continues.
  */
-void REPORT_APPLICATION_MESSAGE (MESSAGE_ADDR_TYPE    MESSAGE,
+void REPORT_APPLICATION_MESSAGE (const APEX_BYTE *   MESSAGE,
                                  MESSAGE_SIZE_TYPE    LENGTH,
                                  RETURN_CODE_TYPE     *RETURN_CODE )
 {
    pok_ret_t core_ret;
 
-   if (LENGTH < 0 || LENGTH > MAX_ERROR_MESSAGE_SIZE) {
+   if ((LENGTH < 0) || (LENGTH > MAX_ERROR_MESSAGE_SIZE)) {
        *RETURN_CODE = INVALID_PARAM;
        return;
    }
@@ -116,7 +127,8 @@ void GET_ERROR_STATUS (ERROR_STATUS_TYPE  *ERROR_STATUS,
     if (core_ret == POK_ERRNO_OK) {
         ERROR_STATUS->ERROR_CODE = error_pok_to_arinc(core_status.error_kind);
         ERROR_STATUS->LENGTH = core_status.msg_size;
-        ERROR_STATUS->FAILED_PROCESS_ID = core_status.failed_thread + 1; // ARINC process IDs are one higher
+        // ARINC process IDs are one higher
+        ERROR_STATUS->FAILED_PROCESS_ID = core_status.failed_thread + 1U;
         ERROR_STATUS->FAILED_ADDRESS = (SYSTEM_ADDRESS_TYPE)core_status.failed_addr;
     }
 
@@ -130,11 +142,11 @@ void GET_ERROR_STATUS (ERROR_STATUS_TYPE  *ERROR_STATUS,
 }
 
 void RAISE_APPLICATION_ERROR (ERROR_CODE_TYPE            ERROR_CODE,
-                              MESSAGE_ADDR_TYPE          MESSAGE,
+                              const APEX_BYTE *         MESSAGE,
                               ERROR_MESSAGE_SIZE_TYPE    LENGTH,
                               RETURN_CODE_TYPE           *RETURN_CODE)
 {
-    if (LENGTH < 0 || LENGTH > MAX_ERROR_MESSAGE_SIZE) {
+    if ((LENGTH < 0) || (LENGTH > MAX_ERROR_MESSAGE_SIZE)) {
         *RETURN_CODE = INVALID_PARAM;
         return;
     }

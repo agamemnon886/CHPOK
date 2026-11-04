@@ -17,13 +17,15 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
-#ifndef __POK_KERNEL_CPIO_H__
-#define __POK_KERNEL_CPIO_H__
+#ifndef POK_KERNEL_CPIO_H
+#define POK_KERNEL_CPIO_H
 #include <stdint.h>
 
 enum cpio_format
@@ -70,5 +72,5 @@ char  *cpio_get_filename(struct cpio_file *cpio);
 int32_t cpio_next_file(struct cpio_file *cpio);
 void  *cpio_get_fileaddr(struct cpio_file *cpio);
 
-#endif /* __POK_KERNEL_CPIO_H__ */
+#endif /* POK_KERNEL_CPIO_H */
 

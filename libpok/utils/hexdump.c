@@ -16,6 +16,11 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: braces around
+ * all if/else bodies; discarded printf() results are cast to void; the
+ * printed values have the types of their formats; a negative length is
+ * rejected like 0 (the last line printed the uninitialized buffer).
  */
 
 #include <debug.h>
@@ -24,11 +29,13 @@
 void hexdump (const void *addr, int32_t len)
 {
     int32_t i;
-    uint8_t buff[17];
+    char buff[17];
+    /* MISRA C:2025 Rule 11.5 deviation: the bytes of any object are dumped,
+     * so it is passed as a pointer to void. */
     const uint8_t *pc = (const uint8_t*)addr;
 
-    if (len == 0) {
-        printf("Len is zero\n");
+    if (len <= 0) {
+        (void) printf("Len is zero\n");
         return;
     }
 
@@ -38,30 +45,32 @@ void hexdump (const void *addr, int32_t len)
 
         if ((i % 16) == 0) {
             // Just don't print ASCII for the zeroth line.
-            if (i != 0)
-                printf("  %s\n", buff);
+            if (i != 0) {
+                (void) printf("  %s\n", buff);
+            }
 
             // Output the offset.
-            printf("  %04x ", i);
+            (void) printf("  %04x ", (unsigned int) i);
         }
 
         // Now the hex code for the specific character.
-        printf(" %02x", pc[i]);
+        (void) printf(" %02x", (unsigned int) pc[i]);
 
         // And store a printable ASCII character for later.
-        if ((pc[i] < 0x20) || (pc[i] > 0x7e))
+        if ((pc[i] < 0x20U) || (pc[i] > 0x7eU)) {
             buff[i % 16] = '.';
-        else
-            buff[i % 16] = pc[i];
+        } else {
+            buff[i % 16] = (char) pc[i];
+        }
         buff[(i % 16) + 1] = '\0';
     }
 
     // Pad out last line if not exactly 16 characters.
     while ((i % 16) != 0) {
-        printf("   ");
+        (void) printf("   ");
         i++;
     }
 
     // And print the final ASCII bit.
-    printf("  %s\n", buff);
+    (void) printf("  %s\n", buff);
 }

@@ -16,6 +16,8 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: ported from
  * libpok/arch/x86/syscall.c to x86_64 (64-bit).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -28,6 +30,10 @@
  *
  *   int $0x80, %rax - syscall id, %rbx - address of the arguments.
  *   Result is returned in %rax, other registers are preserved.
+ */
+/*
+ * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation: the system call instruction
+ * is GNU inline assembly, isolated in this function.
  */
 pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args)
 {

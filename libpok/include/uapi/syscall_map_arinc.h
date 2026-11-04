@@ -25,6 +25,23 @@
  * Modified by Kirill Brazhnikov, 2026-11-01: added the
  * POK_SYSCALL_ERROR_HANDLER_CONFIGURE syscall, used by
  * CONFIGURE_ERROR_HANDLER.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed. Parameters named "time"
+ * are renamed (libpok defines the function time()), and the parameters of
+ * pok_thread_delayed_start() have the names of its definition.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed. In the kernel, the
+ * syscall implementations are no longer declared again next to their
+ * wrappers (Rule 8.5).
+ */
+
+/*
+ * MISRA C:2025 Rule 11.4, Rule 11.6 and Rule 10.5 deviation: the wrappers
+ * pass their arguments to the kernel as uintptr_t (see pok_syscall_args_t),
+ * so pointers and Boolean values are converted to integers; the kernel
+ * converts them back.
  */
 
 
@@ -52,20 +69,20 @@ static inline pok_ret_t pok_thread_create(const char* name,
 #undef POK_SYSCALL_THREAD_CREATE
 
 #ifdef POK_NEEDS_THREAD_SLEEP
-static inline pok_ret_t pok_thread_sleep(const pok_time_t* time)
+static inline pok_ret_t pok_thread_sleep(const pok_time_t* duration)
 {
     return pok_syscall1(POK_SYSCALL_THREAD_SLEEP,
-        (uintptr_t)time);
+        (uintptr_t)duration);
 }
 // Syscall should be accessed only by function
 #undef POK_SYSCALL_THREAD_SLEEP
 #endif
 
 #ifdef POK_NEEDS_THREAD_SLEEP_UNTIL
-static inline pok_ret_t pok_thread_sleep_until(const pok_time_t* time)
+static inline pok_ret_t pok_thread_sleep_until(const pok_time_t* until)
 {
     return pok_syscall1(POK_SYSCALL_THREAD_SLEEP_UNTIL,
-        (uintptr_t)time);
+        (uintptr_t)until);
 }
 // Syscall should be accessed only by function
 #undef POK_SYSCALL_THREAD_SLEEP_UNTIL
@@ -78,10 +95,10 @@ static inline pok_ret_t pok_sched_end_period(void)
 #undef POK_SYSCALL_THREAD_PERIOD
 
 #if defined (POK_NEEDS_THREAD_SUSPEND) || defined (POK_NEEDS_ERROR_HANDLING)
-static inline pok_ret_t pok_thread_suspend(const pok_time_t* time)
+static inline pok_ret_t pok_thread_suspend(const pok_time_t* timeout)
 {
     return pok_syscall1(POK_SYSCALL_THREAD_SUSPEND,
-        (uintptr_t)time);
+        (uintptr_t)timeout);
 }
 // Syscall should be accessed only by function
 #undef POK_SYSCALL_THREAD_SUSPEND
@@ -101,12 +118,12 @@ static inline pok_ret_t pok_thread_get_status(pok_thread_id_t thread_id,
 // Syscall should be accessed only by function
 #undef POK_SYSCALL_THREAD_STATUS
 
-static inline pok_ret_t pok_thread_delayed_start(pok_thread_id_t thread_id,
-    const pok_time_t* time)
+static inline pok_ret_t pok_thread_delayed_start(pok_thread_id_t id,
+    const pok_time_t* delay_time)
 {
     return pok_syscall2(POK_SYSCALL_THREAD_DELAYED_START,
-        (uintptr_t)thread_id,
-        (uintptr_t)time);
+        (uintptr_t)id,
+        (uintptr_t)delay_time);
 }
 // Syscall should be accessed only by function
 #undef POK_SYSCALL_THREAD_DELAYED_START

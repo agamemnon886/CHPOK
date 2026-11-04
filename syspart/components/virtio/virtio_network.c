@@ -16,6 +16,11 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; discarded results are cast to void;
+ * essentially Boolean conditions; U suffixes for unsigned constants; a
+ * dead store to desc->flags is removed.
  */
 
 #include <string.h>
@@ -43,7 +48,7 @@
 #define VIRTIO_NETWORK_RX_VIRTQUEUE 0
 #define VIRTIO_NETWORK_TX_VIRTQUEUE 1
 
-#define PRINTF(fmt, ...) printf("VIRTIO_NET_DEV: " fmt, ##__VA_ARGS__)
+#define PRINTF(fmt, ...) (void) printf("VIRTIO_NET_DEV: " fmt, ##__VA_ARGS__)
 
 static void reclaim_send_buffers(struct virtio_network_device *info);
 
@@ -52,8 +57,9 @@ static void lock_preemption(pok_bool_t *saved)
     LOCK_LEVEL_TYPE LOCK_LEVEL;
     RETURN_CODE_TYPE ret_code;
     LOCK_PREEMPTION(&LOCK_LEVEL, &ret_code);
-    if (ret_code != NO_ERROR)
+    if (ret_code != NO_ERROR) {
         PRINTF("error in LOCK_PREEMPTION %d\n", ret_code);
+    }
 }
 
 
@@ -62,8 +68,9 @@ static void unlock_preemption(const pok_bool_t *saved)
     LOCK_LEVEL_TYPE LOCK_LEVEL;
     RETURN_CODE_TYPE ret_code;
     UNLOCK_PREEMPTION(&LOCK_LEVEL, &ret_code);
-    if (ret_code != NO_ERROR)
+    if (ret_code != NO_ERROR) {
         PRINTF("error in UNLOCK_PREEMPTION %d\n", ret_code);
+    }
 
 }
 
@@ -78,7 +85,7 @@ static pok_bool_t setup_virtqueue(
     // get queue size
 
     uint16_t queue_size = inw(dev->pci_device.resources[PCI_RESOURCE_BAR0].addr + VIRTIO_PCI_QUEUE_NUM);
-    if (queue_size < 1) {
+    if (queue_size < 1U) {
         PRINTF("wrong queue size\n");
         return FALSE;
     }
@@ -89,8 +96,9 @@ static pok_bool_t setup_virtqueue(
     // give device queue's physical address
     uintptr_t phys_addr = pok_virt_to_phys(mem);
 
-    if (phys_addr == 0) {
-        printf("%s: kernel says that virtual address is wrong\n", __func__);
+    if (phys_addr == 0U) {
+        (void) printf(
+            "%s: kernel says that virtual address is wrong\n", __func__);
         return FALSE;
     }
 
@@ -119,7 +127,7 @@ static void use_receive_buffer(struct virtio_network_device *dev, struct receive
 {
     struct virtio_virtqueue *vq = &dev->rx_vq;
 
-    if (vq->num_free < 1) {
+    if (vq->num_free < 1U) {
         PRINTF("no free RX descriptors\n");
         return; // FIXME return error code
     }
@@ -133,14 +141,15 @@ static void use_receive_buffer(struct virtio_network_device *dev, struct receive
     vq->free_index = desc->next;
 
     desc->addr = pok_virt_to_phys(buf);
-    if (desc->addr == 0) {
-        printf("%s: kernel says that virtual address is wrong\n", __func__);
+    if (desc->addr == 0U) {
+        (void) printf(
+            "%s: kernel says that virtual address is wrong\n", __func__);
         return;
     }
     desc->len = sizeof(*buf);
     desc->flags = VRING_DESC_F_WRITE;
 
-    int32_t avail = vq->vring.avail->idx & (vq->vring.num-1); // wrap around
+    int32_t avail = vq->vring.avail->idx & (vq->vring.num-1U); // wrap around
     vq->vring.avail->ring[avail] = head;
     
     __sync_synchronize();
@@ -169,11 +178,13 @@ ret_t send_frame(VIRTIO_NET_DEV * self,
         size_t size,
         size_t max_back_step)
 {
-    if (!self->state.info.inited)
+    if (self->state.info.inited == 0) {
         return EINVAL; //FIXME
+    }
 
-    if (max_back_step != 0)
+    if (max_back_step != 0U) {
         return EINVAL;
+    }
 
     static struct virtio_net_hdr net_hdr;
     struct vring_desc *desc;
@@ -185,14 +196,15 @@ ret_t send_frame(VIRTIO_NET_DEV * self,
 
     // now, send it to the virtqueue
     struct virtio_virtqueue *vq = &dev->tx_vq;
-    if (vq->num_free < 1) {
+    if (vq->num_free < 1U) {
         PRINTF("no free TX descriptors\n");
         return FALSE;
     }
 
-    memset(&net_hdr, 0, sizeof(net_hdr));
+    (void) memset(&net_hdr, 0, sizeof(net_hdr));
 
-    vq->num_free -= 2; //we use 2 desc. One for virtio specific hdr, the other one for message
+    // we use 2 desc. One for virtio specific hdr, the other one for message
+    vq->num_free -= 2U;
 
     uint16_t head = vq->free_index;
     /* Setup first descriptor as virtio_net_hdr */
@@ -202,21 +214,20 @@ ret_t send_frame(VIRTIO_NET_DEV * self,
     desc->flags = VRING_DESC_F_NEXT;
 
 
-    memcpy(dev->send_buffers[head].data, buffer, size);
+    (void) memcpy(dev->send_buffers[head].data, buffer, size);
 
     desc = &vq->vring.desc[desc->next];
     desc->addr = pok_virt_to_phys(dev->send_buffers[head].data);
-    if (desc->addr == 0) {
-        printf("%s: kernel says that virtual address is wrong\n", __func__);
+    if (desc->addr == 0U) {
+        (void) printf(
+            "%s: kernel says that virtual address is wrong\n", __func__);
         return FALSE;
     }
     desc->len = size;
-    desc->flags = VRING_DESC_F_NEXT;
-
-    desc->flags = 0;
+    desc->flags = 0U;
     vq->free_index = desc->next;
 
-    int32_t avail = vq->vring.avail->idx & (vq->vring.num-1); // wrap around
+    int32_t avail = vq->vring.avail->idx & (vq->vring.num-1U); // wrap around
     vq->vring.avail->ring[avail] = head;
 
     __sync_synchronize();
@@ -237,15 +248,15 @@ static void reclaim_send_buffers(struct virtio_network_device *info)
     pok_bool_t saved_preemption;
     lock_preemption(&saved_preemption);
     while (vq->last_seen_used != vq->vring.used->idx) {
-        uint16_t index = vq->last_seen_used & (vq->vring.num-1);
+        uint16_t index = vq->last_seen_used & (vq->vring.num-1U);
         struct vring_used_elem *e = &vq->vring.used->ring[index];
         struct vring_desc *head = &vq->vring.desc[e->id];
         struct vring_desc *tail = head;
 
         // reclaim descriptor
         uint16_t total_descriptors = 1;
-        while (tail->flags & VRING_DESC_F_NEXT) {
-            total_descriptors++;;
+        while ((tail->flags & VRING_DESC_F_NEXT) != 0U) {
+            total_descriptors++;
             tail = &vq->vring.desc[tail->next];
         }
 
@@ -272,18 +283,21 @@ static void reclaim_receive_buffers(VIRTIO_NET_DEV *self)
     uint16_t old_last_seen_used = vq->last_seen_used;
 
     while (vq->last_seen_used != vq->vring.used->idx) {
-        uint16_t index = vq->last_seen_used & (vq->vring.num-1);
+        uint16_t index = vq->last_seen_used & (vq->vring.num-1U);
         struct vring_used_elem *e = &vq->vring.used->ring[index];
         struct vring_desc *desc = &vq->vring.desc[e->id];
 
         struct receive_buffer *buf = pok_phys_to_virt(desc->addr);
-        if (buf == 0) {
-            printf("%s: kernel says that physical address is wrong\n", __func__);
+        if (buf == NULL) {
+            (void) printf(
+                "%s: kernel says that physical address is wrong\n", __func__);
             unlock_preemption(&saved_preemption);
             return;
         }
 
-        VIRTIO_NET_DEV_call_portB_handle(self, (const char *)&buf->packet, e->len - sizeof(struct virtio_net_hdr));
+        (void) VIRTIO_NET_DEV_call_portB_handle(
+            self, (const char *)&buf->packet,
+                e->len - sizeof(struct virtio_net_hdr));
 
         // reclaim descriptor
         // FIXME support chained descriptors as well
@@ -313,8 +327,9 @@ static void reclaim_receive_buffers(VIRTIO_NET_DEV *self)
 
 ret_t flush_send(VIRTIO_NET_DEV *self)
 {
-    if (!self->state.info.inited)
+    if (self->state.info.inited == 0) {
         return EINVAL; //FIXME
+    }
 
     struct virtio_network_device *dev = &self->state.info;
 
@@ -335,7 +350,7 @@ static pok_bool_t init_device(VIRTIO_NET_DEV_state *state)
             state->pci_dev,
             state->pci_fn,
             &dev->pci_device);
-    if (dev->pci_device.vendor_id == 0xFFFF) {
+    if (dev->pci_device.vendor_id == 0xFFFFU) {
         PRINTF("have not found virtio device\n");
         return FALSE;
     }
@@ -358,8 +373,9 @@ static pok_bool_t init_device(VIRTIO_NET_DEV_state *state)
 
     // 4. Device-specific setup
     if (!setup_virtqueue(dev, VIRTIO_NETWORK_RX_VIRTQUEUE, &dev->rx_vq)
-        || !setup_virtqueue(dev, VIRTIO_NETWORK_TX_VIRTQUEUE, &dev->tx_vq))
+        || !setup_virtqueue(dev, VIRTIO_NETWORK_TX_VIRTQUEUE, &dev->tx_vq)) {
         return FALSE;
+    }
 
     setup_receive_buffers(dev);
 
@@ -370,9 +386,9 @@ static pok_bool_t init_device(VIRTIO_NET_DEV_state *state)
     uint32_t features = inl(dev->pci_device.resources[PCI_RESOURCE_BAR0].addr + VIRTIO_PCI_HOST_FEATURES);
     uint32_t recognized_features = 0;
 
-    if (features & (1 << VIRTIO_NET_F_MAC)) {
+    if ((features & (1U << VIRTIO_NET_F_MAC)) != 0U) {
         read_mac_address(dev);
-        recognized_features |= (1 << VIRTIO_NET_F_MAC);
+        recognized_features |= (1U << VIRTIO_NET_F_MAC);
     } else {
         PRINTF("MAC address is not configured\n");
         set_status_bit(&dev->pci_device, VIRTIO_CONFIG_S_FAILED);
@@ -392,8 +408,9 @@ static pok_bool_t init_device(VIRTIO_NET_DEV_state *state)
 
 void virtio_receive_activity(VIRTIO_NET_DEV *self)
 {
-    if (self->state.info.inited)
+    if (self->state.info.inited != 0) {
         reclaim_receive_buffers(self);
+    }
 }
 
 /*
@@ -401,6 +418,7 @@ void virtio_receive_activity(VIRTIO_NET_DEV *self)
  */
 void virtio_init(VIRTIO_NET_DEV *self)
 {
-    if (init_device(&self->state))
+    if (init_device(&self->state)) {
         self->state.info.inited = 1;
+    }
 }

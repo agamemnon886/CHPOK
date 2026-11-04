@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __LIBJET_ARINC_PROCESS_QUEUE_H__
-#define __LIBJET_ARINC_PROCESS_QUEUE_H__
+#ifndef LIBJET_ARINC_PROCESS_QUEUE_H
+#define LIBJET_ARINC_PROCESS_QUEUE_H
 
 #include <arinc653/types.h>
 #include <msection.h>
@@ -32,4 +36,4 @@ void arinc_process_queue_add_common(struct msection_wq* wq,
     QUEUING_DISCIPLINE_TYPE discipline);
 
 
-#endif /* __LIBJET_ARINC_PROCESS_QUEUE_H__ */
+#endif /* LIBJET_ARINC_PROCESS_QUEUE_H */

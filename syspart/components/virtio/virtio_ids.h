@@ -1,5 +1,5 @@
-#ifndef _POK_VIRTIO_IDS_H
-#define _POK_VIRTIO_IDS_H
+#ifndef POK_VIRTIO_IDS_H
+#define POK_VIRTIO_IDS_H
 /*
  * Virtio IDs
  *
@@ -27,7 +27,11 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE. */
+ * SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header guard
+ * isn't a reserved identifier.
+ */
 
 #define VIRTIO_ID_NET		1 /* virtio net */
 #define VIRTIO_ID_BLOCK		2 /* virtio block */
@@ -40,4 +44,4 @@
 #define VIRTIO_ID_RPROC_SERIAL 11 /* virtio remoteproc serial link */
 #define VIRTIO_ID_CAIF	       12 /* Virtio caif */
 
-#endif /* _POK_VIRTIO_IDS_H */
+#endif /* POK_VIRTIO_IDS_H */

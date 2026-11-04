@@ -1,9 +1,13 @@
 /* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; vga_init() and rgba_to_argb() are
+ * declared here.
  */
-#ifndef __QEMU_VGA_FB_H__
-#define __QEMU_VGA_FB_H__
+#ifndef QEMU_VGA_FB_H
+#define QEMU_VGA_FB_H
 #include <stdint.h>
 
 typedef int32_t uwrm_handle;
@@ -32,5 +36,10 @@ struct uwrm_scm_direct_fb {
 int32_t uwrm_scm_get_direct_fb(struct uwrm_scm_direct_fb *fb);
 
 int32_t uwrm_scm_fb_swap(struct uwrm_scm_direct_fb *fb);
+
+/* Initializes the QEMU VGA device (drivers/qemu_vga). */
+void vga_init(void);
+/* The ARGB value of an RGBA color. */
+uint32_t rgba_to_argb(uint32_t rgba_color);
 
 #endif

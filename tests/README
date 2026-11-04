@@ -1,10 +1,10 @@
 JetOS tests
 ===========
 
-Conformance tests for the APEX services (ARINC 653 Part 1). Each test is a
-JetOS project like the examples: it builds a kernel image with one or more
-partitions, runs in QEMU, and checks the return codes and behaviour of
-the services.
+Conformance tests for the APEX services (ARINC 653 Part 1) and libpok's C
+library. Each test is a JetOS project like the examples: it builds a kernel
+image with one or more partitions, runs in QEMU, and checks the return
+codes and behaviour of the services.
 
 Running
 -------
@@ -53,6 +53,12 @@ apex    Two partitions. P1 is started four times and checks: APEX type
         initialization-only services return INVALID_MODE in NORMAL mode.
         P2 checks its start conditions and the validity of sampling
         messages with a huge and a tiny refresh period.
+
+libc    One partition. Checks libpok's C library: string and memory
+        functions (strncpy padding and truncation, overlapping memmove,
+        strtok, strncasecmp), snprintf formats and truncation, the ctype
+        classes, gmtime/asctime, and every strftime conversion, including
+        ISO 8601 weeks at year boundaries.
 
 mutex   One partition. Checks every mutex service and return code:
         CREATE_MUTEX limits and parameters, GET_MUTEX_ID, GET_MUTEX_STATUS,

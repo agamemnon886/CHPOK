@@ -5,6 +5,7 @@
  * This can be used with QEMU based VMMs like KVM or Xen.
  *
  * Copyright IBM Corp. 2007
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * Authors:
  *  Anthony Liguori  <aliguori@us.ibm.com>
@@ -34,10 +35,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header guard
+ * isn't a reserved identifier.
  */
 
-#ifndef _POK_VIRTIO_PCI_H
-#define _POK_VIRTIO_PCI_H
+#ifndef POK_VIRTIO_PCI_H
+#define POK_VIRTIO_PCI_H
 
 #include "virtio_config.h"
 

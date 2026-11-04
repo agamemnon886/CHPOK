@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,9 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; U suffixes for unsigned constants.
  */
 
 /*
@@ -22,8 +26,8 @@
  * Taken from Appendix E of ARINC653 P1-3.
  */
 
-#ifndef __POK_SYSTEM_LIMITS_H__
-#define __POK_SYSTEM_LIMITS_H__
+#ifndef POK_SYSTEM_LIMITS_H
+#define POK_SYSTEM_LIMITS_H
 
 // Number of partition should be contstrainted by integrator.
 #define SYSTEM_LIMIT_NUMBER_OF_MESSAGES       512  /* module scope */
@@ -31,9 +35,9 @@
 
 // SYSTEM_LIMIT_NUMBER_OF_.. should be constrainted by integrator.
 
-#define MAX_LOCK_LEVEL 16
+#define MAX_LOCK_LEVEL 16U
 
-#define MIN_PRIORITY_VALUE 1
-#define MAX_PRIORITY_VALUE 239
+#define MIN_PRIORITY_VALUE 1U
+#define MAX_PRIORITY_VALUE 239U
 
-#endif /* __POK_SYSTEM_LIMITS_H__ */
+#endif /* POK_SYSTEM_LIMITS_H */

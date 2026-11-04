@@ -23,6 +23,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-01: added PROCESSOR_CORE_ID_TYPE
  * and CORE_AFFINITY_NO_PREFERENCE (ARINC 653P1-4); added
  * SYSTEM_LIMIT_NUMBER_OF_MUTEXES.
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: U suffixes for
+ * unsigned constants.
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -59,9 +63,10 @@ typedef   int32_t          APEX_INTEGER;            /* 32-bit signed */
 typedef   uint32_t         APEX_UNSIGNED;           /* 32-bit unsigned */
 typedef   int64_t          APEX_LONG_INTEGER;       /* 64-bit signed */
 
-_Static_assert(sizeof(APEX_INTEGER) == 4, "APEX_INTEGER must be 32-bit");
-_Static_assert(sizeof(APEX_UNSIGNED) == 4, "APEX_UNSIGNED must be 32-bit");
-_Static_assert(sizeof(APEX_LONG_INTEGER) == 8, "APEX_LONG_INTEGER must be 64-bit");
+_Static_assert(sizeof(APEX_INTEGER) == 4U, "APEX_INTEGER must be 32-bit");
+_Static_assert(sizeof(APEX_UNSIGNED) == 4U, "APEX_UNSIGNED must be 32-bit");
+_Static_assert(sizeof(APEX_LONG_INTEGER) == 8U,
+               "APEX_LONG_INTEGER must be 64-bit");
 /*----------------------*/
 /* General APEX types     */
 /*----------------------*/

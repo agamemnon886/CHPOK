@@ -21,6 +21,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types in
  * the generated code are replaced with the fixed-width types from
  * <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * printf() results are cast to void; the static wrappers aren't named with
+ * reserved identifiers.
  */
 
 #include <lib/common.h>
@@ -33,7 +37,8 @@
       ret_t ARINC_SENDER_call_portA_send(ARINC_SENDER *self, char * arg1, size_t arg2, size_t arg3)
       {
          if (self->out.portA.ops == NULL) {
-             printf("WRONG CONFIG: out port portA of component ARINC_SENDER was not initialized\n");
+             (void) printf("WRONG CONFIG: out port portA of component "
+                           "ARINC_SENDER was not initialized\n");
              //fatal_error?
          }
          return self->out.portA.ops->send(self->out.portA.owner, arg1, arg2, arg3);
@@ -41,7 +46,8 @@
       ret_t ARINC_SENDER_call_portA_flush(ARINC_SENDER *self)
       {
          if (self->out.portA.ops == NULL) {
-             printf("WRONG CONFIG: out port portA of component ARINC_SENDER was not initialized\n");
+             (void) printf("WRONG CONFIG: out port portA of component "
+                           "ARINC_SENDER was not initialized\n");
              //fatal_error?
          }
          return self->out.portA.ops->flush(self->out.portA.owner);

@@ -16,6 +16,12 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * results are cast to void; essentially Boolean conditions; U suffixes
+ * for unsigned constants; operands of mixed precedence are parenthesized;
+ * deviations are documented where a guideline can't be followed; the
+ * received packet is accessed through a pointer to const.
  */
 
 #include <net/byteorder.h>
@@ -43,38 +49,44 @@ static struct {
 } __attribute__((packed)) arp_answer_buffer;
 
 
+/*
+ * MISRA C:2025 Rule 11.3 deviation (this file): network packets arrive and
+ * are built in byte buffers; their headers are accessed through the packed
+ * header structures.
+ */
+
 ret_t arp_receive(ARP_ANSWERER *self, const char *data, size_t len)
 {
-    struct arp_packet_t *arp_packet = (void *) data;
+    const struct arp_packet_t *arp_packet = (const struct arp_packet_t *) data;
 
     if (arp_packet->htype != hton16(1)) {
-        printf(C_NAME"wrong arp packet\n");
+        (void) printf(C_NAME"wrong arp packet\n");
         return EINVAL; // We support only Ethernet hardware type.
     }
     if (arp_packet->ptype != hton16(ETH_P_IP)) {
-        printf(C_NAME"wrong arp packet\n");
+        (void) printf(C_NAME"wrong arp packet\n");
         return EINVAL; // We support only IPv4 protocol type.
     }
-    if (arp_packet->hlen != ETH_ALEN || arp_packet->plen != 4) {
-        printf(C_NAME"wrong arp packet\n");
+    if ((arp_packet->hlen != (uint8_t) ETH_ALEN) || (arp_packet->plen != 4U)) {
+        (void) printf(C_NAME"wrong arp packet\n");
         return EINVAL; // We support Ethernet MAC and IPv4 addresses only.
     }
     if (arp_packet->oper != hton16(1)) {
-        printf(C_NAME"wrong arp packet\n");
+        (void) printf(C_NAME"wrong arp packet\n");
         return EINVAL; // This is not an ARP request.
     }
     int32_t found = 0;
-    for (int32_t i=0; i<self->state.good_ips_len; i++) {
+    for (uint32_t i = 0U; i < self->state.good_ips_len; i++) {
         if (arp_packet->tpa == hton32(self->state.good_ips[i])) {
             found = 1;
             break;
         }
     }
-    if (!found) {
-        printf(C_NAME"bad ip\n");
+    if (found == 0) {
+        (void) printf(C_NAME"bad ip\n");
         return EINVAL; // This ARP request is not for us.
     }
-    printf("ARP_ANSWERER: we have received a request for our MAC.\n");
+    (void) printf("ARP_ANSWERER: we have received a request for our MAC.\n");
 
     int32_t i;
     for (i = 0; i < ETH_ALEN; i++) {
@@ -90,7 +102,7 @@ ret_t arp_receive(ARP_ANSWERER *self, const char *data, size_t len)
     arp_answer_buffer.arp_answer.spa = arp_packet->tpa;
     arp_answer_buffer.arp_answer.tpa = arp_packet->spa;
 
-    ARP_ANSWERER_call_portB_mac_send(self,
+    (void) ARP_ANSWERER_call_portB_mac_send(self,
             (void *)&arp_answer_buffer.arp_answer,
             sizeof(arp_answer_buffer.arp_answer),
             sizeof(struct ether_hdr),
@@ -98,7 +110,7 @@ ret_t arp_receive(ARP_ANSWERER *self, const char *data, size_t len)
             ETH_P_ARP);
 
 
-    ARP_ANSWERER_call_portB_flush(self);
+    (void) ARP_ANSWERER_call_portB_flush(self);
 
     return EOK;
 }

@@ -48,6 +48,23 @@
  * protocol) and rejects process IDs above the number of threads instead of
  * wrapping them to another process; LOCK_PREEMPTION and UNLOCK_PREEMPTION
  * record the holder of the preemption lock for GET_PROCESS_MUTEX_STATE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; operands of the
+ * same essential type; deviations are documented where a guideline can't
+ * be followed; SET_PRIORITY() of a mutex owner goes through the mutex
+ * code (see mutex.c).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of mixed
+ * precedence are parenthesized. Long lines are wrapped at 80 columns. The
+ * parameters have the names of the declarations in <arinc653/process.h> (Rule
+ * 8.3); the Rule 3.1 comment is removed (MISRA C:2025 allows a double slash in
+ * a URI).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters are const (they are only read), so callers can pass string
+ * literals.
  */
 
 #include <config.h>
@@ -66,66 +83,73 @@
 
 #include <kernel_shared_data.h>
 #include "mutex.h"
+#include <core/assert_os.h>
 
 pok_thread_id_t arinc_preemption_lock_holder = JET_THREAD_ID_NONE;
 
-#define MAP_ERROR(from, to) case (from): *return_code = (to); break
-#define MAP_ERROR_DEFAULT(to) default: *return_code = (to); break
+/*
+ * Each MAP_ERROR()/MAP_ERROR_DEFAULT() expands to a whole switch-clause ending
+ * with break (MISRA C:2025 Rule 16.3); cppcheck's MISRA addon doesn't see the
+ * break inside the macro and reports these switches by mistake.
+ */
+#define MAP_ERROR(from, to) case (from): *RETURN_CODE = (to); break
+#define MAP_ERROR_DEFAULT(to) default: *RETURN_CODE = (to); break
 
 #define CHECK_PROCESS_ID() \
-    if (process_id == 0) { \
-        *return_code = INVALID_PARAM; \
+    if (PROCESS_ID == 0) { \
+        *RETURN_CODE = INVALID_PARAM; \
         return; \
     }
 
 void GET_PROCESS_ID(
-    PROCESS_NAME_TYPE process_name,
-    PROCESS_ID_TYPE   *process_id,
-    RETURN_CODE_TYPE  *return_code)
+    const PROCESS_NAME_TYPE PROCESS_NAME,
+    PROCESS_ID_TYPE   *PROCESS_ID,
+    RETURN_CODE_TYPE  *RETURN_CODE)
 {
     pok_thread_id_t id;
     pok_ret_t core_ret;
 
-    core_ret = pok_thread_find(process_name, &id);
+    core_ret = pok_thread_find(PROCESS_NAME, &id);
 
     if (core_ret == POK_ERRNO_OK) {
-        *process_id = id + 1;
-        *return_code = NO_ERROR;
+        *PROCESS_ID = (PROCESS_ID_TYPE) id + 1;
+        *RETURN_CODE = NO_ERROR;
     } else {
-        *return_code = INVALID_CONFIG;
+        *RETURN_CODE = INVALID_CONFIG;
     }
 }
 
-void GET_MY_ID (PROCESS_ID_TYPE   *process_id,
-		RETURN_CODE_TYPE  *return_code )
+void GET_MY_ID (PROCESS_ID_TYPE   *PROCESS_ID,
+		RETURN_CODE_TYPE  *RETURN_CODE )
 {
     if(kshd.partition_mode != POK_PARTITION_MODE_NORMAL)
     {
         // Main thread has no id.
-        *return_code = INVALID_MODE;
+        *RETURN_CODE = INVALID_MODE;
     }
     else if(kshd.current_thread_id == kshd.error_thread_id)
     {
         // Error thread has no id.
-        *return_code = INVALID_MODE;
+        *RETURN_CODE = INVALID_MODE;
     }
     else
     {
-        *process_id = kshd.current_thread_id + 1;
-        *return_code = NO_ERROR;
+        *PROCESS_ID = kshd.current_thread_id + 1U;
+        *RETURN_CODE = NO_ERROR;
     }
 }
 
 void GET_PROCESS_STATUS (
-    PROCESS_ID_TYPE     process_id,
-    PROCESS_STATUS_TYPE *process_status,
-    RETURN_CODE_TYPE    *return_code)
+    PROCESS_ID_TYPE     PROCESS_ID,
+    PROCESS_STATUS_TYPE *PROCESS_STATUS,
+    RETURN_CODE_TYPE    *RETURN_CODE)
 {
     pok_thread_status_t status;
     pok_ret_t           core_ret;
 
-    core_ret = pok_thread_get_status(process_id - 1,
-        process_status->ATTRIBUTES.NAME, &process_status->ATTRIBUTES.ENTRY_POINT,
+    core_ret = pok_thread_get_status(PROCESS_ID - 1,
+        PROCESS_STATUS->ATTRIBUTES.NAME,
+        &PROCESS_STATUS->ATTRIBUTES.ENTRY_POINT,
         &status);
 
     switch (core_ret) {
@@ -137,60 +161,62 @@ void GET_PROCESS_STATUS (
         return;
     }
 
-    process_status->DEADLINE_TIME = status.deadline_time;
-#define MAP_STATUS(from, to) case (from): process_status->PROCESS_STATE = (to); break
+    PROCESS_STATUS->DEADLINE_TIME = status.deadline_time;
+#define MAP_STATUS(from, to) \
+    case (from): PROCESS_STATUS->PROCESS_STATE = (to); break
     switch (status.state) {
         MAP_STATUS(POK_STATE_STOPPED, DORMANT);
         MAP_STATUS(POK_STATE_RUNNABLE, READY);
         MAP_STATUS(POK_STATE_WAITING, WAITING);
         MAP_STATUS(POK_STATE_RUNNING, RUNNING);
+        default: assert_os(FALSE); break;   // the kernel has no other states
     }
 #undef MAP_STATUS
-    process_status->ATTRIBUTES.BASE_PRIORITY = status.attributes.priority;
-    process_status->ATTRIBUTES.DEADLINE =
+    PROCESS_STATUS->ATTRIBUTES.BASE_PRIORITY = status.attributes.priority;
+    PROCESS_STATUS->ATTRIBUTES.DEADLINE =
         (status.attributes.deadline == DEADLINE_SOFT)
             ? SOFT : HARD;
-    process_status->CURRENT_PRIORITY = status.current_priority;
-    process_status->ATTRIBUTES.PERIOD = status.attributes.period;
-    process_status->ATTRIBUTES.TIME_CAPACITY = status.attributes.time_capacity;
-    process_status->ATTRIBUTES.STACK_SIZE = status.attributes.stack_size;
-    process_status->DEADLINE_TIME = status.deadline_time;
+    PROCESS_STATUS->CURRENT_PRIORITY = status.current_priority;
+    PROCESS_STATUS->ATTRIBUTES.PERIOD = status.attributes.period;
+    PROCESS_STATUS->ATTRIBUTES.TIME_CAPACITY = status.attributes.time_capacity;
+    PROCESS_STATUS->ATTRIBUTES.STACK_SIZE = status.attributes.stack_size;
+    PROCESS_STATUS->DEADLINE_TIME = status.deadline_time;
 }
 
 void CREATE_PROCESS (
-    PROCESS_ATTRIBUTE_TYPE  *attributes,
-    PROCESS_ID_TYPE         *process_id,
-    RETURN_CODE_TYPE        *return_code)
+    PROCESS_ATTRIBUTE_TYPE  *ATTRIBUTES,
+    PROCESS_ID_TYPE         *PROCESS_ID,
+    RETURN_CODE_TYPE        *RETURN_CODE)
 {
     pok_thread_attr_t core_attr;
     pok_ret_t         core_ret;
     pok_thread_id_t   core_process_id;
 
-    if (attributes->NAME[0] == '\0') {
+    if (ATTRIBUTES->NAME[0] == '\0') {
         // empty names are not allowed
-        *return_code = INVALID_PARAM;
+        *RETURN_CODE = INVALID_PARAM;
         return;
     }
 
-    if (attributes->BASE_PRIORITY < MIN_PRIORITY_VALUE ||
-        attributes->BASE_PRIORITY > MAX_PRIORITY_VALUE) {
-        *return_code = INVALID_PARAM;
+    if ((ATTRIBUTES->BASE_PRIORITY < MIN_PRIORITY_VALUE) ||
+        (ATTRIBUTES->BASE_PRIORITY > MAX_PRIORITY_VALUE)) {
+        *RETURN_CODE = INVALID_PARAM;
         return;
     }
 
-    core_attr.priority        = (uint8_t) attributes->BASE_PRIORITY;
-    core_attr.period          = attributes->PERIOD;
-    if (attributes->DEADLINE == SOFT) {
+    core_attr.priority        = (uint8_t) ATTRIBUTES->BASE_PRIORITY;
+    core_attr.period          = ATTRIBUTES->PERIOD;
+    if (ATTRIBUTES->DEADLINE == SOFT) {
         core_attr.deadline = DEADLINE_SOFT;
-    } else if (attributes->DEADLINE == HARD) {
+    } else if (ATTRIBUTES->DEADLINE == HARD) {
         core_attr.deadline = DEADLINE_HARD;
     } else {
-        *return_code = INVALID_PARAM;
+        *RETURN_CODE = INVALID_PARAM;
         return;
     }
-    core_attr.time_capacity   = attributes->TIME_CAPACITY;
-    core_attr.stack_size      = attributes->STACK_SIZE;
-    core_ret = pok_thread_create (attributes->NAME, attributes->ENTRY_POINT,
+    core_attr.time_capacity   = ATTRIBUTES->TIME_CAPACITY;
+    core_attr.stack_size      = ATTRIBUTES->STACK_SIZE;
+    core_ret = pok_thread_create (ATTRIBUTES->NAME, ATTRIBUTES->ENTRY_POINT,
         &core_attr, &core_process_id);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
@@ -203,39 +229,42 @@ void CREATE_PROCESS (
         MAP_ERROR_DEFAULT(INVALID_PARAM);
     }
 
-    if (core_ret != POK_ERRNO_OK) return;
+    if (core_ret != POK_ERRNO_OK) {
+        return;
+    }
 
-    *process_id = core_process_id + 1;
+    *PROCESS_ID = (PROCESS_ID_TYPE) core_process_id + 1;
 }
 
-void STOP_SELF ()
+void STOP_SELF (void)
 {
-    pok_thread_stop ();
+    (void) pok_thread_stop ();
 }
 
 
 void SET_PRIORITY (
-    PROCESS_ID_TYPE  process_id,
+    PROCESS_ID_TYPE  PROCESS_ID,
     PRIORITY_TYPE    priority,
-    RETURN_CODE_TYPE *return_code)
+    RETURN_CODE_TYPE *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    if (priority < MIN_PRIORITY_VALUE || priority > MAX_PRIORITY_VALUE) {
-        *return_code = INVALID_PARAM;
+    if ((priority < MIN_PRIORITY_VALUE) || (priority > MAX_PRIORITY_VALUE)) {
+        *RETURN_CODE = INVALID_PARAM;
         return;
     }
 
     // Check the range before narrowing to the 8-bit kernel thread ID.
-    if (process_id < 1 || process_id > kshd.max_n_threads) {
-        *return_code = INVALID_PARAM;
+    if ((PROCESS_ID < 1)
+        || (PROCESS_ID > (PROCESS_ID_TYPE)kshd.max_n_threads)) {
+        *RETURN_CODE = INVALID_PARAM;
         return;
     }
 
 #ifdef POK_NEEDS_ARINC653_MUTEX
-    pok_ret_t core_ret = arinc_mutex_set_priority(process_id - 1, priority);
+    pok_ret_t core_ret = arinc_mutex_set_priority(PROCESS_ID - 1, priority);
 #else
-    pok_ret_t core_ret = pok_thread_set_priority(process_id - 1, priority);
+    pok_ret_t core_ret = pok_thread_set_priority(PROCESS_ID - 1, priority);
 #endif
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
@@ -245,10 +274,10 @@ void SET_PRIORITY (
 }
 
 void SUSPEND_SELF (
-    SYSTEM_TIME_TYPE time_out,
-    RETURN_CODE_TYPE *return_code)
+    SYSTEM_TIME_TYPE TIME_OUT,
+    RETURN_CODE_TYPE *RETURN_CODE)
 {
-    pok_ret_t core_ret = pok_thread_suspend(&time_out);
+    pok_ret_t core_ret = pok_thread_suspend(&TIME_OUT);
 
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
@@ -259,12 +288,12 @@ void SUSPEND_SELF (
 }
 
 void SUSPEND (
-    PROCESS_ID_TYPE     process_id,
-    RETURN_CODE_TYPE    *return_code)
+    PROCESS_ID_TYPE     PROCESS_ID,
+    RETURN_CODE_TYPE    *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_suspend_target(process_id - 1);
+    pok_ret_t core_ret = pok_thread_suspend_target(PROCESS_ID - 1);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_MODE, INVALID_MODE);
@@ -274,12 +303,12 @@ void SUSPEND (
 }
 
 void RESUME (
-    PROCESS_ID_TYPE     process_id,
-    RETURN_CODE_TYPE    *return_code)
+    PROCESS_ID_TYPE     PROCESS_ID,
+    RETURN_CODE_TYPE    *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_resume(process_id - 1);
+    pok_ret_t core_ret = pok_thread_resume(PROCESS_ID - 1);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION);
@@ -289,19 +318,19 @@ void RESUME (
 }
 
 void START (
-    PROCESS_ID_TYPE     process_id,
-    RETURN_CODE_TYPE    *return_code)
+    PROCESS_ID_TYPE     PROCESS_ID,
+    RETURN_CODE_TYPE    *RETURN_CODE)
 {
-    DELAYED_START(process_id, 0, return_code);
+    DELAYED_START(PROCESS_ID, 0, RETURN_CODE);
 }
 
 void STOP(
-    PROCESS_ID_TYPE     process_id,
-    RETURN_CODE_TYPE    *return_code)
+    PROCESS_ID_TYPE     PROCESS_ID,
+    RETURN_CODE_TYPE    *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_stop_target(process_id - 1);
+    pok_ret_t core_ret = pok_thread_stop_target(PROCESS_ID - 1);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION);
@@ -310,13 +339,13 @@ void STOP(
 }
 
 void DELAYED_START(
-    PROCESS_ID_TYPE   process_id,
-    SYSTEM_TIME_TYPE  delay_time,
-    RETURN_CODE_TYPE *return_code)
+    PROCESS_ID_TYPE   PROCESS_ID,
+    SYSTEM_TIME_TYPE  DELAY_TIME,
+    RETURN_CODE_TYPE *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_delayed_start(process_id - 1, &delay_time);
+    pok_ret_t core_ret = pok_thread_delayed_start(PROCESS_ID - 1, &DELAY_TIME);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION);
@@ -324,14 +353,16 @@ void DELAYED_START(
     }
 }
 
-void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_code)
+void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL,
+                      RETURN_CODE_TYPE *RETURN_CODE)
 {
     // LOCK_LEVEL_TYPE may be wider than int32_t (e.g. on arm64).
     int32_t lock_level = (int32_t)*LOCK_LEVEL;
     pok_ret_t ret = pok_partition_inc_lock_level(&lock_level);
     *LOCK_LEVEL = lock_level;
-    if (ret == POK_ERRNO_OK)
+    if (ret == POK_ERRNO_OK) {
         arinc_preemption_lock_holder = kshd.current_thread_id;
+    }
     switch (ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION);
@@ -340,14 +371,16 @@ void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_code
     }
 }
 
-void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_code)
+void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL,
+                        RETURN_CODE_TYPE *RETURN_CODE)
 {
     // LOCK_LEVEL_TYPE may be wider than int32_t (e.g. on arm64).
     int32_t lock_level = (int32_t)*LOCK_LEVEL;
     pok_ret_t ret = pok_partition_dec_lock_level(&lock_level);
     *LOCK_LEVEL = lock_level;
-    if (ret == POK_ERRNO_OK && lock_level == 0)
+    if ((ret == POK_ERRNO_OK) && (lock_level == 0)) {
         arinc_preemption_lock_holder = JET_THREAD_ID_NONE;
+    }
     switch (ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION);
@@ -365,9 +398,9 @@ void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL, RETURN_CODE_TYPE *return_co
  */
 
 void INITIALIZE_PROCESS_CORE_AFFINITY (
-    PROCESS_ID_TYPE        process_id,
-    PROCESSOR_CORE_ID_TYPE processor_core_id,
-    RETURN_CODE_TYPE       *return_code)
+    PROCESS_ID_TYPE        PROCESS_ID,
+    PROCESSOR_CORE_ID_TYPE PROCESSOR_CORE_ID,
+    RETURN_CODE_TYPE       *RETURN_CODE)
 {
     char name[MAX_NAME_LENGTH];
     void *entry;
@@ -376,33 +409,33 @@ void INITIALIZE_PROCESS_CORE_AFFINITY (
     // Check the range before narrowing to the kernel's 8-bit thread ID.
     // The kernel rejects the main process, the error handler and
     // processes that aren't created yet.
-    if (process_id < 1 || process_id > kshd.max_n_threads
-        || pok_thread_get_status(process_id - 1, name, &entry, &status)
-           != POK_ERRNO_OK) {
-        *return_code = INVALID_PARAM;
+    if ((PROCESS_ID < 1) || (PROCESS_ID > (PROCESS_ID_TYPE)kshd.max_n_threads)
+        || (pok_thread_get_status(PROCESS_ID - 1, name, &entry, &status)
+           != POK_ERRNO_OK)) {
+        *RETURN_CODE = INVALID_PARAM;
         return;
     }
 
-    if (processor_core_id != CORE_AFFINITY_NO_PREFERENCE
-        && processor_core_id != 0) {
-        *return_code = INVALID_CONFIG;
+    if ((PROCESSOR_CORE_ID != CORE_AFFINITY_NO_PREFERENCE)
+        && (PROCESSOR_CORE_ID != 0)) {
+        *RETURN_CODE = INVALID_CONFIG;
         return;
     }
 
     if (kshd.partition_mode == POK_PARTITION_MODE_NORMAL) {
-        *return_code = INVALID_MODE;
+        *RETURN_CODE = INVALID_MODE;
         return;
     }
 
-    *return_code = NO_ERROR;
+    *RETURN_CODE = NO_ERROR;
 }
 
 void GET_MY_PROCESSOR_CORE_ID (
-    PROCESSOR_CORE_ID_TYPE *processor_core_id,
-    RETURN_CODE_TYPE       *return_code)
+    PROCESSOR_CORE_ID_TYPE *PROCESSOR_CORE_ID,
+    RETURN_CODE_TYPE       *RETURN_CODE)
 {
-    *processor_core_id = 0;
-    *return_code = NO_ERROR;
+    *PROCESSOR_CORE_ID = 0;
+    *RETURN_CODE = NO_ERROR;
 }
 
 /*
@@ -413,29 +446,30 @@ void GET_MY_PROCESSOR_CORE_ID (
  * data.
  */
 void GET_MY_INDEX (
-    PROCESS_INDEX_TYPE *process_index,
-    RETURN_CODE_TYPE   *return_code)
+    PROCESS_INDEX_TYPE *PROCESS_INDEX,
+    RETURN_CODE_TYPE   *RETURN_CODE)
 {
     pok_thread_id_t current = kshd.current_thread_id;
     PROCESS_INDEX_TYPE index;
 
     // Like GET_MY_ID: the main process (runs only during initialization)
     // and the error handler have no index.
-    if (kshd.partition_mode != POK_PARTITION_MODE_NORMAL
-        || current == kshd.error_thread_id) {
-        *return_code = INVALID_MODE;
+    if ((kshd.partition_mode != POK_PARTITION_MODE_NORMAL)
+        || (current == kshd.error_thread_id)) {
+        *RETURN_CODE = INVALID_MODE;
         return;
     }
 
     // Kernel thread 0 is the main process; the error handler, if created
     // before this process, takes one more thread slot.
     index = current;
-    if (kshd.error_thread_id != JET_THREAD_ID_NONE
-        && kshd.error_thread_id < current)
+    if ((kshd.error_thread_id != JET_THREAD_ID_NONE)
+        && (kshd.error_thread_id < current)) {
         index--;
+    }
 
-    *process_index = index;
-    *return_code = NO_ERROR;
+    *PROCESS_INDEX = index;
+    *RETURN_CODE = NO_ERROR;
 }
 
 #endif

@@ -15,12 +15,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * kernel/arch/x86/include/bsp/bsp.h for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
 /* Interface between arm64 arch code and the board. */
 
-#ifndef __JA_ARM64_BSP_BSP_H__
-#define __JA_ARM64_BSP_BSP_H__
+#ifndef JA_ARM64_BSP_BSP_H
+#define JA_ARM64_BSP_BSP_H
 
 #include <arch/interrupt_frame.h>
 
@@ -43,4 +46,4 @@ void ja_bsp_process_irq(interrupt_frame* frame);
 /* Reset or power off the board. Never returns. */
 void ja_bsp_reset(void);
 
-#endif /* __JA_ARM64_BSP_BSP_H__ */
+#endif /* JA_ARM64_BSP_BSP_H */

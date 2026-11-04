@@ -18,6 +18,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: the sampling read syscall
  * checks the validity pointer (it checked the length pointer twice).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: __user/__kuser
+ * are renamed JET_USER/JET_KUSER; braces around all if/else/loop bodies;
+ * essentially Boolean conditions; U suffixes for unsigned constants;
+ * discarded results are cast to void.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: port IDs equal to
+ * the number of ports are rejected (they were used as an index one past the end
+ * of the port array); operands of mixed precedence are parenthesized;
+ * deviations are documented where a guideline can't be followed. Long lines are
+ * wrapped at 80 columns. pok_port_queuing_create() rejects a queuing discipline
+ * other than FIFO or priority.
  */
 
 #include <core/port.h>
@@ -27,12 +39,24 @@
 #include <core/uaccess.h>
 #include <core/sched_arinc.h>
 
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the jet_user_to_kernel*()
+ * helpers return the kernel address of user memory as a pointer to void,
+ * which is converted to the type of the object the user passed.
+ */
+
+/*
+ * MISRA C:2025 Rule 15.1 deviation (this file): forward gotos to the
+ * labels out and err leave a function through its common exit path, which
+ * releases what the function has taken.
+ */
+
 /* 
  * Find *configured* queuing port by name, which comes from user space.
  * 
  * NOTE: Name should be checked before!
  */
-static pok_port_queuing_t* find_port_queuing(const char* __kuser k_name)
+static pok_port_queuing_t* find_port_queuing(const char* JET_KUSER k_name)
 {
     char kernel_name[MAX_NAME_LENGTH];
 
@@ -42,12 +66,13 @@ static pok_port_queuing_t* find_port_queuing(const char* __kuser k_name)
     pok_port_queuing_t* ports_queuing_end =
         port_queuing + current_partition_arinc->nports_queuing;
 
-    memcpy(kernel_name, k_name, MAX_NAME_LENGTH);
+    (void) memcpy(kernel_name, k_name, MAX_NAME_LENGTH);
 
     for(; port_queuing < ports_queuing_end; port_queuing++)
     {
-        if(!pok_compare_names(port_queuing->name, kernel_name))
+        if(pok_compare_names(port_queuing->name, kernel_name) == 0) {
             return port_queuing;
+        }
     }
 
     return NULL;
@@ -63,7 +88,10 @@ static pok_port_queuing_t* get_port_queuing(pok_port_id_t id)
 
     pok_port_queuing_t* port_queuing;
 
-    if(id < 0 || id > part->nports_queuing) return NULL;
+    // Port IDs are indexes into ports_queuing[] (0 .. nports_queuing - 1).
+    if(id >= part->nports_queuing) {
+        return NULL;
+    }
 
     port_queuing = &part->ports_queuing[id];
 
@@ -77,9 +105,9 @@ void port_queuing_receive(pok_port_queuing_t* port, pok_thread_t* t)
     const char* message = pok_channel_queuing_r_get_message(
         port->channel, &message_size, FALSE);
 
-    assert(message);
+    assert(message != NULL);
 
-    memcpy(t->wait_buffer.dest, message, message_size);
+    (void) memcpy(t->wait_buffer.dest, message, message_size);
     t->wait_len = message_size;
 
     pok_bool_t message_discarded;
@@ -91,9 +119,9 @@ void port_queuing_receive(pok_port_queuing_t* port, pok_thread_t* t)
 void port_queuing_send(pok_port_queuing_t* port, pok_thread_t* t)
 {
     char* message = pok_channel_queuing_s_get_message(port->channel, FALSE);
-    assert(message);
+    assert(message != NULL);
 
-    memcpy(message, t->wait_buffer.src, t->wait_len);
+    (void) memcpy(message, t->wait_buffer.src, t->wait_len);
 
     pok_channel_queuing_s_produce_message(port->channel, t->wait_len);
 
@@ -109,46 +137,63 @@ void pok_port_queuing_init(pok_port_queuing_t* port_queuing)
 
 
 pok_ret_t pok_port_queuing_create(
-    const char* __user              name,
+    const char* JET_USER              name,
     pok_port_size_t                 message_size,
     pok_port_size_t                 max_nb_message,
     pok_port_direction_t            direction,
     pok_queuing_discipline_t        discipline,
-    pok_port_id_t* __user           id)
+    pok_port_id_t* JET_USER           id)
 {
     pok_port_queuing_t* port_queuing;
 
-    const char* __kuser k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
-    if(!k_name) return POK_ERRNO_EFAULT;
+    const char* JET_KUSER k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
+    if(k_name == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    pok_port_id_t* __kuser k_id = jet_user_to_kernel_typed(id);
-    if(!k_id) return POK_ERRNO_EFAULT;
+    pok_port_id_t* JET_KUSER k_id = jet_user_to_kernel_typed(id);
+    if(k_id == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     port_queuing = find_port_queuing(k_name);
 
-    if(!port_queuing) return POK_ERRNO_UNAVAILABLE;
+    if(port_queuing == NULL) {
+        return POK_ERRNO_UNAVAILABLE;
+    }
 
-    if(port_queuing->is_created) return POK_ERRNO_EXISTS;
+    if(port_queuing->is_created) {
+        return POK_ERRNO_EXISTS;
+    }
 
-    if(message_size != port_queuing->channel->max_message_size)
+    if(message_size != port_queuing->channel->max_message_size) {
         return POK_ERRNO_EINVAL;
-    if(direction != port_queuing->direction)
+    }
+    if(direction != port_queuing->direction) {
         return POK_ERRNO_EINVAL;
+    }
+    if((discipline != POK_QUEUING_DISCIPLINE_FIFO)
+       && (discipline != POK_QUEUING_DISCIPLINE_PRIORITY)) {
+        return POK_ERRNO_EINVAL;
+    }
 
     if(direction == POK_PORT_DIRECTION_IN)
     {
-        if(max_nb_message != port_queuing->channel->recv.max_nb_message)
+        if(max_nb_message != port_queuing->channel->recv.max_nb_message) {
             return POK_ERRNO_EINVAL;
+        }
     }
     else // (direction == POK_PORT_DIRECTION_OUT)
     {
-        if(max_nb_message != port_queuing->channel->send.max_nb_message)
+        if(max_nb_message != port_queuing->channel->send.max_nb_message) {
             return POK_ERRNO_EINVAL;
+        }
     }
 
 
-    if(current_partition_arinc->mode == POK_PARTITION_MODE_NORMAL)
+    if(current_partition_arinc->mode == POK_PARTITION_MODE_NORMAL) {
         return POK_ERRNO_MODE;
+    }
 
     port_queuing->is_created = TRUE;
     port_queuing->discipline = discipline;
@@ -171,13 +216,15 @@ pok_ret_t pok_port_queuing_create(
 }
 
 pok_ret_t pok_port_queuing_create_packed(
-    const char* __user              name,
-    const pok_port_queuing_create_arg_t* __user arg,
-    pok_port_id_t* __user           id)
+    const char* JET_USER              name,
+    const pok_port_queuing_create_arg_t* JET_USER arg,
+    pok_port_id_t* JET_USER           id)
 {
-    const pok_port_queuing_create_arg_t* __kuser k_arg =
+    const pok_port_queuing_create_arg_t* JET_KUSER k_arg =
         jet_user_to_kernel_typed_ro(arg);
-    if(!k_arg) return POK_ERRNO_EFAULT;
+    if(k_arg == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     return pok_port_queuing_create(
        name,
@@ -191,29 +238,40 @@ pok_ret_t pok_port_queuing_create_packed(
 
 pok_ret_t pok_port_queuing_receive(
     pok_port_id_t               id,
-    const pok_time_t* __user    timeout,
-    void* __user                data,
-    pok_port_size_t* __user     len)
+    const pok_time_t* JET_USER    timeout,
+    void* JET_USER                data,
+    pok_port_size_t* JET_USER     len)
 {
     pok_port_queuing_t* port_queuing;
     pok_ret_t ret;
     pok_thread_t* t;
 
     port_queuing = get_port_queuing(id);
-    if(!port_queuing) return POK_ERRNO_PORT;
+    if(port_queuing == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
-    void* __kuser k_data = jet_user_to_kernel(data, port_queuing->channel->max_message_size);
-    if(!k_data) return POK_ERRNO_EFAULT;
+    void* JET_KUSER k_data = jet_user_to_kernel(data,
+        port_queuing->channel->max_message_size);
+    if(k_data == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    pok_port_size_t* __kuser k_len = jet_user_to_kernel_typed(len);
-    if(!k_len) return POK_ERRNO_EFAULT;
+    pok_port_size_t* JET_KUSER k_len = jet_user_to_kernel_typed(len);
+    if(k_len == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    const pok_time_t* __kuser k_timeout = jet_user_to_kernel_typed_ro(timeout);
-    if(!k_timeout) return POK_ERRNO_EFAULT;
+    const pok_time_t* JET_KUSER k_timeout =
+        jet_user_to_kernel_typed_ro(timeout);
+    if(k_timeout == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
     pok_time_t kernel_timeout = *k_timeout;
 
-    if(port_queuing->direction != POK_PORT_DIRECTION_IN)
+    if(port_queuing->direction != POK_PORT_DIRECTION_IN) {
         return POK_ERRNO_MODE;
+    }
 
     pok_preemption_local_disable();
 
@@ -232,20 +290,21 @@ pok_ret_t pok_port_queuing_receive(
      * if channel is currently empty. Otherwise waiting is allowed.
      */
 
-    if(kernel_timeout == 0)
+    if(kernel_timeout == 0) {
         ret = POK_ERRNO_EMPTY;
-    else if(!thread_is_waiting_allowed())
+    } else if(!thread_is_waiting_allowed()) {
         ret = POK_ERRNO_MODE;
-    else
+    } else {
         ret = POK_ERRNO_OK;
+    }
 
     pok_message_size_t message_size; // Only for call r_get_message().
     if(!pok_thread_wq_is_empty(&port_queuing->waiters) ||
-        !pok_channel_queuing_r_get_message(port_queuing->channel,
+        ((pok_channel_queuing_r_get_message(port_queuing->channel,
             &message_size,
-            ret == POK_ERRNO_OK))
+            ret == POK_ERRNO_OK)) == NULL))
     {
-        if(ret)
+        if(ret != POK_ERRNO_OK)
         {
             // Waiting is not allowed, but it is needed.
             *k_len = 0;
@@ -270,9 +329,10 @@ pok_ret_t pok_port_queuing_receive(
 out:
     pok_preemption_local_enable(); // Possible wait here
 
-    *k_len = (t->wait_result == POK_ERRNO_OK || t->wait_result == POK_ERRNO_TOOMANY)?
+    *k_len = ((t->wait_result == POK_ERRNO_OK)
+              || (t->wait_result == POK_ERRNO_TOOMANY))?
         t->wait_len: // Success.
-        0; // Fail
+        0U; // Fail
 
     return t->wait_result;
 
@@ -286,9 +346,9 @@ err:
 
 pok_ret_t pok_port_queuing_send(
     pok_port_id_t               id,
-    const void* __user          data,
+    const void* JET_USER          data,
     pok_port_size_t             len,
-    const pok_time_t* __user    timeout)
+    const pok_time_t* JET_USER    timeout)
 {
     pok_port_queuing_t* port_queuing;
     pok_ret_t ret;
@@ -296,22 +356,33 @@ pok_ret_t pok_port_queuing_send(
 
     port_queuing = get_port_queuing(id);
 
-    if(!port_queuing) return POK_ERRNO_PORT;
+    if(port_queuing == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
-    if(port_queuing->direction != POK_PORT_DIRECTION_OUT)
+    if(port_queuing->direction != POK_PORT_DIRECTION_OUT) {
         return POK_ERRNO_MODE;
+    }
 
-    if(len == 0) return POK_ERRNO_EINVAL;
+    if(len == 0U) {
+        return POK_ERRNO_EINVAL;
+    }
 
     // error should be INVALID_CONFIG
-    if(len > port_queuing->channel->max_message_size)
+    if(len > port_queuing->channel->max_message_size) {
         return POK_ERRNO_EINVAL;
+    }
 
-    const void* __kuser k_data = jet_user_to_kernel_ro(data, len);
-    if(!k_data) return POK_ERRNO_EFAULT;
+    const void* JET_KUSER k_data = jet_user_to_kernel_ro(data, len);
+    if(k_data == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    const pok_time_t* __kuser k_timeout = jet_user_to_kernel_typed_ro(timeout);
-    if(!k_timeout) return POK_ERRNO_EFAULT;
+    const pok_time_t* JET_KUSER k_timeout =
+        jet_user_to_kernel_typed_ro(timeout);
+    if(k_timeout == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     pok_time_t kernel_timeout = *k_timeout;
 
@@ -330,17 +401,19 @@ pok_ret_t pok_port_queuing_send(
      * if channel is currently full. Otherwise waiting is allowed.
      */
 
-    if(kernel_timeout == 0)
+    if(kernel_timeout == 0) {
         ret = POK_ERRNO_FULL;
-    else if(!thread_is_waiting_allowed())
+    } else if(!thread_is_waiting_allowed()) {
         ret = POK_ERRNO_MODE;
-    else
+    } else {
         ret = POK_ERRNO_OK;
+    }
 
     if(!pok_thread_wq_is_empty(&port_queuing->waiters)
-        || !pok_channel_queuing_s_get_message(port_queuing->channel, ret == POK_ERRNO_OK))
+        || (pok_channel_queuing_s_get_message(port_queuing->channel,
+                                              ret == POK_ERRNO_OK) == NULL))
     {
-        if(ret)
+        if(ret != POK_ERRNO_OK)
         {
             // Waiting is not allowed, but it is needed.
             goto err;
@@ -376,17 +449,22 @@ err:
 
 pok_ret_t pok_port_queuing_status(
     pok_port_id_t               id,
-    pok_port_queuing_status_t * __user status)
+    pok_port_queuing_status_t * JET_USER status)
 {
     pok_port_queuing_t* port_queuing;
     pok_channel_queuing_t* channel;
 
-    pok_port_queuing_status_t* __kuser k_status = jet_user_to_kernel_typed(status);
-    if(!k_status) return POK_ERRNO_EFAULT;
+    pok_port_queuing_status_t* JET_KUSER k_status =
+        jet_user_to_kernel_typed(status);
+    if(k_status == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     port_queuing = get_port_queuing(id);
 
-    if(!port_queuing) return POK_ERRNO_PORT;
+    if(port_queuing == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
     channel = port_queuing->channel;
 
@@ -413,21 +491,29 @@ pok_ret_t pok_port_queuing_status(
 }
 
 pok_ret_t pok_port_queuing_id(
-    const char* __user name,
-    pok_port_id_t* __user id)
+    const char* JET_USER name,
+    pok_port_id_t* JET_USER id)
 {
     pok_port_queuing_t* port_queuing;
 
-    const char* __kuser k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
-    if(!k_name) return POK_ERRNO_EFAULT;
+    const char* JET_KUSER k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
+    if(k_name == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    pok_port_id_t* __kuser k_id = jet_user_to_kernel_typed(id);
-    if(!k_id) return POK_ERRNO_EFAULT;
+    pok_port_id_t* JET_KUSER k_id = jet_user_to_kernel_typed(id);
+    if(k_id == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     port_queuing = find_port_queuing(k_name);
 
-    if(!port_queuing) return POK_ERRNO_UNAVAILABLE;
-    if(!port_queuing->is_created) return POK_ERRNO_UNAVAILABLE;
+    if(port_queuing == NULL) {
+        return POK_ERRNO_UNAVAILABLE;
+    }
+    if(!port_queuing->is_created) {
+        return POK_ERRNO_UNAVAILABLE;
+    }
 
     *k_id = port_queuing - current_partition_arinc->ports_queuing;
 
@@ -438,10 +524,13 @@ pok_ret_t pok_port_queuing_clear(pok_port_id_t id)
 {
     pok_port_queuing_t* port_queuing = get_port_queuing(id);
 
-    if(!port_queuing) return POK_ERRNO_PORT;
+    if(port_queuing == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
-    if(port_queuing->direction != POK_PORT_DIRECTION_IN)
+    if(port_queuing->direction != POK_PORT_DIRECTION_IN) {
         return POK_ERRNO_MODE;
+    }
 
     pok_preemption_local_disable();
     pok_channel_queuing_side_init(port_queuing->channel,
@@ -456,7 +545,7 @@ pok_ret_t pok_port_queuing_clear(pok_port_id_t id)
 /* 
  * Find *configured* sampling port by name, which comes from user space.
  */
-static pok_port_sampling_t* find_port_sampling(const char* __kuser k_name)
+static pok_port_sampling_t* find_port_sampling(const char* JET_KUSER k_name)
 {
     char kernel_name[MAX_NAME_LENGTH];
 
@@ -466,12 +555,13 @@ static pok_port_sampling_t* find_port_sampling(const char* __kuser k_name)
     pok_port_sampling_t* ports_sampling_end =
         port_sampling + current_partition_arinc->nports_sampling;
 
-    memcpy(kernel_name, k_name, MAX_NAME_LENGTH);
+    (void) memcpy(kernel_name, k_name, MAX_NAME_LENGTH);
 
     for(; port_sampling < ports_sampling_end; port_sampling++)
     {
-        if(!pok_compare_names(port_sampling->name, kernel_name))
+        if(pok_compare_names(port_sampling->name, kernel_name) == 0) {
             return port_sampling;
+        }
     }
 
     return NULL;
@@ -485,7 +575,10 @@ static pok_port_sampling_t* get_port_sampling(pok_port_id_t id)
 {
     pok_port_sampling_t* port_sampling;
 
-    if(id < 0 || id > current_partition_arinc->nports_sampling) return NULL;
+    // Port IDs are indexes into ports_sampling[] (0 .. nports_sampling - 1).
+    if(id >= current_partition_arinc->nports_sampling) {
+        return NULL;
+    }
 
     port_sampling = &current_partition_arinc->ports_sampling[id];
 
@@ -499,41 +592,56 @@ void pok_port_sampling_init(pok_port_sampling_t* port_sampling)
 
 
 pok_ret_t pok_port_sampling_create(
-    const char* __user          name,
+    const char* JET_USER          name,
     pok_port_size_t             size,
     pok_port_direction_t        direction,
-    const pok_time_t* __user    refresh,
-    pok_port_id_t* __user       id
+    const pok_time_t* JET_USER    refresh,
+    pok_port_id_t* JET_USER       id
 )
 {
     pok_port_sampling_t* port_sampling;
 
-    if(current_partition_arinc->mode == POK_PARTITION_MODE_NORMAL)
+    if(current_partition_arinc->mode == POK_PARTITION_MODE_NORMAL) {
         return POK_ERRNO_MODE;
+    }
 
-    const char* __kuser k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
-    if(!k_name) return POK_ERRNO_EFAULT;
+    const char* JET_KUSER k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
+    if(k_name == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    const pok_time_t* __kuser k_refresh = jet_user_to_kernel_typed_ro(refresh);
-    if(!k_refresh) return POK_ERRNO_EFAULT;
+    const pok_time_t* JET_KUSER k_refresh =
+        jet_user_to_kernel_typed_ro(refresh);
+    if(k_refresh == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    pok_port_id_t* __kuser k_id = jet_user_to_kernel_typed(id);
-    if(!k_id) return POK_ERRNO_EFAULT;
+    pok_port_id_t* JET_KUSER k_id = jet_user_to_kernel_typed(id);
+    if(k_id == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     pok_time_t kernel_refresh = *k_refresh;
 
     port_sampling = find_port_sampling(k_name);
 
-    if(!port_sampling) return POK_ERRNO_UNAVAILABLE;
-    if(port_sampling->is_created) return POK_ERRNO_EXISTS;
+    if(port_sampling == NULL) {
+        return POK_ERRNO_UNAVAILABLE;
+    }
+    if(port_sampling->is_created) {
+        return POK_ERRNO_EXISTS;
+    }
 
-    if(size != port_sampling->channel->max_message_size)
+    if(size != port_sampling->channel->max_message_size) {
         return POK_ERRNO_EINVAL;
-    if(direction != port_sampling->direction)
+    }
+    if(direction != port_sampling->direction) {
         return POK_ERRNO_EINVAL;
+    }
     // ARINC specifies to check refresh period for any direction.
-    if(pok_time_is_infinity(kernel_refresh) || kernel_refresh == 0)
+    if(pok_time_is_infinity(kernel_refresh) || (kernel_refresh == 0)) {
         return POK_ERRNO_EINVAL;
+    }
 
     port_sampling->is_created = TRUE;
 
@@ -557,7 +665,7 @@ pok_ret_t pok_port_sampling_create(
 
 pok_ret_t pok_port_sampling_write(
     pok_port_id_t           id,
-    const void* __user      data,
+    const void* JET_USER      data,
     pok_port_size_t         len)
 {
     pok_port_sampling_t* port_sampling;
@@ -566,22 +674,28 @@ pok_ret_t pok_port_sampling_write(
 
     port_sampling = get_port_sampling(id);
 
-    if(!port_sampling) return POK_ERRNO_PORT;
+    if(port_sampling == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
-    if(len == 0 || len > port_sampling->channel->max_message_size)
+    if((len == 0U) || (len > port_sampling->channel->max_message_size)) {
         return POK_ERRNO_EINVAL;
+    }
 
-    if(port_sampling->direction != POK_PORT_DIRECTION_OUT)
+    if(port_sampling->direction != POK_PORT_DIRECTION_OUT) {
         return POK_ERRNO_MODE;
+    }
 
-    const void* __kuser k_data = jet_user_to_kernel_ro(data, len);
-    if(!k_data) return POK_ERRNO_EFAULT;
+    const void* JET_KUSER k_data = jet_user_to_kernel_ro(data, len);
+    if(k_data == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     pok_preemption_local_disable();
 
     message = pok_channel_sampling_s_get_message(port_sampling->channel);
 
-    memcpy(message, k_data, len);
+    (void) memcpy(message, k_data, len);
 
     pok_channel_sampling_send_message(port_sampling->channel, len);
 
@@ -592,9 +706,9 @@ pok_ret_t pok_port_sampling_write(
 
 pok_ret_t pok_port_sampling_read(
     pok_port_id_t           id,
-    void* __user            data,
-    pok_port_size_t* __user len,
-    pok_bool_t* __user      valid)
+    void* JET_USER            data,
+    pok_port_size_t* JET_USER len,
+    pok_bool_t* JET_USER      valid)
 {
     pok_port_sampling_t* port_sampling;
     pok_ret_t ret;
@@ -605,28 +719,38 @@ pok_ret_t pok_port_sampling_read(
 
     port_sampling = get_port_sampling(id);
 
-    if(!port_sampling) return POK_ERRNO_PORT;
+    if(port_sampling == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
-    if(port_sampling->direction != POK_PORT_DIRECTION_IN)
+    if(port_sampling->direction != POK_PORT_DIRECTION_IN) {
         return POK_ERRNO_DIRECTION;
+    }
 
-    void* __kuser k_data = jet_user_to_kernel(data, port_sampling->channel->max_message_size);
-    if(!k_data) return POK_ERRNO_EFAULT;
+    void* JET_KUSER k_data = jet_user_to_kernel(data,
+        port_sampling->channel->max_message_size);
+    if(k_data == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    pok_port_size_t* __kuser k_len = jet_user_to_kernel_typed(len);
-    if(!k_len) return POK_ERRNO_EFAULT;
+    pok_port_size_t* JET_KUSER k_len = jet_user_to_kernel_typed(len);
+    if(k_len == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    pok_bool_t* __kuser k_valid = jet_user_to_kernel_typed(valid);
-    if(!k_valid) return POK_ERRNO_EFAULT;
+    pok_bool_t* JET_KUSER k_valid = jet_user_to_kernel_typed(valid);
+    if(k_valid == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     pok_preemption_local_disable();
 
     message = pok_channel_sampling_r_get_message(port_sampling->channel,
         &message_size, &ts);
 
-    if(message)
+    if(message != NULL)
     {
-        memcpy(k_data, message, message_size);
+        (void) memcpy(k_data, message, message_size);
         *k_len = (pok_port_size_t)message_size;
 
         pok_time_t current_time = jet_system_time();
@@ -655,22 +779,30 @@ pok_ret_t pok_port_sampling_read(
 }
 
 pok_ret_t pok_port_sampling_id(
-    const char* __user     name,
-    pok_port_id_t* __user  id
+    const char* JET_USER     name,
+    pok_port_id_t* JET_USER  id
 )
 {
     pok_port_sampling_t* port_sampling;
 
-    const char* __kuser k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
-    if(!k_name) return POK_ERRNO_EFAULT;
+    const char* JET_KUSER k_name = jet_user_to_kernel_ro(name, MAX_NAME_LENGTH);
+    if(k_name == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
-    pok_port_id_t* __kuser k_id = jet_user_to_kernel_typed(id);
-    if(!k_id) return POK_ERRNO_EFAULT;
+    pok_port_id_t* JET_KUSER k_id = jet_user_to_kernel_typed(id);
+    if(k_id == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     port_sampling = find_port_sampling(k_name);
 
-    if(!port_sampling) return POK_ERRNO_UNAVAILABLE;
-    if(!port_sampling->is_created) return POK_ERRNO_UNAVAILABLE;
+    if(port_sampling == NULL) {
+        return POK_ERRNO_UNAVAILABLE;
+    }
+    if(!port_sampling->is_created) {
+        return POK_ERRNO_UNAVAILABLE;
+    }
 
     *k_id = port_sampling - current_partition_arinc->ports_sampling;
 
@@ -679,17 +811,22 @@ pok_ret_t pok_port_sampling_id(
 
 pok_ret_t pok_port_sampling_status (
     pok_port_id_t                       id,
-    pok_port_sampling_status_t* __user  status
+    pok_port_sampling_status_t* JET_USER  status
 )
 {
     pok_port_sampling_t* port_sampling;
 
     port_sampling = get_port_sampling(id);
 
-    if(!port_sampling) return POK_ERRNO_PORT;
+    if(port_sampling == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
-    pok_port_sampling_status_t* __kuser k_status = jet_user_to_kernel_typed(status);
-    if(!k_status) return POK_ERRNO_EFAULT;
+    pok_port_sampling_status_t* JET_KUSER k_status =
+        jet_user_to_kernel_typed(status);
+    if(k_status == NULL) {
+        return POK_ERRNO_EFAULT;
+    }
 
     pok_preemption_local_disable();
 
@@ -712,10 +849,13 @@ pok_ret_t pok_port_sampling_check(pok_port_id_t id)
 
     port_sampling = get_port_sampling(id);
 
-    if(!port_sampling) return POK_ERRNO_PORT;
+    if(port_sampling == NULL) {
+        return POK_ERRNO_PORT;
+    }
 
-    if(port_sampling->direction != POK_PORT_DIRECTION_IN)
+    if(port_sampling->direction != POK_PORT_DIRECTION_IN) {
         return POK_ERRNO_MODE;
+    }
 
 
     pok_preemption_local_disable();

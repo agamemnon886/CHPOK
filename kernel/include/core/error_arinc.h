@@ -21,10 +21,19 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-01: added
  * pok_error_thread_configure() for CONFIGURE_ERROR_HANDLER.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; __user/__kuser are renamed
+ * JET_USER/JET_KUSER; essentially Boolean conditions; U suffixes for
+ * unsigned constants.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
+ * Long lines are wrapped at 80 columns.
  */
 
-#ifndef __POK_CORE_ERROR_ARINC_H__
-#define __POK_CORE_ERROR_ARINC_H__
+#ifndef POK_CORE_ERROR_ARINC_H
+#define POK_CORE_ERROR_ARINC_H
 
 #include <config.h>
 
@@ -38,7 +47,7 @@
 
 #include <uapi/error_arinc_types.h>
 
-#define POK_ERROR_MAX_MSG_SIZE                  250
+#define POK_ERROR_MAX_MSG_SIZE                  250U
 
 
 /* Information about thread-level error. */
@@ -53,7 +62,7 @@ typedef struct {
  */
 typedef struct
 {
-    pok_thread_error_info_t map[POK_ERROR_ID_MAX + 1];
+    pok_thread_error_info_t map[POK_ERROR_ID_MAX + 1U];
 }pok_thread_error_map_t;
 
 /*
@@ -61,7 +70,7 @@ typedef struct
  *
  * It's created in stopped state.
  */
-pok_ret_t   pok_error_thread_create (uint32_t stack_size, void* __user entry);
+pok_ret_t   pok_error_thread_create (uint32_t stack_size, void* JET_USER entry);
 
 /*
  * Sets the concurrency control (POK_ERROR_HANDLER_PROCESSES_*) and the
@@ -86,7 +95,8 @@ pok_ret_t   pok_error_thread_configure (uint32_t concurrency_control,
  * This's a system call, it validates a couple of parameters
  * and passes them to pok_thread_error almost verbatim.
  */
-pok_ret_t   pok_error_raise_application_error (const char* __user msg, size_t msg_size);
+pok_ret_t   pok_error_raise_application_error (const char* JET_USER msg,
+                                               size_t msg_size);
 
 /*
  * Pass an application message to the health monitor.
@@ -96,20 +106,21 @@ pok_ret_t   pok_error_raise_application_error (const char* __user msg, size_t ms
  * kernel console together with the name of the reporting partition.
  * No error is raised and the calling process continues.
  */
-pok_ret_t   pok_error_report_application_message (const char* __user msg, size_t msg_size);
+pok_ret_t   pok_error_report_application_message (const char* JET_USER msg,
+                                                  size_t msg_size);
 
 /* 
  * Raise OS-error from user space.
  * 
  * Application never continues to work.
  */
-pok_ret_t pok_error_raise_os_error (const char* __user msg, size_t msg_size);
+pok_ret_t pok_error_raise_os_error (const char* JET_USER msg, size_t msg_size);
 
 /*
  * Pops an error from partition error queue.
  */
 pok_ret_t   pok_error_get (pok_error_status_t* status,
-    void* __user msg);
+    void* JET_USER msg);
 
 
 /* 
@@ -133,10 +144,10 @@ void error_ignore_sync(void);
 #endif
 
 typedef uint8_t pok_error_action_t;
-#define POK_ERROR_ACTION_IGNORE 1
-#define POK_ERROR_ACTION_IDLE 2
-#define POK_ERROR_ACTION_COLD_START 3
-#define POK_ERROR_ACTION_WARM_START 4
+#define POK_ERROR_ACTION_IGNORE 1U
+#define POK_ERROR_ACTION_IDLE 2U
+#define POK_ERROR_ACTION_COLD_START 3U
+#define POK_ERROR_ACTION_WARM_START 4U
 
 /*
  * Table of actions for partition-level errors.
@@ -148,7 +159,8 @@ typedef struct {
      * Only those [STATE][ID] cells are used, which corresponds to
      * partition-level errors.
      */
-    pok_error_action_t actions[POK_SYSTEM_STATE_MAX + 1][POK_ERROR_ID_MAX + 1];
+    pok_error_action_t
+        actions[POK_SYSTEM_STATE_MAX + 1U][POK_ERROR_ID_MAX + 1U];
 } pok_error_hm_partition_t ;
 
 /* 
@@ -159,7 +171,7 @@ typedef struct {
 void pok_partition_arinc_process_error(
     pok_system_state_t partition_state,
     pok_error_id_t error_id,
-    uint8_t preempt_local_disabled_old,
+    pok_bool_t preempt_local_disabled_old,
     void* failed_address);
 
 
@@ -184,4 +196,4 @@ void pok_thread_emit_deadline_missed(pok_thread_t* thread);
  */
 void pok_thread_emit_deadline_oor(pok_thread_t* thread);
 
-#endif /* __POK_CORE_ERROR_ARINC_H__ */
+#endif /* POK_CORE_ERROR_ARINC_H */

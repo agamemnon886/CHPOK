@@ -1,9 +1,10 @@
-#ifndef __INTERFACES_{{interface.name|upper}}_H__
-#define __INTERFACES_{{interface.name|upper}}_H__
+#ifndef INTERFACES_{{interface.name|upper}}_H
+#define INTERFACES_{{interface.name|upper}}_H
 
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,6 +15,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier; the parameters of the operations are
+ * named.
  */
 
 
@@ -24,7 +29,10 @@
 
 typedef struct {
   {% for func in interface.functions %}
-    {{func.return_type}} (*{{func.name}})({{func.args_type|join(', ') }});
+    {{func.return_type}} (*{{func.name}})(
+{% for t in func.args_type %}
+        {{t}} arg{{loop.index0}}{{ ',' if not loop.last else ');' }}
+{% endfor %}
     {% endfor %}
 } {{interface.name}};
 

@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier; __user/__kuser are renamed
+ * JET_USER/JET_KUSER; essentially Boolean conditions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed; the structure tag
+ * pok_partition_arinc replaces the reserved _pok_patition_arinc.
  */
 
-#ifndef __POK_KERNEL_PORT_H__
-#define __POK_KERNEL_PORT_H__
+#ifndef POK_KERNEL_PORT_H
+#define POK_KERNEL_PORT_H
 
 /* ARINC ports. */
 
@@ -23,7 +32,7 @@
 #include <common.h>
 #include <uapi/port_types.h>
 
-struct _pok_patition_arinc;
+struct pok_partition_arinc;
 
 /* 
  * Queuing port. 
@@ -71,41 +80,41 @@ void pok_port_queuing_init(pok_port_queuing_t* port_queuing);
 
 
 pok_ret_t pok_port_queuing_create(
-    const char* __user              name,
+    const char* JET_USER              name,
     pok_port_size_t                 message_size,
     pok_port_size_t                 max_nb_message,
     pok_port_direction_t            direction,
     pok_queuing_discipline_t        discipline,
-    pok_port_id_t* __user           id);
+    pok_port_id_t* JET_USER           id);
 
 
 pok_ret_t pok_port_queuing_create_packed(
-    const char* __user              name,
-    const pok_port_queuing_create_arg_t* __user arg,
-    pok_port_id_t* __user           id);
+    const char* JET_USER              name,
+    const pok_port_queuing_create_arg_t* JET_USER arg,
+    pok_port_id_t* JET_USER           id);
     
 
 pok_ret_t pok_port_queuing_receive(
     pok_port_id_t               id, 
-    const pok_time_t* __user    timeout, 
-    void* __user                data, 
-    pok_port_size_t* __user     len);
+    const pok_time_t* JET_USER    timeout, 
+    void* JET_USER                data, 
+    pok_port_size_t* JET_USER     len);
 
 
 pok_ret_t pok_port_queuing_send(
     pok_port_id_t               id, 
-    const void* __user          data,
+    const void* JET_USER          data,
     pok_port_size_t             len,
-    const pok_time_t* __user    timeout);
+    const pok_time_t* JET_USER    timeout);
 
 
 pok_ret_t pok_port_queuing_status(
     pok_port_id_t               id,
-    pok_port_queuing_status_t* __user status);
+    pok_port_queuing_status_t* JET_USER status);
 
 pok_ret_t pok_port_queuing_id(
-    const char* __user name,
-    pok_port_id_t* __user id);
+    const char* JET_USER name,
+    pok_port_id_t* JET_USER id);
 
 pok_ret_t pok_port_queuing_clear(pok_port_id_t id);
 
@@ -185,36 +194,36 @@ typedef struct
 void pok_port_sampling_init(pok_port_sampling_t* port_sampling);
 
 pok_ret_t pok_port_sampling_create(
-    const char* __user          name,
+    const char* JET_USER          name,
     pok_port_size_t             size,
     pok_port_direction_t        direction,
-    const pok_time_t* __user    refresh,
+    const pok_time_t* JET_USER    refresh,
     pok_port_id_t               *id
 );
 
 pok_ret_t pok_port_sampling_write(
     pok_port_id_t           id,
-    const void __user       *data,
+    const void JET_USER       *data,
     pok_port_size_t         len
 );
 
 pok_ret_t pok_port_sampling_read(
     pok_port_id_t           id,
-    void __user             *data,
-    pok_port_size_t __user  *len,
-    pok_bool_t __user       *valid
+    void JET_USER             *data,
+    pok_port_size_t JET_USER  *len,
+    pok_bool_t JET_USER       *valid
 );
 
 pok_ret_t pok_port_sampling_id(
-    const char __user       *name,
+    const char JET_USER       *name,
     pok_port_id_t           *id
 );
 
 pok_ret_t pok_port_sampling_status (
     pok_port_id_t                      id,
-    pok_port_sampling_status_t __user   *status
+    pok_port_sampling_status_t JET_USER   *status
 );
 
 pok_ret_t pok_port_sampling_check(pok_port_id_t id);
 
-#endif /* __POK_KERNEL_PORT_H__ */
+#endif /* POK_KERNEL_PORT_H */

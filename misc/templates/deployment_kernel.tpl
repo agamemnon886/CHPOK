@@ -15,6 +15,12 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: the module HM table comes
  * from the configuration (Module_HM_Table) instead of always SHUTDOWN.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: all #include
+ * directives are at the top; empty arrays of channels, ports and memory
+ * blocks have one unused element instead of size 0 and an empty
+ * initializer; the number of partition events is computed by the
+ * generator; memory block addresses have a U suffix.
  */
 
 #include <config.h>
@@ -23,6 +29,11 @@
 #include <core/error_arinc.h>
 #include <core/partition_arinc.h>
 #include <core/partition.h>
+#include <core/memblocks_config.h>
+#include <arch/deployment.h>
+
+{# C has no arrays of size 0: an empty array has one unused element, and
+   no initializer (the code reads only the first <count> elements). #}
 
 /*********************** HM module tables *****************************/
 /*
@@ -64,6 +75,9 @@ error("UDP connection for the channel doesn't supported yet")
 {%-endmacro%}
 
 /**************** Setup queuing channels ****************************/
+{%if not conf.channels_queueing%}
+pok_channel_queuing_t pok_channels_queuing[1];
+{%else%}
 pok_channel_queuing_t pok_channels_queuing[{{ conf.channels_queueing | length }}] = {
     {%for channel_queueing in conf.channels_queueing%}
     {
@@ -83,10 +97,14 @@ pok_channel_queuing_t pok_channels_queuing[{{ conf.channels_queueing | length }}
     },
     {%endfor%}
 };
+{%endif%}
 
 uint8_t pok_channels_queuing_n = {{ conf.channels_queueing | length }};
 
 /****************** Setup sampling channels ***************************/
+{%if not conf.channels_sampling%}
+pok_channel_sampling_t pok_channels_sampling[1];
+{%else%}
 pok_channel_sampling_t pok_channels_sampling[{{ conf.channels_sampling | length }}] = {
     {%for channel_sampling in conf.channels_sampling%}
     {
@@ -94,6 +112,7 @@ pok_channel_sampling_t pok_channels_sampling[{{ conf.channels_sampling | length 
     },
     {%endfor%}
 };
+{%endif%}
 
 uint8_t pok_channels_sampling_n = {{ conf.channels_sampling | length }};
 
@@ -141,6 +160,9 @@ static const pok_error_hm_partition_t partition_hm_table_{{loop.index0}} = {
 static pok_thread_t partition_threads_{{loop.index0}}[{{part.num_threads}} + 1 /*main thread*/ + 1 /* error thread */];
 
 // Queuing ports
+{%if not part.ports_queueing%}
+static pok_port_queuing_t partition_ports_queuing_{{loop.index0}}[1];
+{%else%}
 static pok_port_queuing_t partition_ports_queuing_{{loop.index0}}[{{part.ports_queueing | length}}] = {
 {%for port_queueing in part.ports_queueing%}
     {
@@ -150,8 +172,12 @@ static pok_port_queuing_t partition_ports_queuing_{{loop.index0}}[{{part.ports_q
     },
 {%endfor%}
 };
+{%endif%}
 
 // Sampling ports
+{%if not part.ports_sampling%}
+static pok_port_sampling_t partition_ports_sampling_{{loop.index0}}[1];
+{%else%}
 static pok_port_sampling_t partition_ports_sampling_{{loop.index0}}[{{part.ports_sampling | length}}] = {
 {%for port_sampling in part.ports_sampling%}
     {
@@ -161,6 +187,7 @@ static pok_port_sampling_t partition_ports_sampling_{{loop.index0}}[{{part.ports
     },
 {%endfor%}
 };
+{%endif%}
 
 {%endfor%}{#partitions loop#}
 
@@ -172,7 +199,7 @@ pok_partition_arinc_t pok_partitions_arinc[{{conf.partitions | length}}] = {
             .name = "{{part.name}}",
 
             // Allocate 1 event slot per queuing port plus 2 slots for timer.
-            .partition_event_max = {{part.ports_queueing | length}} + 2,
+            .partition_event_max = {{(part.ports_queueing | length) + 2}},
 
             .period = {%if part.period is not none%}{{part.period}}{%else%}{{conf.major_frame}}{%endif%},
             .duration = {%if part.duration is not none%}{{part.duration}}{%else%}{{part.total_time}}{%endif%},
@@ -275,12 +302,14 @@ const uint8_t pok_module_sched_n = {{conf.slots | length}};
 const pok_time_t pok_config_scheduling_major_frame = {{conf.major_frame}};
 
 /************************ Memory blocks ************************/
-#include <core/memblocks_config.h>
+{%if not conf.memory_blocks%}
+struct memory_block jet_memory_blocks[1];
+{%else%}
 struct memory_block jet_memory_blocks[] = {
     {%for mblock in conf.memory_blocks%}
     {
         .name = "{{mblock.name}}",
-        .virt_addr = 0x{{'%x'%mblock.virt_addr}},
+        .virt_addr = 0x{{'%x'%mblock.virt_addr}}U,
         .size = {{mblock.actual_size}},
         .pid_to_rights = {
             {%for pid, access_right in mblock.access.items() %}
@@ -292,6 +321,7 @@ struct memory_block jet_memory_blocks[] = {
     {%endfor%}
 
 };
+{%endif%}
 
 size_t jet_memory_blocks_n = {{ conf.memory_blocks | length }};
 

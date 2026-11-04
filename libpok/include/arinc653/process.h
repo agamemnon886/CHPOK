@@ -18,8 +18,17 @@
  * the ARINC 653P1-4 multicore services INITIALIZE_PROCESS_CORE_AFFINITY,
  * GET_MY_PROCESSOR_CORE_ID and GET_MY_INDEX; added NULL_PROCESS_ID,
  * MAIN_PROCESS_ID and the FAULTED process state (ARINC 653P1-4).
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: STOP_SELF() is
+ * declared as a prototype with (void).
+ * Modified by Kirill Brazhnikov, 2026-11-03: SET_PRIORITY()'s priority
+ * parameter is lower case, as in the definition: PRIORITY is an enumerator of
+ * QUEUING_DISCIPLINE_TYPE (Rules 8.3, 5.3).
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters are const (they are only read), so callers can pass string
+ * literals.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+
  */
 
 #include <config.h>
@@ -91,7 +100,7 @@ extern void CREATE_PROCESS (
 
 extern void SET_PRIORITY (
       /*in */ PROCESS_ID_TYPE            PROCESS_ID,
-      /*in */ PRIORITY_TYPE              PRIORITY,
+      /*in */ PRIORITY_TYPE              priority,
       /*out*/ RETURN_CODE_TYPE           *RETURN_CODE );
 
 extern void SUSPEND_SELF (
@@ -106,7 +115,7 @@ extern void RESUME (
       /*in */ PROCESS_ID_TYPE            PROCESS_ID,
       /*out*/ RETURN_CODE_TYPE           *RETURN_CODE );
 
-extern void STOP_SELF ();
+extern void STOP_SELF (void);
 
 extern void STOP (
       /*in */ PROCESS_ID_TYPE            PROCESS_ID,
@@ -134,7 +143,7 @@ extern void GET_MY_ID (
       /*out*/ RETURN_CODE_TYPE    *RETURN_CODE );
 
 extern void GET_PROCESS_ID (
-      /*in */ PROCESS_NAME_TYPE   PROCESS_NAME,
+      /*in */ const PROCESS_NAME_TYPE   PROCESS_NAME,
       /*out*/ PROCESS_ID_TYPE     *PROCESS_ID,
       /*out*/ RETURN_CODE_TYPE    *RETURN_CODE );
 

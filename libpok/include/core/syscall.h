@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -14,10 +15,13 @@
  *
  * This file also incorporates work covered by POK License.
  * Copyright (c) 2007-2009 POK team
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __LIBPOK_SYSCALL_H__
-#define __LIBPOK_SYSCALL_H__
+#ifndef LIBPOK_SYSCALL_H
+#define LIBPOK_SYSCALL_H
 
 #include <config.h>
 
@@ -41,4 +45,4 @@
 // This should come after pok_syscall* definitions
 #include <uapi/syscall_map_arinc.h>
 
-#endif /* __LIBPOK_SYSCALL_H__ */
+#endif /* LIBPOK_SYSCALL_H */

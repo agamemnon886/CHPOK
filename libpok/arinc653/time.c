@@ -15,6 +15,7 @@
  * copyright and license notice:
  *
  *  Copyright (C) 2013-2014 Maxim Malkov, ISPRAS <malkov@ispras.ru>
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +31,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Created by julien on Thu Jan 15 23:34:13 2009
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: deviations are
+ * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
+ * columns. The Rule 3.1 comment is removed (MISRA C:2025 allows a double slash
+ * in a URI).
  */
 
 #include <config.h>
@@ -43,6 +51,11 @@
 #include <core/time.h>
 #include <types.h>
 
+/*
+ * Each MAP_ERROR()/MAP_ERROR_DEFAULT() expands to a whole switch-clause ending
+ * with break (MISRA C:2025 Rule 16.3); cppcheck's MISRA addon doesn't see the
+ * break inside the macro and reports these switches by mistake.
+ */
 #define MAP_ERROR(from, to) case (from): *return_code = (to); break
 #define MAP_ERROR_DEFAULT(to) default: *return_code = (to); break
 

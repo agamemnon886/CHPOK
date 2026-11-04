@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,7 +12,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: an include
+ * guard is added; U suffixes for unsigned constants; the class bits are
+ * unsigned.
  */
+
+
+#ifndef LIBJET_CTYPE_INTERNAL_H
+#define LIBJET_CTYPE_INTERNAL_H
 
 /* Way for storing information about characters classification. */
 
@@ -71,14 +80,14 @@
  * number of bits may be reduced futher.
  */
 
-#define CTB_ALNUM 1
-#define CTB_UPPER_OR_SPACE 2
-#define CTB_LOWER_OR_PUNCT 4
-#define CTB_ALPHA_OR_BLANK 8
-#define CTB_DIGIT_OR_CNTRL 16
-#define CTB_PRINT 32
-#define CTB_GRAPH 64
-#define CTB_XDIGIT 128
+#define CTB_ALNUM 1U
+#define CTB_UPPER_OR_SPACE 2U
+#define CTB_LOWER_OR_PUNCT 4U
+#define CTB_ALPHA_OR_BLANK 8U
+#define CTB_DIGIT_OR_CNTRL 16U
+#define CTB_PRINT 32U
+#define CTB_GRAPH 64U
+#define CTB_XDIGIT 128U
 
 /* 
  * Pointer to the array of size CTYPE_TABLE_SIZE, which contains
@@ -97,3 +106,5 @@ extern int* ctype_table_lower;
  * of "toupper" conversion for the characters.
  */
 extern int* ctype_table_upper;
+
+#endif /* LIBJET_CTYPE_INTERNAL_H */

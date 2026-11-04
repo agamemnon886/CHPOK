@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,10 +12,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: increments and
+ * assignments are separate statements.
  */
 
-#ifndef __LIBJET_MSECTION_H__
-#define __LIBJET_MSECTION_H__
+#ifndef LIBJET_MSECTION_H
+#define LIBJET_MSECTION_H
 
 #include <uapi/msection.h>
 
@@ -75,7 +82,8 @@ pok_ret_t msection_notify(struct msection* section, pok_thread_id_t thread_id);
 /* Initialize waitqueue. */
 static inline void msection_wq_init(struct msection_wq* wq)
 {
-    wq->first = wq->last = JET_THREAD_ID_NONE;
+    wq->last = JET_THREAD_ID_NONE;
+    wq->first = JET_THREAD_ID_NONE;
 }
 
 /* 
@@ -132,4 +140,4 @@ pok_ret_t msection_wq_notify(struct msection* section,
 size_t msection_wq_size(struct msection* section,
    struct msection_wq* wq);
 
-#endif /* __LIBJET_MSECTION_H__ */
+#endif /* LIBJET_MSECTION_H */

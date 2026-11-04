@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; discarded results are cast to void;
+ * essentially Boolean conditions.
  */
 
 #include <arinc653/queueing.h>
@@ -29,17 +34,20 @@ static ret_t send_msg_to_user_partition_queuing(ARINC_RECEIVER *self, const char
 
     SEND_QUEUING_MESSAGE(
             self->state.port_id,
-            (MESSAGE_ADDR_TYPE) payload,
+            (const APEX_BYTE *) payload,
             length,
             0,
             &ret);
 
     if (ret != NO_ERROR) {
         if (ret == NOT_AVAILABLE) {
-            printf(C_NAME"%s port queue is full, drop packet\n", self->state.port_name);
+            (void) printf(
+                C_NAME"%s port queue is full, drop packet\n",
+                    self->state.port_name);
             return EAGAIN; //what should be returned???
         } else {
-            printf(C_NAME"%s port error: %d\n", self->state.port_name, ret);
+            (void) printf(
+                C_NAME"%s port error: %d\n", self->state.port_name, ret);
             return EINVAL;
         }
     }
@@ -52,12 +60,12 @@ static ret_t send_msg_to_user_partition_sampling(ARINC_RECEIVER *self, const cha
 
     WRITE_SAMPLING_MESSAGE(
             self->state.port_id,
-            (MESSAGE_ADDR_TYPE) payload,
+            (const APEX_BYTE *) payload,
             length,
             &ret);
 
     if (ret != NO_ERROR) {
-        printf(C_NAME"%s port error: %d\n", self->state.port_name, ret);
+        (void) printf(C_NAME"%s port error: %d\n", self->state.port_name, ret);
         return EINVAL;
     }
     return EOK;
@@ -67,7 +75,7 @@ static ret_t send_msg_to_user_partition_sampling(ARINC_RECEIVER *self, const cha
 void arinc_receiver_init(ARINC_RECEIVER *self)
 {
     RETURN_CODE_TYPE ret;
-    if (self->state.is_queuing_port) {
+    if (self->state.is_queuing_port != 0) {
         CREATE_QUEUING_PORT(
                 self->state.port_name,
                 self->state.port_max_message_size,
@@ -90,8 +98,9 @@ void arinc_receiver_init(ARINC_RECEIVER *self)
 ret_t arinc_receive_message(ARINC_RECEIVER *self, const char *payload, size_t payload_size)
 {
     //printf(C_NAME"%s got message\n", self->state.tmp_name);
-    if (self->state.is_queuing_port)
+    if (self->state.is_queuing_port != 0) {
         return send_msg_to_user_partition_queuing(self, payload, payload_size);
-    else
+    } else {
         return send_msg_to_user_partition_sampling(self, payload, payload_size);
+    }
 }

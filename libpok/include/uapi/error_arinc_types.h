@@ -26,8 +26,8 @@
  * CONFIGURE_ERROR_HANDLER (ARINC 653P1-4).
  */
 
-#ifndef __JET_UAPI_ERROR_ARINC_TYPES_H__
-#define __JET_UAPI_ERROR_ARINC_TYPES_H__
+#ifndef JET_UAPI_ERROR_ARINC_TYPES_H
+#define JET_UAPI_ERROR_ARINC_TYPES_H
 
 typedef uint8_t pok_error_kind_t;
 #define POK_ERROR_KIND_INVALID                   0 // this is "NULL" error - that is, no error
@@ -61,10 +61,10 @@ typedef struct
  * The values are those of ARINC ERROR_HANDLER_CONCURRENCY_CONTROL_TYPE.
  */
 typedef uint8_t pok_error_handler_concurrency_t;
-#define POK_ERROR_HANDLER_PROCESSES_PAUSE       0 // other processes don't run
-#define POK_ERROR_HANDLER_PROCESSES_SCHEDULED   1 // other cores keep scheduling
+#define POK_ERROR_HANDLER_PROCESSES_PAUSE       0U // other processes don't run
+#define POK_ERROR_HANDLER_PROCESSES_SCHEDULED   1U // other cores keep scheduling
 
 /* Processor core ID meaning "any core of the partition" (ARINC CORE_AFFINITY_NO_PREFERENCE). */
 #define POK_CORE_AFFINITY_NO_PREFERENCE       (-1)
 
-#endif /* __JET_UAPI_ERROR_ARINC_TYPES_H__ */
+#endif /* JET_UAPI_ERROR_ARINC_TYPES_H */

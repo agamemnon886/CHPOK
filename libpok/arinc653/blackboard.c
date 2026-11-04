@@ -16,6 +16,21 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: braces around
+ * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
+ * unsigned constants; discarded results are cast to void; operands of the
+ * same essential type; the name is copied with strncpy(), so a shorter
+ * name isn't read past its end.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
+ * mixed precedence are parenthesized; deviations are documented where a
+ * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
+ * parameters and the message parameter of the send or write service are
+ * const (they are only read), so callers can pass string literals and
+ * const data.
  */
 
 #include <config.h>
@@ -36,16 +51,27 @@
 #include <arinc_config.h>
 #include "arinc_process_queue.h"
 
+/*
+ * MISRA C:2025 Rule 11.5 deviation (this file): the allocator returns its
+ * memory as a pointer to void, which is converted to the type of the object
+ * allocated; the kernel passes message addresses to waiting processes as
+ * pointers to void.
+ * MISRA C:2025 Rule 18.4 deviation (this file): thread and object IDs are
+ * the index of an element, computed as the difference between its address
+ * and the start of its array.
+ */
+
 static size_t nblackboards_used = 0;
 
 /* Find blackboard by name (in UPPERCASE). Returns NULL if not found. */
 static struct arinc_blackboard* find_blackboard(const char* name)
 {
-   for(int32_t i = 0; i < nblackboards_used; i++)
+   for(size_t i = 0U; i < nblackboards_used; i++)
    {
       struct arinc_blackboard* blackboard = &arinc_blackboards[i];
-      if(strncasecmp(blackboard->blackboard_name, name, MAX_NAME_LENGTH) == 0)
+      if(strncasecmp(blackboard->blackboard_name, name, MAX_NAME_LENGTH) == 0) {
          return blackboard;
+      }
    }
 
    return NULL;
@@ -53,7 +79,7 @@ static struct arinc_blackboard* find_blackboard(const char* name)
 
 
 void CREATE_BLACKBOARD (
-       /*in */ BLACKBOARD_NAME_TYPE     BLACKBOARD_NAME,
+       /*in */ const BLACKBOARD_NAME_TYPE     BLACKBOARD_NAME,
        /*in */ MESSAGE_SIZE_TYPE        MAX_MESSAGE_SIZE,
        /*out*/ BLACKBOARD_ID_TYPE       *BLACKBOARD_ID,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
@@ -76,7 +102,8 @@ void CREATE_BLACKBOARD (
       return;
    }
 
-   if(MAX_MESSAGE_SIZE <= 0 || MAX_MESSAGE_SIZE > SYSTEM_LIMIT_MESSAGE_SIZE) {
+   if((MAX_MESSAGE_SIZE <= 0)
+      || (MAX_MESSAGE_SIZE > SYSTEM_LIMIT_MESSAGE_SIZE)) {
       // Message size is non-positive or too high.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -96,12 +123,14 @@ void CREATE_BLACKBOARD (
       return;
    }
 
-   memcpy(blackboard->blackboard_name, BLACKBOARD_NAME, MAX_NAME_LENGTH);
+   // The name may be shorter than MAX_NAME_LENGTH: don't read past its end.
+   (void) strncpy(blackboard->blackboard_name, BLACKBOARD_NAME,
+                  MAX_NAME_LENGTH);
    blackboard->message_size = 0;
    msection_init(&blackboard->section);
    msection_wq_init(&blackboard->process_queue);
 
-   *BLACKBOARD_ID = nblackboards_used + 1;// Avoid 0 value.
+   *BLACKBOARD_ID = nblackboards_used + 1U;// Avoid 0 value.
 
    nblackboards_used++;
 
@@ -110,11 +139,11 @@ void CREATE_BLACKBOARD (
 
 void DISPLAY_BLACKBOARD (
        /*in */ BLACKBOARD_ID_TYPE       BLACKBOARD_ID,
-       /*in */ MESSAGE_ADDR_TYPE        MESSAGE_ADDR,       /* by reference */
+       /*in */ const APEX_BYTE *       MESSAGE_ADDR,       /* by reference */
        /*in */ MESSAGE_SIZE_TYPE        LENGTH,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
-   if (BLACKBOARD_ID <= 0 || BLACKBOARD_ID > nblackboards_used) {
+   if ((BLACKBOARD_ID <= 0) || ((size_t)BLACKBOARD_ID > nblackboards_used)) {
       // Incorrect blackboard identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -122,7 +151,7 @@ void DISPLAY_BLACKBOARD (
 
    struct arinc_blackboard* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
 
-   if(LENGTH <= 0 || LENGTH > blackboard->max_message_size) {
+   if((LENGTH <= 0) || (LENGTH > blackboard->max_message_size)) {
       // LENGTH is non-positive or too big.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -130,7 +159,7 @@ void DISPLAY_BLACKBOARD (
 
    msection_enter(&blackboard->section);
 
-   memcpy(blackboard->message, MESSAGE_ADDR, LENGTH);
+   (void) memcpy(blackboard->message, MESSAGE_ADDR, LENGTH);
    blackboard->message_size = LENGTH;
 
    if(msection_wq_notify(&blackboard->section, &blackboard->process_queue, TRUE)
@@ -141,7 +170,7 @@ void DISPLAY_BLACKBOARD (
 
       do {
          char* w_dest = kshd.tshd[t].wq_buffer.dst;
-         memcpy(w_dest, blackboard->message, blackboard->message_size);
+         (void) memcpy(w_dest, blackboard->message, blackboard->message_size);
          kshd.tshd[t].wq_len = blackboard->message_size;
 
          msection_wq_del(&blackboard->process_queue, t);
@@ -161,7 +190,7 @@ void READ_BLACKBOARD (
        /*out*/ MESSAGE_SIZE_TYPE        *LENGTH,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
-   if (BLACKBOARD_ID <= 0 || BLACKBOARD_ID > nblackboards_used) {
+   if ((BLACKBOARD_ID <= 0) || ((size_t)BLACKBOARD_ID > nblackboards_used)) {
       // Incorrect blackboard identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -173,7 +202,8 @@ void READ_BLACKBOARD (
 
    if(blackboard->message_size > 0) {
       // There is a message in the blackboard.
-      memcpy(MESSAGE_ADDR, blackboard->message, blackboard->message_size);
+      (void) memcpy(MESSAGE_ADDR, blackboard->message,
+                    blackboard->message_size);
       *LENGTH = blackboard->message_size;
       *RETURN_CODE = NO_ERROR;
    }
@@ -220,6 +250,7 @@ void READ_BLACKBOARD (
          break;
       default:
          assert_os(FALSE);
+         break;
       }
    }
 
@@ -230,7 +261,7 @@ void CLEAR_BLACKBOARD (
        /*in */ BLACKBOARD_ID_TYPE       BLACKBOARD_ID,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
-   if (BLACKBOARD_ID <= 0 || BLACKBOARD_ID > nblackboards_used) {
+   if ((BLACKBOARD_ID <= 0) || ((size_t)BLACKBOARD_ID > nblackboards_used)) {
       // Incorrect blackboard identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;
@@ -246,7 +277,7 @@ void CLEAR_BLACKBOARD (
 }
 
 void GET_BLACKBOARD_ID (
-       /*in */ BLACKBOARD_NAME_TYPE     BLACKBOARD_NAME,
+       /*in */ const BLACKBOARD_NAME_TYPE     BLACKBOARD_NAME,
        /*out*/ BLACKBOARD_ID_TYPE       *BLACKBOARD_ID,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
@@ -266,7 +297,7 @@ void GET_BLACKBOARD_STATUS (
        /*out*/ BLACKBOARD_STATUS_TYPE   *BLACKBOARD_STATUS,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
-   if (BLACKBOARD_ID <= 0 || BLACKBOARD_ID > nblackboards_used) {
+   if ((BLACKBOARD_ID <= 0) || ((size_t)BLACKBOARD_ID > nblackboards_used)) {
       // Incorrect blackboard identificator.
       *RETURN_CODE = INVALID_PARAM;
       return;

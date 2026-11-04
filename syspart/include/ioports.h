@@ -19,10 +19,13 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * results are cast to void; the header guard isn't a reserved identifier.
  */
 
-#ifndef __JET__IOPORTS_H__
-#define __JET__IOPORTS_H__
+#ifndef JET_IOPORTS_H
+#define JET_IOPORTS_H
 
 #include <string.h>
 
@@ -72,17 +75,17 @@ static inline void iowrite32(uint32_t value, uint32_t *addr)
 
 static inline void memset_io(volatile void *addr, uint8_t val, size_t count)
 {
-    memset((void *)addr, val, count);
+    (void) memset((void *)addr, val, count);
 }
 
 static inline void memcpy_fromio(void *dst, const volatile void *src, size_t count)
 {
-    memcpy(dst, (const void *)src, count);
+    (void) memcpy(dst, (const void *)src, count);
 }
 
 static inline void memcpy_toio(volatile void *dst, const void *src, size_t count)
 {
-    memcpy((void *)dst, src, count);
+    (void) memcpy((void *)dst, src, count);
 }
 
 #endif

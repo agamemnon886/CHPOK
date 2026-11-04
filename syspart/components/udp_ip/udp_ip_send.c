@@ -1,6 +1,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -11,6 +12,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: braces around
+ * all if/else/loop bodies; U suffixes for unsigned constants; deviations
+ * are documented where a guideline can't be followed.
  */
 
 #include <net/byteorder.h>
@@ -21,10 +26,14 @@
 
 #include "UDP_IP_SENDER_gen.h"
 
-#define UDP_IP_HEADER_SIZE (20+8)
+#define UDP_IP_HEADER_SIZE (20U + 8U)
 struct udp_ip_packet{
     struct ip_hdr ip_hdr;
     struct udp_hdr udp_hdr;
+    /*
+     * MISRA C:2025 Rule 18.7 deviation: the payload of a packet follows its
+     * header; its length is that of the received or sent frame.
+     */
     char payload[];
 } __attribute__((packed));
 
@@ -35,7 +44,7 @@ static void fill_in_udp_ip_header(
         )
 {
     // ...next, IP heaader
-    packet->ip_hdr.version_len = (4 << 4) | 5;
+    packet->ip_hdr.version_len = 0x45U; // IPv4, 5 32-bit words
     packet->ip_hdr.dscp = 0;
     packet->ip_hdr.length = hton16(
             sizeof(struct ip_hdr) +
@@ -66,8 +75,9 @@ ret_t udp_ip_send(
         size_t max_backstep
         )
 {
-    if (max_backstep < UDP_IP_HEADER_SIZE)
+    if (max_backstep < UDP_IP_HEADER_SIZE) {
         return EINVAL;
+    }
 
     void *udp_packet = payload - UDP_IP_HEADER_SIZE;
     fill_in_udp_ip_header(

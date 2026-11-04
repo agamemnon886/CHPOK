@@ -14,10 +14,13 @@
  * See the GNU General Public License version 3 for more details.
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: removed PowerPC support.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
+ * guard isn't a reserved identifier.
  */
 
-#ifndef __VBE_H__
-#define __VBE_H__
+#ifndef VBE_H
+#define VBE_H
 
 #define VBE_DISPI_IOPORT_INDEX 0x01CE
 #define VBE_DISPI_IOPORT_DATA 0x01CF
@@ -43,4 +46,4 @@ enum {
     VBE_DISPI_BPP_24 = 0x18,
     VBE_DISPI_BPP_32 = 0x20,
 };
-#endif //__VBE_H__
+#endif //VBE_H
