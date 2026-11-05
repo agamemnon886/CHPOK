@@ -24,13 +24,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Runs tests/gdbserver (x86_64) with GDB connected to the kernel's GDB
-# server: QEMU runs on the host with the second serial port on a TCP port,
-# gdb-multiarch runs smoke.gdb (in the build image, or on the host with
-# NATIVE=1). The test must be built first (make run-gdbserver; make
-# gdb-test does both).
+# Runs tests/gdbserver with GDB connected to the kernel's GDB server: QEMU
+# runs on the host with the second serial port on a TCP port, gdb-multiarch
+# runs smoke.gdb (in the build image, or on the host with NATIVE=1). The
+# test must be built first (make run-gdbserver; make gdb-test does both).
+#
+# Modified by Kirill Brazhnikov, 2026-11-05: arm64-qemu is tested too (BSP).
 #
 # Usage: tests/gdbserver/run_gdb_test.sh
+#   BSP       x86_64-qemu (default) or arm64-qemu
 #   GDB_PORT  TCP port of the GDB server (default 8123)
 #   TIMEOUT   seconds to wait for each step (default 90)
 #   NATIVE    1: run ${GDB:-gdb-multiarch} on the host
@@ -45,7 +47,7 @@ set -u
 
 dir=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$dir/../.." && pwd)
-bsp=x86_64-qemu
+bsp=${BSP:-x86_64-qemu}
 elf=$dir/build/$bsp/pok.elf
 log=$dir/build/$bsp/gdb-test.log
 gdb_log=$dir/build/$bsp/gdb-test-gdb.log
@@ -60,8 +62,16 @@ if [ ! -f "$elf" ] || [ ! -f "$dir/build/$bsp/GDB_commands" ]; then
     echo "$0: $elf not found; build it with: make run-gdbserver" >&2
     exit 2
 fi
-if ! command -v qemu-system-x86_64 > /dev/null; then
-    echo "$0: qemu-system-x86_64 not found" >&2
+case "$bsp" in
+    x86_64-qemu) qemu="qemu-system-x86_64 -vga none" ;;
+    arm64-qemu)  qemu="qemu-system-aarch64 -M virt -cpu cortex-a53" ;;
+    *)
+        echo "$0: unknown BSP=$bsp; use x86_64-qemu or arm64-qemu" >&2
+        exit 2
+        ;;
+esac
+if ! command -v "${qemu%% *}" > /dev/null; then
+    echo "$0: ${qemu%% *} not found" >&2
     exit 2
 fi
 
@@ -69,14 +79,15 @@ fi
 rm -f "$log" "$gdb_log"
 
 # QEMU waits for GDB before it starts the system.
-qemu-system-x86_64 -vga none -m 1G -display none -serial "file:$log" \
+$qemu -m 1G -display none -serial "file:$log" \
     -serial "tcp:127.0.0.1:$port,server=on,wait=on" -kernel "$elf" \
     > /dev/null 2>&1 &
 qemu_pid=$!
 sleep 1
 
 if [ -n "${NATIVE:-}" ]; then
-    (cd "$dir" && GDB_TARGET=127.0.0.1:$port ${GDB:-gdb-multiarch} -batch \
+    (cd "$dir" && GDB_BSP=$bsp GDB_TARGET=127.0.0.1:$port \
+        ${GDB:-gdb-multiarch} -batch \
         -nx "build/$bsp/pok.elf" -x smoke.gdb) > "$gdb_log" 2>&1 &
 else
     # Docker Desktop reaches the host's 127.0.0.1 as host.docker.internal;
@@ -90,7 +101,7 @@ else
     fi
     docker run --rm --init --name $container $net \
         --user "$(id -u):$(id -g)" -v "$root:$root" -w "$dir" \
-        -e GDB_TARGET=$target $image \
+        -e GDB_BSP=$bsp -e GDB_TARGET=$target $image \
         gdb-multiarch -batch -nx "build/$bsp/pok.elf" -x smoke.gdb \
         > "$gdb_log" 2>&1 &
 fi

@@ -42,9 +42,12 @@
  *
  * Without GDB (make run) the test checks that the partitions run with the
  * GDB partition in the schedule. tests/gdbserver/run_gdb_test.sh runs it
- * with GDB (x86_64).
+ * with GDB.
  *
  * The last line is "Pn DONE: <n> failure(s)" (see tests/README).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: the comment doesn't say that
+ * the GDB server is on x86_64 only.
  */
 #include <stdio.h>
 #include <string.h>

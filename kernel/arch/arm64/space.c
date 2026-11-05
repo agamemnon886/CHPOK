@@ -36,6 +36,11 @@
  * deviations are documented where a guideline can't be followed. Long lines are
  * wrapped at 80 columns. ja_ustack_alloc() compares the user's stack size with
  * the free space before aligning it, so that the sum can't wrap around.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: struct jet_fp_store is defined
+ * in space.h (for the GDB server); switching spaces enables the hardware
+ * breakpoints and watchpoints of the new space; a thread which starts in
+ * user space ends a step of the GDB server it had begun.
  */
 
 /*
@@ -58,6 +63,7 @@
  * read-write. (The configured PhysicalAddress is not used.)
  */
 
+#include <config.h>
 #include <types.h>
 #include <errno.h>
 #include <libc.h>
@@ -73,6 +79,9 @@
 #include "space.h"
 #include "sysreg.h"
 #include <asp/memory.h>
+#ifdef POK_NEEDS_GDB
+#include "interrupt.h"
+#endif /* POK_NEEDS_GDB */
 
 /*
  * MISRA C:2025 Rule 11.5 deviation (this file): the allocator returns its
@@ -312,6 +321,9 @@ void ja_user_space_jump(
 {
     assert((space_id != 0U) && (space_id <= ja_spaces_n));
 
+#ifdef POK_NEEDS_GDB
+    ja_gdb_user_jump(stack_kernel);
+#endif /* POK_NEEDS_GDB */
     ja_arm64_user_jump(stack_kernel, entry_user, stack_user);
 }
 
@@ -426,20 +438,16 @@ void ja_space_switch (jet_space_id space_id)
     isb();
 
     current_space_id = space_id;
+#ifdef POK_NEEDS_GDB
+    // Hardware breakpoints and watchpoints of a partition: only its own.
+    ja_gdb_hw_program(space_id);
+#endif /* POK_NEEDS_GDB */
 }
 
 jet_space_id ja_space_get_current (void)
 {
     return current_space_id;
 }
-
-/* Must correspond to fp.S */
-struct jet_fp_store
-{
-    uint64_t q[32][2];
-    uint64_t fpcr;
-    uint64_t fpsr;
-};
 
 struct jet_fp_store* ja_alloc_fp_store(void)
 {

@@ -15,6 +15,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: adapted from
  * kernel/arch/x86/cswitch.S for arm64.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: ja_arm64_user_jump() masks
+ * debug exceptions while it loads the return state (the GDB server).
  */
 
 /* Must correspond to 'struct jet_context' (thread.h). */
@@ -111,6 +114,8 @@ ja_context_restart_and_save:
  */
 .globl ja_arm64_user_jump
 ja_arm64_user_jump:
+    /* The kernel runs with debug exceptions unmasked (the GDB server). */
+    msr daifset, #8
     mov sp, x0
     msr sp_el0, x2
     msr elr_el1, x1

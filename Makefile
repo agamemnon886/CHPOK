@@ -59,6 +59,11 @@
 # Modified by Kirill Brazhnikov, 2026-11-01: added the tests, run,
 # run-<name> and clean-tests targets for the tests under tests/; make run
 # shows the output of the running tests (VERBOSE).
+#
+# Modified by Kirill Brazhnikov, 2026-11-04: the gdb-test target runs
+# tests/gdbserver with GDB.
+#
+# Modified by Kirill Brazhnikov, 2026-11-05: gdb-test works on both boards.
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -134,7 +139,7 @@ help:
 	@echo "  make tests           Build all tests (tests/)"
 	@echo "  make run             Build and run all tests in QEMU"
 	@echo "  make run-<name>      Build and run one test (e.g. make run-mutex)"
-	@echo "  make gdb-test        Run tests/gdbserver with GDB (x86_64)"
+	@echo "  make gdb-test        Run tests/gdbserver with GDB"
 	@echo "  make clean-tests     Clean all tests"
 	@echo "  make docker-image    (Re)build the Docker build image"
 	@echo "  make help            Show this help"
@@ -214,13 +219,13 @@ run: tests
 
 # The GDB server test: GDB (in the build image, or on the host with
 # NATIVE=1) debugs tests/gdbserver while it runs in QEMU.
-ifeq ($(BSP),x86_64-qemu)
+ifneq ($(filter $(BSP),x86_64-qemu arm64-qemu),)
 gdb-test: run-gdbserver
-	VERBOSE=$(VERBOSE) NATIVE=$(NATIVE) \
+	VERBOSE=$(VERBOSE) NATIVE=$(NATIVE) BSP=$(BSP) \
 		$(TESTS_DIR)/gdbserver/run_gdb_test.sh
 else
 gdb-test:
-	$(error The GDB server is supported only on x86_64-qemu)
+	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
 endif
 
 docker-image:

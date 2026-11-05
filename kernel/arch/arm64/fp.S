@@ -23,6 +23,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: struct jet_fp_store is in
+ * space.h now (a comment).
  */
 
 /*
@@ -31,7 +34,7 @@
  * The kernel never touches these registers, so they need to be saved
  * only when switching to other user thread.
  *
- * Store layout must correspond to 'struct jet_fp_store' (space.c).
+ * Store layout must correspond to 'struct jet_fp_store' (space.h).
  */
 
 #define FP_STORE_FPCR 512

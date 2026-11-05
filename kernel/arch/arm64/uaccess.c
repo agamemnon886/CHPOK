@@ -24,6 +24,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
  * mixed precedence are parenthesized; deviations are documented where a
  * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: ja_addr_to_gdb() and
+ * ja_addr_to_gdb_ro() give the GDB server access to the memory of the
+ * kernel and of the partitions.
  */
 
 #include <asp/uaccess.h>
@@ -122,3 +126,71 @@ pok_bool_t ja_check_access_exec(void* JET_USER addr, jet_space_id space_id)
     return (start < (POK_PARTITION_MEMORY_BASE + space->size_normal))
         && (start >= POK_PARTITION_MEMORY_BASE);
 }
+
+#ifdef POK_NEEDS_GDB
+
+/*
+ * Whether GDB may access the kernel memory [addr, addr + size): the
+ * kernel image, its heap and stacks lie between the beginning of RAM and
+ * the partitions' memory. (Devices are not accessible.)
+ */
+static pok_bool_t arm64_is_kernel_area(uintptr_t addr, size_t size)
+{
+    uintptr_t end = addr + size;
+
+    return (size != 0U) && (end > addr) && (addr >= BOARD_RAM_BASE)
+        && (end <= POK_PARTITION_MEMORY_PHYS_START);
+}
+
+/*
+ * MISRA C:2025 Rule 11.4 and Rule 11.6 deviation (the two functions
+ * below): the kernel maps its memory one-to-one, so the address GDB gives
+ * is the address to access, and a user-space address is an integer for GDB.
+ */
+void* ja_addr_to_gdb(uintptr_t addr, size_t size, jet_space_id space_id)
+{
+    void* res = NULL;
+
+    if(space_id == 0U)
+    {
+        if(arm64_is_kernel_area(addr, size)) {
+            res = (void*)addr;
+        }
+    }
+    else if(size != 0U)
+    {
+        res = ja_user_to_kernel_space((void* JET_USER)addr, size, space_id);
+    }
+    else
+    {
+        // Empty area: nothing to access.
+    }
+
+    return res;
+}
+
+const void* ja_addr_to_gdb_ro(uintptr_t addr, size_t size,
+    jet_space_id space_id)
+{
+    const void* res = NULL;
+
+    if(space_id == 0U)
+    {
+        if(arm64_is_kernel_area(addr, size)) {
+            res = (const void*)addr;
+        }
+    }
+    else if(size != 0U)
+    {
+        res = ja_user_to_kernel_ro_space((const void* JET_USER)addr, size,
+            space_id);
+    }
+    else
+    {
+        // Empty area: nothing to access.
+    }
+
+    return res;
+}
+
+#endif /* POK_NEEDS_GDB */

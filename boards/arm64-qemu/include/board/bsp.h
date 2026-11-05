@@ -26,6 +26,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; U suffixes for unsigned constants.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: the second UART and the device
+ * tree, for the GDB server.
  */
 
 /* QEMU 'virt' machine (qemu-system-aarch64 -M virt -m 1G). */
@@ -50,6 +53,14 @@
 #define BOARD_GICD_BASE   0x08000000ULL /* GICv2 distributor */
 #define BOARD_GICC_BASE   0x08010000ULL /* GICv2 CPU interface */
 #define BOARD_UART_BASE   0x09000000ULL /* PL011 */
+/*
+ * The second PL011, for the GDB server. QEMU creates it only for a second
+ * -serial option, and then lists it (pl011@9040000) in the device tree.
+ */
+#define BOARD_UART1_BASE  0x09040000ULL
+#define BOARD_UART1_NODE  "pl011@9040000"
+/* QEMU puts the device tree at the beginning of RAM. */
+#define BOARD_DTB_BASE    BOARD_RAM_BASE
 #define BOARD_RTC_BASE    0x09010000ULL /* PL031 */
 
 /* PPI of the EL1 virtual timer. */

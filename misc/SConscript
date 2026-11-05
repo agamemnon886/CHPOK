@@ -22,6 +22,9 @@
 # Modified by Kirill Brazhnikov, 2026-11-04: the GDB server is built on
 # x86_64; run-gdb waits for GDB on 127.0.0.1:8000.
 #
+# Modified by Kirill Brazhnikov, 2026-11-05: the GDB server is built on
+# arm64 too.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import sys
@@ -167,8 +170,7 @@ cflags_arch_dict = {
     'x86_64': ' -fno-pie -fno-pic -fno-stack-protector',
     # Debian's aarch64 gcc defaults to PIE and to outline atomics (the
     # latter need libc's getauxval); neither fits a freestanding build.
-    # The gdb server is not ported to arm64, so it is disabled there.
-    'arm64':  ' -fno-pie -fno-pic -mno-outline-atomics -fno-stack-protector -DPOK_DISABLE_GDB'
+    'arm64':  ' -fno-pie -fno-pic -mno-outline-atomics -fno-stack-protector'
 }
 env.Append(CFLAGS = cflags_arch_dict[env['ARCH']])
 

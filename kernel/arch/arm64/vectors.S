@@ -23,6 +23,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: debug exceptions are masked
+ * while the return state is loaded (the GDB server).
  */
 
 /*
@@ -73,6 +76,12 @@
 .endm
 
 .macro RESTORE_FRAME_AND_RETURN
+    /*
+     * An exception between loading ELR_EL1 and SPSR_EL1 and eret would
+     * destroy them. The kernel runs with debug exceptions unmasked (the
+     * GDB server): mask them again, if the handler has not done it.
+     */
+    msr daifset, #8
     ldp x22, x23, [sp, #FRAME_ELR]
     msr elr_el1, x22
     msr spsr_el1, x23

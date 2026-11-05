@@ -23,6 +23,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Modified by Kirill Brazhnikov, 2026-11-05: the kernel's GDB server works
+# on arm64 too (a comment).
+#
 # Build environment for CHPOK's x86_64-qemu and arm64-qemu examples, used
 # by the top-level Makefile (`make all`). Works the same on macOS and
 # Linux hosts.
@@ -40,7 +43,7 @@ FROM debian:bookworm-slim
 # Debian's native gcc/binutils already provide the <host-triplet>-*
 # tools (e.g. aarch64-linux-gnu-gcc on arm64); the other target needs
 # the cross packages. gdb-multiarch debugs both targets: through the
-# kernel's GDB server on x86_64, or QEMU's gdb stub (see README.md).
+# kernel's GDB server, or QEMU's gdb stub (see README.md).
 RUN case "$(dpkg --print-architecture)" in \
         arm64) cross_tools="gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu" ;; \
         amd64) cross_tools="gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu" ;; \

@@ -15,6 +15,12 @@
  * see the inserted breakpoints; the registers of threads switched off in
  * the kernel aren't written. The PowerPC and i386 code is removed.
  * MISRA C:2025.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: arm64 too; a stop in the
+ * kernel's code while a user partition runs is reported for the GDB
+ * partition's thread, so that GDB finds the kernel's breakpoints and
+ * watchpoints, and a step of the kernel's code ends in the thread which
+ * has stepped; Z0 refuses an unaligned address.
  */
 #include <config.h>
 
@@ -446,8 +452,12 @@ static uint32_t gdb_process_current_tid(uint32_t pid)
     return tid;
 }
 
-/* The thread which runs now. */
-static void gdb_thread_get_current(struct gdb_thread* t)
+/*
+ * The thread which runs now, when the system has stopped with registers
+ * 'ctx'.
+ */
+static void gdb_thread_get_current(struct gdb_thread* t,
+    const struct jet_interrupt_context* ctx)
 {
     pok_partition_t* part = current_partition;
     uint32_t pid;
@@ -461,6 +471,22 @@ static void gdb_thread_get_current(struct gdb_thread* t)
          * doesn't see: the GDB partition stands for them.
          */
         part = &partition_gdb;
+    }
+    else if (!gdb_partition_is_kernel(part) && !ja_gdb_context_is_user(ctx))
+    {
+        /*
+         * A user partition runs the kernel's code (a system call, an
+         * interrupt). The program of the kernel, with its breakpoints and
+         * watchpoints, is the one of process 1: GDB looks for them there
+         * (by the program of the thread which has stopped), so the GDB
+         * partition stands for the kernel here too. The partition's own
+         * thread is shown where it has entered the kernel.
+         */
+        part = &partition_gdb;
+    }
+    else
+    {
+        // The partition that runs is the thread.
     }
 
     pid = gdb_partition_pid(part);
@@ -534,7 +560,23 @@ static struct jet_interrupt_context* gdb_thread_regs(
         // Registers saved when the partition was switched off.
         ctx = part->entry_sp;
     }
-    else if (gdb_process_current_tid(t->pid) == t->tid)
+    else if ((part == current_partition)
+        && (gdb_process_current_tid(t->pid) == t->tid))
+    {
+        /*
+         * Current thread of the partition which runs, in the kernel (see
+         * gdb_thread_get_current()): where it has entered the kernel, or
+         * where it last did if that isn't recorded yet.
+         */
+        ctx = part->entry_sp_user;
+        if (ctx == NULL)
+        {
+            ctx = part->part_sched_ops->get_thread_registers(part,
+                gdb_thread_index(t), t->part_private);
+        }
+    }
+    else if ((part != current_partition)
+        && (gdb_process_current_tid(t->pid) == t->tid))
     {
         /*
          * Current thread of a partition which isn't running: registers
@@ -717,6 +759,10 @@ static pok_bool_t gdb_sw_insert(jet_space_id space_id, uintptr_t addr,
     if (kind != JA_GDB_BREAKPOINT_SIZE)
     {
         // Another breakpoint instruction: not supported.
+    }
+    else if ((addr % JA_GDB_BREAKPOINT_SIZE) != 0U)
+    {
+        // Instructions are aligned (arm64): it isn't a place for code.
     }
     else if (gdb_sw_find(space_id, addr) != NULL)
     {
@@ -2025,7 +2071,20 @@ pok_bool_t jet_gdb_trap(struct jet_interrupt_context* ctx,
         pok_fatal("GDB: trap inside the GDB server");
     }
 
-    gdb_thread_get_current(&current);
+    gdb_thread_get_current(&current, ctx);
+
+    if ((reason == JET_GDB_STOP_STEP) && gdb_step_pending
+        && (current.pid == GDB_PID_KERNEL)
+        && (gdb_step_thread.pid == GDB_PID_KERNEL))
+    {
+        /*
+         * A step of the kernel's code ends in the context which has
+         * stepped, but the thread which stands for it may have changed
+         * (the step has switched partitions): it's still the one which
+         * has stepped.
+         */
+        current = gdb_step_thread;
+    }
 
     if (reason == JET_GDB_STOP_REQUEST)
     {

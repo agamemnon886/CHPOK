@@ -21,6 +21,10 @@
  * written one at a time in GDB's numbering (including floating point
  * ones), and the architecture provides the breakpoint instruction,
  * single-stepping and hardware breakpoints and watchpoints.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: the interface doesn't assume
+ * how many hardware breakpoints and watchpoints there are, or that the
+ * server runs with them disabled (arm64 ports the GDB server too).
  */
 
 #ifndef JET_ASP_GDB_H
@@ -39,8 +43,10 @@
  * - JA_GDB_REGISTER_SIZE_MAX: size of the largest register;
  * - JA_GDB_REG_FP, JA_GDB_REG_SP, JA_GDB_REG_PC: frame pointer, stack
  *   pointer and program counter, sent with every stop reply;
- * - JA_GDB_BREAKPOINT_SIZE: size of the breakpoint instruction;
- * - JA_GDB_HW_SLOTS: number of hardware breakpoints and watchpoints.
+ * - JA_GDB_BREAKPOINT_SIZE: size of the breakpoint instruction.
+ *
+ * It may define more for the architecture's own use, e.g. the number of
+ * hardware breakpoints and watchpoints.
  */
 #include <arch/gdb.h>
 
@@ -139,9 +145,11 @@ pok_bool_t ja_gdb_hw_remove(enum ja_gdb_hw_type type, uintptr_t addr,
 void ja_gdb_hw_remove_all(void);
 
 /*
- * Disable hardware breakpoints and watchpoints while the GDB server
- * runs (ja_gdb_hw_enter()), and program them again before the system
- * resumes (ja_gdb_hw_leave()).
+ * Called when the GDB server gets the system (ja_gdb_hw_enter()) and
+ * before the system resumes (ja_gdb_hw_leave()): the architecture makes
+ * sure that the server itself doesn't hit a hardware breakpoint or
+ * watchpoint, and that the ones which were inserted or removed take
+ * effect.
  */
 void ja_gdb_hw_enter(void);
 void ja_gdb_hw_leave(void);

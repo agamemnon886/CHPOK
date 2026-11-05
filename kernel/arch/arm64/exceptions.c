@@ -32,6 +32,11 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
  * mixed precedence are parenthesized; deviations are documented where a
  * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: breakpoint, step and
+ * watchpoint exceptions are passed to the GDB server; the handlers give it
+ * the registers of the interrupted code (global_thread_stack) and keep
+ * debug exceptions masked where the exception frame is used.
  */
 
 /* C handlers for exceptions, called from vectors.S. */
@@ -41,6 +46,7 @@
 #include <core/error.h>
 #include <core/sched.h>
 #include <bsp/bsp.h>
+#include <asp/gdb.h>
 
 #include "interrupt.h"
 #include "sysreg.h"
@@ -114,8 +120,24 @@ void ja_exception_sync_user(interrupt_frame* frame)
 {
     uint64_t esr = read_sysreg(esr_el1);
     uint32_t ec = (uint32_t) ((esr >> 26) & 0x3fU);
+    pok_bool_t handled = FALSE;
 
-    if (ec == EC_SVC64) {
+#ifdef POK_NEEDS_GDB
+    // Registers of the interrupted thread, for the GDB server.
+    global_thread_stack = frame;
+    ja_gdb_exception_enter(frame);
+    handled = ja_gdb_trap(frame, ec, TRUE);
+    if (!handled) {
+        ja_gdb_exception_unmask();
+    }
+#endif /* POK_NEEDS_GDB */
+
+    if (handled)
+    {
+        // The GDB server has handled a breakpoint, a step or a watchpoint.
+    }
+    else if (ec == EC_SVC64)
+    {
         process_syscall(frame);
     }
     else {
@@ -129,12 +151,33 @@ void ja_exception_sync_user(interrupt_frame* frame)
     }
 
     return_user();
+
+#ifdef POK_NEEDS_GDB
+    ja_gdb_exception_leave(frame);
+#endif /* POK_NEEDS_GDB */
 }
 
 void ja_exception_sync_kernel(interrupt_frame* frame)
 {
     uint64_t esr = read_sysreg(esr_el1);
     uint32_t ec = (uint32_t) ((esr >> 26) & 0x3fU);
+
+#ifdef POK_NEEDS_GDB
+    // Registers of the interrupted code, for the GDB server.
+    struct jet_interrupt_context* previous_frame = global_thread_stack;
+    global_thread_stack = frame;
+    ja_gdb_exception_enter(frame);
+
+    if (ja_gdb_trap(frame, ec, FALSE))
+    {
+        // Back in the kernel code which was interrupted, and to its frame.
+        global_thread_stack = previous_frame;
+        ja_gdb_exception_leave(frame);
+        return;
+    }
+
+    ja_gdb_exception_unmask();
+#endif /* POK_NEEDS_GDB */
 
     (void) printf(
         "[KERNEL] Exception in kernel: ESR=0x%lx FAR=0x%lx ELR=0x%lx\n",
@@ -152,13 +195,38 @@ void ja_exception_sync_kernel(interrupt_frame* frame)
 
 void ja_exception_irq_kernel(interrupt_frame* frame)
 {
+#ifdef POK_NEEDS_GDB
+    // Registers of the interrupted code, for the GDB server.
+    struct jet_interrupt_context* previous_frame = global_thread_stack;
+    global_thread_stack = frame;
+    ja_gdb_exception_enter(frame);
+    ja_gdb_exception_unmask();
+#endif /* POK_NEEDS_GDB */
+
     ja_bsp_process_irq(frame);
+
+#ifdef POK_NEEDS_GDB
+    // Back in the kernel code which was interrupted, and to its frame.
+    global_thread_stack = previous_frame;
+    ja_gdb_exception_leave(frame);
+#endif /* POK_NEEDS_GDB */
 }
 
 void ja_exception_irq_user(interrupt_frame* frame)
 {
+#ifdef POK_NEEDS_GDB
+    // Registers of the interrupted thread, for the GDB server.
+    global_thread_stack = frame;
+    ja_gdb_exception_enter(frame);
+    ja_gdb_exception_unmask();
+#endif /* POK_NEEDS_GDB */
+
     ja_bsp_process_irq(frame);
     return_user();
+
+#ifdef POK_NEEDS_GDB
+    ja_gdb_exception_leave(frame);
+#endif /* POK_NEEDS_GDB */
 }
 
 void ja_exception_unexpected(interrupt_frame* frame, int32_t kind)

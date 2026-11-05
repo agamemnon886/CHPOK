@@ -34,6 +34,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: the system time stops while
+ * the GDB server holds the system (ja_system_time_stop() and
+ * ja_system_time_resume()).
  */
 
 /*
@@ -75,6 +79,17 @@ static uint64_t timer_start;    /* counter value at boot */
 static uint64_t timer_next;     /* counter value for the next tick */
 
 static time_t base_calendar_time;
+
+#ifdef POK_NEEDS_GDB
+/*
+ * The system time is stopped while the GDB server holds the system: it
+ * stays at the counter value 'counter_stopped_at', and the time spent
+ * stopped is added to 'timer_start' (and to the next tick) when the system
+ * resumes.
+ */
+static pok_bool_t time_stopped = FALSE;
+static uint64_t counter_stopped_at;
+#endif /* POK_NEEDS_GDB */
 
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (the functions below): system
@@ -196,7 +211,13 @@ void ja_bsp_process_irq(interrupt_frame* frame)
 
 pok_time_t ja_system_time(void)
 {
-    uint64_t ticks = read_cntvct() - timer_start;
+    uint64_t now = read_cntvct();
+#ifdef POK_NEEDS_GDB
+    if (time_stopped) {
+        now = counter_stopped_at;
+    }
+#endif /* POK_NEEDS_GDB */
+    uint64_t ticks = now - timer_start;
 
     // Split to avoid overflow: (ticks % freq) * 1e9 < freq * 1e9.
     uint64_t ns = ((ticks / timer_freq) * 1000000000ULL)
@@ -209,6 +230,31 @@ time_t ja_calendar_time(void)
 {
    return base_calendar_time + (time_t)(ja_system_time() / 1000000000);
 }
+
+#ifdef POK_NEEDS_GDB
+void ja_system_time_stop(void)
+{
+    if ((timer_freq != 0U) && !time_stopped)
+    {
+        counter_stopped_at = read_cntvct();
+        time_stopped = TRUE;
+    }
+}
+
+void ja_system_time_resume(void)
+{
+    if (time_stopped)
+    {
+        uint64_t stopped = read_cntvct() - counter_stopped_at;
+
+        timer_start += stopped;
+        timer_next += stopped;
+        // The tick which has come meanwhile is no longer due.
+        write_cntv_cval(timer_next);
+        time_stopped = FALSE;
+    }
+}
+#endif /* POK_NEEDS_GDB */
 
 void ja_bsp_reset(void)
 {

@@ -18,6 +18,8 @@
  * kernel/arch/x86/space.h for arm64.
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ * Modified by Kirill Brazhnikov, 2026-11-05: struct jet_fp_store is defined
+ * here (it was private to space.c), for the GDB server.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -49,5 +51,18 @@
 
 /* Build translation tables for all spaces and enable the MMU. */
 void ja_space_init(void);
+
+/*
+ * FP/SIMD registers of a user thread: the area that ja_fp_save() fills and
+ * ja_fp_restore() loads. The GDB server reads and writes it too.
+ *
+ * Must correspond to fp.S.
+ */
+struct jet_fp_store
+{
+  uint64_t q[32][2];
+  uint64_t fpcr;
+  uint64_t fpsr;
+};
 
 #endif /* !POK_ARM64_SPACE_H */

@@ -22,6 +22,8 @@
 # Modified by Kirill Brazhnikov, 2026-11-04: GDB_commands is built by
 # default on x86_64, where the kernel has the GDB server.
 #
+# Modified by Kirill Brazhnikov, 2026-11-05: and on arm64, which has it too.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import os
@@ -112,9 +114,8 @@ gdb_commands = env.TemplateRender(
     template_dir = env['POK_PATH'] + "/misc/templates",
     GENERATE_TITLE = template_generation.generate_title_python_no_track
     )
-# The kernel's GDB server is ported to x86_64 only (see README.md).
-if env['ARCH'] == 'x86_64':
-    Default(gdb_commands)
+# The kernel has the GDB server (see README.md).
+Default(gdb_commands)
 
 pok_env = env.Clone()
 

@@ -29,6 +29,9 @@
  * declared _Noreturn; privileged instructions are documented as isolated
  * inline assembly; deviations are documented where a guideline can't be
  * followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-05: the GDB server is initialized
+ * (debug exceptions are enabled in the kernel).
  */
 
 #include <errno.h>
@@ -38,6 +41,7 @@
 
 #include "space.h"
 #include "sysreg.h"
+#include "interrupt.h"
 
 /* Called from entry.S with the MMU off. */
 void pok_arch_init (void)
@@ -47,6 +51,9 @@ void pok_arch_init (void)
   // MMU first: until it is enabled, all memory is treated as device memory.
   ja_space_init();
   ja_bsp_init();
+#ifdef POK_NEEDS_GDB
+  ja_gdb_init();
+#endif /* POK_NEEDS_GDB */
 }
 
 /*

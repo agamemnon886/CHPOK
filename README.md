@@ -27,10 +27,10 @@ The resulting kernel image `examples/<name>/build/<board>/pok.elf` runs in QEMU:
 
 ## Debugging
 
-The x86_64 kernel has a GDB server which knows the partitions and their
-processes. GDB connects to it over the second serial port, and sees the
-kernel as process 1 and partition N as process N+2: the threads of process
-1 are the kernel-only partitions (Monitor, GDB), the threads of a
+The kernel (x86_64 and arm64) has a GDB server which knows the partitions
+and their processes. GDB connects to it over the second serial port, and
+sees the kernel as process 1 and partition N as process N+2: the threads of
+process 1 are the kernel-only partitions (Monitor, GDB), the threads of a
 partition's process are its ARINC 653 processes (the last one, IDLE, runs
 when no process is ready). While GDB holds the system, the whole module is
 stopped and the system time doesn't run, so time slots, deadlines and
@@ -55,43 +55,77 @@ Run QEMU with the second serial port on a TCP port; QEMU waits for GDB:
         -serial tcp:127.0.0.1:8000,server=on,wait=on \
         -kernel examples/msections-basic/build/x86_64-qemu/pok.elf
 
-The build also makes `build/x86_64-qemu/GDB_commands`, a GDB script which
-attaches GDB to every partition, each with the symbols of its `part.elf`.
-Connect a GDB which supports x86-64 and has Python (such as
-`gdb-multiarch`; not, e.g., `arm-none-eabi-gdb`) from the example
-directory:
+    qemu-system-aarch64 -M virt -cpu cortex-a53 -m 1G -display none \
+        -serial stdio -serial tcp:127.0.0.1:8000,server=on,wait=on \
+        -kernel examples/msections-basic/build/arm64-qemu/pok.elf
 
+On arm64 the second serial port exists only if QEMU is given two `-serial`
+options (the `virt` board of a recent QEMU, tested with 11.1, then has a
+second UART, which the kernel finds in the device tree that QEMU passes);
+with one, as in `-nographic`, the GDB partition just idles.
+
+The build also makes `build/<board>/GDB_commands`, a GDB script which
+attaches GDB to every partition, each with the symbols of its `part.elf`.
+Connect a GDB which supports the target and has Python (such as
+`gdb-multiarch`; not, e.g., `arm-none-eabi-gdb`) from the example
+directory, with the `pok.elf` and `GDB_commands` of the board QEMU runs
+(with the other board's, GDB misreads the registers, e.g. "Invalid hex
+digit"):
+
+    # x86_64
     gdb-multiarch build/x86_64-qemu/pok.elf \
         -ex 'source build/x86_64-qemu/GDB_commands' \
+        -ex 'target extended-remote 127.0.0.1:8000'
+
+    # arm64
+    gdb-multiarch build/arm64-qemu/pok.elf \
+        -ex 'source build/arm64-qemu/GDB_commands' \
         -ex 'target extended-remote 127.0.0.1:8000'
 
 `gdb-multiarch` is in the build image; on macOS, run it there (from the
 top-level directory) and connect to QEMU on the host:
 
+    # x86_64
     docker run --rm -it --add-host=host.docker.internal:host-gateway \
         -v "$PWD:$PWD" -w "$PWD/examples/msections-basic" chpok-build \
         gdb-multiarch build/x86_64-qemu/pok.elf \
         -ex 'source build/x86_64-qemu/GDB_commands' \
         -ex 'target extended-remote host.docker.internal:8000'
 
-Breakpoints, hardware breakpoints (`hbreak`) and watchpoints (together up
-to four, in the debug registers), stepping, the x87 and SSE registers, and
-reading and writing memory work per partition, although all partitions use
-the same addresses. A breakpoint on a function is inserted in every
-partition which has it (GDB 14 and later: `break main inferior 2`); a line
-of a partition's source is given with its path, e.g.
-`break P1/src/main.c:34`. `detach` lets the system go on.
-`make gdb-test` runs `tests/gdbserver` with GDB.
+    # arm64
+    docker run --rm -it --add-host=host.docker.internal:host-gateway \
+        -v "$PWD:$PWD" -w "$PWD/examples/msections-basic" chpok-build \
+        gdb-multiarch build/arm64-qemu/pok.elf \
+        -ex 'source build/arm64-qemu/GDB_commands' \
+        -ex 'target extended-remote host.docker.internal:8000'
 
-Limitations: the server is all-stop (resuming resumes the whole module)
-and steps only the thread which has stopped last (interrupts are disabled
-for the stepped instruction, so no other thread runs meanwhile, unless
-the instruction is a system call which waits); a stop in kernel code is
-reported for the thread of the current partition; breakpoints in the code
-the server itself uses (the serial driver, string functions) are fatal;
-memory blocks can't be read yet; breakpoints left by a GDB which has gone
-without detaching stop the system until GDB connects again. The server
-isn't ported to arm64.
+The system is already running when GDB connects: resume it with
+`continue` (not `run`, which would start `pok.elf` on the host).
+
+Breakpoints, hardware breakpoints (`hbreak`) and watchpoints (in the debug
+registers: together up to four on x86_64; six breakpoints and four
+watchpoints on arm64), stepping, the floating point registers (x87 and SSE;
+FP/SIMD on arm64), and reading and writing memory work per partition,
+although all partitions use the same addresses. The kernel's code can be
+debugged too (in inferior 1, see below). A breakpoint on a function is
+inserted in every partition which has it (GDB 14 and later: `break main
+inferior 2`); a line of a partition's source is given with its path, e.g.
+`break P1/src/main.c:34`. `detach` lets the system go on. `make gdb-test`
+(`make BSP=arm64-qemu gdb-test`) runs `tests/gdbserver` with GDB.
+
+Limitations: the server is all-stop (resuming resumes the whole module) and
+steps only the thread which has stopped last (interrupts are disabled for
+the stepped instruction, so no other thread runs meanwhile, unless the
+instruction is a system call which waits); a stop in the kernel's code (a
+breakpoint or watchpoint in a system call or an interrupt handler) is
+reported for the thread of the GDB partition, which stands for the kernel
+(the partition's own thread is shown where it has entered the kernel);
+breakpoints in the code the server itself uses (the serial driver, string
+functions) are fatal; memory blocks can't be read yet; breakpoints left by
+a GDB which has gone without detaching stop the system until GDB connects
+again; on arm64, debug exceptions are masked in the exception entry and
+return code and in the server itself, so breakpoints and watchpoints don't
+fire there.
 
 `next` in a polling loop, such as the GDB partition's own
 (`pok_gdb_thread()`, where GDB stops after Ctrl-C), doesn't end until the

@@ -14,7 +14,7 @@ From the top-level directory:
     make run                     # build and run all tests (x86_64-qemu)
     make BSP=arm64-qemu run      # the same for arm64
     make run-<name>              # build and run one test, e.g. make run-mutex
-    make gdb-test                # run tests/gdbserver with GDB (x86_64)
+    make gdb-test                # run tests/gdbserver with GDB
     make run VERBOSE=0           # show only the result of each test
     make tests                   # only build them
     make clean-tests
@@ -77,13 +77,15 @@ gdbserver
         partition. A process stores the system time in gdb_time, calls
         gdb_marker() and writes gdb_counter every 100 ms. Without GDB it
         checks that the system runs with the GDB partition in the
-        schedule. make gdb-test (x86_64) runs it with GDB
+        schedule. make gdb-test runs it with GDB
         (tests/gdbserver/run_gdb_test.sh, smoke.gdb and smoke.py):
         connecting and attaching to both partitions, the thread list,
         breakpoints in one partition only, stepping and finish, the
-        integer, x87 and SSE registers, writing registers and memory, a
-        hardware watchpoint in the other partition, breakpoints in both
-        partitions, breakpoints hidden from memory reads, a stop of 3 s
+        registers (integer, x87 and SSE on x86_64; integer and FP/SIMD
+        on arm64), writing registers and memory, a hardware watchpoint in
+        the other partition, breakpoints in both partitions, hardware
+        breakpoints and watchpoints in the kernel, breakpoints hidden
+        from memory reads, a stop of 3 s
         between two periods which are still about 100 ms apart in the
         system time (it doesn't run while GDB holds the system), Ctrl-C
         while the system runs and during a 'next' which doesn't end, and
