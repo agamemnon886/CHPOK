@@ -36,6 +36,9 @@
  * it; iostream_write_common() doesn't modify its parameter; operands of
  * mixed precedence are parenthesized; deviations are documented where a
  * guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-04: the debug stream (second
+ * serial port, used by the GDB server) writes bytes unchanged: no CR
+ * before LF and no copy on the VGA screen.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
@@ -285,9 +288,14 @@ static size_t iostream_read_debug(char* s, size_t length)
 {
     return iostream_read_common(COM1, s, length);
 }
+/* The GDB protocol needs the bytes unchanged, and not on the screen. */
 static size_t iostream_write_debug(const char* s, size_t length)
 {
-   return iostream_write_common(COM1, s, length);
+   for (size_t i = 0U; i < length; i++) {
+      write_serial(COM1, s[i]);
+   }
+
+   return length;
 }
 static void iostream_init_debug(void)
 {

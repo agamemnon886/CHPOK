@@ -26,6 +26,9 @@
  * goto is replaced by a loop; operands of mixed precedence are
  * parenthesized; deviations are documented where a guideline can't be
  * followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: essentially
+ * Boolean condition in the GDB code (built on x86_64 now).
  */
 
 #include <core/sched_arinc.h>
@@ -392,7 +395,7 @@ static void sched_arinc(void)
     }
 
 #ifdef POK_NEEDS_GDB
-    if(old_thread && part->base_part.entry_sp_user)
+    if((old_thread != NULL) && (part->base_part.entry_sp_user != NULL))
     {
         /*
          * Copy address of frame with user space addresses locally

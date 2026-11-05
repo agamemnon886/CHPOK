@@ -24,13 +24,17 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
  * mixed precedence are parenthesized; deviations are documented where a
  * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: partition_gdb is declared only
+ * in <core/sched.h> (MISRA C:2025 Rule 8.5); the GDB callbacks, built on
+ * x86_64 now, make operator precedence explicit (Rule 12.1).
  */
 
 #include <config.h>
 #include <core/partition_arinc.h>
 #include <alloc.h>
 
-#include <core/sched.h>    // partition_monitor
+#include <core/sched.h>    // partition_monitor, partition_gdb
 
 /*
  * MISRA C:2025 Rule 11.5 deviation (this file): the allocator returns its
@@ -39,10 +43,6 @@
  * MISRA C:2025 Rule 18.4 deviation (this file): partition events are stored
  * in a ring, addressed by the start of the ring plus an index.
  */
-
-#ifdef POK_NEEDS_GDB
-extern pok_partition_t partition_gdb;
-#endif /* POK_NEEDS_GDB */
 
 void pok_partition_init(pok_partition_t* part)
 {
@@ -181,7 +181,7 @@ static int32_t kernel_thread_get_thread_at_index(pok_partition_t* part,
 {
    (void)part;
    (void)private;
-   return index == 0? 0 : 1;
+   return (index == 0) ? 0 : 1;
 }
 
 static void kernel_thread_get_thread_info(pok_partition_t* part,

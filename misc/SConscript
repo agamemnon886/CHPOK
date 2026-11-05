@@ -19,6 +19,9 @@
 # Modified by Kirill Brazhnikov, 2026-10-31: replaced the x86 (32-bit)
 # target with x86_64, added arm64, removed PowerPC.
 #
+# Modified by Kirill Brazhnikov, 2026-11-04: the GDB server is built on
+# x86_64; run-gdb waits for GDB on 127.0.0.1:8000.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import sys
@@ -161,11 +164,10 @@ env.Append(CFLAGS = cflags)
 
 cflags_arch_dict = {
     # Kernel and partitions are linked below 2 GiB (default code model).
-    # The gdb server is 32-bit only, so it is disabled on x86_64.
-    'x86_64': ' -fno-pie -fno-pic -fno-stack-protector -DPOK_DISABLE_GDB',
+    'x86_64': ' -fno-pie -fno-pic -fno-stack-protector',
     # Debian's aarch64 gcc defaults to PIE and to outline atomics (the
     # latter need libc's getauxval); neither fits a freestanding build.
-    # The gdb server is 32-bit only, so it is disabled on arm64.
+    # The gdb server is not ported to arm64, so it is disabled there.
     'arm64':  ' -fno-pie -fno-pic -mno-outline-atomics -fno-stack-protector -DPOK_DISABLE_GDB'
 }
 env.Append(CFLAGS = cflags_arch_dict[env['ARCH']])
@@ -240,7 +242,9 @@ env.Alias('run-tap2', 'run_tap2_cmd')
 env.Command('run_tap_cmd_ne2k', [], env['QEMU'] + env['QEMU_FLAGS'] + ' -net nic,model=ne2k_pci,vlan=0 -net nic,model=ne2k_pci,vlan=1 -net tap,ifname=tap0,script=no,downscript=no,vlan=0, -net tap,ifname=tap1,script=no,downscript=no,vlan=1')
 env.Alias('run-tap-ne2k', 'run_tap_cmd_ne2k')
 
-env.Command('run_with_2_ports', [], env['QEMU']+env['QEMU_FLAGS']+' -serial tcp::8000,server')
+# The second serial port is the GDB server's: QEMU waits for GDB there.
+env.Command('run_with_2_ports', [], env['QEMU']+env['QEMU_FLAGS']+
+    ' -serial tcp:127.0.0.1:8000,server=on,wait=on')
 env.Alias('run-gdb', 'run_with_2_ports')
 
 env.Command('run_debug_cmd', [], [

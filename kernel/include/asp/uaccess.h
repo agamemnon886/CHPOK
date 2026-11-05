@@ -19,11 +19,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: ja_addr_to_gdb() and
+ * ja_addr_to_gdb_ro() take the address GDB uses as an integer and return
+ * a kernel address valid in any space; the header includes <config.h>,
+ * which defines POK_NEEDS_GDB.
  */
 
 #ifndef JET_ASP_UACCESS_H
 #define JET_ASP_UACCESS_H
 
+#include <config.h>
 #include <types.h>
 #include <common.h>
 #include <asp/space.h>
@@ -59,25 +65,22 @@ pok_bool_t ja_check_access_exec(void* JET_USER addr, jet_space_id space_id);
 #ifdef POK_NEEDS_GDB
 
 /* 
- * Return address which can be used by GDB for
- * r/w from/to given kernel or user space area.
- * 
- * Access is garanteed only if switched to given space.
+ * Return kernel address which can be used by GDB for r/w from/to the
+ * area of 'size' bytes at address 'addr' of space 'space_id' (0 for the
+ * kernel). The kernel address can be used in any space.
  * 
  * If given area cannot be written, returns NULL.
  */
-void* ja_addr_to_gdb(void* addr, size_t size,
-    jet_space_id space_id);
+void* ja_addr_to_gdb(uintptr_t addr, size_t size, jet_space_id space_id);
 
 /* 
- * Return address which can be used by GDB for
- * read from given kernel or user space area.
+ * Return kernel address which can be used by GDB for read from the area
+ * of 'size' bytes at address 'addr' of space 'space_id' (0 for the
+ * kernel). The kernel address can be used in any space.
  * 
- * Access is garanteed only if switched to given space.
- * 
- * If given area cannot be read by the user space, returns NULL.
+ * If given area cannot be read, returns NULL.
  */
-const void* ja_addr_to_gdb_ro(const void* addr, size_t size,
+const void* ja_addr_to_gdb_ro(uintptr_t addr, size_t size,
     jet_space_id space_id);
 
 #endif /* POK_NEEDS_GDB */

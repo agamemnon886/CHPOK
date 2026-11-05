@@ -117,7 +117,7 @@ DOCKER_RUN := $(DOCKER) run --rm \
 .NOTPARALLEL:
 
 .PHONY: all clean list help docker-image benchmarks clean-benchmarks \
-	tests run clean-tests $(addprefix run-,$(TESTS)) \
+	tests run gdb-test clean-tests $(addprefix run-,$(TESTS)) \
 	$(EXAMPLES) $(addprefix clean-,$(EXAMPLES))
 
 all: $(BSP_EXAMPLES)
@@ -134,6 +134,7 @@ help:
 	@echo "  make tests           Build all tests (tests/)"
 	@echo "  make run             Build and run all tests in QEMU"
 	@echo "  make run-<name>      Build and run one test (e.g. make run-mutex)"
+	@echo "  make gdb-test        Run tests/gdbserver with GDB (x86_64)"
 	@echo "  make clean-tests     Clean all tests"
 	@echo "  make docker-image    (Re)build the Docker build image"
 	@echo "  make help            Show this help"
@@ -210,6 +211,17 @@ endif
 run: tests
 	@status=0; for t in $(TESTS); do \
 		$(RUN_TEST) $$t $(BSP) || status=1; done; exit $$status
+
+# The GDB server test: GDB (in the build image, or on the host with
+# NATIVE=1) debugs tests/gdbserver while it runs in QEMU.
+ifeq ($(BSP),x86_64-qemu)
+gdb-test: run-gdbserver
+	VERBOSE=$(VERBOSE) NATIVE=$(NATIVE) \
+		$(TESTS_DIR)/gdbserver/run_gdb_test.sh
+else
+gdb-test:
+	$(error The GDB server is supported only on x86_64-qemu)
+endif
 
 docker-image:
 	$(DOCKER) build -t $(DOCKER_IMAGE) $(DOCKER_DIR)

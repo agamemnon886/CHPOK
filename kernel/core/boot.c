@@ -16,6 +16,8 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: discarded
  * results are cast to void.
+ * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
+ * results are cast to void in the POK_NEEDS_WAIT_FOR_GDB code.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -89,8 +91,8 @@ void jet_boot (void)
 
 #ifdef POK_NEEDS_PARTITIONS
 #if defined(POK_NEEDS_GDB) && defined(POK_NEEDS_WAIT_FOR_GDB)
-  printf("Waiting for GDB connection ...\n");
-  printf("\n");
+  (void) printf("Waiting for GDB connection ...\n");
+  (void) printf("\n");
   pok_trap();
 #endif
   pok_sched_start();

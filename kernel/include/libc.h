@@ -22,6 +22,10 @@
  * is declared only in <types.h>.
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ * Modified by Kirill Brazhnikov, 2026-11-04: the declarations of the GDB
+ * server (struct regs, struct T_breakpoint, handle_exception(),
+ * pok_gdb_thread*()) are removed: the server keeps them to itself or
+ * declares them in <gdb.h>.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -86,121 +90,8 @@ int getchar(void);
 int getchar2(void);
 void monitor(void);
 
-/*
-struct  regs{
-#ifdef __PPC__
-    uint32_t r1;
-    uint32_t offset1;
-    uint32_t cr;
-    uint32_t r0;
-    uint32_t r2;
-    uint32_t r3;
-    uint32_t r4;
-    uint32_t r5;
-    uint32_t r6;
-    uint32_t r7;
-    uint32_t r8;
-    uint32_t r9;
-    uint32_t r10;
-    uint32_t r11;
-    uint32_t r12;
-    uint32_t r13;
-    uint32_t ctr;
-    uint32_t xer;
-    uint32_t srr0; // == pc
-    uint32_t srr1;
-    uint32_t r14;
-    uint32_t r15;
-    uint32_t r16;
-    uint32_t r17;
-    uint32_t r18;
-    uint32_t r19;
-    uint32_t r20;
-    uint32_t r21;
-    uint32_t r22;
-    uint32_t r23;
-    uint32_t r24;
-    uint32_t r25;
-    uint32_t r26;
-    uint32_t r27;
-    uint32_t r28;
-    uint32_t r29;
-    uint32_t r30;
-    uint32_t r31;
-    uint32_t offset2;
-    uint32_t offset3;
-    uint32_t offset4;
-    uint32_t offset5;
-    uint32_t offset6;
-    uint32_t lr;
-#endif
-#ifdef __i386__
-  uint32_t es;
-  uint32_t ds;
-  uint32_t edi;
-  uint32_t esi;
-  uint32_t ebp;
-  uint32_t __esp;
-  uint32_t ebx;
-  uint32_t edx;
-  uint32_t ecx;
-  uint32_t eax;
-  uint32_t error;
-  uint32_t eip;
-  uint32_t cs;
-  uint32_t eflags;
-  uint32_t esp;
-  uint32_t ss;
-#endif  
-};
-*/
-
-struct T_breakpoint{
-    /*
-     *  Number of thread 
-     */
-    int T_num;
-    /*
-     *  Number of partition 
-     */
-    int P_num;
-    /*
-     *  Number of breakpoint 
-     */
-    int B_num;
-    /*
-     *  Address of breakpoint 
-     */
-    uintptr_t addr;
-    /*
-     *  Address of breakpoint (set and used only in GDB client) 
-     */
-    uintptr_t C_addr;
-    /*
-     * Reason of breakpoint 
-     * if 1, it was Partition breakpoint
-     * if 2, it was simple breakpoint
-     */
-    int Reason;
-    /*
-     * Instruction which was on this adress
-     */
-#ifdef __PPC__
-    char Instr[8];
-#endif
-#ifdef __i386__
-    char Instr[2];
-#endif
-};
-
-struct jet_interrupt_context;
-
-void handle_exception (int exceptionVector, struct jet_interrupt_context* ea);
-
 void pok_monitor_thread(void);
 void pok_monitor_thread_init(void);
-void pok_gdb_thread(void);
-void pok_gdb_thread_init(void);
 #endif /* NEEDS_CONSOLE or NEEDS_DEBUG */
 
 #endif

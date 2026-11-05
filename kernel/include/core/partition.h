@@ -27,6 +27,9 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: the structure
  * tag is pok_partition instead of the reserved _pok_partition, and
  * pok_partition_t points to its ARINC partition (part_arinc).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: get_thread_fp_store() gives
+ * the GDB server the floating point registers of a thread.
  */
 
 
@@ -114,6 +117,15 @@ struct pok_partition_sched_operations
      * TODO: naming is bad.
      */
     struct jet_interrupt_context* (*get_thread_registers)(
+        struct pok_partition* part, int32_t index, void* private);
+
+    /*
+     * Get the store of the floating point registers of the thread.
+     *
+     * Returning NULL (or having no such callback) means that the thread
+     * has no floating point registers.
+     */
+    struct jet_fp_store* (*get_thread_fp_store)(
         struct pok_partition* part, int32_t index, void* private);
 #endif /* POK_NEEDS_GDB */
 };

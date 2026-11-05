@@ -18,6 +18,8 @@
  * kernel/arch/x86/space.h to x86_64 (64-bit).
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ * Modified by Kirill Brazhnikov, 2026-11-04: struct jet_fp_store is defined
+ * here (it was private to space.c), for the GDB server.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -55,5 +57,17 @@
 
 /* Build page tables for all spaces and switch to the kernel's ones. */
 void ja_space_init(void);
+
+/*
+ * Area for fxsave64/fxrstor64: the x87, MMX and SSE registers of a user
+ * thread (see ja_fp_save()). The GDB server reads and writes it too.
+ *
+ * MISRA C:2025 Dir 1.2 deviation: __attribute__((aligned)) is a GNU
+ * extension; fxsave64 needs a 16-byte aligned area.
+ */
+struct jet_fp_store
+{
+  uint8_t data[512];
+} __attribute__((aligned(16)));
 
 #endif /* !POK_X86_64_SPACE_H */

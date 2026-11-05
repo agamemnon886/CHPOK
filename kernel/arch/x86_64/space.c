@@ -37,6 +37,9 @@
  * deviations are documented where a guideline can't be followed. Long lines are
  * wrapped at 80 columns. ja_ustack_alloc() compares the user's stack size with
  * the free space before aligning it, so that the sum can't wrap around.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: struct jet_fp_store is moved
+ * to space.h, so that the GDB server can read and write it.
  */
 
 /*
@@ -391,12 +394,6 @@ jet_space_id ja_space_get_current (void)
 {
     return current_space_id;
 }
-
-/* Area for fxsave64/fxrstor64. */
-struct jet_fp_store
-{
-  uint8_t data[512];
-} __attribute__((aligned(16)));
 
 /*
  * Allocate place for store floating point registers.

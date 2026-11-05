@@ -35,6 +35,12 @@
  * followed; the ARINC partition is found through base_part.part_arinc instead
  * of container_of(). Long lines are wrapped at 80 columns. Delayed start times
  * and deadlines are computed with pok_time_add(), which cannot overflow.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: the GDB server callbacks
+ * follow MISRA C:2025 (they are built on x86_64 now) and give the floating
+ * point registers of a process (get_thread_fp_store); processes which
+ * haven't been created don't exist for GDB; breakpoints are inserted again
+ * after the partition's code is loaded.
  */
 
 #include <config.h>
@@ -124,6 +130,10 @@ static void partition_arinc_start(void)
 	jet_loader_elf_load(part->base_part.space_id - 1U, /* elf_id*/
 		part->base_part.space_id,
 		&part->main_entry);
+#ifdef POK_NEEDS_GDB
+	// Loading has overwritten the breakpoints inserted into the code.
+	jet_gdb_space_loaded(part->base_part.space_id);
+#endif /* POK_NEEDS_GDB */
 
 	part->kshd = ja_space_shared_data(part->base_part.space_id);
 
@@ -218,111 +228,148 @@ void pok_partition_arinc_reset(pok_partition_mode_t mode)
 }
 
 #ifdef POK_NEEDS_GDB
+/*
+ * Thread callbacks of the GDB server. Threads are numbered as in the
+ * partition; the last index (nthreads) is the IDLE pseudo-thread, which
+ * runs when no process is ready.
+ */
 static int32_t pok_sched_arinc_get_number_of_threads(pok_partition_t* part)
 {
-	pok_partition_arinc_t* part_arinc = part->part_arinc;
+	const pok_partition_arinc_t* part_arinc = part->part_arinc;
 
-	return part_arinc->nthreads + 1; //IDLE thread
+	return (int32_t)part_arinc->nthreads + 1; //IDLE thread
 }
 
 static int32_t pok_sched_arinc_get_current_thread_index(pok_partition_t* part)
 {
-	pok_partition_arinc_t* part_arinc = part->part_arinc;
+	const pok_partition_arinc_t* part_arinc = part->part_arinc;
+	uint32_t index = part_arinc->nthreads; //IDLE thread
 
-	return part_arinc->thread_current
-		? part_arinc->thread_current - part_arinc->threads
-		: part_arinc->nthreads; //IDLE thread
+	for(uint32_t i = 0U; i < part_arinc->nthreads; i++)
+	{
+		if(&part_arinc->threads[i] == part_arinc->thread_current) {
+			index = i;
+		}
+	}
+
+	return (int32_t)index;
 }
 
+/* Whether 'index' is a process which has been created. */
+static pok_bool_t arinc_thread_is_created(const pok_partition_arinc_t* part,
+	int32_t index)
+{
+	return (index >= 0) && ((uint32_t) index < part->nthreads_used);
+}
+
+/* Processes which haven't been created don't exist for GDB. */
 static int32_t pok_sched_arinc_get_thread_at_index(pok_partition_t* part,
 	int32_t index, void** private)
 {
-    pok_partition_arinc_t* part_arinc = part->part_arinc;
-	if((index < 0) || ((uint32_t) index > part_arinc->nthreads)) {
-		return 1;
-	}
+	pok_partition_arinc_t* part_arinc = part->part_arinc;
+	int32_t ret = 0;
 
-	if((uint32_t) index == part_arinc->nthreads)
-	{
+	if((index >= 0) && ((uint32_t) index == part_arinc->nthreads)) {
 		*private = NULL;
-	}
-	else
-	{
-		*private = part_arinc->threads + index;
+	} else if(arinc_thread_is_created(part_arinc, index)) {
+		*private = &part_arinc->threads[index];
+	} else {
+		ret = 1;
 	}
 
-	return 0;
+	return ret;
 }
 
-static void pok_sched_arinc_get_thread_info(pok_partition_t* part, int32_t index, void* private,
-	print_cb_t print_cb, void* cb_data)
+/* Write a string (null-terminated) with the callback. */
+static void arinc_thread_write_str(print_cb_t print_cb, void* cb_data,
+	const char* s)
 {
-// Write given string (null-terminated)
-#define WRITE_STR(s) print_cb(s, strlen(s), cb_data)
-	pok_thread_t* t = private;
-	pok_partition_arinc_t* part_arinc = part->part_arinc;
-	if(!t)
+	print_cb(s, strlen(s), cb_data);
+}
+
+/* MISRA C:2025 Rule 11.5 deviation (the functions below): the GDB server
+ * passes the thread to the callbacks as a pointer to void ('private'). */
+static void pok_sched_arinc_get_thread_info(pok_partition_t* part,
+	int32_t index, void* private, print_cb_t print_cb, void* cb_data)
+{
+	const pok_thread_t* t = private;
+	const pok_partition_arinc_t* part_arinc = part->part_arinc;
+
+	if(t == NULL)
 	{
-		WRITE_STR("IDLE");
+		arinc_thread_write_str(print_cb, cb_data, "IDLE");
 	}
-	else if(index == POK_PARTITION_ARINC_MAIN_THREAD_ID)
+	else if(index == (int32_t)POK_PARTITION_ARINC_MAIN_THREAD_ID)
 	{
 		// Main thread. Currently do not bother with its state
-		WRITE_STR(t->name);
+		arinc_thread_write_str(print_cb, cb_data, t->name);
 	}
-	else if(index < part_arinc->nthreads_used)
+	else if(arinc_thread_is_created(part_arinc, index))
 	{
-		WRITE_STR(t->name);
-		// Write state of the thread
-		WRITE_STR(" ");
+		const char* state = "";
+
 		switch(t->state)
 		{
 		case POK_STATE_STOPPED:
-			WRITE_STR("Stopped");
-		break;
+			state = "Stopped";
+			break;
 		case POK_STATE_WAITING:
-			WRITE_STR("Waiting"); // Waiting for anything except resume.
-		break;
+			// Waiting for anything except resume.
+			state = "Waiting";
+			break;
 		case POK_STATE_RUNNABLE:
 			if(t->suspended) {
-				WRITE_STR("Suspended");
+				state = "Suspended";
 			} else if(part_arinc->thread_current == t) {
-				WRITE_STR("Running");
+				state = "Running";
 			} else {
-				WRITE_STR("Ready");
+				state = "Ready";
 			}
-		break;
+			break;
 		default:
 			unreachable();
+			break;
 		}
+
+		arinc_thread_write_str(print_cb, cb_data, t->name);
+		// Write state of the thread
+		arinc_thread_write_str(print_cb, cb_data, " ");
+		arinc_thread_write_str(print_cb, cb_data, state);
 	}
 	else
 	{
-		WRITE_STR("[Not created]");
+		arinc_thread_write_str(print_cb, cb_data, "[Not created]");
 	}
-#undef WRITE_STR
 }
 
-static struct jet_interrupt_context* pok_sched_arinc_get_thread_registers(pok_partition_t* part,
-	int32_t index, void* private)
+static struct jet_interrupt_context* pok_sched_arinc_get_thread_registers(
+	pok_partition_t* part, int32_t index, void* private)
 {
-	pok_thread_t* t = private;
-	pok_partition_arinc_t* part_arinc = part->part_arinc;
+	const pok_thread_t* t = private;
+	struct jet_interrupt_context* regs = NULL;
 
-	if(!t)
+	// The idle thread has no registers; neither has a process which isn't
+	// created or hasn't entered user space yet.
+	if((t != NULL) && arinc_thread_is_created(part->part_arinc, index))
 	{
-		// Idle thread
-		return NULL;
+		regs = t->entry_sp_user;
 	}
-	else if(index < part_arinc->nthreads_used && t->entry_sp_user)
+
+	return regs;
+}
+
+static struct jet_fp_store* pok_sched_arinc_get_thread_fp_store(
+	pok_partition_t* part, int32_t index, void* private)
+{
+	const pok_thread_t* t = private;
+	struct jet_fp_store* fp_store = NULL;
+
+	if((t != NULL) && arinc_thread_is_created(part->part_arinc, index))
 	{
-		return t->entry_sp_user;
+		fp_store = t->fp_store;
 	}
-	else
-	{
-		// Not created or user space hasn't been called yet.
-		return NULL;
-	}
+
+	return fp_store;
 }
 #endif /* POK_NEEDS_GDB */
 
@@ -338,6 +385,7 @@ void pok_partition_arinc_init(pok_partition_arinc_t* part)
 		.get_thread_at_index = &pok_sched_arinc_get_thread_at_index,
 		.get_thread_info = &pok_sched_arinc_get_thread_info,
 		.get_thread_registers = &pok_sched_arinc_get_thread_registers,
+		.get_thread_fp_store = &pok_sched_arinc_get_thread_fp_store,
 #endif /* POK_NEEDS_GDB */
 	};
 

@@ -19,6 +19,9 @@
 # Modified by Kirill Brazhnikov, 2026-10-31: partition sizes are size_t;
 # deployment.c is built with the kernel-only compiler flags.
 #
+# Modified by Kirill Brazhnikov, 2026-11-04: GDB_commands is built by
+# default on x86_64, where the kernel has the GDB server.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import os
@@ -100,7 +103,7 @@ env.TemplateRender(
 
 
 # Generate file with commands for GDB for possible debugging
-env.TemplateRender(
+gdb_commands = env.TemplateRender(
     target = env['BUILD_DIR'] + "/GDB_commands",
     source = [env['XML']] +
         [os.path.join(env['SCONSTRUCT_DIR'], part_xml) for part_xml in part_xml_list],
@@ -109,6 +112,9 @@ env.TemplateRender(
     template_dir = env['POK_PATH'] + "/misc/templates",
     GENERATE_TITLE = template_generation.generate_title_python_no_track
     )
+# The kernel's GDB server is ported to x86_64 only (see README.md).
+if env['ARCH'] == 'x86_64':
+    Default(gdb_commands)
 
 pok_env = env.Clone()
 

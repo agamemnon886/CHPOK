@@ -26,6 +26,9 @@
  * per declaration; base_calendar_time is defined in the function that
  * uses it; operands of mixed precedence are parenthesized; deviations are
  * documented where a guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-04: ja_system_time_stop() and
+ * ja_system_time_resume() stop the system time while the GDB server holds
+ * the system.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -65,6 +68,16 @@
  */
 static uint64_t tsc_freq;   /* TSC ticks per second */
 static uint64_t tsc_start;  /* TSC value at boot */
+
+#ifdef POK_NEEDS_GDB
+/*
+ * The system time is stopped while the GDB server holds the system: it
+ * stays at the TSC value 'tsc_stopped_at', and the time spent stopped is
+ * added to 'tsc_start' when the system resumes.
+ */
+static pok_bool_t time_stopped = FALSE;
+static uint64_t tsc_stopped_at;
+#endif /* POK_NEEDS_GDB */
 
 /*
  * Hardcoded calendar time at the beginning of the OS loading.
@@ -143,7 +156,13 @@ pok_time_t ja_system_time(void)
       return 0; // Timer is not initialized yet.
    }
 
-   uint64_t ticks = read_tsc() - tsc_start;
+   uint64_t now = read_tsc();
+#ifdef POK_NEEDS_GDB
+   if (time_stopped) {
+      now = tsc_stopped_at;
+   }
+#endif /* POK_NEEDS_GDB */
+   uint64_t ticks = now - tsc_start;
 
    // Split to avoid overflow: (ticks % freq) * 1e9 < freq * 1e9.
    uint64_t ns = ((ticks / tsc_freq) * 1000000000ULL)
@@ -158,3 +177,23 @@ time_t ja_calendar_time(void)
 
    return base_calendar_time + (time_t)(ja_system_time() / 1000000000);
 }
+
+#ifdef POK_NEEDS_GDB
+void ja_system_time_stop(void)
+{
+   if ((tsc_freq != 0U) && !time_stopped)
+   {
+      tsc_stopped_at = read_tsc();
+      time_stopped = TRUE;
+   }
+}
+
+void ja_system_time_resume(void)
+{
+   if (time_stopped)
+   {
+      tsc_start += read_tsc() - tsc_stopped_at;
+      time_stopped = FALSE;
+   }
+}
+#endif /* POK_NEEDS_GDB */

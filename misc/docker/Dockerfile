@@ -39,7 +39,8 @@ FROM debian:bookworm-slim
 
 # Debian's native gcc/binutils already provide the <host-triplet>-*
 # tools (e.g. aarch64-linux-gnu-gcc on arm64); the other target needs
-# the cross packages.
+# the cross packages. gdb-multiarch debugs both targets: through the
+# kernel's GDB server on x86_64, or QEMU's gdb stub (see README.md).
 RUN case "$(dpkg --print-architecture)" in \
         arm64) cross_tools="gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu" ;; \
         amd64) cross_tools="gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu" ;; \
@@ -54,6 +55,7 @@ RUN case "$(dpkg --print-architecture)" in \
         python3-yaml \
         gcc \
         binutils \
+        gdb-multiarch \
         $cross_tools \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir --break-system-packages ipaddr

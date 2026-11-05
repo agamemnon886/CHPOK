@@ -33,6 +33,11 @@
  * the function that uses it; operands of mixed precedence are
  * parenthesized; deviations are documented where a guideline can't be
  * followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: jet_fp_sync() and
+ * jet_fp_reload() let the GDB server read and write the floating point
+ * registers which are still in the processor; pok_in_user_space starts as
+ * FALSE.
  */
 
 #include <config.h>
@@ -71,7 +76,7 @@ pok_partition_t* current_partition = NULL;
 
 #ifdef POK_NEEDS_GDB
 struct jet_interrupt_context* global_thread_stack = NULL;
-volatile pok_bool_t pok_in_user_space = 0;
+volatile pok_bool_t pok_in_user_space = FALSE;
 #endif
 
 #ifdef POK_NEEDS_MONITOR
@@ -581,6 +586,24 @@ void pok_partition_return_user_fp(void)
         ja_fp_restore(fp_store_last);
     }
 }
+
+#ifdef POK_NEEDS_GDB
+void jet_fp_sync(void)
+{
+    if(fp_store_last != NULL)
+    {
+        ja_fp_save(fp_store_last);
+    }
+}
+
+void jet_fp_reload(void)
+{
+    if(fp_store_last != NULL)
+    {
+        ja_fp_restore(fp_store_last);
+    }
+}
+#endif /* POK_NEEDS_GDB */
 
 void pok_partition_jump_user(void (* JET_USER entry)(void),
     jet_ustack_t stack_user,

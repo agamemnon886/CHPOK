@@ -29,6 +29,11 @@
  * table is defined in the function that uses it; operands of mixed
  * precedence are parenthesized; deviations are documented where a
  * guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-04: with the GDB server, every
+ * interrupt frame is saved in global_thread_stack (and the previous one is
+ * restored when an interrupt of kernel code returns), user space may
+ * execute int3, and debug and breakpoint exceptions go to the GDB server
+ * first.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
@@ -38,6 +43,7 @@
 #include <core/error.h>
 #include <core/sched.h>
 #include <bsp/bsp.h>
+#include <gdb.h>
 
 #include "interrupt.h"
 #include "gdt.h"
@@ -119,6 +125,11 @@ void ja_idt_init(void)
 
    // The only gate user space may use.
    idt_set_gate(EXCEPTION_SYSCALL, ja_interrupt_stub_syscall, 3);
+#ifdef POK_NEEDS_GDB
+   // Breakpoints inserted by GDB into partitions: int3 checks the DPL.
+   idt_set_gate(EXCEPTION_BREAKPOINT,
+      ja_interrupt_stubs[EXCEPTION_BREAKPOINT], 3);
+#endif /* POK_NEEDS_GDB */
 
    sysdesc.limit = sizeof(pok_idt) - 1U;
    sysdesc.base = (uint64_t)pok_idt;
@@ -205,6 +216,12 @@ void ja_interrupt_handler(interrupt_frame* frame)
    pok_bool_t from_user = (frame->cs & 3U) == 3U;
    uint64_t vector = frame->vector;
 
+#ifdef POK_NEEDS_GDB
+   // Registers of the interrupted thread, for the GDB server.
+   struct jet_interrupt_context* previous_frame = global_thread_stack;
+   global_thread_stack = frame;
+#endif /* POK_NEEDS_GDB */
+
    if (vector == EXCEPTION_SYSCALL)
    {
       process_syscall(frame);
@@ -219,8 +236,28 @@ void ja_interrupt_handler(interrupt_frame* frame)
    }
    else
    {
-      process_exception(frame, from_user);
+      pok_bool_t handled = FALSE;
+
+#ifdef POK_NEEDS_GDB
+      if ((vector == EXCEPTION_DEBUG) || (vector == EXCEPTION_BREAKPOINT))
+      {
+         handled = ja_gdb_trap(frame, (uint32_t)vector, from_user);
+      }
+#endif /* POK_NEEDS_GDB */
+
+      if (!handled)
+      {
+         process_exception(frame, from_user);
+      }
    }
+
+#ifdef POK_NEEDS_GDB
+   if (!from_user)
+   {
+      // Back in the kernel code which was interrupted, and to its frame.
+      global_thread_stack = previous_frame;
+   }
+#endif /* POK_NEEDS_GDB */
 
    if (from_user)
    {

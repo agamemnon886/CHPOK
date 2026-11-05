@@ -27,6 +27,11 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
  * mixed precedence are parenthesized. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-04: ja_addr_to_gdb() and
+ * ja_addr_to_gdb_ro() for the GDB server (ported from
+ * kernel/arch/x86/uaccess.c): a user space gives access only to its own
+ * memory, the kernel to the memory below the partitions.
  */
 
 #include <asp/uaccess.h>
@@ -124,3 +129,67 @@ pok_bool_t ja_check_access_exec(void* JET_USER addr, jet_space_id space_id)
     return (start < (POK_PARTITION_MEMORY_BASE + space->size_normal))
         && (start >= POK_PARTITION_MEMORY_BASE);
 }
+
+#ifdef POK_NEEDS_GDB
+
+/*
+ * Whether GDB may access the kernel memory [addr, addr + size): the
+ * kernel image, its heap and stacks lie below the partitions' memory.
+ */
+static pok_bool_t x86_64_is_kernel_area(uintptr_t addr, size_t size)
+{
+    uintptr_t end = addr + size;
+
+    return (size != 0U) && (end > addr)
+        && (end <= POK_PARTITION_MEMORY_PHYS_START);
+}
+
+void* ja_addr_to_gdb(uintptr_t addr, size_t size, jet_space_id space_id)
+{
+    void* res = NULL;
+
+    if(space_id == 0U)
+    {
+        // The kernel maps its memory one-to-one.
+        if(x86_64_is_kernel_area(addr, size)) {
+            res = (void*)addr;
+        }
+    }
+    else if(size != 0U)
+    {
+        res = ja_user_to_kernel_space((void* JET_USER)addr, size, space_id);
+    }
+    else
+    {
+        // Empty area: nothing to access.
+    }
+
+    return res;
+}
+
+const void* ja_addr_to_gdb_ro(uintptr_t addr, size_t size,
+    jet_space_id space_id)
+{
+    const void* res = NULL;
+
+    if(space_id == 0U)
+    {
+        // The kernel maps its memory one-to-one.
+        if(x86_64_is_kernel_area(addr, size)) {
+            res = (const void*)addr;
+        }
+    }
+    else if(size != 0U)
+    {
+        res = ja_user_to_kernel_ro_space((const void* JET_USER)addr, size,
+            space_id);
+    }
+    else
+    {
+        // Empty area: nothing to access.
+    }
+
+    return res;
+}
+
+#endif /* POK_NEEDS_GDB */

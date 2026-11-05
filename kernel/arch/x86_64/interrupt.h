@@ -18,6 +18,8 @@
  * kernel/arch/x86/interrupt.h to x86_64 (64-bit).
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; U suffixes for unsigned constants.
+ * Modified by Kirill Brazhnikov, 2026-11-04: vectors of the debug and
+ * breakpoint exceptions; ja_gdb_trap() for the GDB server.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -28,6 +30,10 @@
 /* Vector of the syscall gate (int $0x80), see libpok/arch/x86_64/syscall.c. */
 #define EXCEPTION_SYSCALL 0x80U
 
+/* Debug exception (single step, debug registers) and breakpoint (int3). */
+#define EXCEPTION_DEBUG 1U
+#define EXCEPTION_BREAKPOINT 3U
+
 /* Vectors of the exceptions and IRQs (remapped by the PIC, see boards/). */
 #define EXCEPTION_COUNT 32
 #define IRQ_VECTOR_FIRST 32U
@@ -35,6 +41,7 @@
 
 #ifndef __ASSEMBLER__
 
+#include <config.h>
 #include <types.h>
 #include <arch/interrupt_frame.h>
 
@@ -45,6 +52,17 @@ void ja_idt_init(void);
 void ja_interrupt_handler(interrupt_frame* frame);
 
 void process_syscall(interrupt_frame* frame);
+
+#ifdef POK_NEEDS_GDB
+/*
+ * Debug or breakpoint exception: pass it to the GDB server (gdb.c).
+ *
+ * Return FALSE if it isn't for the GDB server, so it is handled as an
+ * ordinary exception.
+ */
+pok_bool_t ja_gdb_trap(interrupt_frame* frame, uint32_t vector,
+    pok_bool_t from_user);
+#endif /* POK_NEEDS_GDB */
 
 #endif /* __ASSEMBLER__ */
 
