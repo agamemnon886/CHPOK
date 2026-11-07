@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the port name is passed as a
+ * SAMPLING_PORT_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 
 /*
@@ -131,6 +135,7 @@ static void writer(void)
 
 static void create_port_and_writer(void)
 {
+    static const SAMPLING_PORT_NAME_TYPE sp_out_name = "SP_OUT";
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;
     PROCESS_ATTRIBUTE_TYPE attributes = {
@@ -146,11 +151,13 @@ static void create_port_and_writer(void)
      * The arguments must match the configuration (P1/config.xml). Here
      * MAX_MESSAGE_SIZE is wrong on purpose, so the port is not created.
      */
-    CREATE_SAMPLING_PORT("SP_OUT", 64, SOURCE, 1000 * MILLISECOND, &sp_out, &ret);
+    CREATE_SAMPLING_PORT(sp_out_name, 64, SOURCE, 1000 * MILLISECOND, &sp_out,
+                         &ret);
     printf("P1: CREATE_SAMPLING_PORT(SP_OUT, size 64): %s (configured size is %d)\n",
            return_code_name(ret), READING_SIZE);
 
-    CREATE_SAMPLING_PORT("SP_OUT", READING_SIZE, SOURCE, 1000 * MILLISECOND, &sp_out, &ret);
+    CREATE_SAMPLING_PORT(sp_out_name, READING_SIZE, SOURCE,
+                         1000 * MILLISECOND, &sp_out, &ret);
     printf("P1: CREATE_SAMPLING_PORT(SP_OUT, size %d): %s\n",
            READING_SIZE, return_code_name(ret));
     if (ret != NO_ERROR)

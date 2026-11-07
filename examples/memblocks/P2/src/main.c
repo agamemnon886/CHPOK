@@ -4,6 +4,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the port and memory block
+ * names are passed as QUEUING_PORT_NAME_TYPE and MEMORY_BLOCK_NAME_TYPE
+ * (the APEX services read all MAX_NAME_LENGTH characters).
  */
 #include <stdio.h>
 #include <string.h>
@@ -39,6 +43,8 @@ static void first_process(void)
 
 static int32_t real_main(void)
 {
+    static const QUEUING_PORT_NAME_TYPE qp2_name = "QP2";
+    static const MEMORY_BLOCK_NAME_TYPE mb_name = "shared_mb0";
     RETURN_CODE_TYPE ret;
     PROCESS_ID_TYPE pid;
     PROCESS_ATTRIBUTE_TYPE process_attrs = {
@@ -50,7 +56,7 @@ static int32_t real_main(void)
     };
 
 
-    CREATE_QUEUING_PORT("QP2", 64, 10, DESTINATION, FIFO, &QP2, &ret);
+    CREATE_QUEUING_PORT(qp2_name, 64, 10, DESTINATION, FIFO, &QP2, &ret);
 
     // create process 1
     process_attrs.ENTRY_POINT = first_process;
@@ -74,7 +80,7 @@ static int32_t real_main(void)
 
 
     MEMORY_BLOCK_STATUS_TYPE status;
-    GET_MEMORY_BLOCK_STATUS("shared_mb0", &status, &ret);
+    GET_MEMORY_BLOCK_STATUS(mb_name, &status, &ret);
     if (ret != NO_ERROR) {
         printf("couldn't get Memory Block: %d\n", (int) ret);
         return 1;

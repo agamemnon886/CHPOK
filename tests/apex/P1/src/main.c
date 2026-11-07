@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: names are passed to the APEX
+ * services as objects of their name types (the services read all
+ * MAX_NAME_LENGTH characters), except the invalid name pointer.
  */
 
 /*
@@ -67,6 +71,7 @@
 #define DAY    (86400LL * SECOND)
 
 static SAMPLING_PORT_ID_TYPE SP1, SP3;
+static const SAMPLING_PORT_NAME_TYPE sp1_name = "SP1";
 static int32_t fails;
 
 static void check(const char *name, int64_t got, int64_t want)
@@ -269,18 +274,26 @@ static void test_names(void)
     RETURN_CODE_TYPE ret;
     MEMORY_BLOCK_STATUS_TYPE mb;
     SAMPLING_PORT_ID_TYPE id = -1;
+    static const SAMPLING_PORT_NAME_TYPE sp1_mixed_case = "sP1";
+    static const MEMORY_BLOCK_NAME_TYPE mb0_mixed_case = "SHARED_mb0";
+    static const MEMORY_BLOCK_NAME_TYPE no_such_block = "no_such_block";
 
-    GET_SAMPLING_PORT_ID("sP1", &id, &ret);
+    GET_SAMPLING_PORT_ID(sp1_mixed_case, &id, &ret);
     check("GET_SAMPLING_PORT_ID('sP1') for SP1", ret, NO_ERROR);
     check("  same id", id, SP1);
-    GET_MEMORY_BLOCK_STATUS("SHARED_mb0", &mb, &ret);
+    GET_MEMORY_BLOCK_STATUS(mb0_mixed_case, &mb, &ret);
     check("GET_MEMORY_BLOCK_STATUS('SHARED_mb0') for 'Shared_MB0'", ret, NO_ERROR);
     check("  size", mb.MEMORY_BLOCK_SIZE, 0x10000);
     check("  mode READ_WRITE", mb.MEMORY_BLOCK_MODE, MB_READ_WRITE);
-    GET_MEMORY_BLOCK_STATUS("no_such_block", &mb, &ret);
+    GET_MEMORY_BLOCK_STATUS(no_such_block, &mb, &ret);
     check("GET_MEMORY_BLOCK_STATUS unknown name", ret, INVALID_CONFIG);
     // The kernel used to dereference this pointer without checking it.
+    /* MISRA C:2025 Rule 17.5 deviation: the test passes an invalid name
+     * pointer on purpose, so GCC's warning about it is turned off. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overread"
     GET_MEMORY_BLOCK_STATUS((char *) 0x10, &mb, &ret);
+#pragma GCC diagnostic pop
     check("GET_MEMORY_BLOCK_STATUS bad name pointer", ret, INVALID_CONFIG);
 }
 
@@ -288,27 +301,31 @@ static void test_sampling_create(void)
 {
     RETURN_CODE_TYPE ret;
     SAMPLING_PORT_ID_TYPE id = 12345;
+    static const SAMPLING_PORT_NAME_TYPE nope_name = "NOPE";
 
-    CREATE_SAMPLING_PORT("SP1", SYSTEM_LIMIT_MESSAGE_SIZE + 1, SOURCE, SECOND, &id, &ret);
+    CREATE_SAMPLING_PORT(sp1_name, SYSTEM_LIMIT_MESSAGE_SIZE + 1, SOURCE,
+                         SECOND, &id, &ret);
     check("create size > SYSTEM_LIMIT_MESSAGE_SIZE", ret, INVALID_CONFIG);
     check("  id untouched on error", id, 12345);
-    CREATE_SAMPLING_PORT("NOPE", 64, SOURCE, SECOND, &id, &ret);
+    CREATE_SAMPLING_PORT(nope_name, 64, SOURCE, SECOND, &id, &ret);
     check("create unknown name", ret, INVALID_CONFIG);
     check("  id untouched on error", id, 12345);
-    CREATE_SAMPLING_PORT("SP1", 64, SOURCE, INFINITE_TIME_VALUE, &id, &ret);
+    CREATE_SAMPLING_PORT(sp1_name, 64, SOURCE, INFINITE_TIME_VALUE, &id, &ret);
     check("create refresh INFINITE", ret, INVALID_CONFIG);
-    CREATE_SAMPLING_PORT("SP1", 64, SOURCE, 0, &id, &ret);
+    CREATE_SAMPLING_PORT(sp1_name, 64, SOURCE, 0, &id, &ret);
     check("create refresh 0", ret, INVALID_CONFIG);
-    CREATE_SAMPLING_PORT("SP1", 64, DESTINATION, SECOND, &id, &ret);
+    CREATE_SAMPLING_PORT(sp1_name, 64, DESTINATION, SECOND, &id, &ret);
     check("create wrong direction", ret, INVALID_CONFIG);
-    CREATE_SAMPLING_PORT("SP1", 64, SOURCE, 100 * DAY, &SP1, &ret);
+    CREATE_SAMPLING_PORT(sp1_name, 64, SOURCE, 100 * DAY, &SP1, &ret);
     check("create refresh 100 days (> 2^32 ms)", ret, NO_ERROR);
-    CREATE_SAMPLING_PORT("SP1", 64, SOURCE, 100 * DAY, &id, &ret);
+    CREATE_SAMPLING_PORT(sp1_name, 64, SOURCE, 100 * DAY, &id, &ret);
     check("create again", ret, NO_ACTION);
 }
 
 void main(void)
 {
+    static const SAMPLING_PORT_NAME_TYPE sp3_lower_case = "sp3";
+    static const PROCESS_NAME_TYPE writer_upper_case = "WRITER";
     RETURN_CODE_TYPE ret;
     PARTITION_STATUS_TYPE st;
     PROCESS_ID_TYPE pid;
@@ -352,9 +369,9 @@ void main(void)
         break;
     case HM_MODULE_RESTART:
         check("after module RESET START_CONDITION", st.START_CONDITION, HM_MODULE_RESTART);
-        CREATE_SAMPLING_PORT("SP1", 64, SOURCE, 100 * DAY, &SP1, &ret);
+        CREATE_SAMPLING_PORT(sp1_name, 64, SOURCE, 100 * DAY, &SP1, &ret);
         check("create SP1 after module restart", ret, NO_ERROR);
-        CREATE_SAMPLING_PORT("sp3", 64, SOURCE, SECOND, &SP3, &ret);
+        CREATE_SAMPLING_PORT(sp3_lower_case, 64, SOURCE, SECOND, &SP3, &ret);
         check("create 'sp3' (configured as SP3)", ret, NO_ERROR);
         test_names();
         test_configure_error_handler();
@@ -363,7 +380,7 @@ void main(void)
         CREATE_PROCESS(&attrs, &pid, &ret);
         {
             PROCESS_ID_TYPE pid2 = -1;
-            GET_PROCESS_ID("WRITER", &pid2, &ret);
+            GET_PROCESS_ID(writer_upper_case, &pid2, &ret);
             check("GET_PROCESS_ID('WRITER') for 'writer'", ret, NO_ERROR);
             check("  same id", pid2, pid);
             attrs.ENTRY_POINT = dummy;

@@ -24,6 +24,9 @@
 #
 # Modified by Kirill Brazhnikov, 2026-11-05: and on arm64, which has it too.
 #
+# Modified by Kirill Brazhnikov, 2026-11-07: pok.elf is linked with
+# LINKFLAGS_ELF.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import os
@@ -168,7 +171,7 @@ pok_env.Depends(compile_sizes, [part_elf_list, merge_command])
 
 ldscript_kernel = pok_env['LDSCRIPT_KERNEL']
 # Rewrite LINKFLAGS, as we build '.elf'.
-pok_env['LINKFLAGS'] = ' -T ' + ldscript_kernel
+pok_env['LINKFLAGS'] = ' -T ' + ldscript_kernel + pok_env['LINKFLAGS_ELF']
 
 
 pok_target = pok_env.Program(target = pok_env['BUILD_DIR']+'pok.elf', source = [

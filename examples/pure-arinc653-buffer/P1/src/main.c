@@ -16,6 +16,10 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the buffer name is passed as
+ * a BUFFER_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 
 #include <stdio.h>
@@ -63,6 +67,7 @@ static void second_process(void)
 
 static int32_t real_main(void)
 {
+    static const BUFFER_NAME_TYPE buffer_name = "foo";
     RETURN_CODE_TYPE ret;
     BUFFER_ID_TYPE id;
     PROCESS_ID_TYPE pid;
@@ -75,7 +80,7 @@ static int32_t real_main(void)
     };
 
     // create buffer
-    CREATE_BUFFER("foo", sizeof(int32_t), 10, FIFO, &id, &ret);
+    CREATE_BUFFER(buffer_name, sizeof(int32_t), 10, FIFO, &id, &ret);
     if (ret != NO_ERROR) {
         printf("error creating a buffer: %d\n", (int) ret);
         return 1;

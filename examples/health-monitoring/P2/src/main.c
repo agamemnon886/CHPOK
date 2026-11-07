@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the port name is passed as a
+ * SAMPLING_PORT_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 
 /*
@@ -104,6 +108,7 @@ static void reader(void)
 
 void main(void)
 {
+    static const SAMPLING_PORT_NAME_TYPE sp_in_name = "SP_IN";
     RETURN_CODE_TYPE ret;
     PARTITION_STATUS_TYPE status;
     PROCESS_ID_TYPE pid;
@@ -126,7 +131,8 @@ void main(void)
      * Destination port: messages older than REFRESH_PERIOD are INVALID.
      * The name, size and direction must match P2/config.xml.
      */
-    CREATE_SAMPLING_PORT("SP_IN", READING_SIZE, DESTINATION, REFRESH_PERIOD, &sp_in, &ret);
+    CREATE_SAMPLING_PORT(sp_in_name, READING_SIZE, DESTINATION,
+                         REFRESH_PERIOD, &sp_in, &ret);
     printf("P2: CREATE_SAMPLING_PORT(SP_IN, refresh %lld ms): %s\n",
            (long long) (REFRESH_PERIOD / MILLISECOND), return_code_name(ret));
     if (ret != NO_ERROR)

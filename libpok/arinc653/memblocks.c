@@ -23,6 +23,9 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
  * parameters are const (they are only read), so callers can pass string
  * literals.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the kernel's memory block
+ * mode is converted to MEMORY_BLOCK_MODE_TYPE explicitly.
  */
 
 #include <config.h>
@@ -54,7 +57,11 @@ void GET_MEMORY_BLOCK_STATUS (
         /* MISRA C:2025 Rule 11.6 deviation: the kernel reports the address of
          * the block as an integer. */
         MEMORY_BLOCK_STATUS->MEMORY_BLOCK_ADDR = (void *)mb_status.addr;
-        MEMORY_BLOCK_STATUS->MEMORY_BLOCK_MODE = mb_status.mode;
+        if (mb_status.mode == JET_MEMORY_BLOCK_READ_WRITE) {
+            MEMORY_BLOCK_STATUS->MEMORY_BLOCK_MODE = MB_READ_WRITE;
+        } else {
+            MEMORY_BLOCK_STATUS->MEMORY_BLOCK_MODE = MB_READ;
+        }
         MEMORY_BLOCK_STATUS->MEMORY_BLOCK_SIZE = mb_status.size;
     }
 

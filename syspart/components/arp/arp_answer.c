@@ -22,6 +22,9 @@
  * for unsigned constants; operands of mixed precedence are parenthesized;
  * deviations are documented where a guideline can't be followed; the
  * received packet is accessed through a pointer to const.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: arp_receive() rejects
+ * packets that are too short for an ARP packet before reading them.
  */
 
 #include <net/byteorder.h>
@@ -59,6 +62,10 @@ ret_t arp_receive(ARP_ANSWERER *self, const char *data, size_t len)
 {
     const struct arp_packet_t *arp_packet = (const struct arp_packet_t *) data;
 
+    if (len < sizeof(*arp_packet)) {
+        (void) printf(C_NAME"short arp packet\n");
+        return EINVAL; // Shorter than an Ethernet/IPv4 ARP packet.
+    }
     if (arp_packet->htype != hton16(1)) {
         (void) printf(C_NAME"wrong arp packet\n");
         return EINVAL; // We support only Ethernet hardware type.

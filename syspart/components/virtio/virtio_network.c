@@ -21,6 +21,9 @@
  * all if/else/loop bodies; discarded results are cast to void;
  * essentially Boolean conditions; U suffixes for unsigned constants; a
  * dead store to desc->flags is removed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: lock_preemption() and
+ * unlock_preemption() lose their unused parameter.
  */
 
 #include <string.h>
@@ -52,7 +55,7 @@
 
 static void reclaim_send_buffers(struct virtio_network_device *info);
 
-static void lock_preemption(pok_bool_t *saved)
+static void lock_preemption(void)
 {
     LOCK_LEVEL_TYPE LOCK_LEVEL;
     RETURN_CODE_TYPE ret_code;
@@ -63,7 +66,7 @@ static void lock_preemption(pok_bool_t *saved)
 }
 
 
-static void unlock_preemption(const pok_bool_t *saved)
+static void unlock_preemption(void)
 {
     LOCK_LEVEL_TYPE LOCK_LEVEL;
     RETURN_CODE_TYPE ret_code;
@@ -245,8 +248,7 @@ static void reclaim_send_buffers(struct virtio_network_device *info)
     // callbacks don't do much work, so we can run them all
     // in single critical section without worrying too much
     
-    pok_bool_t saved_preemption;
-    lock_preemption(&saved_preemption);
+    lock_preemption();
     while (vq->last_seen_used != vq->vring.used->idx) {
         uint16_t index = vq->last_seen_used & (vq->vring.num-1U);
         struct vring_used_elem *e = &vq->vring.used->ring[index];
@@ -269,7 +271,7 @@ static void reclaim_send_buffers(struct virtio_network_device *info)
         vq->last_seen_used++;
     }
     
-    unlock_preemption(&saved_preemption);
+    unlock_preemption();
 }
 
 static void reclaim_receive_buffers(VIRTIO_NET_DEV *self)
@@ -277,8 +279,7 @@ static void reclaim_receive_buffers(VIRTIO_NET_DEV *self)
     struct virtio_network_device *dev = &self->state.info;
     struct virtio_virtqueue *vq = &dev->rx_vq;
 
-    pok_bool_t saved_preemption;
-    lock_preemption(&saved_preemption);
+    lock_preemption();
 
     uint16_t old_last_seen_used = vq->last_seen_used;
 
@@ -291,7 +292,7 @@ static void reclaim_receive_buffers(VIRTIO_NET_DEV *self)
         if (buf == NULL) {
             (void) printf(
                 "%s: kernel says that physical address is wrong\n", __func__);
-            unlock_preemption(&saved_preemption);
+            unlock_preemption();
             return;
         }
 
@@ -312,8 +313,8 @@ static void reclaim_receive_buffers(VIRTIO_NET_DEV *self)
         use_receive_buffer(dev, buf);
 
         // preemption point
-        unlock_preemption(&saved_preemption);
-        lock_preemption(&saved_preemption);
+        unlock_preemption();
+        lock_preemption();
     }
 
     if (old_last_seen_used != vq->last_seen_used) {
@@ -322,7 +323,7 @@ static void reclaim_receive_buffers(VIRTIO_NET_DEV *self)
         notify_receive_buffers(dev);
     }
 
-    unlock_preemption(&saved_preemption);
+    unlock_preemption();
 }
 
 ret_t flush_send(VIRTIO_NET_DEV *self)

@@ -1,6 +1,10 @@
 /* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the port name is passed as a
+ * QUEUING_PORT_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 #include <stdio.h>
 #include <string.h>
@@ -81,7 +85,8 @@ static int32_t real_main(void)
 
 
     // create ports
-    CREATE_QUEUING_PORT("QP1", 64, 10, DESTINATION, FIFO, &QP1, &ret);
+    static const QUEUING_PORT_NAME_TYPE qp1_name = "QP1";
+    CREATE_QUEUING_PORT(qp1_name, 64, 10, DESTINATION, FIFO, &QP1, &ret);
 
 
     // transition to NORMAL operating mode

@@ -13,6 +13,9 @@
  *  and copies only the 32-bit result (it copied sizeof(long) bytes, which
  *  overwrote q->frac on 64-bit targets).
  *
+ *  Modified by Kirill Brazhnikov, 2026-11-07: log() discards its unused
+ *  parameter (it returns a constant).
+ *
  ******************************************************************************/
 
 #include "standalone_libs.h"
@@ -28,6 +31,7 @@ double isnan(double val)
 
 double log(double r)
 {
+  (void) r;
   return 4.5;
 }
 

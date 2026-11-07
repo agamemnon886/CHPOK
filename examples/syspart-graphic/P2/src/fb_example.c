@@ -16,6 +16,9 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the image size is converted
+ * to the type of the loop counters explicitly.
  */
 
 #include <stdio.h>
@@ -40,8 +43,8 @@ extern const struct gimp_image gimp_image; //Image of airplane
 static void draw_image(struct uwrm_scm_direct_fb *fb, int32_t x_start, int32_t y_start)
 {
     uint32_t *addr;
-    for (int32_t y = 0; y < gimp_image.height; y++) {
-        for (int32_t x = 0; x < gimp_image.width; x++) {
+    for (int32_t y = 0; y < (int32_t) gimp_image.height; y++) {
+        for (int32_t x = 0; x < (int32_t) gimp_image.width; x++) {
             addr = (uint32_t *) fb->back_surface + (y+y_start)*fb->width + x + x_start;
             uint32_t rgba_pixel = (((uint32_t*)gimp_image.pixel_data)[y*gimp_image.width + x]);
             *addr = rgba_to_argb(rgba_pixel);

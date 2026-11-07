@@ -25,6 +25,9 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
  * printf() results are cast to void; the static wrappers aren't named with
  * reserved identifiers.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the activity function of a
+ * component without an activity discards its unused parameter.
  */
 
 #include <lib/common.h>
@@ -75,4 +78,5 @@ void __UDP_IP_SENDER_init__(UDP_IP_SENDER *self)
 
 void __UDP_IP_SENDER_activity__(UDP_IP_SENDER *self)
 {
+        (void) self; // the component has no activity
 }

@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the mutex names are passed
+ * as MUTEX_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 
 /*
@@ -220,13 +224,14 @@ static void proc_g(void)
 
 static void proc_a(void)
 {
+    static const MUTEX_NAME_TYPE m9_name = "M9";
     RETURN_CODE_TYPE ret;
     MUTEX_ID_TYPE id = 0;
     MUTEX_STATUS_TYPE st;
     LOCK_LEVEL_TYPE ll;
     int32_t i, ok;
 
-    CREATE_MUTEX("M9", 20, FIFO, &id, &ret);
+    CREATE_MUTEX(m9_name, 20, FIFO, &id, &ret);
     check("CREATE_MUTEX in NORMAL mode", ret, INVALID_MODE);
 
     /* Ceiling, recursion, one mutex per process. */
@@ -376,6 +381,12 @@ static PROCESS_ID_TYPE create(const char *name, void (*entry)(void), PRIORITY_TY
 
 void main(void)
 {
+    static const MUTEX_NAME_TYPE bad_name = "BAD";
+    static const MUTEX_NAME_TYPE m1_name = "M1";
+    static const MUTEX_NAME_TYPE m1_lower_case = "m1";
+    static const MUTEX_NAME_TYPE m2_name = "M2";
+    static const MUTEX_NAME_TYPE m2_lower_case = "m2";
+    static const MUTEX_NAME_TYPE nope_name = "nope";
     RETURN_CODE_TYPE ret;
     PARTITION_STATUS_TYPE pst;
     MUTEX_ID_TYPE id = 0;
@@ -384,8 +395,9 @@ void main(void)
     GET_PARTITION_STATUS(&pst, &ret);
 
     if (pst.START_CONDITION == NORMAL_START) {
+        static const MUTEX_NAME_TYPE fill9_name = "FILL9";
         int32_t i, ok = 1;
-        char name[8] = "FILLn";
+        MUTEX_NAME_TYPE name = "FILLn";
 
         for (i = 0; i < 4; i++) {
             name[4] = '0' + i;
@@ -393,29 +405,29 @@ void main(void)
             ok &= ret == NO_ERROR;
         }
         check("CREATE_MUTEX 4 (configured Count)", ok, 1);
-        CREATE_MUTEX("FILL9", 10, FIFO, &id, &ret);
+        CREATE_MUTEX(fill9_name, 10, FIFO, &id, &ret);
         check("CREATE_MUTEX 5th", ret, INVALID_CONFIG);
         SET_PARTITION_MODE(COLD_START, &ret);
         printf("TEST SET_PARTITION_MODE returned: FAIL\n");
     }
 
-    CREATE_MUTEX("BAD", 0, FIFO, &id, &ret);
+    CREATE_MUTEX(bad_name, 0, FIFO, &id, &ret);
     check("CREATE_MUTEX priority 0", ret, INVALID_PARAM);
-    CREATE_MUTEX("BAD", MAX_PRIORITY_VALUE + 1, FIFO, &id, &ret);
+    CREATE_MUTEX(bad_name, MAX_PRIORITY_VALUE + 1, FIFO, &id, &ret);
     check("CREATE_MUTEX priority MAX+1", ret, INVALID_PARAM);
-    CREATE_MUTEX("BAD", 10, (QUEUING_DISCIPLINE_TYPE) 7, &id, &ret);
+    CREATE_MUTEX(bad_name, 10, (QUEUING_DISCIPLINE_TYPE) 7, &id, &ret);
     check("CREATE_MUTEX discipline 7", ret, INVALID_PARAM);
-    CREATE_MUTEX("M1", 20, PRIORITY, &M1, &ret);
+    CREATE_MUTEX(m1_name, 20, PRIORITY, &M1, &ret);
     check("CREATE_MUTEX M1", ret, NO_ERROR);
     check("  M1 is ID 1 after the restart", M1, 1);
-    CREATE_MUTEX("m1", 20, PRIORITY, &id, &ret);
+    CREATE_MUTEX(m1_lower_case, 20, PRIORITY, &id, &ret);
     check("CREATE_MUTEX 'm1' again", ret, NO_ACTION);
-    CREATE_MUTEX("M2", 25, FIFO, &M2, &ret);
+    CREATE_MUTEX(m2_name, 25, FIFO, &M2, &ret);
     check("CREATE_MUTEX M2", ret, NO_ERROR);
-    GET_MUTEX_ID("m2", &id, &ret);
+    GET_MUTEX_ID(m2_lower_case, &id, &ret);
     check("GET_MUTEX_ID('m2')", ret, NO_ERROR);
     check("  is M2", id, M2);
-    GET_MUTEX_ID("nope", &id, &ret);
+    GET_MUTEX_ID(nope_name, &id, &ret);
     check("GET_MUTEX_ID unknown", ret, INVALID_CONFIG);
     get_status(M1, &st);
     check("M1 priority 20", st.MUTEX_PRIORITY, 20);

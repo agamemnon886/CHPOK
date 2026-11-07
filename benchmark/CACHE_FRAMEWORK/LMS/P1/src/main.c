@@ -14,6 +14,9 @@
  * Ported from:
  *     SNU-RT Benchmarks (http://www.cprover.org/goto-cc/examples/snu.html)
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: log() discards its unused
+ * parameter (it returns a constant).
+ *
  ******************************************************************************/
 
 #include "../../../BenchmarksTools/benc_config.h"
@@ -45,6 +48,7 @@ float mu = 0.01;
 static float log(r)
 float r;
 {
+  (void) r;
   return 4.5;
 }
 

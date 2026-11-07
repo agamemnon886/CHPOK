@@ -9,6 +9,9 @@
  *
  * Test: Matrix convolution
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: get_matrix_val() returns -1
+ * for row and column MATRIX_SIZE too (it read past the matrix), and its
+ * result is kept as a float (converting -1 to unsigned int is undefined).
  *
  ******************************************************************************/
 
@@ -40,8 +43,10 @@ float kernel[KERNEL_SIZE][KERNEL_SIZE] = {
 
 float get_matrix_val(int i, int j)
 {
-    if(i < 0 || j < 0 || i > MATRIX_SIZE || j > MATRIX_SIZE)
-        return -1;
+    if((i < 0) || (j < 0) || (i >= MATRIX_SIZE) || (j >= MATRIX_SIZE))
+    {
+        return -1.0f;
+    }
 
     return matrix[i][j];
 }
@@ -70,8 +75,8 @@ void matconv()
             {
                 for(int l = -kernel_bound; l < kernel_bound; ++l)
                 {
-                    unsigned int val = get_matrix_val(i + k, j + l);
-                    if(val != -1)
+                    float val = get_matrix_val((int) i + k, (int) j + l);
+                    if(val >= 0.0f) // -1: outside the matrix
                     {
                         acc += val * kernel[kernel_bound + k][kernel_bound + l];
                     }

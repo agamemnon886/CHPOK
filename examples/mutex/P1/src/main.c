@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the mutex names are passed
+ * as MUTEX_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 
 /*
@@ -136,10 +140,11 @@ static const char *process_name(PROCESS_ID_TYPE pid)
 /* Every process looks the mutex up by name; names are case insensitive. */
 static MUTEX_ID_TYPE nav_mutex(void)
 {
+    static const MUTEX_NAME_TYPE name = "nav_data";
     MUTEX_ID_TYPE id = 0;
     RETURN_CODE_TYPE ret;
 
-    GET_MUTEX_ID("nav_data", &id, &ret);
+    GET_MUTEX_ID(name, &id, &ret);
     return id;
 }
 
@@ -317,15 +322,17 @@ static PROCESS_ID_TYPE create_process(const char *name, void (*entry)(void),
 
 void main(void)
 {
+    static const MUTEX_NAME_TYPE nav_data_name = "NAV_DATA";
+    static const MUTEX_NAME_TYPE second_name = "SECOND";
     MUTEX_ID_TYPE id;
     RETURN_CODE_TYPE ret;
 
     /* Mutexes are created during initialization; the number of them is
        ARINC653_Mutexes Count in P1/config.xml. */
-    CREATE_MUTEX("NAV_DATA", NAV_PRIORITY, PRIORITY, &id, &ret);
+    CREATE_MUTEX(nav_data_name, NAV_PRIORITY, PRIORITY, &id, &ret);
     printf("P1: CREATE_MUTEX(NAV_DATA, priority %d, PRIORITY): %s\n",
            NAV_PRIORITY, return_code_name(ret));
-    CREATE_MUTEX("SECOND", NAV_PRIORITY, FIFO, &id, &ret);
+    CREATE_MUTEX(second_name, NAV_PRIORITY, FIFO, &id, &ret);
     printf("P1: CREATE_MUTEX(SECOND): %s (Count is 1)\n", return_code_name(ret));
 
     CREATE_ERROR_HANDLER(error_handler, STACK_BYTES, &ret);

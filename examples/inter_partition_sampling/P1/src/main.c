@@ -4,6 +4,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-10-31: the result of
  * CREATE_SAMPLING_PORT is checked.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the port name is passed as a
+ * SAMPLING_PORT_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 #include <stdio.h>
 #include <string.h>
@@ -81,7 +85,8 @@ static int32_t real_main(void)
     // create ports
     //CREATE_QUEUING_PORT("QP1", 64, 10, DESTINATION, FIFO, &QP1, &ret);
     // Name, size and direction must match P1/config.xml.
-    CREATE_SAMPLING_PORT("SP1", 64, SOURCE, 5*SECOND, &SP1, &ret);
+    static const SAMPLING_PORT_NAME_TYPE sp1_name = "SP1";
+    CREATE_SAMPLING_PORT(sp1_name, 64, SOURCE, 5*SECOND, &SP1, &ret);
     if (ret != NO_ERROR) {
         printf("couldn't create sampling port SP1: %d\n", (int) ret);
         return 1;

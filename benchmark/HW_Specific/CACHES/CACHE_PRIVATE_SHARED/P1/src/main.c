@@ -26,6 +26,9 @@
  * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
  * targets, whose call frames are larger).
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: evict_data is defined only
+ * when a preload option uses it.
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -76,7 +79,9 @@
  ******************************************************************************/
 
 static uint8_t data[DATA_SIZE];
+#if CACHE_PRELOAD_L2 || CACHE_PRELOAD_L3
 static uint8_t evict_data[CACHE_SIZE_L2];
+#endif
 
 /*******************************************************************************
  * TESTS FUNCTIONS

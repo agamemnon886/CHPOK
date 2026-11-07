@@ -25,6 +25,9 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: discarded
  * printf() results are cast to void; the static wrappers aren't named with
  * reserved identifiers.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the activity function of a
+ * component without an activity discards its unused parameter.
  */
 
 #include <lib/common.h>
@@ -51,4 +54,5 @@ void __ARINC_RECEIVER_init__(ARINC_RECEIVER *self)
 
 void __ARINC_RECEIVER_activity__(ARINC_RECEIVER *self)
 {
+        (void) self; // the component has no activity
 }

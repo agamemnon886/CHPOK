@@ -22,6 +22,11 @@
  * (1000 to 2500 bytes overflowed on 64-bit targets, whose call frames are
  * larger).
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the semaphore and port
+ * names are passed as SEMAPHORE_NAME_TYPE and
+ * QUEUING_PORT_NAME_TYPE (the APEX services read all
+ * MAX_NAME_LENGTH characters).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -309,7 +314,8 @@ int main ()
     memcpy(&tattr_pro.NAME, "ALPR_PRO_A653\0", 14 * sizeof(char));
 
     /* Create synchronization semaphore */
-    CREATE_SEMAPHORE("ALPR_SYNC_SEM", 0, 1, FIFO, &sync_sem, &ret_type);
+    static const SEMAPHORE_NAME_TYPE sync_sem_name = "ALPR_SYNC_SEM";
+    CREATE_SEMAPHORE(sync_sem_name, 0, 1, FIFO, &sync_sem, &ret_type);
     if(ret_type != NO_ERROR)
     {
         printf("Cannot create semaphore [%d]\n", ret_type);
@@ -317,7 +323,9 @@ int main ()
     }
 
     /* Create inter partition communication port */
-    CREATE_QUEUING_PORT("GPS_ALPR_RECV_P_QPORT", 16, 5, DESTINATION,
+    static const QUEUING_PORT_NAME_TYPE gps_qport_name =
+        "GPS_ALPR_RECV_P_QPORT";
+    CREATE_QUEUING_PORT(gps_qport_name, 16, 5, DESTINATION,
                          FIFO, &alpr_p_qport, &ret_type);
     if(ret_type != NO_ERROR)
     {

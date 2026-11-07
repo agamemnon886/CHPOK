@@ -6,6 +6,10 @@
  * CREATE_SAMPLING_PORT and READ_SAMPLING_MESSAGE are checked (the message
  * order was checked even when nothing was read), and the message validity
  * is printed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the port name is passed as a
+ * SAMPLING_PORT_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 #include <stdio.h>
 #include <string.h>
@@ -98,7 +102,8 @@ static int32_t real_main(void)
     // create ports
     //CREATE_QUEUING_PORT("QP1", 64, 10, DESTINATION, FIFO, &QP1, &ret);
     // Name, size and direction must match P2/config.xml.
-    CREATE_SAMPLING_PORT("SP2", 64, DESTINATION, 5*SECOND, &SP2, &ret);
+    static const SAMPLING_PORT_NAME_TYPE sp2_name = "SP2";
+    CREATE_SAMPLING_PORT(sp2_name, 64, DESTINATION, 5*SECOND, &SP2, &ret);
     if (ret != NO_ERROR) {
         printf("couldn't create sampling port SP2: %d\n", (int) ret);
         return 1;

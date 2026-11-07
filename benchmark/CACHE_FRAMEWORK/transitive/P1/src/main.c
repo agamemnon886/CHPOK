@@ -10,6 +10,8 @@
  * Test: Transitive closure from:
  *     https://www.ics.uci.edu/~amrm/hdu/DIS_Stressmark/DIS_stressmark.html
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: closure() doesn't check the
+ * unsigned number of edges against the lower bound 0.
  *
  ******************************************************************************/
 
@@ -71,7 +73,8 @@ void closure()
 
 
     assert((n >= MIN_VERTICES) && (n <= MAX_VERTICES));
-    assert((m >= MIN_EDGES) && (m <= MAX_EDGES));
+    // m is unsigned, so m >= MIN_EDGES (0) always holds.
+    assert(m <= (unsigned int) MAX_EDGES);
     assert (m <= n*n);
 
     din = din_arr;

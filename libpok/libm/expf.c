@@ -11,7 +11,13 @@
  *
  *                                      Copyright (c) 2007-2009 POK team 
  *
- * Created by julien on Fri Jan 30 14:41:34 2009 
+ * Created by julien on Fri Jan 30 14:41:34 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-07: o_threshold and u_threshold
+ * are defined only where they are used (not with _IEEE_LIBM).
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* w_expf.c -- float version of w_exp.c.
@@ -44,9 +50,11 @@
 __weak_alias(expf, _expf)
 #endif
 
+#ifndef _IEEE_LIBM
 static const float
 o_threshold=  8.8721679688e+01,  /* 0x42b17180 */
 u_threshold= -1.0397208405e+02;  /* 0xc2cff1b5 */
+#endif
 
 float
 expf(float x)		/* wrapper expf */

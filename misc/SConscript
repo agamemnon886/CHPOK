@@ -25,6 +25,10 @@
 # Modified by Kirill Brazhnikov, 2026-11-05: the GDB server is built on
 # arm64 too.
 #
+# Modified by Kirill Brazhnikov, 2026-11-07: C code is compiled with
+# -Wextra; assembly files get a non-executable stack note; ld isn't asked
+# to warn about RWX segments in pok.elf and part.elf (LINKFLAGS_ELF).
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import sys
@@ -161,8 +165,19 @@ env['RANLIB']  = env['PREFIX'] + 'ranlib'
 
 env['LIBGCC'] = os.popen(env['CC']+' -print-libgcc-file-name').read().replace('\n', '')
 
+# Flags for linking pok.elf and part.elf. ld 2.39 and later warn about
+# segments that are writable and executable. The kernel's image is a
+# single segment on purpose (on x86_64, the Multiboot loader loads it as
+# one block), and the kernel maps its own and each partition's memory
+# itself, writable and executable, whatever the ELF segment flags say,
+# so the warning doesn't apply. Older ld doesn't know the option.
+env['LINKFLAGS_ELF'] = ''
+if '--no-warn-rwx-segments' in os.popen(env['LINK'] + ' --help').read():
+    env['LINKFLAGS_ELF'] = ' --no-warn-rwx-segments'
+
 Import('cflags')
-env['CFLAGS'] = '-std=gnu99 -iwithprefix include -Wall -Wuninitialized -ffreestanding -nostdlib -nostdinc -g -O0'
+env['CFLAGS'] = ('-std=gnu99 -iwithprefix include -Wall -Wextra'
+                 ' -Wuninitialized -ffreestanding -nostdlib -nostdinc -g -O0')
 env.Append(CFLAGS = cflags)
 
 cflags_arch_dict = {
@@ -174,7 +189,9 @@ cflags_arch_dict = {
 }
 env.Append(CFLAGS = cflags_arch_dict[env['ARCH']])
 
-env['ASFLAGS'] = env['CFLAGS']
+# The assembly files have no .note.GNU-stack section, without which ld
+# takes the stack to be executable (and warns about it).
+env['ASFLAGS'] = env['CFLAGS'] + ' -Wa,--noexecstack'
 
 bsp_cpu_dict = {
     'x86_64-qemu':     '',

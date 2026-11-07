@@ -23,6 +23,9 @@
  * process stack is 8192 bytes (1000 to 2500 bytes overflowed on 64-bit
  * targets, whose call frames are larger).
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the unused variable tabort is
+ * removed from initbuffer().
+ *
  ******************************************************************************/
 
 #include "../../../BenchmarksTools/benc_config.h"
@@ -292,11 +295,9 @@ void* compress_thread(void)
 void initbuffer(int* seed)
 {
    int i;
-   int tabort;
 
    for (i = 0 ; i < BUFFERSIZE ; i++) {
       /* Generates random integers between 0 and 8095 */
-      tabort = i;
       *seed = ((*seed * 133) + 81) % 8095;
 
       orig_text_buffer[i] = (*seed % 94) + 33;

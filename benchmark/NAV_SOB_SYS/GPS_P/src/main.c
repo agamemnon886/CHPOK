@@ -22,6 +22,13 @@
  * (1000 to 2500 bytes overflowed on 64-bit targets, whose call frames are
  * larger).
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: com_thread_func() gets the
+ * partition status it prints with VERBOSE_OUTPUT_GPS (it printed an
+ * uninitialized one) and declares it only then. The semaphore and
+ * port names are passed as SEMAPHORE_NAME_TYPE and
+ * SAMPLING_PORT_NAME_TYPE (the APEX services read all
+ * MAX_NAME_LENGTH characters).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -81,7 +88,6 @@ double asin(double x)
 void* com_thread_func(void)
 {
     RETURN_CODE_TYPE      ret_type;
-    PARTITION_STATUS_TYPE pr_stat;
 
     uint8_t error;
 
@@ -115,6 +121,9 @@ void* com_thread_func(void)
         if(error == 0)
         {
 #ifdef VERBOSE_OUTPUT_GPS
+            PARTITION_STATUS_TYPE pr_stat;
+
+            GET_PARTITION_STATUS(&pr_stat, &ret_type);
             printf("[p%ld:%lld|%lld|%d] DATA SENT\n",
                    (long) pr_stat.IDENTIFIER, (long long) pr_stat.PERIOD, (long long) pr_stat.DURATION,
                    pr_stat.OPERATING_MODE);
@@ -275,7 +284,8 @@ int main()
     printf("Init GPS partition\n");
 
     /* Create synchronization semaphore */
-    CREATE_SEMAPHORE("GPS_SYNC_SEM", 0, 1, FIFO, &sync_sem, &ret_type);
+    static const SEMAPHORE_NAME_TYPE sync_sem_name = "GPS_SYNC_SEM";
+    CREATE_SEMAPHORE(sync_sem_name, 0, 1, FIFO, &sync_sem, &ret_type);
     if(ret_type != NO_ERROR)
     {
         printf("Cannot create semaphore [%d]\n", ret_type);
@@ -283,7 +293,9 @@ int main()
     }
 
     /* Create inter partition communication port (sampling mode) */
-    CREATE_SAMPLING_PORT("GPS_PROC_SEND_P_SPORT", 16, SOURCE,
+    static const SAMPLING_PORT_NAME_TYPE proc_sport_name =
+        "GPS_PROC_SEND_P_SPORT";
+    CREATE_SAMPLING_PORT(proc_sport_name, 16, SOURCE,
                          GPS_PERIOD, &gps_proc_p_sport, &ret_type);
     if(ret_type != NO_ERROR)
     {

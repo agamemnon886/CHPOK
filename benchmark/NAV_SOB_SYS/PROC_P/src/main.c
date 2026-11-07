@@ -23,6 +23,11 @@
  * to 2500 bytes overflowed on 64-bit targets, whose call frames are
  * larger).
  *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the semaphore and port
+ * names are passed as SEMAPHORE_NAME_TYPE and
+ * SAMPLING_PORT_NAME_TYPE (the APEX services read all
+ * MAX_NAME_LENGTH characters).
+ *
  ******************************************************************************/
 
 #include <stdio.h>
@@ -419,7 +424,8 @@ int main ()
     memcpy(&tattr_pro_alpr.NAME, "PROC_ALPR_A653\0", 15 * sizeof(char));
 
     /* Create synchronization semaphore */
-    CREATE_SEMAPHORE("PROC_SYNC_SEM", 0, 2, FIFO, &sync_sem, &ret_type);
+    static const SEMAPHORE_NAME_TYPE sync_sem_name = "PROC_SYNC_SEM";
+    CREATE_SEMAPHORE(sync_sem_name, 0, 2, FIFO, &sync_sem, &ret_type);
     if(ret_type != NO_ERROR)
     {
         printf("Cannot create semaphore [%d]\n", ret_type);
@@ -427,7 +433,9 @@ int main ()
     }
 
     /* Create inter partition communication port */
-    CREATE_SAMPLING_PORT("GPS_PROC_RECV_P_SPORT", 16, DESTINATION,
+    static const SAMPLING_PORT_NAME_TYPE gps_sport_name =
+        "GPS_PROC_RECV_P_SPORT";
+    CREATE_SAMPLING_PORT(gps_sport_name, 16, DESTINATION,
                          GPS_PERIOD, &proc_p_sport, &ret_type);
     if(ret_type != NO_ERROR)
     {

@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the port names are passed as
+ * SAMPLING_PORT_NAME_TYPE (the APEX services read all MAX_NAME_LENGTH
+ * characters).
  */
 
 /*
@@ -94,6 +98,8 @@ static void reader(void)
 
 void main(void)
 {
+    static const SAMPLING_PORT_NAME_TYPE sp2_name = "SP2";
+    static const SAMPLING_PORT_NAME_TYPE sp4_name = "SP4";
     RETURN_CODE_TYPE ret;
     PARTITION_STATUS_TYPE st;
     PROCESS_ID_TYPE pid;
@@ -118,9 +124,10 @@ void main(void)
     check("after module RESET START_CONDITION", st.START_CONDITION, HM_MODULE_RESTART);
 
     // Largest finite refresh period: INFINITE_TIME_VALUE is -1.
-    CREATE_SAMPLING_PORT("SP2", 64, DESTINATION, 0x7fffffffffffffffLL, &SP2, &ret);
+    CREATE_SAMPLING_PORT(sp2_name, 64, DESTINATION, 0x7fffffffffffffffLL,
+                         &SP2, &ret);
     check("create SP2 refresh INT64_MAX", ret, NO_ERROR);
-    CREATE_SAMPLING_PORT("SP4", 64, DESTINATION, 1000000LL, &SP4, &ret);
+    CREATE_SAMPLING_PORT(sp4_name, 64, DESTINATION, 1000000LL, &SP4, &ret);
     check("create SP4 refresh 1 ms", ret, NO_ERROR);
 
     attrs.ENTRY_POINT = reader;
