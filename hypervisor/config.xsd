@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+  Schema of the hypervisor configuration (see README.md, Hypervisor).
+  hvconfig.py validates the file against it, then checks what a schema
+  can't: unique names and ports, memory sizes and the images.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <!-- ISA serial port: COM1 (0x3F8), COM2 (0x2F8), COM3 (0x3E8),
+       COM4 (0x2E8). -->
+  <xs:simpleType name="SerialPort">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[Cc][Oo][Mm][1-4]"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Size in bytes, or with a KiB, MiB or GiB suffix. -->
+  <xs:simpleType name="Size">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]+ *([KMG]i?B)?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="VMName">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9_.\-]{1,30}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="PortUse">
+    <xs:attribute name="Port" type="SerialPort" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="Hypervisor">
+    <xs:complexType>
+      <xs:sequence>
+        <!-- The hypervisor's own console; none if absent. -->
+        <xs:element name="Console" type="PortUse" minOccurs="0"/>
+        <xs:element name="VM" minOccurs="1" maxOccurs="8">
+          <xs:complexType>
+            <xs:all>
+              <!-- Host port for the guest's COM1 (its console). -->
+              <xs:element name="Console" type="PortUse" minOccurs="0"/>
+              <!-- Host port for the guest's COM2 (its GDB server). -->
+              <xs:element name="Gdb" type="PortUse" minOccurs="0"/>
+            </xs:all>
+            <xs:attribute name="Name" type="VMName" use="required"/>
+            <!-- JetOS pok.elf (x86_64-qemu), relative to this file. -->
+            <xs:attribute name="Image" type="xs:string" use="required"/>
+            <xs:attribute name="Memory" type="Size" use="required"/>
+            <xs:attribute name="CPUs" type="xs:positiveInteger"
+                          default="1"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

@@ -93,6 +93,16 @@ gdbserver
         the build image (or on the host with NATIVE=1); QEMU runs on the
         host.
 
+hypervisor
+        Not a JetOS project: configurations of the hypervisor
+        (hypervisor/), which make hv-test builds and
+        tests/hypervisor/run_hv_test.sh runs in QEMU (x86_64 only):
+        apex-mutex (tests/apex and tests/mutex pass side by side),
+        bad-mem (a VM with too little RAM stops with a nested page fault
+        while the other VM passes), reset (the monitor's reset command
+        restarts a VM, which boots again) and gdb (run_gdb_test.sh with
+        tests/gdbserver as a VM, HV_QEMU).
+
 Some expected return codes come from public sources rather than the
 standard's text (see the comments in the tests); check them against
 ARINC 653 when in doubt.

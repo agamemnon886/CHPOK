@@ -1,0 +1,95 @@
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Builds the hypervisor for one configuration:
+#
+#   scons config=../examples/hv-two-vms/config.xml
+#
+# The output goes to build/ next to the configuration file: hv.elf, the
+# generated files and qemu.sh. The images named in the configuration must
+# be built first (the top-level Makefile's hv target does it). PREFIX is
+# the x86_64 cross toolchain prefix (default x86_64-linux-gnu-).
+
+import os
+import sys
+
+sys.path.insert(0, Dir('.').abspath)
+import hvconfig
+
+config = ARGUMENTS.get('config', '../examples/hv-two-vms/config.xml')
+config = os.path.abspath(config)
+build = os.path.join(os.path.dirname(config), 'build')
+prefix = os.environ.get('PREFIX', 'x86_64-linux-gnu-')
+
+try:
+    images = hvconfig.image_paths(config)
+except hvconfig.ConfigError as e:
+    print('hvconfig.py: %s: %s' % (config, e))
+    Exit(1)
+
+flags = ('-std=gnu99 -ffreestanding -nostdlib -nostdinc -iwithprefix include'
+         ' -Wall -Wextra -Wuninitialized -g -O2 -fno-pie -fno-pic'
+         ' -fno-stack-protector -fno-asynchronous-unwind-tables'
+         ' -fno-strict-aliasing -fno-tree-loop-distribute-patterns'
+         ' -mgeneral-regs-only -mno-red-zone'
+         # Fixed low addresses (BIOS data, the AP trampoline) are not
+         # null pointer offsets.
+         ' --param=min-pagesize=0')
+
+env = Environment(ENV=os.environ,
+                  CC=prefix + 'gcc',
+                  AS=prefix + 'gcc',
+                  LINK=prefix + 'ld',
+                  CFLAGS=flags,
+                  ASFLAGS=flags + ' -c',
+                  CPPPATH=[Dir('include')],
+                  LINKFLAGS='-m elf_x86_64 -nostdlib -z max-page-size=0x1000'
+                            ' -z noexecstack --no-warn-rwx-segments'
+                            ' -T ' + File('hv.lds').abspath)
+env['ASCOM'] = '$AS $ASFLAGS $_CPPINCFLAGS -o $TARGET $SOURCES'
+env['ASPPCOM'] = env['ASCOM']
+env['LINKCOM'] = '$LINK $LINKFLAGS -o $TARGET $SOURCES'
+
+generated = env.Command(
+    [os.path.join(build, f) for f in ('hv_config.c', 'hv_images.S',
+                                      'qemu.sh')],
+    [config, 'hvconfig.py', 'config.xsd', 'templates/hv_config.c.tpl']
+    + images,
+    'python3 %s $SOURCE %s' % (File('hvconfig.py').abspath, build))
+env.AlwaysBuild(generated)
+
+env.VariantDir(os.path.join(build, 'obj'), 'src', duplicate=0)
+sources = [os.path.join(build, 'obj', os.path.basename(str(f)))
+           for f in Glob('src/*.c') + Glob('src/*.S')]
+objects = [env.Object(s) for s in sources]
+objects.append(env.Object(generated[0]))
+images_object = env.Object(generated[1])
+env.Depends(images_object, [os.path.join(build, 'image%d.bin' % i)
+                            for i in range(len(images))])
+objects.append(images_object)
+
+hv = env.Program(os.path.join(build, 'hv.elf'), objects)
+env.Depends(hv, 'hv.lds')
+Default(hv)

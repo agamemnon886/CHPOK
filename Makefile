@@ -30,7 +30,7 @@
 # Usage:
 #   make / make all      # build all examples
 #   make <name>          # build examples/<name> only (e.g. make memblocks)
-#   make clean           # clean all examples
+#   make clean           # clean all examples and hypervisor builds
 #   make clean-<name>    # clean examples/<name> only
 #   make list            # list available example names
 #   make benchmarks      # build all benchmarks under benchmark/
@@ -40,6 +40,10 @@
 #   make run-<name>      # build and run tests/<name> only (e.g. make run-mutex)
 #   make clean-tests     # clean all tests
 #   make docker-image    # (re)build the Docker build image only
+#   make hv              # build the hypervisor and the images of HV
+#   make run-hv          # build and run the hypervisor in QEMU
+#   make hv-test         # run the hypervisor tests (tests/hypervisor)
+#   make clean-hv        # clean the hypervisor builds
 #   make help            # show this help
 #
 # Variables:
@@ -49,6 +53,10 @@
 #                        # the environment for a prefixed cross-compiler)
 #   VERBOSE=0            # make run: show only the result of each test, not
 #                        # the output of the running test (VERBOSE=1, default)
+#   HV=<name>            # hypervisor configuration
+#                        # examples/<name>/config.xml (default
+#                        # hv-two-vms); HV_CONFIG=<file> gives any other one
+#                        # in the repository (Docker mounts only that)
 #
 # The syspart-* examples use x86_64-only drivers (PCI, virtio-net), so they
 # are not built for arm64-qemu.
@@ -64,6 +72,13 @@
 # tests/gdbserver with GDB.
 #
 # Modified by Kirill Brazhnikov, 2026-11-05: gdb-test works on both boards.
+#
+# Modified by Kirill Brazhnikov, 2026-11-06: hv, run-hv, hv-test and
+# clean-hv targets for the hypervisor under hypervisor/; make clean also
+# cleans the hypervisor builds.
+#
+# Modified by Kirill Brazhnikov, 2026-11-07: the hypervisor configurations
+# are taken from examples/ (default hv-two-vms).
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -108,13 +123,15 @@ DOCKER_PREFIX := $(DOCKER_PREFIX_$(BSP))
 # The source tree is mounted at the same path inside the container, so
 # absolute paths recorded by scons stay valid for native builds too. The
 # build runs as the host user so that, on Linux, generated files are not
-# owned by root.
-DOCKER_RUN := $(DOCKER) run --rm \
+# owned by root. $(call DOCKER_RUN_WITH,<prefix>) runs with another
+# toolchain prefix (the hypervisor is always built for x86_64).
+DOCKER_RUN_WITH = $(DOCKER) run --rm \
 	--user $(shell id -u):$(shell id -g) \
 	-v "$(POK_PATH):$(POK_PATH)" \
 	-e POK_PATH="$(POK_PATH)" \
-	-e PREFIX="$(DOCKER_PREFIX)" \
+	-e PREFIX="$(1)" \
 	$(DOCKER_IMAGE)
+DOCKER_RUN := $(call DOCKER_RUN_WITH,$(DOCKER_PREFIX))
 
 # All examples compile the kernel and libpok into the same shared
 # $(POK_PATH)/build/ directory, so example builds must not run
@@ -131,7 +148,7 @@ help:
 	@echo "Usage:"
 	@echo "  make / make all      Build all examples"
 	@echo "  make <name>          Build one example (e.g. make memblocks)"
-	@echo "  make clean           Clean all examples"
+	@echo "  make clean           Clean all examples and hypervisor builds"
 	@echo "  make clean-<name>    Clean one example"
 	@echo "  make list            List available example names"
 	@echo "  make benchmarks      Build all benchmarks (benchmark/)"
@@ -142,12 +159,17 @@ help:
 	@echo "  make gdb-test        Run tests/gdbserver with GDB"
 	@echo "  make clean-tests     Clean all tests"
 	@echo "  make docker-image    (Re)build the Docker build image"
+	@echo "  make hv              Build the hypervisor (configuration HV)"
+	@echo "  make run-hv          Build and run the hypervisor in QEMU"
+	@echo "  make hv-test         Run the hypervisor tests"
+	@echo "  make clean-hv        Clean the hypervisor builds"
 	@echo "  make help            Show this help"
 	@echo ""
 	@echo "Variables:"
 	@echo "  BSP=<board>          Target board: x86_64-qemu (default) or arm64-qemu"
 	@echo "  NATIVE=1             Run scons on the host instead of in Docker"
 	@echo "  VERBOSE=0            make run: show only the test results"
+	@echo "  HV=<name>            Hypervisor config (default hv-two-vms)"
 	@echo ""
 	@echo "Examples:"
 	@for e in $(EXAMPLES); do echo "  $$e"; done
@@ -228,6 +250,66 @@ gdb-test:
 	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
 endif
 
+# The hypervisor (x86_64 only, see README.md): make hv builds the
+# JetOS images that the configuration names (the projects in front of
+# their /build/ directories), then hv.elf and qemu.sh in the build/
+# directory next to the configuration file. In Docker, only the
+# repository is mounted, so the configuration and its images must be in
+# it.
+HV ?= hv-two-vms
+HV_CONFIG ?= $(EXAMPLES_DIR)/$(HV)/config.xml
+HV_CONFIG_PATH = $(abspath $(HV_CONFIG))
+HV_BUILD_DIR = $(dir $(HV_CONFIG_PATH))build
+HV_TESTS_DIR := $(TESTS_DIR)/hypervisor
+HV_TEST_CONFIGS := $(abspath $(wildcard $(HV_TESTS_DIR)/*/config.xml))
+
+# Shell commands that build the configurations $(1) (absolute paths):
+# the projects of their images, each once, then the hypervisor of each.
+# The project list is assigned first, so that set -e stops on an error.
+HV_BUILD = set -e; cd "$(POK_PATH)"; projects=; \
+	for c in $(1); do \
+		p=$$(python3 hypervisor/hvconfig.py --projects "$$c"); \
+		projects="$$projects $$p"; \
+	done; \
+	for p in $$(printf "%s\n" $$projects | sort -u); do \
+		echo "== building $$p"; \
+		(cd "$$p" && $(SCONS) bsp=x86_64-qemu); \
+	done; \
+	cd hypervisor; \
+	for c in $(1); do \
+		echo "== building the hypervisor for $$c"; \
+		$(SCONS) config="$$c"; \
+	done
+
+ifdef NATIVE
+HV_RUN_BUILD = $(call HV_BUILD,$(1))
+HV_DOCKER_IMAGE :=
+else
+HV_RUN_BUILD = $(call DOCKER_RUN_WITH,$(DOCKER_PREFIX_x86_64-qemu)) \
+	sh -c '$(call HV_BUILD,$(1))'
+HV_DOCKER_IMAGE := docker-image
+endif
+
+.PHONY: hv run-hv hv-test clean-hv
+
+hv: $(HV_DOCKER_IMAGE)
+	$(call HV_RUN_BUILD,$(HV_CONFIG_PATH))
+
+run-hv: hv
+	sh "$(HV_BUILD_DIR)/qemu.sh"
+
+# Builds every configuration under tests/hypervisor (in one container),
+# then runs them.
+hv-test: $(HV_DOCKER_IMAGE)
+	$(call HV_RUN_BUILD,$(HV_TEST_CONFIGS))
+	VERBOSE=$(VERBOSE) NATIVE=$(NATIVE) $(HV_TESTS_DIR)/run_hv_test.sh
+
+clean-hv:
+	rm -rf $(EXAMPLES_DIR)/hv-*/build $(HV_TESTS_DIR)/*/build \
+		hypervisor/__pycache__
+	if [ -d hypervisor ]; then \
+		find hypervisor -name '.sconsign*' -delete; fi
+
 docker-image:
 	$(DOCKER) build -t $(DOCKER_IMAGE) $(DOCKER_DIR)
 
@@ -236,10 +318,10 @@ docker-image:
 # cleaning should work without a toolchain or Docker. Everything removed
 # here is untracked and covered by .gitignore.
 
-# Besides every example, also removes what the examples share: the
-# kernel/libpok objects under build/ and the scons/Python state that
-# the build scatters across the source tree.
-clean: $(addprefix clean-,$(EXAMPLES))
+# Besides every example and the hypervisor builds, also removes what the
+# examples share: the kernel/libpok objects under build/ and the
+# scons/Python state that the build scatters across the source tree.
+clean: $(addprefix clean-,$(EXAMPLES)) clean-hv
 	rm -rf build misc/__pycache__
 	find boards kernel libpok syspart misc -name '.sconsign*' -delete
 	find kernel libpok syspart -name '*.o' -delete

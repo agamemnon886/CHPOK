@@ -31,12 +31,18 @@
 #
 # Modified by Kirill Brazhnikov, 2026-11-05: arm64-qemu is tested too (BSP).
 #
+# Modified by Kirill Brazhnikov, 2026-11-06: HV_QEMU runs the test as a VM
+# of the hypervisor (tests/hypervisor/gdb).
+#
 # Usage: tests/gdbserver/run_gdb_test.sh
 #   BSP       x86_64-qemu (default) or arm64-qemu
 #   GDB_PORT  TCP port of the GDB server (default 8123)
 #   TIMEOUT   seconds to wait for each step (default 90)
 #   NATIVE    1: run ${GDB:-gdb-multiarch} on the host
 #   VERBOSE   1: show the GDB and QEMU output (default 0)
+#   HV_QEMU   qemu.sh of a hypervisor build that runs this test as a VM,
+#             with its console on COM1, its GDB port on COM2 and the
+#             hypervisor's console on COM3 (x86_64)
 #
 # The test passes if every check of smoke.py passes, the system goes on
 # after GDB detaches (both partitions print "DONE: 0 failure(s)") and the
@@ -49,8 +55,9 @@ dir=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$dir/../.." && pwd)
 bsp=${BSP:-x86_64-qemu}
 elf=$dir/build/$bsp/pok.elf
-log=$dir/build/$bsp/gdb-test.log
-gdb_log=$dir/build/$bsp/gdb-test-gdb.log
+hv=${HV_QEMU:+-hv}
+log=$dir/build/$bsp/gdb-test$hv.log
+gdb_log=$dir/build/$bsp/gdb-test$hv-gdb.log
 port=${GDB_PORT:-8123}
 timeout=${TIMEOUT:-90}
 verbose=${VERBOSE:-0}
@@ -60,6 +67,10 @@ container=chpok-gdb-test-$$
 # The build makes GDB_commands (attach GDB to the partitions) too.
 if [ ! -f "$elf" ] || [ ! -f "$dir/build/$bsp/GDB_commands" ]; then
     echo "$0: $elf not found; build it with: make run-gdbserver" >&2
+    exit 2
+fi
+if [ -n "${HV_QEMU:-}" ] && [ ! -f "$HV_QEMU" ]; then
+    echo "$0: $HV_QEMU not found; build it with: make hv-test" >&2
     exit 2
 fi
 case "$bsp" in
@@ -79,9 +90,14 @@ fi
 rm -f "$log" "$gdb_log"
 
 # QEMU waits for GDB before it starts the system.
-$qemu -m 1G -display none -serial "file:$log" \
-    -serial "tcp:127.0.0.1:$port,server=on,wait=on" -kernel "$elf" \
-    > /dev/null 2>&1 &
+if [ -n "${HV_QEMU:-}" ]; then
+    HV_COM1="file:$log" HV_COM2="tcp:127.0.0.1:$port,server=on,wait=on" \
+        HV_COM3="file:$log.hypervisor" sh "$HV_QEMU" > /dev/null 2>&1 &
+else
+    $qemu -m 1G -display none -serial "file:$log" \
+        -serial "tcp:127.0.0.1:$port,server=on,wait=on" -kernel "$elf" \
+        > /dev/null 2>&1 &
+fi
 qemu_pid=$!
 sleep 1
 
@@ -156,6 +172,10 @@ if [ "$verbose" = 1 ]; then
     sed 's/^/    /' "$gdb_log"
     echo "== QEMU"
     tr -d '\r' < "$log" | LC_ALL=C sed 's/\x1b\[[0-9;?]*[A-Za-z]//g; s/^/    /'
+    if [ -n "${HV_QEMU:-}" ]; then
+        echo "== hypervisor"
+        tr -d '\r' < "$log.hypervisor" | sed 's/^/    /'
+    fi
 fi
 
 passed=$(grep -ac 'GDB-TEST .*: PASS' "$gdb_log")
@@ -181,12 +201,14 @@ grep -aq 'P1 POKE 42' "$log" \
     || failures="$failures
 $(tr -d '\r' < "$log" | grep -a FAIL | sed 's/^/    /')"
 
+where="$bsp${HV_QEMU:+ under the hypervisor}"
 if [ -z "$failures" ]; then
-    echo "PASS tests/gdbserver with GDB on $bsp: $passed checks"
+    echo "PASS tests/gdbserver with GDB on $where: $passed checks"
     exit 0
 fi
 
-echo "FAIL tests/gdbserver with GDB on $bsp: $passed checks passed," \
+echo "FAIL tests/gdbserver with GDB on $where: $passed checks passed," \
     "$failed failed$failures"
 echo "    GDB output: $gdb_log"
+[ -z "${HV_QEMU:-}" ] || echo "    hypervisor console: $log.hypervisor"
 exit 1
