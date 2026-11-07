@@ -23,6 +23,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Modified by Kirill Brazhnikov, 2026-11-07: hvcrc.py writes the image's
+# CRC-32 into hv.elf after linking.
+#
 # Builds the hypervisor for one configuration:
 #
 #   scons config=../examples/hv-two-vms/config.xml
@@ -30,7 +33,9 @@
 # The output goes to build/ next to the configuration file: hv.elf, the
 # generated files and qemu.sh. The images named in the configuration must
 # be built first (the top-level Makefile's hv target does it). PREFIX is
-# the x86_64 cross toolchain prefix (default x86_64-linux-gnu-).
+# the x86_64 cross toolchain prefix (default x86_64-linux-gnu-). After
+# linking, hvcrc.py writes the CRC-32 of the image into hv.elf, which the
+# hypervisor checks at boot.
 
 import os
 import sys
@@ -91,5 +96,6 @@ env.Depends(images_object, [os.path.join(build, 'image%d.bin' % i)
 objects.append(images_object)
 
 hv = env.Program(os.path.join(build, 'hv.elf'), objects)
-env.Depends(hv, 'hv.lds')
+env.AddPostAction(hv, 'python3 %s $TARGET' % File('hvcrc.py').abspath)
+env.Depends(hv, ['hv.lds', 'hvcrc.py'])
 Default(hv)

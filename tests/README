@@ -100,7 +100,9 @@ hypervisor
         apex-mutex (tests/apex and tests/mutex pass side by side),
         bad-mem (a VM with too little RAM stops with a nested page fault
         while the other VM passes), reset (the monitor's reset command
-        restarts a VM, which boots again) and gdb (run_gdb_test.sh with
+        restarts a VM, which boots again), bad-crc (the image passes the
+        CRC check at boot, and a copy with one bit flipped stops with a
+        CRC mismatch before any VM starts) and gdb (run_gdb_test.sh with
         tests/gdbserver as a VM, HV_QEMU).
 
 Some expected return codes come from public sources rather than the

@@ -24,6 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Modified by Kirill Brazhnikov, 2026-11-07: the bad-crc case (the image
+# check at boot).
+#
 # Runs the hypervisor tests: each directory here holds a configuration
 # whose build/qemu.sh (made by make hv-test, or make hv HV_CONFIG=...) is
 # run in QEMU on the host, one after another.
@@ -32,6 +35,8 @@
 #   bad-mem     a VM with too little RAM stops with a nested page fault,
 #               the other VM still passes
 #   reset       the monitor's reset command restarts a VM
+#   bad-crc     the image as built passes the CRC check at boot; a copy
+#               with one bit flipped stops with a CRC mismatch
 #   gdb         tests/gdbserver/run_gdb_test.sh with the test as a VM
 #
 # Usage: tests/hypervisor/run_hv_test.sh [case...]
@@ -144,6 +149,57 @@ case_reset() {
     stop_qemu
     show_logs "$build/hv.log" "$build/mon.log"
     [ "$result" -eq 0 ] && grep -aq 'mon: reset' "$build/hv.log"
+}
+
+# hvcrc.py --check of hv.elf $1: "<stored> <computed> <size> <offset>"
+# of the checked bytes; the exit status is 1 if the CRCs differ.
+crc_of() {
+    crc_line=$(python3 "$root/hypervisor/hvcrc.py" --check "$1")
+    crc_status=$?
+    crc_pattern='.* of \([0-9]*\) bytes at offset \([0-9]*\): '
+    crc_pattern=$crc_pattern'stored \([^,]*\), computed \(.*\)$'
+    echo "$crc_line" | sed -n "s/$crc_pattern/\\3 \\4 \\1 \\2/p"
+    return $crc_status
+}
+
+case_bad_crc() {
+    # The image as built: the check passes and the VM starts.
+    crc=$(crc_of "$dir/bad-crc/build/hv.elf") || return 1
+    set -- $crc
+    start_qemu bad-crc
+    wait_until "grep -aqs 'mutex: starts on CPU' $build/hv.log"
+    stop_qemu
+    show_logs "$build/hv.log"
+    grep -aq "image CRC-32 $1 OK" "$build/hv.log" \
+        && grep -aq 'mutex: starts on CPU' "$build/hv.log" || return 1
+
+    # A copy with one bit flipped in the middle of the checked bytes
+    # (mostly the guest image): the hypervisor stops before any VM runs.
+    corrupt=$build/corrupt
+    rm -rf "$corrupt"
+    mkdir "$corrupt"
+    cp "$build/qemu.sh" "$build/hv.elf" "$corrupt/"
+    offset=$(($4 + $3 / 2))
+    byte=$(od -An -tu1 -j "$offset" -N1 "$corrupt/hv.elf" | tr -d ' ')
+    printf "$(printf '\\%03o' $((byte ^ 1)))" \
+        | dd of="$corrupt/hv.elf" bs=1 seek="$offset" conv=notrunc \
+        2> /dev/null
+    if crc=$(crc_of "$corrupt/hv.elf"); then
+        echo "$0: flipping the bit at $offset didn't change the CRC" >&2
+        return 1
+    fi
+    set -- $crc
+    env HV_COM1="file:$corrupt/hv.log" sh "$corrupt/qemu.sh" \
+        > "$corrupt/qemu.out" 2>&1 &
+    qemu_pid=$!
+    wait_until "grep -aqs 'fatal error' $corrupt/hv.log"
+    stop_qemu
+    show_logs "$corrupt/hv.log"
+    grep -aq "image CRC-32 mismatch: expected $1, actual $2" \
+        "$corrupt/hv.log" \
+        && grep -aq 'fatal error on CPU 0: the hypervisor image' \
+        "$corrupt/hv.log" \
+        && ! grep -aq 'starts on CPU' "$corrupt/hv.log"
 }
 
 # The hypervisor is x86_64 only, whatever BSP the caller has.

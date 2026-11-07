@@ -23,6 +23,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: a CRC-32 word after .rodata
+ * (.hv_crc), which the boot code checks against the image before it.
  */
 
 /*
@@ -30,6 +33,13 @@
  * as a flat image (see src/entry.S), so the whole hypervisor is a single
  * segment which starts at the beginning of the file, at 1 MiB. The guest
  * images are in .rodata; the guests' RAM is allocated after __hv_end.
+ *
+ * The image check (src/crc.c): hvcrc.py writes the CRC-32 of the loaded
+ * bytes from hv_image_begin up to hv_image_crc (the ELF headers, .text
+ * and .rodata with the VM table and the guest images) into the word at
+ * hv_image_crc after linking. .data comes after that word and isn't
+ * covered: it is written before the check (multiboot_info, and the CPU
+ * sets the accessed bits of the GDT descriptors).
  */
 
 OUTPUT_FORMAT("elf64-x86-64")
@@ -44,6 +54,7 @@ PHDRS
 SECTIONS
 {
 	__hv_load_begin = 0x100000;
+	hv_image_begin = __hv_load_begin;
 	. = __hv_load_begin + SIZEOF_HEADERS;
 
 	.text :
@@ -55,6 +66,13 @@ SECTIONS
 	.rodata :
 	{
 		*(.rodata .rodata.*)
+	} :hv
+
+	/* CRC-32 of the image up to here (hvcrc.py). */
+	.hv_crc ALIGN(4) :
+	{
+		hv_image_crc = .;
+		LONG(0)
 	} :hv
 
 	.data :

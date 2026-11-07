@@ -23,6 +23,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: hv_crc32() and
+ * hv_image_check() (crc.c).
  */
 
 /*
@@ -164,6 +167,10 @@ void hv_console_unlock(void);
 void hv_console_write(const char *s, size_t length);
 void hv_printf(const char *format, ...) HV_PRINTF(1, 2);
 void hv_fatal(const char *message) HV_NORETURN;
+
+// crc.c
+uint32_t hv_crc32(const uint8_t *data, size_t length);
+void hv_image_check(void);
 
 // uart.c
 void uart_init(uint16_t port);

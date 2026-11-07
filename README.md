@@ -175,7 +175,8 @@ names: an image path `.../<project>/build/x86_64-qemu/pok.elf` builds
 `<project>`. Then it builds the hypervisor. The results go to `build/`
 next to the configuration file:
 
-    hv.elf          the hypervisor, with the VMs' images embedded
+    hv.elf          the hypervisor, with the VMs' images embedded and
+                    its CRC-32 (see Image check below)
     qemu.sh         runs hv.elf in QEMU with the right CPUs, RAM and
                     serial ports
     hv_config.c,    generated from the configuration (hypervisor/hvconfig.py)
@@ -209,6 +210,7 @@ Further arguments of `qemu.sh` are passed to QEMU. Stop QEMU with Ctrl-C
 them:
 
     [hv] JetOS hypervisor: 2 VM(s), 3 CPU(s)
+    [hv] image CRC-32 0x7bce13d8 OK (659 KiB)
     [hv] TSC 1000381 kHz, local APIC timer 62552 kHz
     [hv] 127 MiB of RAM, 3 CPU(s)
     [hv] vm1: 64 MiB at 0x400000, 1 CPU(s) from CPU 0, console COM2, GDB none
@@ -216,6 +218,36 @@ them:
     [hv] vm2: vCPU 1 parked on CPU 2 (the guest uses one CPU)
     [hv] vm2: starts on CPU 1
     [hv] vm1: starts on CPU 0
+
+### Image check
+
+After linking, `hypervisor/hvcrc.py` writes a CRC-32 of the image into
+`hv.elf`. At boot, before anything else, the hypervisor computes the CRC
+of its loaded image again (`hypervisor/src/crc.c`) and compares the two.
+If they differ, it prints both and halts. It starts no VM and no other
+CPU:
+
+    [hv] image CRC-32 mismatch: expected 0x7bce13d8, actual 0x8fc7b7dd
+    [hv] fatal error on CPU 0: the hypervisor image is corrupted
+
+The CRC covers the loaded image from its start up to the CRC word that
+follows `.rodata` (see `hypervisor/hv.lds`). That includes the ELF
+headers, the code, the constants, the VM table and the VMs' images. It
+doesn't cover `.data`, a few variables that are written before the check:
+the Multiboot information address, and the GDT, where the CPU sets the
+accessed bits. To check a file on disk:
+
+    python3 hypervisor/hvcrc.py --check examples/hv-two-vms/build/hv.elf
+
+The CRC is the one of zlib and Ethernet (IEEE 802.3). In an image of this
+size it detects every 1- or 2-bit error and every burst of up to 32 bits;
+other errors go unnoticed with a probability of about 1 in 4 billion. It
+protects against accidental corruption, such as a bad copy or storage
+error or a truncated file. It doesn't protect against deliberate changes:
+the CRC is in the image itself, so whoever changes the image can also
+change the CRC. A cryptographic hash (MD5, SHA-256) stored in the same
+place wouldn't help with that either. That needs a signature checked by
+an earlier, trusted boot stage.
 
 ### Configuration
 
@@ -376,6 +408,8 @@ is a GDB thread:
     isr.S
     src/console.c, printf.c,    hypervisor console
     uart.c
+    hypervisor/hvcrc.py,        image check (CRC-32 written after linking,
+    src/crc.c                   checked at boot)
     src/svm.c, svm_run.S        SVM: VMCB, run loop, exit handling
     src/vm.c, npt.c             VM RAM, image loading, nested page tables
     src/ioport.c, vpic.c,       the VMs' I/O ports and emulated devices

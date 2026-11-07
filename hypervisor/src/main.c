@@ -23,11 +23,14 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-07: the boot CPU checks the
+ * CRC-32 of the hypervisor image first.
  */
 
 /*
- * Start-up of the hypervisor: the boot CPU checks the CPU and the
- * configuration, measures the timers, sets up the VMs and starts the
+ * Start-up of the hypervisor: the boot CPU checks its image, the CPU and
+ * the configuration, measures the timers, sets up the VMs and starts the
  * other CPUs; then every CPU runs its vCPU (or parks it).
  */
 
@@ -153,9 +156,10 @@ static void assign_cpus(const uint32_t apic_ids[HV_MAX_CPUS])
 }
 
 /*
- * Start-up on the boot CPU (called by entry.S with the address of the Multiboot
- * information): checks the CPU and the configuration, measures the timers, sets
- * up the VMs, starts the other CPUs, then runs its own vCPU.
+ * Start-up on the boot CPU (called by entry.S with the address of the
+ * Multiboot information): checks the image, the CPU and the configuration,
+ * measures the timers, sets up the VMs, starts the other CPUs, then runs
+ * its own vCPU.
  */
 void hv_main(uint32_t mbi)
 {
@@ -167,6 +171,9 @@ void hv_main(uint32_t mbi)
     hv_console_init(hv_console_port);
     hv_printf("\n[hv] JetOS hypervisor: %u VM(s), %u CPU(s)\n",
               hv_nb_vms, needed);
+
+    // The image must be the one the build made (stops if not).
+    hv_image_check();
 
     // Interrupts of this CPU: IDT, legacy PIC masked, local APIC.
     lapic_init_base();
