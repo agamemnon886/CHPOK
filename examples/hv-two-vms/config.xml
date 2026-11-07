@@ -25,6 +25,9 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+  Modified by Kirill Brazhnikov, 2026-11-07: the GDB port is vm2's again,
+  as the comment below and README.md describe.
+
   Two JetOS examples side by side under the hypervisor (README.md,
   Hypervisor): inter_partition_sampling, and msections-wait with a GDB
   port (its schedule has a GDB slot) and two CPUs (the second one is
@@ -37,11 +40,11 @@
     <VM Name="vm1" CPUs="1" Memory="64MiB"
         Image="../inter_partition_sampling/build/x86_64-qemu/pok.elf">
         <Console Port="COM2"/>
-        <Gdb Port="COM4"/>
     </VM>
 
     <VM Name="vm2" CPUs="2" Memory="32MiB"
         Image="../msections-wait/build/x86_64-qemu/pok.elf">
         <Console Port="COM3"/>
+        <Gdb Port="COM4"/>
     </VM>
 </Hypervisor>
