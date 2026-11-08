@@ -38,6 +38,12 @@
  * Modified by Kirill Brazhnikov, 2026-11-05: the system time stops while
  * the GDB server holds the system (ja_system_time_stop() and
  * ja_system_time_resume()).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: the timer interrupt sets the
+ * next compare value before the end of interrupt, and is ignored if the
+ * timer condition doesn't hold, so that under the hypervisor (where the
+ * guest's timer interrupt is mapped to the physical one) a tick is never
+ * counted twice.
  */
 
 /*
@@ -67,6 +73,7 @@
 #define RTC_DR              0x000U
 
 #define CNTV_CTL_ENABLE     (1U << 0)
+#define CNTV_CTL_ISTATUS    (1U << 2)
 
 #define PSCI_SYSTEM_RESET   0x84000009U
 
@@ -118,6 +125,13 @@ static void write_cntv_cval(uint64_t val)
 static void write_cntv_ctl(uint64_t val)
 {
     asm volatile("msr cntv_ctl_el0, %0" :: "r" (val));
+}
+
+static uint64_t read_cntv_ctl(void)
+{
+    uint64_t val;
+    asm volatile("mrs %0, cntv_ctl_el0" : "=r" (val));
+    return val;
 }
 
 static void wait_for_interrupt(void)
@@ -173,7 +187,13 @@ void ja_bsp_init (void)
     timer_init();
 }
 
-static void process_timer(void)
+/*
+ * Program the compare value of the next tick. This lowers the timer's
+ * interrupt line, which must be done before the end of interrupt: under a
+ * hypervisor, the end of interrupt also ends the physical interrupt, which
+ * would come again at once if the line were still high.
+ */
+static void set_next_tick(void)
 {
     uint64_t now = read_cntvct();
 
@@ -184,8 +204,6 @@ static void process_timer(void)
         timer_next = now + timer_period;
     }
     write_cntv_cval(timer_next);
-
-    jet_on_tick();
 }
 
 void ja_bsp_process_irq(interrupt_frame* frame)
@@ -199,12 +217,23 @@ void ja_bsp_process_irq(interrupt_frame* frame)
         return;
     }
 
-    // End of interrupt before jet_on_tick(), which may switch context.
-    ja_mmio_write32(BOARD_GICC_BASE + GICC_EOIR, iar);
-
     if (irq == BOARD_IRQ_VTIMER) {
-        process_timer();
+        /*
+         * A tick only if the timer condition holds: an interrupt for a
+         * compare value that was already moved on is spurious.
+         */
+        pok_bool_t tick = (read_cntv_ctl() & CNTV_CTL_ISTATUS) != 0U;
+
+        if (tick) {
+            set_next_tick();
+        }
+        // End of interrupt before jet_on_tick(), which may switch context.
+        ja_mmio_write32(BOARD_GICC_BASE + GICC_EOIR, iar);
+        if (tick) {
+            jet_on_tick();
+        }
     } else {
+        ja_mmio_write32(BOARD_GICC_BASE + GICC_EOIR, iar);
         (void) printf("Unexpected IRQ %u\n", (unsigned)irq);
     }
 }

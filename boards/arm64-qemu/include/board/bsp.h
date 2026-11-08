@@ -29,6 +29,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-05: the second UART and the device
  * tree, for the GDB server.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: partitions' memory starts 16
+ * MiB into the RAM (0x41000000, was 0x48000000), as on x86_64, so that a
+ * VM of the hypervisor needs no more RAM on arm64.
  */
 
 /* QEMU 'virt' machine (qemu-system-aarch64 -M virt -m 1G). */
@@ -45,10 +49,10 @@
 #define BOARD_RAM_SIZE    0x40000000ULL
 
 /*
- * Partitions' memory. Below it: the kernel image (with partitions'
- * ELFs embedded) and the kernel heap.
+ * Partitions' memory, 16 MiB into the RAM (as on x86_64). Below it: the
+ * kernel image (with partitions' ELFs embedded) and the kernel heap.
  */
-#define BOARD_PARTITION_PHYS_START 0x48000000ULL
+#define BOARD_PARTITION_PHYS_START 0x41000000ULL
 
 #define BOARD_GICD_BASE   0x08000000ULL /* GICv2 distributor */
 #define BOARD_GICC_BASE   0x08010000ULL /* GICv2 CPU interface */
