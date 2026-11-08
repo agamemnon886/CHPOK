@@ -146,17 +146,24 @@ partitions (`scons rundbg` and `scons debug` in an example directory).
 
 ## Hypervisor
 
-`hypervisor/` is a small x86_64 hypervisor that runs several JetOS images
-(`pok.elf`, built for `x86_64-qemu`) side by side. Each image runs in its
-own virtual machine (VM) with its own RAM, CPUs and serial ports, as an
-XML file describes. The VMs are isolated from each other, and JetOS
-partitions the applications inside each VM as usual.
+`hypervisor/` is a small hypervisor that runs several JetOS images
+(`pok.elf`) side by side, on x86_64 or on arm64. Each image runs in its own
+virtual machine (VM) with its own RAM, CPUs and serial ports, as an XML
+file describes. The VMs are isolated from each other, and JetOS partitions
+the applications inside each VM as usual. The same configuration file
+works on both architectures; `BSP=arm64-qemu` selects arm64, as for the
+examples.
 
-The hypervisor uses AMD SVM with nested paging. QEMU emulates both without
-KVM (TCG), so it runs in QEMU on any host, including Macs with Apple
-silicon (`-cpu qemu64,+svm,+npt`). QEMU's TCG doesn't emulate Intel VMX.
-With KVM on an AMD Linux host, nested SVM should also work
-(`-enable-kvm -cpu host`), but that hasn't been tested.
+- **x86_64** (`x86_64-qemu` images): AMD SVM with nested paging. QEMU
+  emulates both without KVM (TCG), so it runs in QEMU on any host,
+  including Macs with Apple silicon (`-cpu qemu64,+svm,+npt`). QEMU's TCG
+  doesn't emulate Intel VMX. With KVM on an AMD Linux host, nested SVM
+  should also work (`-enable-kvm -cpu host`), but that hasn't been tested.
+- **arm64** (`arm64-qemu` images): the hypervisor runs at EL2 on QEMU
+  `virt` with the virtualization extensions and a GICv2
+  (`-machine virt,virtualization=on,gic-version=2`), with stage-2
+  translation and the GIC's virtual CPU interface. It runs under TCG. On
+  Apple silicon, HVF gives a guest no EL2 on M1 and M2.
 
 ### Building and running
 
@@ -169,19 +176,21 @@ the Docker build image (`NATIVE=1` builds on the host):
     make hv HV_CONFIG=<file>     # any configuration in the repository
     make run-hv                  # build, then run it in QEMU
     make hv-test                 # the hypervisor tests (tests/hypervisor)
+    make BSP=arm64-qemu run-hv   # the same on arm64 (BSP= for any of these)
 
 `make hv` first builds the JetOS projects whose images the configuration
-names: an image path `.../<project>/build/x86_64-qemu/pok.elf` builds
-`<project>`. Then it builds the hypervisor. The results go to `build/`
-next to the configuration file:
+names, for `BSP`: an image path `.../<project>/build/{bsp}/pok.elf` builds
+`<project>` (`{bsp}` is replaced by `BSP`). Then it builds the hypervisor.
+The results go to `build/<BSP>/` next to the configuration file:
 
     hv.elf          the hypervisor, with the VMs' images embedded and
                     its CRC-32 (see Image check below)
     qemu.sh         runs hv.elf in QEMU with the right CPUs, RAM and
                     serial ports
-    hv_config.c,    generated from the configuration (hypervisor/hvconfig.py)
-    hv_images.S,
-    imageN.bin
+    hv_config.c,    generated from the configuration (hypervisor/hvconfig.py);
+    hv_images.S,    dtbN.bin is the device tree of VM N (arm64)
+    imageN.bin,
+    dtbN.bin
 
 `make` and `make clean` skip the `hv-*` directories as examples, because
 they have no `SConstruct`. `make clean` (or `make clean-hv`) removes their
@@ -196,13 +205,13 @@ they have no `SConstruct`. `make clean` (or `make clean-hv`) removes their
 
 To watch a VM's console:
 
-    tail -f examples/hv-two-vms/build/vm1.log
+    tail -f examples/hv-two-vms/build/x86_64-qemu/vm1.log
 
-`HV_COM1` ... `HV_COM4` replace the QEMU `-serial` value of a port. For
+`HV_COM1`, `HV_COM2`, ... replace the QEMU `-serial` value of a port. For
 example, to type into a VM's console (the JetOS monitor):
 
     HV_COM3=tcp:127.0.0.1:8200,server=on,wait=off \
-        sh examples/hv-two-vms/build/qemu.sh
+        sh examples/hv-two-vms/build/x86_64-qemu/qemu.sh
     nc 127.0.0.1 8200
 
 Further arguments of `qemu.sh` are passed to QEMU. Stop QEMU with Ctrl-C
@@ -219,6 +228,18 @@ them:
     [hv] vm2: starts on CPU 1
     [hv] vm1: starts on CPU 0
 
+On arm64 (`make BSP=arm64-qemu run-hv`):
+
+    [hv] JetOS hypervisor (arm64): 2 VM(s), 3 CPU(s)
+    [hv] image CRC-32 0x6f9067a8 OK (669 KiB)
+    [hv] GICv2 with virtualization, 4 list registers; counter 62500 kHz
+    [hv] 128 MiB of RAM, 3 CPU(s)
+    [hv] vm1: 64 MiB at 0x40200000, 1 CPU(s) from CPU 0, console COM2, GDB none
+    [hv] vm2: 32 MiB at 0x44200000, 2 CPU(s) from CPU 1, console COM3, GDB COM4
+    [hv] vm2: vCPU 1 parked on CPU 2 (the guest uses one CPU)
+    [hv] vm2: starts on CPU 1
+    [hv] vm1: starts on CPU 0
+
 ### Image check
 
 After linking, `hypervisor/hvcrc.py` writes a CRC-32 of the image into
@@ -231,13 +252,15 @@ CPU:
     [hv] fatal error on CPU 0: the hypervisor image is corrupted
 
 The CRC covers the loaded image from its start up to the CRC word that
-follows `.rodata` (see `hypervisor/hv.lds`). That includes the ELF
-headers, the code, the constants, the VM table and the VMs' images. It
-doesn't cover `.data`, a few variables that are written before the check:
-the Multiboot information address, and the GDT, where the CPU sets the
-accessed bits. To check a file on disk:
+follows `.rodata` (see `hypervisor/arch/<arch>/hv.lds`). That includes the
+ELF headers, the code, the constants, the VM table and the VMs' images
+(and device trees, on arm64). It doesn't cover `.data`, a few variables
+that are written before the check: on x86_64, the Multiboot information
+address, and the GDT, where the CPU sets the accessed bits. To check a
+file on disk:
 
-    python3 hypervisor/hvcrc.py --check examples/hv-two-vms/build/hv.elf
+    python3 hypervisor/hvcrc.py --check \
+        examples/hv-two-vms/build/x86_64-qemu/hv.elf
 
 The CRC is the one of zlib and Ethernet (IEEE 802.3). In an image of this
 size it detects every 1- or 2-bit error and every burst of up to 32 bits;
@@ -257,12 +280,12 @@ an earlier, trusted boot stage.
         <Console Port="COM1"/>
 
         <VM Name="vm1" CPUs="1" Memory="64MiB"
-            Image="../inter_partition_sampling/build/x86_64-qemu/pok.elf">
+            Image="../inter_partition_sampling/build/{bsp}/pok.elf">
             <Console Port="COM2"/>
         </VM>
 
         <VM Name="vm2" CPUs="2" Memory="32MiB"
-            Image="../msections-wait/build/x86_64-qemu/pok.elf">
+            Image="../msections-wait/build/{bsp}/pok.elf">
             <Console Port="COM3"/>
             <Gdb Port="COM4"/>
         </VM>
@@ -273,20 +296,28 @@ an earlier, trusted boot stage.
 | `Hypervisor/Console` | The hypervisor's own console (optional). |
 | `VM`                 | One to eight VMs. |
 | `VM/@Name`           | 1-30 characters (letters, digits, `_ . -`), unique (case is ignored). |
-| `VM/@Image`          | The JetOS `pok.elf`, relative to the configuration file. Any x86_64 ELF works if it has a Multiboot header with load addresses, as JetOS has. |
-| `VM/@Memory`         | Guest RAM in bytes, or with `KiB`, `MiB` or `GiB`. It must be a multiple of 2 MiB and at most 1 GiB. JetOS needs 16 MiB plus the memory of its partitions (they start at 16 MiB). |
+| `VM/@Image`          | The JetOS `pok.elf`, relative to the configuration file, built for the hypervisor's `BSP`; `{bsp}` is replaced by it. On x86_64, any ELF works if it has a Multiboot header with load addresses, as JetOS has; on arm64, any ELF loaded above 0x40010000. |
+| `VM/@Memory`         | Guest RAM in bytes, or with `KiB`, `MiB` or `GiB`. It must be a multiple of 2 MiB and at most 1 GiB. JetOS needs 16 MiB plus the memory of its partitions (they start 16 MiB into the RAM, on both architectures). |
 | `VM/@CPUs`           | Physical CPUs reserved for the VM (default 1). |
-| `VM/Console`         | The host serial port that becomes the guest's COM1, its console (optional; without it, the guest has no COM1). |
-| `VM/Gdb`             | The host serial port that becomes the guest's COM2, where the JetOS GDB server listens (optional). |
+| `VM/Console`         | The host serial port that becomes the guest's console: its COM1 on x86_64, its first PL011 on arm64 (optional; without it, the console's output is lost). |
+| `VM/Gdb`             | The host serial port that becomes the guest's port for the JetOS GDB server: its COM2 on x86_64, its second PL011 on arm64 (optional). |
 
-The serial ports are QEMU's four ISA ports: COM1 (0x3F8), COM2 (0x2F8),
-COM3 (0x3E8) and COM4 (0x2E8). Each one can be used at most once. There can
-be at most 16 CPUs in all, and the VMs and the hypervisor must fit into
-3 GiB of RAM. `hypervisor/config.xsd` is the schema. `hvconfig.py` checks
-everything else, including the images: an arm64 image, or one that doesn't
-fit into its `Memory`, is an error.
+The serial ports are:
+- x86_64: QEMU's four ISA ports, COM1 (0x3F8), COM2 (0x2F8), COM3 (0x3E8)
+  and COM4 (0x2E8);
+- arm64: COM1 and COM2 are the PL011s of `virt` (0x09000000 and
+  0x09040000), COM3 to COM16 are 16550s on the PCI bus (QEMU `pci-serial`,
+  which `qemu.sh` puts in PCI slot 0x10 + n - 3 for COMn).
+
+Each port can be used at most once. There can be at most 16 CPUs in all
+on x86_64, and 8 on arm64 (GICv2). The VMs and the hypervisor must fit
+into 3 GiB of RAM. `hypervisor/config.xsd` is the schema. `hvconfig.py`
+checks everything else, including the images: an image of the other
+architecture, or one that doesn't fit into its `Memory`, is an error.
 
 ### What a VM sees
+
+#### x86_64
 
 The hypervisor loads the image the way a Multiboot loader (QEMU `-kernel`)
 does. It starts the image in 32-bit protected mode, with the Multiboot
@@ -309,14 +340,53 @@ hidden, it reports one CPU and it sets the "hypervisor present" bit. MSRs
 are emulated: EFER, PAT, the system call MSRs and the segment base MSRs
 work, and all others read 0.
 
+A VM stops when it accesses memory outside its RAM, triple-faults, halts
+with interrupts disabled, or runs an unsupported instruction.
+
+#### arm64
+
+The hypervisor loads the image the way QEMU's ELF loader does: its
+segments at their addresses. It starts the image at EL1 with the MMU off,
+exceptions masked and x0 pointing to the VM's device tree, which
+`hvconfig.py` generates and the hypervisor puts at the start of the RAM.
+The VM sees the devices of QEMU `virt` that JetOS uses:
+
+| Guest-physical       | What the VM gets |
+|----------------------|------------------|
+| 0x08000000           | The GICv2 distributor (emulated: interrupts 0-31, one CPU). |
+| 0x08010000           | The GICv2 CPU interface: the host GIC's virtual CPU interface, used directly. |
+| 0x09000000           | The console PL011. It is the host's PL011 itself if the console port is COM1 or COM2; otherwise each access goes through the hypervisor, which forwards the data to the host port. |
+| 0x09010000           | The PL031 RTC (emulated, the host's time). |
+| 0x09040000           | The GDB port PL011, as the console one. It is in the device tree only if the VM has a `Gdb` port. |
+| 0x40000000-...       | The VM's RAM (`Memory` bytes). |
+| Anything else        | An access stops the VM. |
+
+The VM has its CPU's virtual timer and counter (the counter starts at 0),
+and the timer interrupt comes through the virtual CPU interface. PSCI
+calls (`hvc` or `smc`) answer for a VM with one CPU: `SYSTEM_RESET`
+resets the VM (its image is loaded again and it restarts), `SYSTEM_OFF`
+and `CPU_OFF` stop it. MPIDR reads as the vCPU number. The VM has no PCI
+devices, so the `syspart-*` examples don't run in a VM.
+
+The arm64 BSP is made for this. Its partitions start 16 MiB into the RAM,
+as on x86_64. Its timer interrupt sets the next tick before the end of
+interrupt: in a VM, the guest's end of interrupt ends the physical timer
+interrupt too, which would come again at once if the timer's line were
+still high, and each tick would be counted twice. arm64 images built
+before these changes don't run in a VM: their kernel reads address 0xf8
+when it switches to the idle context (fixed in
+`kernel/core/sched_arinc.c`), which stops the VM. Rebuild them.
+
+A VM stops when it accesses memory outside its RAM, accesses an emulated
+device with an instruction the hypervisor can't emulate (one without a
+syndrome, such as `ldp`), takes an SError, or runs AArch32 code.
+
+#### Both
+
 Each vCPU runs on its own physical CPU, so the VMs don't share CPU time.
 JetOS uses one CPU. A VM's first vCPU runs the image; the others are parked
-(reserved for a JetOS with SMP support).
-
-A VM stops when it accesses memory outside its RAM, triple-faults, halts
-with interrupts disabled, or runs an unsupported instruction. The
-hypervisor then prints the reason and the VM's registers, and the other
-VMs keep running.
+(reserved for a JetOS with SMP support). When a VM stops, the hypervisor
+prints the reason and the VM's registers, and the other VMs keep running.
 
 ### Debugging a VM
 
@@ -341,7 +411,7 @@ GDB stops a VM, only that VM stops; the other VMs keep running.
    with one that waits. QEMU then starts no CPU until GDB connects:
 
        HV_COM4=tcp:127.0.0.1:8100,server=on,wait=on \
-           sh examples/hv-two-vms/build/qemu.sh
+           sh examples/hv-two-vms/build/x86_64-qemu/qemu.sh
 
 3. Connect GDB with the VM's image (its example directory, `pok.elf` and
    `GDB_commands`). For example, for vm2 of `hv-two-vms` (msections-wait,
@@ -355,65 +425,83 @@ GDB stops a VM, only that VM stops; the other VMs keep running.
            -ex 'target extended-remote host.docker.internal:8100'
 
    On a Linux host, run `gdb-multiarch` directly with
-   `target extended-remote 127.0.0.1:8100`. Everything in Debugging above
-   works the same way (inferiors per partition, breakpoints, `continue`
-   rather than `run`, `detach`).
+   `target extended-remote 127.0.0.1:8100`. On arm64, use the image's
+   `build/arm64-qemu/` files. Everything in Debugging above works the same
+   way (inferiors per partition, breakpoints, `continue` rather than
+   `run`, `detach`).
 
 To debug several VMs at once, give each one a `Gdb` port and start one GDB
-per TCP port. There are only four serial ports, so with two consoles and
-two GDB ports, the hypervisor console has to go. For example:
+per TCP port. On x86_64 there are only four serial ports, so with two
+consoles and two GDB ports, the hypervisor console has to go. For example:
 
     <Hypervisor>
         <VM Name="vm1" Memory="64MiB"
-            Image="../inter_partition_sampling/build/x86_64-qemu/pok.elf">
+            Image="../inter_partition_sampling/build/{bsp}/pok.elf">
             <Console Port="COM1"/>
             <Gdb Port="COM2"/>       <!-- TCP 8100 -->
         </VM>
         <VM Name="vm2" Memory="32MiB"
-            Image="../msections-wait/build/x86_64-qemu/pok.elf">
+            Image="../msections-wait/build/{bsp}/pok.elf">
             <Console Port="COM3"/>
             <Gdb Port="COM4"/>       <!-- TCP 8101 -->
         </VM>
     </Hypervisor>
 
-A VM whose console is the host's COM1, or whose GDB port is the host's
-COM2, uses that port directly. Otherwise each access to the port goes
-through the hypervisor, which works but is slower. `make hv-test` runs
-`tests/gdbserver/run_gdb_test.sh` against a VM this way
-(`tests/hypervisor/gdb`).
+A VM uses a port directly when its console is the host's COM1 or its GDB
+port the host's COM2 (x86_64), or when the port is COM1 or COM2, the
+PL011s (arm64). Otherwise each access to the port goes through the
+hypervisor, which works but is slower. `make hv-test` runs
+`tests/gdbserver/run_gdb_test.sh` against a VM that uses its ports
+directly (`tests/hypervisor/gdb`).
 
 The hypervisor itself is debugged with QEMU's gdb stub. Each physical CPU
 is a GDB thread:
 
-    sh examples/hv-two-vms/build/qemu.sh -s -S
-    gdb-multiarch examples/hv-two-vms/build/hv.elf \
+    sh examples/hv-two-vms/build/x86_64-qemu/qemu.sh -s -S
+    gdb-multiarch examples/hv-two-vms/build/x86_64-qemu/hv.elf \
         -ex 'target remote 127.0.0.1:1234'
 
 (From the build image: `target remote host.docker.internal:1234`.)
 
 ### Files
 
-    hypervisor/config.xsd,      configuration schema and generator
-    hvconfig.py,
+    hypervisor/config.xsd,      configuration schema and generator (with
+    hvconfig.py,                the arm64 ELF loader and device trees)
     templates/hv_config.c.tpl
-    hypervisor/SConstruct,      build
-    hv.lds
-    hypervisor/include/hv/      hv.h (data structures and interfaces between
-                                the parts), svm.h (VMCB), x86.h
-                                (instructions), config.h (the generated VM
-                                table)
-    hypervisor/src/entry.S      Multiboot entry, long mode, AP trampoline
-    src/main.c, smp.c, acpi.c   start-up: CPUs (ACPI MADT), VMs, APs
-    src/lapic.c, pit.c, idt.c,  physical timers and interrupts
-    isr.S
-    src/console.c, printf.c,    hypervisor console
-    uart.c
-    hypervisor/hvcrc.py,        image check (CRC-32 written after linking,
-    src/crc.c                   checked at boot)
-    src/svm.c, svm_run.S        SVM: VMCB, run loop, exit handling
-    src/vm.c, npt.c             VM RAM, image loading, nested page tables
-    src/ioport.c, vpic.c,       the VMs' I/O ports and emulated devices
-    vpit.c, vuart.c
+    hypervisor/SConstruct       build (bsp= selects the architecture)
+    hypervisor/hvcrc.py         image check (CRC-32 written after linking)
+    hypervisor/include/hv/      hv.h (data structures and interfaces
+                                between the parts), config.h (the
+                                generated VM table)
+    hypervisor/src/             common: CPUs and vCPUs (cpus.c), VM RAM
+                                (vm.c), console (console.c, printf.c),
+                                image check at boot (crc.c), string.c
+    hypervisor/arch/x86_64/     x86_64:
+      entry.S, main.c, smp.c,   Multiboot entry, long mode, start-up (ACPI
+      acpi.c                    MADT), APs
+      lapic.c, pit.c, idt.c,    physical timers and interrupts
+      isr.S
+      svm.c, svm_run.S          SVM: VMCB, run loop, exit handling
+      multiboot.c, npt.c        image loading, nested page tables
+      ioport.c, vpic.c,         the VMs' I/O ports and emulated devices,
+      vpit.c, vuart.c, uart.c   the host's serial ports
+      hv.lds, include/arch/     linker script; svm.h (VMCB), x86.h
+                                (instructions), arch.h, config.h,
+                                internal.h
+    hypervisor/arch/arm64/      arm64:
+      entry.S, main.c, mmu.c,   EL2 entry, start-up, EL2 page tables,
+      fdt.c, smp.c, psci.c      QEMU's device tree, other CPUs, PSCI
+      vectors.S, vcpu.c         exception vectors, guest entry and exit,
+                                run loop, exit handling
+      load.c, stage2.c          image loading, stage-2 tables
+      gic.c, vgicd.c            the host GIC and the virtual timer
+                                interrupt, the VMs' distributor
+      mmio.c, vuart.c           emulated device accesses, the VMs' PL011s
+                                and PL031
+      uart.c, pci.c             the host's serial ports (PL011s, PCI
+                                16550s)
+      hv.lds, include/arch/     linker script; arm64.h (instructions),
+                                arch.h, config.h, internal.h
     examples/hv-*/              hypervisor configurations
     tests/hypervisor/           hypervisor tests (make hv-test)
 
@@ -428,6 +516,7 @@ libpok's C library (`tests/libc`). They are built like the examples and run in Q
     make run-mutex               # one test
     make run VERBOSE=0           # only the results, not the test output
     make hv-test                 # the hypervisor tests (x86_64)
+    make BSP=arm64-qemu hv-test  # the hypervisor tests on arm64
 
 See `tests/README` for what each test covers and how to add one.
 

@@ -96,9 +96,10 @@ gdbserver
 hypervisor
         Not a JetOS project: configurations of the hypervisor
         (hypervisor/), which make hv-test builds and
-        tests/hypervisor/run_hv_test.sh runs in QEMU (x86_64 only):
-        apex-mutex (tests/apex and tests/mutex pass side by side),
-        bad-mem (a VM with too little RAM stops with a nested page fault
+        tests/hypervisor/run_hv_test.sh runs in QEMU, on x86_64 or
+        with BSP=arm64-qemu on arm64: apex-mutex (tests/apex and
+        tests/mutex pass side by side), bad-mem (a VM with too little
+        RAM stops with a nested page fault, a stage-2 abort on arm64,
         while the other VM passes), reset (the monitor's reset command
         restarts a VM, which boots again), bad-crc (the image passes the
         CRC check at boot, and a copy with one bit flipped stops with a
