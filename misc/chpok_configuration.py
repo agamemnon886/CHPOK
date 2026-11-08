@@ -23,6 +23,9 @@
 # Modified by Kirill Brazhnikov, 2026-11-01: added the number of ARINC 653
 # mutexes of a partition and their memory.
 #
+# Modified by Kirill Brazhnikov, 2026-11-08: memory blocks that a partition
+# maps at overlapping virtual addresses are reported as an error.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 """
@@ -939,6 +942,42 @@ class Configuration:
         for partition in self.partitions:
             if not partition.has_periodic_processing_start:
                 raise ValueError("partitions '%s' don't have periodic processing points set" % partition.name)
+
+        self.validate_memory_blocks()
+
+    # The kernel maps memory blocks page by page, so a later block would
+    # silently replace the pages of an earlier one that a partition also
+    # maps at the same virtual addresses.
+    def validate_memory_blocks(self):
+        page_size = 0x1000
+
+        def pages(mblock):
+            end = mblock.virt_addr + mblock.actual_size
+            end = (end + page_size - 1) // page_size * page_size
+            return (mblock.virt_addr // page_size * page_size, end)
+
+        def mapped_by(mblock):
+            # Key 0 is the kernel; it doesn't map blocks into partitions.
+            return set(pid for pid, rights in mblock.access.items()
+                       if pid != 0 and rights != "NO_ACCESS")
+
+        for i, first in enumerate(self.memory_blocks):
+            first_start, first_end = pages(first)
+            for second in self.memory_blocks[i + 1:]:
+                second_start, second_end = pages(second)
+                if (first_start >= second_end
+                        or second_start >= first_end):
+                    continue
+                shared = mapped_by(first) & mapped_by(second)
+                if shared:
+                    names = sorted(part.name for part in self.partitions
+                                   if (part.part_index + 1) in shared)
+                    raise ValueError(
+                        "Memory blocks '%s' (0x%x..0x%x) and '%s' "
+                        "(0x%x..0x%x) overlap in partition(s) %s"
+                        % (first.name, first_start, first_end,
+                           second.name, second_start, second_end,
+                           ", ".join(names)))
 
     def get_all_channels(self):
         return self.channels

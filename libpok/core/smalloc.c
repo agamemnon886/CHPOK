@@ -23,6 +23,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: operands of
  * mixed precedence are parenthesized; deviations are documented where a
  * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: if the health monitor ignores
+ * the heap exhaustion error, the partition goes IDLE instead of getting
+ * NULL, which its callers don't check.
  */
 
 #include <smalloc.h>
@@ -34,6 +38,7 @@
  */
 #include <stdio.h>
 #include <core/syscall.h>
+#include <core/partition.h>
 #include <utils.h>
 
 /*
@@ -45,9 +50,11 @@
 
 /*
  * The partition heap is exhausted. Reported as an application error, as
- * abort() used to do (MISRA C:2025 Rule 21.8: no abort()).
+ * abort() used to do (MISRA C:2025 Rule 21.8: no abort()). Doesn't return:
+ * if the health monitor ignores the error, the heap is still exhausted and
+ * the callers don't expect NULL, so the partition goes IDLE.
  */
-static void heap_exhausted(void)
+static _Noreturn void heap_exhausted(void)
 {
     static const char msg[] = "Failed to allocate memory from the heap";
 
@@ -55,6 +62,10 @@ static void heap_exhausted(void)
     (void) printf(
         "NOTE: Probably, you need to configure more heap for the partition.\n");
     (void) pok_error_raise_application_error(msg, sizeof(msg) - 1U);
+    for (;;) {
+        // Setting the IDLE mode doesn't return.
+        (void) pok_partition_set_mode(POK_PARTITION_MODE_IDLE);
+    }
 }
 
 void* smalloc_aligned(size_t size, size_t alignment)
@@ -70,8 +81,7 @@ void* smalloc_aligned(size_t size, size_t alignment)
 
     if(obj_end > kshd.heap_end)
     {
-        heap_exhausted();
-        return NULL;    // if the health monitor ignores the error
+        heap_exhausted(); // Doesn't return.
     }
 
     heap_current = obj_end;
@@ -102,8 +112,7 @@ void* scalloc(size_t nmemb, size_t size)
 
     if(mem_end > kshd.heap_end)
     {
-        heap_exhausted();
-        return NULL;    // if the health monitor ignores the error
+        heap_exhausted(); // Doesn't return.
     }
 
     heap_current = mem_end;

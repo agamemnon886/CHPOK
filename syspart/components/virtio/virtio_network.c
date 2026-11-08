@@ -24,6 +24,11 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-07: lock_preemption() and
  * unlock_preemption() lose their unused parameter.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: send_frame() returns ret_t
+ * codes (it returned FALSE, which is EOK, on errors); it needs 2 free TX
+ * descriptors, not 1; it rejects frames longer than the send buffer and
+ * checks the buffer's address before taking descriptors.
  */
 
 #include <string.h>
@@ -194,22 +199,35 @@ ret_t send_frame(VIRTIO_NET_DEV * self,
 
     struct virtio_network_device *dev = &self->state.info;
 
+    // The frame has to fit in the send buffer.
+    if (size > MAX_PACKET_SIZE) {
+        PRINTF("frame of %zu bytes is too long\n", size);
+        return EINVAL;
+    }
+
     //XXX need carefully think when do we need to call this reclaim func
     reclaim_send_buffers(dev);
 
     // now, send it to the virtqueue
     struct virtio_virtqueue *vq = &dev->tx_vq;
-    if (vq->num_free < 1U) {
+    // we use 2 desc. One for virtio specific hdr, the other one for message
+    if (vq->num_free < 2U) {
         PRINTF("no free TX descriptors\n");
-        return FALSE;
+        return EAGAIN;
+    }
+
+    uint16_t head = vq->free_index;
+    uintptr_t data_addr = pok_virt_to_phys(dev->send_buffers[head].data);
+    if (data_addr == 0U) {
+        (void) printf(
+            "%s: kernel says that virtual address is wrong\n", __func__);
+        return EINVAL; // No descriptor is taken yet.
     }
 
     (void) memset(&net_hdr, 0, sizeof(net_hdr));
 
-    // we use 2 desc. One for virtio specific hdr, the other one for message
     vq->num_free -= 2U;
 
-    uint16_t head = vq->free_index;
     /* Setup first descriptor as virtio_net_hdr */
     desc = &vq->vring.desc[head];
     desc->addr = pok_virt_to_phys(&net_hdr);
@@ -220,12 +238,7 @@ ret_t send_frame(VIRTIO_NET_DEV * self,
     (void) memcpy(dev->send_buffers[head].data, buffer, size);
 
     desc = &vq->vring.desc[desc->next];
-    desc->addr = pok_virt_to_phys(dev->send_buffers[head].data);
-    if (desc->addr == 0U) {
-        (void) printf(
-            "%s: kernel says that virtual address is wrong\n", __func__);
-        return FALSE;
-    }
+    desc->addr = data_addr;
     desc->len = size;
     desc->flags = 0U;
     vq->free_index = desc->next;
@@ -237,7 +250,7 @@ ret_t send_frame(VIRTIO_NET_DEV * self,
 
     vq->vring.avail->idx++;
 
-    return TRUE;
+    return EOK;
 }
 
 static void reclaim_send_buffers(struct virtio_network_device *info)

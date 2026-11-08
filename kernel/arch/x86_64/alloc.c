@@ -29,6 +29,10 @@
  * defined in the function that uses it; operands of mixed precedence are
  * parenthesized; deviations are documented where a guideline can't be
  * followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: ja_mem_alloc_aligned() checks
+ * the size against the space left before adding it to the address, so a
+ * large size can't wrap around past the limit check.
  */
 
 #include <asp/alloc.h>
@@ -60,12 +64,14 @@ void *ja_mem_alloc_aligned (size_t size, uint32_t alignment)
   char *res;
 
   res = (char *)(ALIGN_VAL((uintptr_t)heap_end, alignment));
-  heap_end = res + size;
 
   // Kernel heap must not overlap with partitions' memory.
-  if ((uintptr_t)heap_end > BOARD_PARTITION_PHYS_START) {
+  if (((uintptr_t)res > BOARD_PARTITION_PHYS_START)
+      || (size > (BOARD_PARTITION_PHYS_START - (uintptr_t)res))) {
     pok_fatal("Kernel heap overflow");
   }
+
+  heap_end = res + size;
 
   return res;
 }

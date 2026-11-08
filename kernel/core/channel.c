@@ -26,6 +26,9 @@
  * assignments are separate statements; operands of mixed precedence are
  * parenthesized; deviations are documented where a guideline can't be
  * followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: a duplicated semicolon in
+ * pok_channel_sampling_r_get_message() is removed.
  */
 
 #include <core/channel.h>
@@ -362,7 +365,7 @@ const char* pok_channel_sampling_r_get_message(
     *size = message_size;
     *timestamp = channel->timestamps[read_pos];
 
-    return channel_sampling_message_at(channel, read_pos);;
+    return channel_sampling_message_at(channel, read_pos);
 }
 
 void pok_channel_sampling_r_clear_message(pok_channel_sampling_t* channel)

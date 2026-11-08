@@ -19,6 +19,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: MISRA C:2025: MAX_PACKET_SIZE
+ * is an unsigned constant, as it is compared with sizes.
  */
 
 #ifndef VIRTIO_NETWORK_DEVICE_H
@@ -33,7 +36,7 @@
 
 #define POK_MAX_RECEIVE_BUFFERS 100
 
-#define MAX_PACKET_SIZE 1500
+#define MAX_PACKET_SIZE 1500U
 
 struct receive_buffer {
     struct virtio_net_hdr virtio_net_hdr;
