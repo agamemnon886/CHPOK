@@ -23,6 +23,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
+ * arch/x86_64/.
  */
 
 /*
@@ -30,7 +33,7 @@
  * firmware (SeaBIOS under QEMU) leaves in low memory.
  */
 
-#include <hv/hv.h>
+#include <arch/internal.h>
 
 #define EBDA_SEGMENT_PTR    0x40EUL
 #define BIOS_AREA_START     0xE0000UL

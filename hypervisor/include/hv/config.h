@@ -23,6 +23,11 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: the CPU limit and the serial
+ * ports come from the architecture (<arch/config.h>); boot_data is what
+ * the loader puts at the start of the guest RAM besides the image (the
+ * device tree on arm64).
  */
 
 /*
@@ -34,31 +39,32 @@
 #define HV_CONFIG_H
 
 #include <stdint.h>
+#include <stddef.h>
 
-// Limits of the static tables; hvconfig.py checks them too.
+#include <arch/config.h>
+
+// Limit of the VM table; hvconfig.py checks it too (and HV_MAX_CPUS).
 #define HV_MAX_VMS      8U
-#define HV_MAX_CPUS     16U
 
-// Base I/O ports of the ISA serial ports.
-#define HV_PORT_COM1    0x3F8U
-#define HV_PORT_COM2    0x2F8U
-#define HV_PORT_COM3    0x3E8U
-#define HV_PORT_COM4    0x2E8U
-
-// No serial port assigned.
+/*
+ * The serial ports, HV_PORT_COM1 and up, are defined by <arch/config.h>;
+ * HV_PORT_NONE is no port.
+ */
 #define HV_PORT_NONE    0U
 
 typedef struct {
     const char *name;
     uint64_t memory_size;       // Guest RAM, bytes (multiple of 2 MiB)
     uint32_t nb_cpus;
-    uint16_t console_port;      // Host port for guest COM1
-    uint16_t gdb_port;          // Host port for guest COM2, or none
+    uint16_t console_port;      // Host port for the guest's console
+    uint16_t gdb_port;          // Host port for the guest's GDB port, or none
     const uint8_t *image;       // Loadable bytes of the image
     const uint64_t *image_size; // Their size (defined in hv_images.S).
     uint32_t load_addr;         // Guest-physical address of image[0]
     uint32_t bss_end;           // End of the zeroed area after the image
-    uint32_t entry;             // Multiboot entry point (32-bit)
+    uint32_t entry;             // Entry point (Multiboot: 32-bit)
+    const uint8_t *boot_data;   // Copied to the start of the RAM, or NULL
+    const uint64_t *boot_data_size;
 } hv_vm_config_t;
 
 extern const hv_vm_config_t hv_vm_configs[];

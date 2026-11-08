@@ -25,14 +25,18 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+  Modified by Kirill Brazhnikov, 2026-11-08: the image is built for the
+  hypervisor's BSP ({bsp}).
+
   Hypervisor test: the monitor's "reset" command (keyboard controller
-  reset) restarts the VM, which must boot again.
+  reset on x86_64, PSCI SYSTEM_RESET on arm64) restarts the VM, which
+  must boot again.
 -->
 <Hypervisor>
     <Console Port="COM1"/>
 
     <VM Name="mon" Memory="64MiB"
-        Image="../../../examples/memblocks/build/x86_64-qemu/pok.elf">
+        Image="../../../examples/memblocks/build/{bsp}/pok.elf">
         <Console Port="COM2"/>
     </VM>
 </Hypervisor>

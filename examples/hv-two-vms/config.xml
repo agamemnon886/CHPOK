@@ -28,6 +28,10 @@
   Modified by Kirill Brazhnikov, 2026-11-07: the GDB port is vm2's again,
   as the comment below and README.md describe.
 
+  Modified by Kirill Brazhnikov, 2026-11-08: the images are built for
+  the hypervisor's BSP ({bsp}): make run-hv BSP=arm64-qemu runs the same
+  VMs on arm64.
+
   Two JetOS examples side by side under the hypervisor (README.md,
   Hypervisor): inter_partition_sampling, and msections-wait with a GDB
   port (its schedule has a GDB slot) and two CPUs (the second one is
@@ -38,12 +42,12 @@
     <Console Port="COM1"/>
 
     <VM Name="vm1" CPUs="1" Memory="64MiB"
-        Image="../inter_partition_sampling/build/x86_64-qemu/pok.elf">
+        Image="../inter_partition_sampling/build/{bsp}/pok.elf">
         <Console Port="COM2"/>
     </VM>
 
     <VM Name="vm2" CPUs="2" Memory="32MiB"
-        Image="../msections-wait/build/x86_64-qemu/pok.elf">
+        Image="../msections-wait/build/{bsp}/pok.elf">
         <Console Port="COM3"/>
         <Gdb Port="COM4"/>
     </VM>

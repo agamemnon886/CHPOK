@@ -25,17 +25,23 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+  Modified by Kirill Brazhnikov, 2026-11-08: COM1-COM16 (arm64 has more
+  serial ports than x86_64); the image path may contain {bsp}.
+
   Schema of the hypervisor configuration (see README.md, Hypervisor).
   hvconfig.py validates the file against it, then checks what a schema
-  can't: unique names and ports, memory sizes and the images.
+  can't: unique names and ports, which ports the architecture has, memory
+  sizes and the images.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
-  <!-- ISA serial port: COM1 (0x3F8), COM2 (0x2F8), COM3 (0x3E8),
-       COM4 (0x2E8). -->
+  <!-- Serial port of the host. x86_64: the ISA ports COM1 (0x3F8), COM2
+       (0x2F8), COM3 (0x3E8), COM4 (0x2E8). arm64: COM1 and COM2 are the
+       PL011s at 0x09000000 and 0x09040000, COM3-COM16 16550s on the PCI
+       bus. -->
   <xs:simpleType name="SerialPort">
     <xs:restriction base="xs:string">
-      <xs:pattern value="[Cc][Oo][Mm][1-4]"/>
+      <xs:pattern value="[Cc][Oo][Mm]([1-9]|1[0-6])"/>
     </xs:restriction>
   </xs:simpleType>
 
@@ -64,13 +70,17 @@
         <xs:element name="VM" minOccurs="1" maxOccurs="8">
           <xs:complexType>
             <xs:all>
-              <!-- Host port for the guest's COM1 (its console). -->
+              <!-- Host port for the guest's console (x86_64: its COM1,
+                   arm64: its first PL011). -->
               <xs:element name="Console" type="PortUse" minOccurs="0"/>
-              <!-- Host port for the guest's COM2 (its GDB server). -->
+              <!-- Host port for the guest's GDB server (x86_64: its
+                   COM2, arm64: its second PL011). -->
               <xs:element name="Gdb" type="PortUse" minOccurs="0"/>
             </xs:all>
             <xs:attribute name="Name" type="VMName" use="required"/>
-            <!-- JetOS pok.elf (x86_64-qemu), relative to this file. -->
+            <!-- JetOS pok.elf, relative to this file, built for the
+                 hypervisor's BSP; {bsp} is replaced by the BSP
+                 (x86_64-qemu or arm64-qemu). -->
             <xs:attribute name="Image" type="xs:string" use="required"/>
             <xs:attribute name="Memory" type="Size" use="required"/>
             <xs:attribute name="CPUs" type="xs:positiveInteger"

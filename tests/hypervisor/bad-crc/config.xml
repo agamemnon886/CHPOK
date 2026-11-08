@@ -25,8 +25,11 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+  Modified by Kirill Brazhnikov, 2026-11-08: the image is built for the
+  hypervisor's BSP ({bsp}).
+
   Hypervisor test: the hypervisor checks the CRC-32 of its image at boot
-  (hvcrc.py, src/crc.c). The image as built must pass and start VM
+  (hvcrc.py, hypervisor/src/crc.c). The image as built must pass and start VM
   "mutex"; run_hv_test.sh also boots a copy with one bit flipped, which
   must stop with a CRC mismatch before any VM starts.
 -->
@@ -34,7 +37,7 @@
     <Console Port="COM1"/>
 
     <VM Name="mutex" Memory="64MiB"
-        Image="../../mutex/build/x86_64-qemu/pok.elf">
+        Image="../../mutex/build/{bsp}/pok.elf">
         <Console Port="COM2"/>
     </VM>
 </Hypervisor>

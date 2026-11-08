@@ -25,17 +25,21 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+  Modified by Kirill Brazhnikov, 2026-11-08: the image is built for the
+  hypervisor's BSP ({bsp}).
+
   Hypervisor test: tests/gdbserver/run_gdb_test.sh with the test running
   as a VM. The VM's serial ports are the host's COM1 and COM2, which it
-  uses directly (no forwarding), as without the hypervisor; the
-  hypervisor's console is COM3. run_gdb_test.sh (HV_QEMU) connects these
-  three ports, so it must change with them.
+  uses directly (no forwarding), as without the hypervisor (on arm64:
+  the two PL011s); the hypervisor's console is COM3 (on arm64 a PCI
+  16550). run_gdb_test.sh (HV_QEMU) connects these three ports, so it
+  must change with them.
 -->
 <Hypervisor>
     <Console Port="COM3"/>
 
     <VM Name="gdb" Memory="64MiB"
-        Image="../../gdbserver/build/x86_64-qemu/pok.elf">
+        Image="../../gdbserver/build/{bsp}/pok.elf">
         <Console Port="COM1"/>
         <Gdb Port="COM2"/>
     </VM>

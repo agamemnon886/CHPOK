@@ -25,20 +25,24 @@
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+  Modified by Kirill Brazhnikov, 2026-11-08: the images are built for
+  the hypervisor's BSP ({bsp}).
+
   Hypervisor test: VM "small" has too little RAM for its partitions
   (JetOS puts them at 16 MiB), so it stops with a nested page fault; VM
-  "mutex" must not be affected.
+  "mutex" must not be affected. On arm64 the fault is a stage-2
+  abort, reported in the same words.
 -->
 <Hypervisor>
     <Console Port="COM1"/>
 
     <VM Name="small" Memory="16MiB"
-        Image="../../../examples/memblocks/build/x86_64-qemu/pok.elf">
+        Image="../../../examples/memblocks/build/{bsp}/pok.elf">
         <Console Port="COM2"/>
     </VM>
 
     <VM Name="mutex" Memory="64MiB"
-        Image="../../mutex/build/x86_64-qemu/pok.elf">
+        Image="../../mutex/build/{bsp}/pok.elf">
         <Console Port="COM3"/>
     </VM>
 </Hypervisor>

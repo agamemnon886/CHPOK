@@ -42,6 +42,8 @@
 #   make docker-image    # (re)build the Docker build image only
 #   make hv              # build the hypervisor and the images of HV
 #   make run-hv          # build and run the hypervisor in QEMU
+#   make BSP=arm64-qemu run-hv  # the same on arm64 (BSP= works for every
+#                        # hypervisor target)
 #   make hv-test         # run the hypervisor tests (tests/hypervisor)
 #   make clean-hv        # clean the hypervisor builds
 #   make help            # show this help
@@ -79,6 +81,11 @@
 #
 # Modified by Kirill Brazhnikov, 2026-11-07: the hypervisor configurations
 # are taken from examples/ (default hv-two-vms).
+#
+# Modified by Kirill Brazhnikov, 2026-11-08: the hypervisor is built for
+# BSP too (x86_64-qemu or arm64-qemu), with its images, into build/<BSP>/
+# next to the configuration; the usage and make help show
+# make BSP=arm64-qemu run-hv.
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -161,6 +168,8 @@ help:
 	@echo "  make docker-image    (Re)build the Docker build image"
 	@echo "  make hv              Build the hypervisor (configuration HV)"
 	@echo "  make run-hv          Build and run the hypervisor in QEMU"
+	@echo "  make BSP=arm64-qemu run-hv"
+	@echo "                       The same on arm64 (any hv target)"
 	@echo "  make hv-test         Run the hypervisor tests"
 	@echo "  make clean-hv        Clean the hypervisor builds"
 	@echo "  make help            Show this help"
@@ -250,16 +259,16 @@ gdb-test:
 	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
 endif
 
-# The hypervisor (x86_64 only, see README.md): make hv builds the
-# JetOS images that the configuration names (the projects in front of
-# their /build/ directories), then hv.elf and qemu.sh in the build/
-# directory next to the configuration file. In Docker, only the
+# The hypervisor (see README.md), for BSP: make hv builds the JetOS images
+# that the configuration names (the projects in front of their /build/
+# directories, {bsp} replaced by BSP) for BSP, then hv.elf and qemu.sh in
+# build/<BSP>/ next to the configuration file. In Docker, only the
 # repository is mounted, so the configuration and its images must be in
 # it.
 HV ?= hv-two-vms
 HV_CONFIG ?= $(EXAMPLES_DIR)/$(HV)/config.xml
 HV_CONFIG_PATH = $(abspath $(HV_CONFIG))
-HV_BUILD_DIR = $(dir $(HV_CONFIG_PATH))build
+HV_BUILD_DIR = $(dir $(HV_CONFIG_PATH))build/$(BSP)
 HV_TESTS_DIR := $(TESTS_DIR)/hypervisor
 HV_TEST_CONFIGS := $(abspath $(wildcard $(HV_TESTS_DIR)/*/config.xml))
 
@@ -268,24 +277,25 @@ HV_TEST_CONFIGS := $(abspath $(wildcard $(HV_TESTS_DIR)/*/config.xml))
 # The project list is assigned first, so that set -e stops on an error.
 HV_BUILD = set -e; cd "$(POK_PATH)"; projects=; \
 	for c in $(1); do \
-		p=$$(python3 hypervisor/hvconfig.py --projects "$$c"); \
+		p=$$(python3 hypervisor/hvconfig.py --bsp $(BSP) \
+			--projects "$$c"); \
 		projects="$$projects $$p"; \
 	done; \
 	for p in $$(printf "%s\n" $$projects | sort -u); do \
 		echo "== building $$p"; \
-		(cd "$$p" && $(SCONS) bsp=x86_64-qemu); \
+		(cd "$$p" && $(SCONS) bsp=$(BSP)); \
 	done; \
 	cd hypervisor; \
 	for c in $(1); do \
 		echo "== building the hypervisor for $$c"; \
-		$(SCONS) config="$$c"; \
+		$(SCONS) config="$$c" bsp=$(BSP); \
 	done
 
 ifdef NATIVE
 HV_RUN_BUILD = $(call HV_BUILD,$(1))
 HV_DOCKER_IMAGE :=
 else
-HV_RUN_BUILD = $(call DOCKER_RUN_WITH,$(DOCKER_PREFIX_x86_64-qemu)) \
+HV_RUN_BUILD = $(call DOCKER_RUN_WITH,$(DOCKER_PREFIX)) \
 	sh -c '$(call HV_BUILD,$(1))'
 HV_DOCKER_IMAGE := docker-image
 endif
@@ -293,6 +303,9 @@ endif
 .PHONY: hv run-hv hv-test clean-hv
 
 hv: $(HV_DOCKER_IMAGE)
+ifeq ($(DOCKER_PREFIX),)
+	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
+endif
 	$(call HV_RUN_BUILD,$(HV_CONFIG_PATH))
 
 run-hv: hv
@@ -301,8 +314,12 @@ run-hv: hv
 # Builds every configuration under tests/hypervisor (in one container),
 # then runs them.
 hv-test: $(HV_DOCKER_IMAGE)
+ifeq ($(DOCKER_PREFIX),)
+	$(error Unknown BSP=$(BSP); use x86_64-qemu or arm64-qemu)
+endif
 	$(call HV_RUN_BUILD,$(HV_TEST_CONFIGS))
-	VERBOSE=$(VERBOSE) NATIVE=$(NATIVE) $(HV_TESTS_DIR)/run_hv_test.sh
+	BSP=$(BSP) VERBOSE=$(VERBOSE) NATIVE=$(NATIVE) \
+		$(HV_TESTS_DIR)/run_hv_test.sh
 
 clean-hv:
 	rm -rf $(EXAMPLES_DIR)/hv-*/build $(HV_TESTS_DIR)/*/build \

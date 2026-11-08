@@ -27,13 +27,16 @@
 # Modified by Kirill Brazhnikov, 2026-11-07: the bad-crc case (the image
 # check at boot).
 #
+# Modified by Kirill Brazhnikov, 2026-11-08: BSP selects the hypervisor
+# that is tested (x86_64-qemu or arm64-qemu), built in build/$BSP/.
+#
 # Runs the hypervisor tests: each directory here holds a configuration
-# whose build/qemu.sh (made by make hv-test, or make hv HV_CONFIG=...) is
-# run in QEMU on the host, one after another.
+# whose build/$BSP/qemu.sh (made by make hv-test, or make hv
+# HV_CONFIG=...) is run in QEMU on the host, one after another.
 #
 #   apex-mutex  tests/apex and tests/mutex pass side by side
-#   bad-mem     a VM with too little RAM stops with a nested page fault,
-#               the other VM still passes
+#   bad-mem     a VM with too little RAM stops with a nested page fault
+#               (a stage-2 abort on arm64), the other VM still passes
 #   reset       the monitor's reset command restarts a VM
 #   bad-crc     the image as built passes the CRC check at boot; a copy
 #               with one bit flipped stops with a CRC mismatch
@@ -42,6 +45,7 @@
 # Usage: tests/hypervisor/run_hv_test.sh [case...]
 #   (default: every directory here with a config.xml; each one needs a
 #   case_<name>() below, with - in the name written as _)
+#   BSP       x86_64-qemu (default) or arm64-qemu
 #   TIMEOUT   seconds to wait for each case (default 120)
 #   VERBOSE   1: show the logs of each case (default 0)
 #   NATIVE    passed on to run_gdb_test.sh
@@ -51,13 +55,22 @@ set -u
 
 dir=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$dir/../.." && pwd)
+bsp=${BSP:-x86_64-qemu}
 timeout=${TIMEOUT:-120}
 verbose=${VERBOSE:-0}
 port=${PORT:-8160}
 cases=${*:-$(cd "$dir" && for c in */config.xml; do dirname "$c"; done)}
 
-if ! command -v qemu-system-x86_64 > /dev/null; then
-    echo "$0: qemu-system-x86_64 not found" >&2
+case "$bsp" in
+    x86_64-qemu) qemu=qemu-system-x86_64 ;;
+    arm64-qemu)  qemu=qemu-system-aarch64 ;;
+    *)
+        echo "$0: unknown BSP=$bsp; use x86_64-qemu or arm64-qemu" >&2
+        exit 2
+        ;;
+esac
+if ! command -v $qemu > /dev/null; then
+    echo "$0: $qemu not found" >&2
     exit 2
 fi
 
@@ -79,9 +92,10 @@ count() {
 # Start the case's QEMU in the background: qemu_pid. The hypervisor
 # console goes to $build/hv.log, the VM consoles to $build/<vm>.log.
 start_qemu() {
-    build=$dir/$1/build
+    build=$dir/$1/build/$bsp
     if [ ! -x "$build/qemu.sh" ] || [ ! -f "$build/hv.elf" ]; then
-        echo "$0: $build/hv.elf not found; build it with: make hv-test" >&2
+        echo "$0: $build/hv.elf not found; build it with:" \
+            "make hv-test BSP=$bsp" >&2
         exit 2
     fi
     rm -f "$build"/*.log
@@ -164,7 +178,7 @@ crc_of() {
 
 case_bad_crc() {
     # The image as built: the check passes and the VM starts.
-    crc=$(crc_of "$dir/bad-crc/build/hv.elf") || return 1
+    crc=$(crc_of "$dir/bad-crc/build/$bsp/hv.elf") || return 1
     set -- $crc
     start_qemu bad-crc
     wait_until "grep -aqs 'mutex: starts on CPU' $build/hv.log"
@@ -202,10 +216,9 @@ case_bad_crc() {
         && ! grep -aq 'starts on CPU' "$corrupt/hv.log"
 }
 
-# The hypervisor is x86_64 only, whatever BSP the caller has.
 case_gdb() {
-    build=$dir/gdb/build
-    BSP=x86_64-qemu VERBOSE=$verbose GDB_PORT=$((port + 1)) \
+    build=$dir/gdb/build/$bsp
+    BSP=$bsp VERBOSE=$verbose GDB_PORT=$((port + 1)) \
         TIMEOUT=$timeout HV_QEMU="$build/qemu.sh" \
         "$root/tests/gdbserver/run_gdb_test.sh"
 }
@@ -213,9 +226,9 @@ case_gdb() {
 # Where a case leaves its logs.
 logs_of() {
     if [ "$1" = gdb ]; then
-        echo "$root/tests/gdbserver/build/x86_64-qemu/gdb-test-hv*"
+        echo "$root/tests/gdbserver/build/$bsp/gdb-test-hv*"
     else
-        echo "$dir/$1/build"
+        echo "$dir/$1/build/$bsp"
     fi
 }
 

@@ -23,6 +23,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
+ * arch/x86_64/; hv_port_name() (from vm.c) names the serial ports.
  */
 
 /*
@@ -30,8 +33,7 @@
  * serial ports are forwarded by vuart.c and programmed by the guests.
  */
 
-#include <hv/hv.h>
-#include <hv/x86.h>
+#include <arch/internal.h>
 
 #define UART_THR    0U      // Transmit holding register (DLAB = 0)
 #define UART_IER    1U      // Interrupt enable (DLAB = 0)
@@ -69,4 +71,29 @@ void uart_putc(uint16_t port, char c)
         x86_pause();
     }
     uart_out(port, UART_THR, (uint8_t) c);
+}
+
+// Name of a serial port (COM1-COM4, or "none").
+const char *hv_port_name(uint16_t port)
+{
+    const char *name;
+
+    switch (port) {
+        case HV_PORT_COM1:
+            name = "COM1";
+            break;
+        case HV_PORT_COM2:
+            name = "COM2";
+            break;
+        case HV_PORT_COM3:
+            name = "COM3";
+            break;
+        case HV_PORT_COM4:
+            name = "COM4";
+            break;
+        default:
+            name = "none";
+            break;
+    }
+    return name;
 }

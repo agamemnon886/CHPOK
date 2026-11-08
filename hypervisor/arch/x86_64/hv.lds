@@ -26,18 +26,21 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-07: a CRC-32 word after .rodata
  * (.hv_crc), which the boot code checks against the image before it.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/ to
+ * arch/x86_64/.
  */
 
 /*
  * Linker script of the hypervisor. QEMU's multiboot loader loads the file
- * as a flat image (see src/entry.S), so the whole hypervisor is a single
+ * as a flat image (see entry.S), so the whole hypervisor is a single
  * segment which starts at the beginning of the file, at 1 MiB. The guest
  * images are in .rodata; the guests' RAM is allocated after __hv_end.
  *
- * The image check (src/crc.c): hvcrc.py writes the CRC-32 of the loaded
- * bytes from hv_image_begin up to hv_image_crc (the ELF headers, .text
- * and .rodata with the VM table and the guest images) into the word at
- * hv_image_crc after linking. .data comes after that word and isn't
+ * The image check (hypervisor/src/crc.c): hvcrc.py writes the CRC-32 of
+ * the loaded bytes from hv_image_begin up to hv_image_crc (the ELF
+ * headers, .text and .rodata with the VM table and the guest images) into
+ * the word at hv_image_crc after linking. .data comes after that word and isn't
  * covered: it is written before the check (multiboot_info, and the CPU
  * sets the accessed bits of the GDT descriptors).
  */

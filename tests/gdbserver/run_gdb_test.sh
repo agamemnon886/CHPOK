@@ -34,6 +34,9 @@
 # Modified by Kirill Brazhnikov, 2026-11-06: HV_QEMU runs the test as a VM
 # of the hypervisor (tests/hypervisor/gdb).
 #
+# Modified by Kirill Brazhnikov, 2026-11-08: the hypervisor runs on both
+# BSPs.
+#
 # Usage: tests/gdbserver/run_gdb_test.sh
 #   BSP       x86_64-qemu (default) or arm64-qemu
 #   GDB_PORT  TCP port of the GDB server (default 8123)
@@ -42,7 +45,7 @@
 #   VERBOSE   1: show the GDB and QEMU output (default 0)
 #   HV_QEMU   qemu.sh of a hypervisor build that runs this test as a VM,
 #             with its console on COM1, its GDB port on COM2 and the
-#             hypervisor's console on COM3 (x86_64)
+#             hypervisor's console on COM3 (on either BSP)
 #
 # The test passes if every check of smoke.py passes, the system goes on
 # after GDB detaches (both partitions print "DONE: 0 failure(s)") and the

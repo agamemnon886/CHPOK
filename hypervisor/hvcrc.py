@@ -25,6 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# Modified by Kirill Brazhnikov, 2026-11-08: arm64 images too (QEMU's ELF
+# loader copies the segment unchanged as well).
+#
 # CRC-32 of the hypervisor image.
 #
 #   hvcrc.py HV.elf           write the CRC into HV.elf (after linking)
@@ -32,16 +35,18 @@
 #                             exit status 1 if they differ
 #
 # The CRC covers the loaded bytes from hv_image_begin up to the 4-byte
-# word at hv_image_crc, which holds the CRC (little-endian); see hv.lds.
-# hv.elf is one PT_LOAD segment that QEMU's Multiboot loader copies
-# unchanged, so these are file bytes, and src/crc.c computes the same CRC
-# over the loaded image at boot. The CRC is zlib's (IEEE 802.3).
+# word at hv_image_crc, which holds the CRC (little-endian); see
+# arch/*/hv.lds. hv.elf is one PT_LOAD segment that QEMU's Multiboot
+# (x86_64) or ELF (arm64) loader copies unchanged, so these are file
+# bytes, and src/crc.c computes the same CRC over the loaded image at
+# boot. The CRC is zlib's (IEEE 802.3).
 
 import struct
 import sys
 import zlib
 
 EM_X86_64 = 62
+EM_AARCH64 = 183
 PT_LOAD = 1
 SHT_SYMTAB = 2
 CRC_SIZE = 4
@@ -88,8 +93,8 @@ def covered_range(data):
      shentsize, shnum, _) = ELF_HEADER.unpack_from(data)
     if ident[:4] != b'\x7fELF' or ident[4] != 2 or ident[5] != 1:
         raise ImageError('not a little-endian ELF64 file')
-    if machine != EM_X86_64:
-        raise ImageError('not an x86-64 ELF file')
+    if machine not in (EM_X86_64, EM_AARCH64):
+        raise ImageError('not an x86-64 or AArch64 ELF file')
     loads = []
     for i in range(phnum):
         ph = PROGRAM_HEADER.unpack_from(data, phoff + i * phentsize)

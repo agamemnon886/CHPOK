@@ -24,11 +24,15 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  #
+ # Modified by Kirill Brazhnikov, 2026-11-08: serial ports are written by
+ # their names (HV_PORT_COMn, defined per architecture); boot_data is the
+ # VM's device tree on arm64 (hv_dtb_N in hv_images.S), NULL on x86_64.
+ #
  # Template of the VM table (hv_vm_config_t, include/hv/config.h),
  # rendered by hvconfig.py.
  #}
 {%- macro port(name) -%}
-{%- if name -%}0x{{ '%X' % ports[name] }}U{%- else -%}HV_PORT_NONE{%- endif -%}
+{%- if name -%}HV_PORT_{{ name }}{%- else -%}HV_PORT_NONE{%- endif -%}
 {%- endmacro -%}
 /*
  * GENERATED! DO NOT MODIFY!
@@ -42,6 +46,10 @@
 {% for vm in config.vms %}
 extern const uint8_t hv_image_{{ vm.index }}[];
 extern const uint64_t hv_image_{{ vm.index }}_size;
+{%- if vm.dtb %}
+extern const uint8_t hv_dtb_{{ vm.index }}[];
+extern const uint64_t hv_dtb_{{ vm.index }}_size;
+{%- endif %}
 {% endfor %}
 
 const hv_vm_config_t hv_vm_configs[{{ config.vms | length }}] = {
@@ -57,6 +65,13 @@ const hv_vm_config_t hv_vm_configs[{{ config.vms | length }}] = {
         .load_addr = 0x{{ '%X' % vm.load_addr }}U,
         .bss_end = 0x{{ '%X' % vm.bss_end }}U,
         .entry = 0x{{ '%X' % vm.entry }}U,
+{%- if vm.dtb %}
+        .boot_data = hv_dtb_{{ vm.index }},
+        .boot_data_size = &hv_dtb_{{ vm.index }}_size,
+{%- else %}
+        .boot_data = NULL,
+        .boot_data_size = NULL,
+{%- endif %}
     },
 {% endfor %}
 };

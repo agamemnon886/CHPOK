@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
+ * arch/x86_64/; the VM's devices and I/O permission map are in the arch
+ * part of its structure.
  */
 
 /*
@@ -42,7 +46,7 @@
  * configuration ports (no PCI devices), which are silent.
  */
 
-#include <hv/hv.h>
+#include <arch/internal.h>
 
 #define PORT_PIC_MASTER     0x20U
 #define PORT_PIC_SLAVE      0xA0U
@@ -79,12 +83,12 @@ static void iopm_allow(uint8_t *iopm, uint16_t first, uint32_t count)
 void io_init_iopm(hv_vm_t *vm)
 {
     // A set bit makes the access to that port exit.
-    hv_memset(vm->iopm, 0xFFU, SVM_IOPM_SIZE);
+    hv_memset(vm->arch.iopm, 0xFFU, SVM_IOPM_SIZE);
     if (vm->config->console_port == HV_PORT_COM1) {
-        iopm_allow(vm->iopm, HV_PORT_COM1, UART_PORTS);
+        iopm_allow(vm->arch.iopm, HV_PORT_COM1, UART_PORTS);
     }
     if (vm->config->gdb_port == HV_PORT_COM2) {
-        iopm_allow(vm->iopm, HV_PORT_COM2, UART_PORTS);
+        iopm_allow(vm->arch.iopm, HV_PORT_COM2, UART_PORTS);
     }
 }
 
@@ -129,8 +133,8 @@ static void report_port(hv_vm_t *vm, uint16_t port, bool is_in)
     uint32_t byte = (uint32_t) port / 8U;
     uint8_t bit = (uint8_t) (1U << ((uint32_t) port % 8U));
 
-    if ((vm->io_logged[byte] & bit) == 0U) {
-        vm->io_logged[byte] |= bit;
+    if ((vm->arch.io_logged[byte] & bit) == 0U) {
+        vm->arch.io_logged[byte] |= bit;
         hv_printf("[hv] %s: %s of I/O port 0x%x ignored\n",
                   vm->config->name, is_in ? "read" : "write",
                   (uint32_t) port);
@@ -198,22 +202,22 @@ hv_action_t io_access(hv_vm_t *vm, uint16_t port, uint32_t size,
     } else if (in_range(port, PORT_PIC_MASTER, 2U)
                || in_range(port, PORT_PIC_SLAVE, 2U)) {
         if (is_in) {
-            *value = vpic_read(&vm->pic, port);
+            *value = vpic_read(&vm->arch.pic, port);
         } else {
-            vpic_write(&vm->pic, port, byte);
+            vpic_write(&vm->arch.pic, port, byte);
         }
     } else if (in_range(port, PORT_PIT_FIRST,
                         (PORT_PIT_LAST - PORT_PIT_FIRST) + 1U)) {
         if (is_in) {
-            *value = vpit_read(&vm->pit, port);
+            *value = vpit_read(&vm->arch.pit, port);
         } else {
-            vpit_write(&vm->pit, port, byte);
+            vpit_write(&vm->arch.pit, port, byte);
         }
     } else if (port == PORT_PORT_B) {
         if (is_in) {
-            *value = vpit_read_port_b(&vm->pit);
+            *value = vpit_read_port_b(&vm->arch.pit);
         } else {
-            vpit_write_port_b(&vm->pit, byte);
+            vpit_write_port_b(&vm->arch.pit, byte);
         }
     } else {
         action = other_port(vm, port, size, is_in, value);

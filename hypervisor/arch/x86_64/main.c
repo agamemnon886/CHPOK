@@ -26,6 +26,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-07: the boot CPU checks the
  * CRC-32 of the hypervisor image first.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
+ * arch/x86_64/; the vCPU assignment and hv_cpu_main() moved to
+ * src/cpus.c, for both architectures.
  */
 
 /*
@@ -34,8 +38,7 @@
  * other CPUs; then every CPU runs its vCPU (or parks it).
  */
 
-#include <hv/hv.h>
-#include <hv/x86.h>
+#include <arch/internal.h>
 
 // Multiboot information block (fields used here).
 #define MBI_FLAGS           0U
@@ -44,9 +47,6 @@
 #define MBI_UPPER_MEM_START 0x100000UL
 
 #define APIC_IDS            256U
-
-hv_cpu_t hv_cpus[HV_MAX_CPUS];
-uint32_t hv_nb_cpus = 0U;
 
 // Index + 1 of the CPU with each local APIC ID (0: none).
 static uint8_t cpu_of_apic_id[APIC_IDS];
@@ -61,6 +61,12 @@ void hv_halt_forever(void)
     while (true) {
         x86_hlt();
     }
+}
+
+// Hardware number of the calling CPU: its local APIC ID.
+uint32_t hv_arch_cpu_id(void)
+{
+    return lapic_id();
 }
 
 /*
@@ -103,17 +109,6 @@ static uint64_t ram_end_of(uint32_t mbi)
            + ((uint64_t) read_mbi32(mbi, MBI_MEM_UPPER) * 1024U);
 }
 
-// Total number of CPUs of all VMs.
-static uint32_t cpus_needed(void)
-{
-    uint32_t total = 0U;
-
-    for (uint32_t i = 0U; i < hv_nb_vms; i++) {
-        total += hv_vm_configs[i].nb_cpus;
-    }
-    return total;
-}
-
 // Physical CPUs: the boot CPU first, then the others of the MADT.
 static uint32_t find_cpus(uint32_t apic_ids[HV_MAX_CPUS])
 {
@@ -133,28 +128,6 @@ static uint32_t find_cpus(uint32_t apic_ids[HV_MAX_CPUS])
     return count;
 }
 
-// Give the vCPUs of the VMs, in configuration order, to the CPUs.
-static void assign_cpus(const uint32_t apic_ids[HV_MAX_CPUS])
-{
-    uint32_t index = 0U;
-
-    for (uint32_t i = 0U; i < hv_nb_vms; i++) {
-        hv_vms[i].first_cpu = index;
-        // vCPU j of VM i runs on CPU index; the next VM takes the next CPUs.
-        for (uint32_t j = 0U; j < hv_vm_configs[i].nb_cpus; j++) {
-            hv_cpu_t *cpu = &hv_cpus[index];
-
-            cpu->index = index;
-            cpu->apic_id = apic_ids[index];
-            cpu->vcpu.vm = &hv_vms[i];
-            cpu->vcpu.index = j;
-            cpu_of_apic_id[apic_ids[index]] = (uint8_t) (index + 1U);
-            index++;
-        }
-    }
-    hv_nb_cpus = index;
-}
-
 /*
  * Start-up on the boot CPU (called by entry.S with the address of the
  * Multiboot information): checks the image, the CPU and the configuration,
@@ -164,7 +137,7 @@ static void assign_cpus(const uint32_t apic_ids[HV_MAX_CPUS])
 void hv_main(uint32_t mbi)
 {
     uint32_t apic_ids[HV_MAX_CPUS];
-    uint32_t needed = cpus_needed();
+    uint32_t needed = hv_cpus_needed();
     uint64_t ram_end;
     uint32_t available;
 
@@ -206,8 +179,11 @@ void hv_main(uint32_t mbi)
                   needed, needed);
         hv_fatal("not enough CPUs");
     }
-    assign_cpus(apic_ids);
-    hv_vms_init(ram_end);
+    hv_assign_cpus(apic_ids);
+    for (uint32_t i = 0U; i < hv_nb_cpus; i++) {
+        cpu_of_apic_id[apic_ids[i]] = (uint8_t) (i + 1U);
+    }
+    hv_vms_init(0U, ram_end);
 
     // Start the other CPUs, then run the vCPU of this one.
     hv_smp_start(hv_nb_cpus, apic_ids);
@@ -228,30 +204,4 @@ void hv_ap_main(uint32_t index)
     x86_barrier();
     cpu->online = 1U;
     hv_cpu_main(cpu);
-}
-
-/*
- * Run the vCPU of a CPU: vCPU 0 of a VM loads the VM and runs it, the others
- * are parked. Doesn't return.
- */
-void hv_cpu_main(hv_cpu_t *cpu)
-{
-    hv_vcpu_t *vcpu = &cpu->vcpu;
-    hv_vm_t *vm = vcpu->vm;
-
-    svm_enable_cpu(cpu);
-    if (vcpu->index == 0U) {
-        // The VM's first vCPU loads the VM and runs the guest.
-        vm_load(vm);
-        svm_vcpu_init(vcpu);
-        hv_printf("[hv] %s: starts on CPU %u\n", vm->config->name,
-                  cpu->index);
-        svm_vcpu_run(cpu);
-    } else {
-        // JetOS uses one CPU: the VM's other vCPUs only keep their CPUs.
-        hv_printf("[hv] %s: vCPU %u parked on CPU %u "
-                  "(the guest uses one CPU)\n", vm->config->name,
-                  vcpu->index, cpu->index);
-        hv_halt_forever();
-    }
 }

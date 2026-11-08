@@ -23,6 +23,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
+ * arch/x86_64/; svm_enable_cpu(), svm_vcpu_init() and svm_vcpu_run() are
+ * now hv_arch_cpu_enable(), hv_arch_vcpu_init() and hv_arch_vcpu_run(),
+ * called by the common code, and the SVM state is in the arch parts of the
+ * structures.
  */
 
 /*
@@ -35,8 +41,7 @@
  * fixed lengths (IOIO exits give the next RIP), and nothing is decoded.
  */
 
-#include <hv/hv.h>
-#include <hv/x86.h>
+#include <arch/internal.h>
 
 #define CPUID_EXT_FEATURES      0x80000001U
 #define CPUID_EXT_ECX_SVM       ((uint32_t) 1U << 2)
@@ -138,7 +143,7 @@ void svm_init(void)
 }
 
 // Enable SVM on this CPU and give its vCPU a VMCB and an ASID.
-void svm_enable_cpu(hv_cpu_t *cpu)
+void hv_arch_cpu_enable(hv_cpu_t *cpu)
 {
     static vmcb_t vmcbs[HV_MAX_CPUS] HV_ALIGNED(4096);
     static uint8_t host_save_areas[HV_MAX_CPUS][HV_PAGE_SIZE]
@@ -148,9 +153,9 @@ void svm_enable_cpu(hv_cpu_t *cpu)
     // VMRUN keeps the host state in this CPU's save area.
     x86_wrmsr(MSR_EFER, x86_rdmsr(MSR_EFER) | EFER_SVME);
     x86_wrmsr(MSR_VM_HSAVE_PA, svm_pa(host_save_areas[cpu->index]));
-    vcpu->vmcb = &vmcbs[cpu->index];
-    vcpu->vmcb_pa = svm_pa(vcpu->vmcb);
-    vcpu->asid = cpu->index + 1U;   // ASID 0 is the host's
+    vcpu->arch.vmcb = &vmcbs[cpu->index];
+    vcpu->arch.vmcb_pa = svm_pa(vcpu->arch.vmcb);
+    vcpu->arch.asid = cpu->index + 1U;   // ASID 0 is the host's
 }
 
 // Set a segment register of the save area (base 0).
@@ -168,9 +173,9 @@ static void set_segment(vmcb_segment_t *seg, uint16_t selector,
  * segments, paging off, interrupts off, EAX the Multiboot magic and EBX
  * the address of the Multiboot information.
  */
-void svm_vcpu_init(hv_vcpu_t *vcpu)
+void hv_arch_vcpu_init(hv_vcpu_t *vcpu)
 {
-    vmcb_t *vmcb = vcpu->vmcb;
+    vmcb_t *vmcb = vcpu->arch.vmcb;
     vmcb_control_t *c = &vmcb->control;
     vmcb_save_t *s = &vmcb->save;
     const hv_vm_t *vm = vcpu->vm;
@@ -191,16 +196,16 @@ void svm_vcpu_init(hv_vcpu_t *vcpu)
                          | SVM_INTERCEPT_STGI | SVM_INTERCEPT_CLGI
                          | SVM_INTERCEPT_SKINIT | SVM_INTERCEPT_MONITOR
                          | SVM_INTERCEPT_MWAIT;
-    c->iopm_base_pa = vm->iopm_pa;     // Per VM: its serial ports differ
+    c->iopm_base_pa = vm->arch.iopm_pa;     // Per VM: its serial ports differ
     c->msrpm_base_pa = svm_pa(msrpm);
     c->tsc_offset = 0U - x86_rdtsc();   // The guest's TSC starts at 0
-    c->guest_asid = vcpu->asid;
+    c->guest_asid = vcpu->arch.asid;
     // The guest's IF masks only virtual interrupts (V_IRQ, any priority).
     c->int_ctl = SVM_INT_CTL_V_INTR_MASKING | SVM_INT_CTL_V_INTR_PRIO
                  | SVM_INT_CTL_V_IGN_TPR;
     // Guest-physical memory is the VM's RAM (npt.c).
     c->nested_ctl = SVM_NESTED_NP_ENABLE;
-    c->nested_cr3 = vm->npt_root;
+    c->nested_cr3 = vm->arch.npt_root;
 
     // Flat 4 GiB segments, as a Multiboot loader leaves them.
     set_segment(&s->cs, GUEST_CODE_SELECTOR, SEG_ATTRIB_CODE32,
@@ -235,9 +240,9 @@ void svm_vcpu_init(hv_vcpu_t *vcpu)
     s->g_pat = GUEST_PAT;           // Power-on PAT
 
     // EBX: the Multiboot information written by vm_load().
-    hv_memset(&vcpu->regs, 0U, sizeof(vcpu->regs));
-    vcpu->regs.rbx = HV_GUEST_MBI;
-    vcpu->flush_tlb = true;
+    hv_memset(&vcpu->arch.regs, 0U, sizeof(vcpu->arch.regs));
+    vcpu->arch.regs.rbx = HV_GUEST_MBI;
+    vcpu->arch.flush_tlb = true;
 }
 
 // Skip the intercepted instruction (length bytes) and end its interrupt shadow.
@@ -261,11 +266,11 @@ static void inject_exception(vmcb_t *vmcb, uint32_t vector)
 static void deliver_ticks(hv_cpu_t *cpu, hv_vm_t *vm)
 {
     // Interrupts are disabled here, so the counter doesn't change meanwhile.
-    if (cpu->timer_ticks != 0U) {
+    if (cpu->arch.timer_ticks != 0U) {
         // Missed ticks are dropped: JetOS keeps its time with the TSC.
-        cpu->timer_ticks = 0U;
-        if (vpit_timer_running(&vm->pit)) {
-            vpic_raise(&vm->pic, 0U);
+        cpu->arch.timer_ticks = 0U;
+        if (vpit_timer_running(&vm->arch.pit)) {
+            vpic_raise(&vm->arch.pic, 0U);
         }
     }
 }
@@ -276,12 +281,12 @@ static void deliver_ticks(hv_cpu_t *cpu, hv_vm_t *vm)
  */
 static void inject_interrupt(hv_vcpu_t *vcpu)
 {
-    vmcb_control_t *c = &vcpu->vmcb->control;
+    vmcb_control_t *c = &vcpu->arch.vmcb->control;
     uint8_t vector;
 
     // One interrupt at a time: the next one after this one is taken.
     if (((c->int_ctl & SVM_INT_CTL_V_IRQ) == 0U)
-        && vpic_next(&vcpu->vm->pic, &vector)) {
+        && vpic_next(&vcpu->vm->arch.pic, &vector)) {
         c->int_vector = vector;
         c->int_ctl |= SVM_INT_CTL_V_IRQ;
     }
@@ -293,8 +298,8 @@ static void inject_interrupt(hv_vcpu_t *vcpu)
  */
 static bool interrupt_ready(const hv_vcpu_t *vcpu)
 {
-    return ((vcpu->vmcb->control.int_ctl & SVM_INT_CTL_V_IRQ) != 0U)
-           || vpic_pending(&vcpu->vm->pic);
+    return ((vcpu->arch.vmcb->control.int_ctl & SVM_INT_CTL_V_IRQ) != 0U)
+           || vpic_pending(&vcpu->vm->arch.pic);
 }
 
 /*
@@ -304,7 +309,7 @@ static bool interrupt_ready(const hv_vcpu_t *vcpu)
 static hv_action_t handle_hlt(hv_cpu_t *cpu)
 {
     hv_vcpu_t *vcpu = &cpu->vcpu;
-    vmcb_t *vmcb = vcpu->vmcb;
+    vmcb_t *vmcb = vcpu->arch.vmcb;
     hv_action_t action = HV_CONTINUE;
 
     skip_instruction(vmcb, INSN_LEN_HLT);
@@ -342,7 +347,7 @@ static uint64_t io_mask(uint32_t size)
  */
 static hv_action_t handle_io(hv_vcpu_t *vcpu)
 {
-    vmcb_t *vmcb = vcpu->vmcb;
+    vmcb_t *vmcb = vcpu->arch.vmcb;
     uint64_t info = vmcb->control.exit_info1;
     uint16_t port = (uint16_t) (info >> SVM_IOIO_PORT_SHIFT);
     bool is_in = (info & SVM_IOIO_IN) != 0U;
@@ -390,9 +395,9 @@ static hv_action_t handle_io(hv_vcpu_t *vcpu)
  */
 static void handle_cpuid(hv_vcpu_t *vcpu)
 {
-    vmcb_t *vmcb = vcpu->vmcb;
+    vmcb_t *vmcb = vcpu->arch.vmcb;
     uint32_t leaf = (uint32_t) vmcb->save.rax;
-    uint32_t subleaf = (uint32_t) vcpu->regs.rcx;
+    uint32_t subleaf = (uint32_t) vcpu->arch.regs.rcx;
     uint32_t r[4];
 
     // Start from the host's values and change what the guest must not see.
@@ -431,9 +436,9 @@ static void handle_cpuid(hv_vcpu_t *vcpu)
     }
     // The results go to EAX-EDX (zero-extended to 64 bits).
     vmcb->save.rax = r[0];
-    vcpu->regs.rbx = r[1];
-    vcpu->regs.rcx = r[2];
-    vcpu->regs.rdx = r[3];
+    vcpu->arch.regs.rbx = r[1];
+    vcpu->arch.regs.rcx = r[2];
+    vcpu->arch.regs.rdx = r[3];
     skip_instruction(vmcb, INSN_LEN_CPUID);
 }
 
@@ -508,11 +513,11 @@ static uint64_t *vmcb_msr(vmcb_save_t *s, uint32_t msr)
  */
 static void handle_msr(hv_vcpu_t *vcpu)
 {
-    vmcb_t *vmcb = vcpu->vmcb;
-    uint32_t msr = (uint32_t) vcpu->regs.rcx;
+    vmcb_t *vmcb = vcpu->arch.vmcb;
+    uint32_t msr = (uint32_t) vcpu->arch.regs.rcx;
     bool write = vmcb->control.exit_info1 == 1U;   // 0: RDMSR, 1: WRMSR
     // WRMSR writes EDX:EAX.
-    uint64_t value = (vcpu->regs.rdx << 32)
+    uint64_t value = (vcpu->arch.regs.rdx << 32)
                      | (vmcb->save.rax & 0xFFFFFFFFU);
     uint64_t *field = vmcb_msr(&vmcb->save, msr);
 
@@ -544,7 +549,7 @@ static void handle_msr(hv_vcpu_t *vcpu)
     // RDMSR returns EDX:EAX.
     if (!write) {
         vmcb->save.rax = value & 0xFFFFFFFFU;
-        vcpu->regs.rdx = value >> 32;
+        vcpu->arch.regs.rdx = value >> 32;
     }
     skip_instruction(vmcb, INSN_LEN_MSR);
 }
@@ -552,7 +557,7 @@ static void handle_msr(hv_vcpu_t *vcpu)
 // Print the main registers of a vCPU (when its VM stops).
 static void report_state(const hv_vcpu_t *vcpu)
 {
-    const vmcb_save_t *s = &vcpu->vmcb->save;
+    const vmcb_save_t *s = &vcpu->arch.vmcb->save;
 
     hv_printf("[hv] %s: RIP 0x%lx RSP 0x%lx RFLAGS 0x%lx CS 0x%x\n"
               "[hv] %s: CR0 0x%lx CR3 0x%lx CR4 0x%lx EFER 0x%lx\n",
@@ -565,7 +570,7 @@ static void report_state(const hv_vcpu_t *vcpu)
 static hv_action_t handle_exit(hv_cpu_t *cpu)
 {
     hv_vcpu_t *vcpu = &cpu->vcpu;
-    vmcb_t *vmcb = vcpu->vmcb;
+    vmcb_t *vmcb = vcpu->arch.vmcb;
     vmcb_control_t *c = &vmcb->control;
     const char *name = vcpu->vm->config->name;
     hv_action_t action = HV_CONTINUE;
@@ -635,24 +640,24 @@ static hv_action_t handle_exit(hv_cpu_t *cpu)
  * guest, handle its exit; a reset reloads the VM, a stop halts the CPU. Doesn't
  * return.
  */
-void svm_vcpu_run(hv_cpu_t *cpu)
+void hv_arch_vcpu_run(hv_cpu_t *cpu)
 {
     hv_vcpu_t *vcpu = &cpu->vcpu;
     hv_vm_t *vm = vcpu->vm;
 
     while (true) {
-        vmcb_control_t *c = &vcpu->vmcb->control;
+        vmcb_control_t *c = &vcpu->arch.vmcb->control;
         hv_action_t action;
 
         // Timer ticks become IRQ 0, the next PIC interrupt goes to V_IRQ.
         deliver_ticks(cpu, vm);
         inject_interrupt(vcpu);
         // The guest's TLB is flushed after a (re)start only.
-        c->tlb_control = vcpu->flush_tlb ? SVM_TLB_FLUSH_ALL
+        c->tlb_control = vcpu->arch.flush_tlb ? SVM_TLB_FLUSH_ALL
                                          : SVM_TLB_DO_NOTHING;
-        vcpu->flush_tlb = false;
+        vcpu->arch.flush_tlb = false;
 
-        svm_vmrun(&vcpu->regs, vcpu->vmcb_pa);
+        svm_vmrun(&vcpu->arch.regs, vcpu->arch.vmcb_pa);
 
         // An injected event was delivered (or is in EXITINTINFO).
         c->event_inj = 0U;
@@ -662,7 +667,7 @@ void svm_vcpu_run(hv_cpu_t *cpu)
             vm->resets++;
             vm_print(vm, "reset");
             vm_load(vm);
-            svm_vcpu_init(vcpu);
+            hv_arch_vcpu_init(vcpu);
         } else if (action == HV_STOP) {
             // Only this VM stops; the other CPUs go on.
             lapic_timer_stop();

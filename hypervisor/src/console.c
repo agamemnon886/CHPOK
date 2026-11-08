@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: for both architectures: the
+ * lock uses the hv_arch_*() functions and the CPU's hardware number
+ * (hv_arch_cpu_id()) instead of x86_64 instructions and the APIC ID.
  */
 
 /*
@@ -32,12 +36,11 @@
  */
 
 #include <hv/hv.h>
-#include <hv/x86.h>
 
 static uint16_t console_port = HV_PORT_NONE;
 
 static volatile uint32_t console_locked = 0U;
-static volatile uint32_t console_owner = 0U;    // APIC ID + 1, or 0
+static volatile uint32_t console_owner = 0U;    // CPU ID + 1, or 0
 static uint32_t console_depth = 0U;
 
 /*
@@ -59,15 +62,15 @@ void hv_console_init(uint16_t port)
  */
 void hv_console_lock(void)
 {
-    uint32_t me = lapic_id() + 1U;
+    uint32_t me = hv_arch_cpu_id() + 1U;
 
     if (console_owner == me) {
         // Taken again by the holder (a fault while printing).
         console_depth++;
     } else {
         // Spin until the lock word changes from 0 (free) to 1 for us.
-        while (x86_xchg32(&console_locked, 1U) != 0U) {
-            x86_pause();
+        while (hv_arch_xchg32(&console_locked, 1U) != 0U) {
+            hv_arch_relax();
         }
         console_owner = me;
         console_depth = 1U;
@@ -81,7 +84,7 @@ void hv_console_unlock(void)
     if (console_depth == 0U) {
         // The writes under the lock must be done before it is free.
         console_owner = 0U;
-        x86_barrier();
+        hv_arch_barrier();
         console_locked = 0U;
     }
 }
@@ -105,7 +108,8 @@ void hv_console_write(const char *s, size_t length)
 // Report a fatal error of the hypervisor on this CPU and halt the CPU.
 void hv_fatal(const char *message)
 {
-    x86_cli();
-    hv_printf("[hv] fatal error on CPU %u: %s\n", lapic_id(), message);
+    hv_arch_irq_disable();
+    hv_printf("[hv] fatal error on CPU %u: %s\n", hv_arch_cpu_id(),
+              message);
     hv_halt_forever();
 }

@@ -26,16 +26,21 @@
 # Modified by Kirill Brazhnikov, 2026-11-07: hvcrc.py writes the image's
 # CRC-32 into hv.elf after linking.
 #
+# Modified by Kirill Brazhnikov, 2026-11-08: bsp= selects the architecture
+# (x86_64-qemu or arm64-qemu): its sources (arch/<arch>), toolchain, flags
+# and linker script; the output goes to build/<bsp>/.
+#
 # Builds the hypervisor for one configuration:
 #
-#   scons config=../examples/hv-two-vms/config.xml
+#   scons config=../examples/hv-two-vms/config.xml [bsp=arm64-qemu]
 #
-# The output goes to build/ next to the configuration file: hv.elf, the
-# generated files and qemu.sh. The images named in the configuration must
-# be built first (the top-level Makefile's hv target does it). PREFIX is
-# the x86_64 cross toolchain prefix (default x86_64-linux-gnu-). After
-# linking, hvcrc.py writes the CRC-32 of the image into hv.elf, which the
-# hypervisor checks at boot.
+# The output goes to build/<bsp>/ next to the configuration file: hv.elf,
+# the generated files and qemu.sh. The images named in the configuration
+# must be built first, for the same BSP (the top-level Makefile's hv target
+# does it). PREFIX is the cross toolchain prefix (default
+# x86_64-linux-gnu- or aarch64-linux-gnu-). After linking, hvcrc.py writes
+# the CRC-32 of the image into hv.elf, which the hypervisor checks at
+# boot. The common code is in src/, each architecture's in arch/<arch>/.
 
 import os
 import sys
@@ -43,13 +48,35 @@ import sys
 sys.path.insert(0, Dir('.').abspath)
 import hvconfig
 
+BSPS = {
+    'x86_64-qemu': {
+        'arch': 'x86_64',
+        'prefix': 'x86_64-linux-gnu-',
+        'cflags': ' -mgeneral-regs-only -mno-red-zone',
+        'ldflags': '-m elf_x86_64',
+    },
+    'arm64-qemu': {
+        'arch': 'arm64',
+        'prefix': 'aarch64-linux-gnu-',
+        'cflags': ' -mgeneral-regs-only -mstrict-align',
+        'ldflags': '-m aarch64elf',
+    },
+}
+
+bsp = ARGUMENTS.get('bsp', 'x86_64-qemu')
+if bsp not in BSPS:
+    print('unknown bsp=%s; use x86_64-qemu or arm64-qemu' % bsp)
+    Exit(1)
+target = BSPS[bsp]
+arch_dir = os.path.join('arch', target['arch'])
+
 config = ARGUMENTS.get('config', '../examples/hv-two-vms/config.xml')
 config = os.path.abspath(config)
-build = os.path.join(os.path.dirname(config), 'build')
-prefix = os.environ.get('PREFIX', 'x86_64-linux-gnu-')
+build = os.path.join(os.path.dirname(config), 'build', bsp)
+prefix = os.environ.get('PREFIX', target['prefix'])
 
 try:
-    images = hvconfig.image_paths(config)
+    images = hvconfig.image_paths(config, bsp)
 except hvconfig.ConfigError as e:
     print('hvconfig.py: %s: %s' % (config, e))
     Exit(1)
@@ -58,10 +85,11 @@ flags = ('-std=gnu99 -ffreestanding -nostdlib -nostdinc -iwithprefix include'
          ' -Wall -Wextra -Wuninitialized -g -O2 -fno-pie -fno-pic'
          ' -fno-stack-protector -fno-asynchronous-unwind-tables'
          ' -fno-strict-aliasing -fno-tree-loop-distribute-patterns'
-         ' -mgeneral-regs-only -mno-red-zone'
-         # Fixed low addresses (BIOS data, the AP trampoline) are not
-         # null pointer offsets.
+         + target['cflags'] +
+         # Fixed low addresses (on x86_64: BIOS data, the AP trampoline)
+         # are not null pointer offsets.
          ' --param=min-pagesize=0')
+lds = File(os.path.join(arch_dir, 'hv.lds'))
 
 env = Environment(ENV=os.environ,
                   CC=prefix + 'gcc',
@@ -69,10 +97,12 @@ env = Environment(ENV=os.environ,
                   LINK=prefix + 'ld',
                   CFLAGS=flags,
                   ASFLAGS=flags + ' -c',
-                  CPPPATH=[Dir('include')],
-                  LINKFLAGS='-m elf_x86_64 -nostdlib -z max-page-size=0x1000'
+                  CPPPATH=[Dir('include'), Dir(os.path.join(arch_dir,
+                                                            'include'))],
+                  LINKFLAGS=target['ldflags'] + ' -nostdlib'
+                            ' -z max-page-size=0x1000'
                             ' -z noexecstack --no-warn-rwx-segments'
-                            ' -T ' + File('hv.lds').abspath)
+                            ' -T ' + lds.abspath)
 env['ASCOM'] = '$AS $ASFLAGS $_CPPINCFLAGS -o $TARGET $SOURCES'
 env['ASPPCOM'] = env['ASCOM']
 env['LINKCOM'] = '$LINK $LINKFLAGS -o $TARGET $SOURCES'
@@ -82,20 +112,27 @@ generated = env.Command(
                                       'qemu.sh')],
     [config, 'hvconfig.py', 'config.xsd', 'templates/hv_config.c.tpl']
     + images,
-    'python3 %s $SOURCE %s' % (File('hvconfig.py').abspath, build))
+    'python3 %s --bsp %s $SOURCE %s' % (File('hvconfig.py').abspath, bsp,
+                                         build))
 env.AlwaysBuild(generated)
 
-env.VariantDir(os.path.join(build, 'obj'), 'src', duplicate=0)
-sources = [os.path.join(build, 'obj', os.path.basename(str(f)))
-           for f in Glob('src/*.c') + Glob('src/*.S')]
-objects = [env.Object(s) for s in sources]
+# The common code and the architecture's, each in its own object directory.
+objects = []
+for src, obj in (('src', 'obj'), (arch_dir, 'obj-arch')):
+    env.VariantDir(os.path.join(build, obj), src, duplicate=0)
+    for f in Glob(os.path.join(src, '*.c')) + Glob(os.path.join(src, '*.S')):
+        objects.append(env.Object(os.path.join(build, obj,
+                                               os.path.basename(str(f)))))
 objects.append(env.Object(generated[0]))
 images_object = env.Object(generated[1])
-env.Depends(images_object, [os.path.join(build, 'image%d.bin' % i)
-                            for i in range(len(images))])
+# hv_images.S includes the image of each VM (and its device tree on arm64).
+binaries = ['image%d.bin' % i for i in range(len(images))]
+if target['arch'] == 'arm64':
+    binaries += ['dtb%d.bin' % i for i in range(len(images))]
+env.Depends(images_object, [os.path.join(build, b) for b in binaries])
 objects.append(images_object)
 
 hv = env.Program(os.path.join(build, 'hv.elf'), objects)
 env.AddPostAction(hv, 'python3 %s $TARGET' % File('hvcrc.py').abspath)
-env.Depends(hv, ['hv.lds', 'hvcrc.py'])
+env.Depends(hv, [lds, 'hvcrc.py'])
 Default(hv)

@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
+ * arch/x86_64/; the timer tick count is in the arch part of the CPU
+ * structure.
  */
 
 /*
@@ -33,8 +37,7 @@
  * runs on the CPU. Exceptions in the hypervisor are fatal.
  */
 
-#include <hv/hv.h>
-#include <hv/x86.h>
+#include <arch/internal.h>
 
 #define IDT_ENTRIES         256U
 #define ISR_STUB_SIZE       16U
@@ -150,7 +153,7 @@ void hv_interrupt(hv_int_frame_t *frame)
         // A tick of this CPU's VM's virtual PIT, used by svm.c.
         hv_cpu_t *cpu = hv_this_cpu();
 
-        cpu->timer_ticks++;
+        cpu->arch.timer_ticks++;
         lapic_eoi();
     } else if (vector == HV_VECTOR_SPURIOUS) {
         // No end of interrupt for spurious interrupts.
