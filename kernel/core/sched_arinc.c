@@ -29,6 +29,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: essentially
  * Boolean condition in the GDB code (built on x86_64 now).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: a switch to the idle
+ * context ("do nothing", no thread) no longer reads the FP store of a
+ * NULL thread; the current FP store stays that of the last thread.
  */
 
 #include <core/sched_arinc.h>
@@ -405,7 +409,11 @@ static void sched_arinc(void)
         part->base_part.entry_sp_user = NULL;
     }
 #endif /* POK_NEEDS_GDB */
-    part->base_part.fp_store_current = new_thread->fp_store;
+    // The idle context has no FP store: the last thread's stays current.
+    if(new_thread != NULL)
+    {
+        part->base_part.fp_store_current = new_thread->fp_store;
+    }
 
     if(old_sp != NULL)
     {
