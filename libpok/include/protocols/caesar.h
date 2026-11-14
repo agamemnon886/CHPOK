@@ -12,6 +12,16 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Mon Nov 30 20:42:30 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
@@ -44,16 +54,18 @@
 
 #ifdef POK_NEEDS_PROTOCOLS_CAESAR
 
-/**
+/*
  * Function that uncrypts data
  */
+/** \cond */
 void pok_protocols_caesar_unmarshall (void* crypted_data, pok_size_t crypted_size, void* uncrypted_data, size_t* uncrypted_size);
 
 
-/**
+/*
  * Function that encrypts data
  */
 void pok_protocols_caesar_marshall (void* uncrypted_data, pok_size_t uncrypted_size, void* crypted_data, size_t* crypted_size);
+/** \endcond */
 
 #endif
 

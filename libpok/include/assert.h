@@ -36,8 +36,34 @@
 #include <stdlib.h>
 
 #ifdef NDEBUG
+
+/**
+ * @macroname `assert`
+ *
+ * @description
+ * The standard assert(): with NDEBUG, nothing; else, if `expr` is false, prints
+ * the expression, the function, the file and the line, and calls abort().
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `expr` | The expression that must be true. |
+ */
 #define assert(expr) ((void)0)
 #else
+
+/**
+ * @macroname `assert`
+ *
+ * @description
+ * The standard assert(): with NDEBUG, nothing; else, if `expr` is false, prints
+ * the expression, the function, the file and the line, and calls abort().
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `expr` | The expression that must be true. |
+ */
 /*
  * MISRA C:2025 Rule 20.10 deviation: the failed expression is printed with
  * the # operator, as the C standard requires for assert().

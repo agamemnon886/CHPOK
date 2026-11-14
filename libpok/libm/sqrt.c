@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 13:44:27 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /*
@@ -25,6 +31,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * sqrt() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /*
  * wrapper sqrt(x)
  */
@@ -35,6 +45,36 @@
 #include "math_private.h"
 #include <libm.h>
 
+/**
+ * @funcname `sqrt`
+ *
+ * @description
+ * Computes the square root of x (C standard): the wrapper of
+ * `__ieee754_sqrt()`.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ieee754_sqrt()` with the argument `x`, and return its result.
+ *
+ * @calls
+ * - `__ieee754_sqrt()`
+ */
 double sqrt (double x)		/* wrapper sqrt */
 {
 #ifdef _IEEE_LIBM

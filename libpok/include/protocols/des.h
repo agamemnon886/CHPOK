@@ -17,6 +17,16 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -24,51 +34,59 @@
 #ifndef __LIBPOK_PROTOCOLS_DES_H__
 #define __LIBPOK_PROTOCOLS_DES_H__
 
-/**
- * \file    libpok/protocols/des.h
- * \author  Julien Delange
- * \date    2009
- * \brief   DES protocol.
- *
- * Implementation of the very basic DES crypto
- * protocol. This is a symetric crypto protocol
- * with a shared key so that receiver and sender
- * share the same key.
- *
- * More information at:
- * http://en.wikipedia.org/wiki/Data_Encryption_Standard
- */
-
 #include <config.h>
 
 #include <types.h>
 
+/**
+ * @macroname `pok_protocols_des_data_t`
+ *
+ * @description
+ * The type of the data that the DES protocol encrypts.
+ */
 #define pok_protocols_des_data_t uint64_t
 
 #ifdef POK_NEEDS_PROTOCOLS_DES
-/**
+/*
  * Function that uncrypts data.
  */
+/** \cond */
 void pok_protocols_des_unmarshall (void* crypted_data, pok_size_t crypted_size, void* uncrypted_data, size_t* uncrypted_size);
 
-/**
+/*
  * Function that crypts data.
  */
 void pok_protocols_des_marshall (void* uncrypted_data, pok_size_t uncrypted_size, void* crypted_data, size_t* crypted_size);
+/** \endcond */
 
-/**
+/*
  * The key for the DES protocol is on 8 bytes and is
  * defined by the macro POK_PROTOCOLS_DES_KEY
  */
 #ifndef POK_PROTOCOLS_DES_KEY
+
+/**
+ * @macroname `POK_PROTOCOLS_DES_KEY`
+ *
+ * @description
+ * The key of the DES protocol (8 bytes); the configuration may define its own.
+ */
 #define POK_PROTOCOLS_DES_KEY {0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef}
 #endif
 
-/**
+/*
  * The init vector for the DES protocol is on 8 bytes
  * defined by the macro POK_PROTOCOLS_DES_INIT
  */
 #ifndef POK_PROTOCOLS_DES_INIT
+
+/**
+ * @macroname `POK_PROTOCOLS_DES_INIT`
+ *
+ * @description
+ * The initialization vector of the DES protocol (8 bytes); the configuration
+ * may define its own.
+ */
 #define POK_PROTOCOLS_DES_INIT {0xfe,0xdc,0xba,0x98,0x76,0x54,0x32,0x10}
 #endif
 

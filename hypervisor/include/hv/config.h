@@ -28,6 +28,9 @@
  * ports come from the architecture (<arch/config.h>); boot_data is what
  * the loader puts at the start of the guest RAM besides the image (the
  * device tree on arm64).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the types and macros are
+ * documented.
  */
 
 /*
@@ -43,28 +46,42 @@
 
 #include <arch/config.h>
 
-// Limit of the VM table; hvconfig.py checks it too (and HV_MAX_CPUS).
+/**
+ * @macroname `HV_MAX_VMS`
+ *
+ * @description
+ * The size of the VM table (hvconfig.py checks it too, and HV_MAX_CPUS).
+ */
 #define HV_MAX_VMS      8U
 
-/*
- * The serial ports, HV_PORT_COM1 and up, are defined by <arch/config.h>;
+/**
+ * @macroname `HV_PORT_NONE`
+ *
+ * @description
+ * The serial ports, HV_PORT_COM1 and up, are defined by `<arch/config.h>`;
  * HV_PORT_NONE is no port.
  */
 #define HV_PORT_NONE    0U
 
+/**
+ * @typename `hv_vm_config_t`
+ *
+ * @description
+ * The configuration of a virtual machine, from the XML file of the hypervisor.
+ */
 typedef struct {
-    const char *name;
-    uint64_t memory_size;       // Guest RAM, bytes (multiple of 2 MiB)
-    uint32_t nb_cpus;
-    uint16_t console_port;      // Host port for the guest's console
-    uint16_t gdb_port;          // Host port for the guest's GDB port, or none
-    const uint8_t *image;       // Loadable bytes of the image
-    const uint64_t *image_size; // Their size (defined in hv_images.S).
-    uint32_t load_addr;         // Guest-physical address of image[0]
-    uint32_t bss_end;           // End of the zeroed area after the image
-    uint32_t entry;             // Entry point (Multiboot: 32-bit)
-    const uint8_t *boot_data;   // Copied to the start of the RAM, or NULL
-    const uint64_t *boot_data_size;
+    const char *name; /**< The name of the VM. */
+    uint64_t memory_size; /**< Guest RAM, bytes (multiple of 2 MiB). */
+    uint32_t nb_cpus; /**< The number of its CPUs. */
+    uint16_t console_port; /**< Host port for the guest's console. */
+    uint16_t gdb_port; /**< Host port for the guest's GDB port, or none. */
+    const uint8_t *image; /**< Loadable bytes of the image. */
+    const uint64_t *image_size; /**< Their size (defined in hv_images.S). */
+    uint32_t load_addr; /**< Guest-physical address of image[0]. */
+    uint32_t bss_end; /**< End of the zeroed area after the image. */
+    uint32_t entry; /**< Entry point (Multiboot: 32-bit). */
+    const uint8_t *boot_data; /**< Copied to the start of the RAM, or NULL. */
+    const uint64_t *boot_data_size; /**< The size of the boot data. */
 } hv_vm_config_t;
 
 extern const hv_vm_config_t hv_vm_configs[];

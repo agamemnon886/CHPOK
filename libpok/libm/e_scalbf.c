@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* e_scalbf.c -- float version of e_scalb.c.
@@ -29,6 +35,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_scalbf()` of libpok's math library (fdlibm, from Sun
+ * Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -39,6 +50,56 @@
 float
 __ieee754_scalbf(float x, int fn)
 #else
+/**
+ * @funcname `__ieee754_scalbf`
+ *
+ * @description
+ * Computes x times 2 raised to the power fn, in float: the IEEE 754 core of
+ * scalbf().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ * | `fn` | `float` | [in] The power of 2. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `isnanf(x)||isnanf(fn)` holds:
+ *    1. Return `x*fn`.
+ * 2. If `finitef(fn)` is false:
+ *    1. If `fn` is greater than `(float)0.0`:
+ *       1. Return `x*fn`.
+ *    2. Otherwise:
+ *       1. Return `x/(-fn)`.
+ * 3. If `rintf(fn)` is not equal to `fn`:
+ *    1. Return `(fn-fn)/(fn-fn)`.
+ * 4. If `fn` is greater than `(float)65000.0`:
+ *    1. Call `scalbnf()` with the arguments `x` and `65000`, and return its
+ *       result.
+ * 5. If `-fn` is greater than `(float)65000.0`:
+ *    1. Call `scalbnf()` with the arguments `x` and `-65000`, and return its
+ *       result.
+ * 6. Call `scalbnf()` with the arguments `x` and `(int)fn`, and return its
+ *    result.
+ *
+ * @calls
+ * - `isnanf()`
+ * - `finitef()`
+ * - `rintf()`
+ * - `scalbnf()`
+ */
 float
 __ieee754_scalbf(float x, float fn)
 #endif

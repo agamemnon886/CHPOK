@@ -18,6 +18,9 @@
  * parameters and the message parameter of the send or write service are
  * const (they are only read), so callers can pass string literals and
  * const data.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -27,6 +30,7 @@
 #ifdef POK_NEEDS_ARINC653_QUEUEING
 
 #ifndef POK_NEEDS_ARINC653_PROCESS
+/* Documented in libpok/include/config.h. */
 #define POK_NEEDS_ARINC653_PROCESS
 #endif
 
@@ -35,18 +39,62 @@
 
 #ifndef APEX_QUEUING
 #define APEX_QUEUING
+
+/**
+ * @macroname `MAX_NUMBER_OF_QUEUING_PORTS`
+ *
+ * @description
+ * The maximum number of queuing ports of a partition
+ * (SYSTEM_LIMIT_NUMBER_OF_QUEUING_PORTS).
+ */
 #define   MAX_NUMBER_OF_QUEUING_PORTS     SYSTEM_LIMIT_NUMBER_OF_QUEUING_PORTS
+
+/**
+ * @typename `QUEUING_PORT_NAME_TYPE`
+ *
+ * @description
+ * The name of a queuing port.
+ */
 typedef   NAME_TYPE        QUEUING_PORT_NAME_TYPE;
+
+/**
+ * @typename `QUEUING_PORT_ID_TYPE`
+ *
+ * @description
+ * The identifier of a queuing port.
+ */
 typedef   APEX_INTEGER     QUEUING_PORT_ID_TYPE;
 
+/**
+ * @typename `QUEUING_PORT_STATUS_TYPE`
+ *
+ * @description
+ * The status of a queuing port (GET_QUEUING_PORT_STATUS()).
+ */
 typedef struct {
+   /**
+    * The number of messages in the port.
+    */
    MESSAGE_RANGE_TYPE       NB_MESSAGE;
+   /**
+    * The capacity of the port, in messages.
+    */
    MESSAGE_RANGE_TYPE       MAX_NB_MESSAGE;
+   /**
+    * The maximum size of a message.
+    */
    MESSAGE_SIZE_TYPE        MAX_MESSAGE_SIZE;
+   /**
+    * Whether the port sends or receives.
+    */
    PORT_DIRECTION_TYPE      PORT_DIRECTION;
+   /**
+    * The number of processes waiting.
+    */
    WAITING_RANGE_TYPE       WAITING_PROCESSES;
 } QUEUING_PORT_STATUS_TYPE;
 
+/** \cond */
 extern void CREATE_QUEUING_PORT (
       /*in */ const QUEUING_PORT_NAME_TYPE    QUEUING_PORT_NAME,
       /*in */ MESSAGE_SIZE_TYPE         MAX_MESSAGE_SIZE,
@@ -83,8 +131,8 @@ extern void GET_QUEUING_PORT_STATUS (
 extern void CLEAR_QUEUING_PORT (
       /*in */ QUEUING_PORT_ID_TYPE      QUEUING_PORT_ID,
       /*out*/ RETURN_CODE_TYPE          *RETURN_CODE );
+/** \endcond */
 
 #endif
-
 
 #endif

@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef JET_ALLOC_H
@@ -33,7 +37,9 @@
  * Note: Failure to allocate memory is treated as error
  * (that is function never returns NULL).
  */
+/** \cond */
 void* jet_mem_alloc (size_t size);
+/** \endcond */
 
 
 #endif /* JET_ALLOC_H */

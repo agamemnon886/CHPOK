@@ -1,10 +1,19 @@
 # Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: MAC_SENDER
 # implements mac_send with mac_sender_send() (Rule 5.8: the interface
 # member is named mac_send).
+#
+# Modified by Kirill Brazhnikov, 2026-11-12: description and state_doc give
+# the documentation of a component and of its state members (the types in
+# the generated header).
 - name: MAC_SENDER
+  description: >-
+    It adds the Ethernet header to the payloads it is given (portA) and
+    sends the frames (portB).
   #additional_h_files: ['<port_info.h>']
   state_struct:
       src_mac[6]: uint8_t
+  state_doc:
+      src_mac[6]: The MAC address of the frames it sends (their source).
 
   in_ports:
       - name: portA
@@ -17,9 +26,16 @@
         type: preallocated_sender
 
 - name: MAC_RECEIVER
+  description: >-
+    It checks the Ethernet header of the frames it receives (portA) and
+    passes their payload to the UDP (port_UDP) or ARP (port_ARP) component.
   #additional_h_files: ['<port_info.h>']
   state_struct:
       my_mac[6]: uint8_t
+  state_doc:
+      my_mac[6]: >-
+        The MAC address of the frames it accepts (their destination), besides
+        the multicast ones.
 
   in_ports:
       - name: portA

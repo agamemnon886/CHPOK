@@ -1,4 +1,9 @@
+# Modified by Kirill Brazhnikov, 2026-11-14: description and state_doc give the
+# documentation of the components and of their state members.
 - name: VIRTIO_NET_DEV
+  description: >-
+    The driver of a virtio network card: it sends the frames it is given
+    (portA) and passes the frames it receives on (portB).
   additional_h_files: ['"virtio_network_device.h"']
   state_struct:
       pci_bus: uint8_t
@@ -6,7 +11,17 @@
       pci_fn: uint8_t
 
       #not inited by glue
-      info: struct virtio_network_device
+      info: virtio_network_device_t
+  state_doc:
+      pci_bus: >-
+        The PCI bus of the card.
+      pci_dev: >-
+        The PCI device of the card.
+      pci_fn: >-
+        The PCI function of the card.
+      info: >-
+        The state of the device (set by virtio_init(), not by the
+        configuration).
   init_func: virtio_init
 
   in_ports:

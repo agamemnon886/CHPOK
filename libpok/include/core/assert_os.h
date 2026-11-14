@@ -22,6 +22,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef LIBJET_ASSERT_OS_H
@@ -29,8 +33,22 @@
 
 #include <stdint.h>
 
+/** \cond */
 void assertion_os_fail(const char *expression, const char *file, int32_t line);
+/** \endcond */
 
+/**
+ * @macroname `assert_os`
+ *
+ * @description
+ * Checks a condition of libpok itself: if `expr` is false, calls
+ * assertion_os_fail() with the expression, the file and the line.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `expr` | The expression that must be true. |
+ */
 /*
  * MISRA C:2025 Rule 20.10 deviation: the failed expression is printed with
  * the # operator, as for the standard assert().

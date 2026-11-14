@@ -27,6 +27,15 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
  * Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for its macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
 
 #ifndef POK_KERNEL_ASSERT_H
@@ -34,6 +43,9 @@
 
 #include <core/debug.h>
 
+/*
+ * Reports a false assertion and stops the kernel (assert()).
+ */
 /*
  * MISRA C:2025 Dir 1.2 deviation: _Noreturn is a C11 keyword, accepted by GCC
  * in the gnu99 mode used here. Calls to non-returning functions terminate
@@ -47,6 +59,20 @@ _Noreturn static inline void pok_assertion_fail(const char *expression,
 }
 
 #ifndef NDEBUG
+
+/**
+ * @macroname `assert`
+ *
+ * @description
+ * Checks a condition: if it is false, reports the failed expression, the file
+ * and the line and stops the kernel (pok_assertion_fail()). With NDEBUG, it
+ * does nothing (the other definition).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `expr` | The condition, which must be true. |
+ */
 /*
  * MISRA C:2025 Rule 20.10 deviation: the failed expression is printed with
  * the # operator, as for the standard assert().
@@ -57,10 +83,27 @@ _Noreturn static inline void pok_assertion_fail(const char *expression,
         pok_assertion_fail(#expr, __FILE__, __LINE__) \
     )
 #else
+
+/**
+ * @macroname `assert`
+ *
+ * @description
+ * With NDEBUG, assert() does nothing: the condition isn't evaluated.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `expr` | The condition (not evaluated). |
+ */
     #define assert(expr) do {} while (0)
 #endif
 
-/* Reports an unexpected code path; doesn't return, also with NDEBUG. */
+/**
+ * @macroname `unreachable`
+ *
+ * @description
+ * Reports an unexpected code path; doesn't return, also with NDEBUG.
+ */
 #define unreachable() pok_assertion_fail("unreachable", __FILE__, __LINE__)
 
 #endif

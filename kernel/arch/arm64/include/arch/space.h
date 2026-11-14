@@ -18,6 +18,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file; the
+ * types and macros defined in the same way for x86_64 are documented with their
+ * x86_64 definitions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 /* (Memory) space. */
@@ -27,6 +34,10 @@
 
 #include <stdint.h>
 
+/*
+ * Documented with its x86_64 definition:
+ * kernel/arch/x86_64/include/arch/space.h.
+ */
 typedef uintptr_t jet_ustack_t;
 
 #endif /* JET_ARM64_SPACE_H */

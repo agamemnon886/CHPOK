@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)s_erf.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * erf() and erfc() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /* double erf(double x)
  * double erfc(double x)
  *			     x
@@ -200,6 +213,152 @@ sb5  =  2.55305040643316442583e+03, /* 0x40A3F219, 0xCEDF3BE6 */
 sb6  =  4.74528541206955367215e+02, /* 0x407DA874, 0xE79FE763 */
 sb7  = -2.24409524465858183362e+01; /* 0xC03670E2, 0x42712D62 */
 
+/**
+ * @funcname `erf`
+ *
+ * @description
+ * Computes the error function of x, in float (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `efx` | `const double` | A constant of the algorithm |
+ * | `efx8` | `const double` | A constant of the algorithm |
+ * | `erx` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `pa0` | `const double` | A constant of the algorithm |
+ * | `pa1` | `const double` | A constant of the algorithm |
+ * | `pa2` | `const double` | A constant of the algorithm |
+ * | `pa3` | `const double` | A constant of the algorithm |
+ * | `pa4` | `const double` | A constant of the algorithm |
+ * | `pa5` | `const double` | A constant of the algorithm |
+ * | `pa6` | `const double` | A constant of the algorithm |
+ * | `pp0` | `const double` | A constant of the algorithm |
+ * | `pp1` | `const double` | A constant of the algorithm |
+ * | `pp2` | `const double` | A constant of the algorithm |
+ * | `pp3` | `const double` | A constant of the algorithm |
+ * | `pp4` | `const double` | A constant of the algorithm |
+ * | `qa1` | `const double` | A constant of the algorithm |
+ * | `qa2` | `const double` | A constant of the algorithm |
+ * | `qa3` | `const double` | A constant of the algorithm |
+ * | `qa4` | `const double` | A constant of the algorithm |
+ * | `qa5` | `const double` | A constant of the algorithm |
+ * | `qa6` | `const double` | A constant of the algorithm |
+ * | `qq1` | `const double` | A constant of the algorithm |
+ * | `qq2` | `const double` | A constant of the algorithm |
+ * | `qq3` | `const double` | A constant of the algorithm |
+ * | `qq4` | `const double` | A constant of the algorithm |
+ * | `qq5` | `const double` | A constant of the algorithm |
+ * | `ra0` | `const double` | A constant of the algorithm |
+ * | `ra1` | `const double` | A constant of the algorithm |
+ * | `ra2` | `const double` | A constant of the algorithm |
+ * | `ra3` | `const double` | A constant of the algorithm |
+ * | `ra4` | `const double` | A constant of the algorithm |
+ * | `ra5` | `const double` | A constant of the algorithm |
+ * | `ra6` | `const double` | A constant of the algorithm |
+ * | `ra7` | `const double` | A constant of the algorithm |
+ * | `rb0` | `const double` | A constant of the algorithm |
+ * | `rb1` | `const double` | A constant of the algorithm |
+ * | `rb2` | `const double` | A constant of the algorithm |
+ * | `rb3` | `const double` | A constant of the algorithm |
+ * | `rb4` | `const double` | A constant of the algorithm |
+ * | `rb5` | `const double` | A constant of the algorithm |
+ * | `rb6` | `const double` | A constant of the algorithm |
+ * | `sa1` | `const double` | A constant of the algorithm |
+ * | `sa2` | `const double` | A constant of the algorithm |
+ * | `sa3` | `const double` | A constant of the algorithm |
+ * | `sa4` | `const double` | A constant of the algorithm |
+ * | `sa5` | `const double` | A constant of the algorithm |
+ * | `sa6` | `const double` | A constant of the algorithm |
+ * | `sa7` | `const double` | A constant of the algorithm |
+ * | `sa8` | `const double` | A constant of the algorithm |
+ * | `sb1` | `const double` | A constant of the algorithm |
+ * | `sb2` | `const double` | A constant of the algorithm |
+ * | `sb3` | `const double` | A constant of the algorithm |
+ * | `sb4` | `const double` | A constant of the algorithm |
+ * | `sb5` | `const double` | A constant of the algorithm |
+ * | `sb6` | `const double` | A constant of the algorithm |
+ * | `sb7` | `const double` | A constant of the algorithm |
+ * | `tiny` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `P` | `double` | A temporary of the computation |
+ * | `Q` | `double` | A temporary of the computation |
+ * | `R` | `double` | A temporary of the computation |
+ * | `S` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `i` | `int32_t` | A temporary of the computation |
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `y` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx&0x7fffffff`.
+ * 3. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. Set `i` to `((uint32_t)hx>>31)<<1`.
+ *    2. Return `(double)(1-i)+one/x`.
+ * 4. If `ix` is less than `0x3feb0000`:
+ *    1. If `ix` is less than `0x3e300000`:
+ *       1. If `ix` is less than `0x00800000`:
+ *          1. Return `0.125*(8.0*x+efx8*x)`.
+ *       2. Return `x + efx*x`.
+ *    2. Set `z` to `x*x`.
+ *    3. Set `r` to `pp0+z*(pp1+z*(pp2+z*(pp3+z*pp4)))`.
+ *    4. Set `s` to `one+z*(qq1+z*(qq2+z*(qq3+z*(qq4+z*qq5))))`.
+ *    5. Set `y` to `r/s`.
+ *    6. Return `x + x*y`.
+ * 5. If `ix` is less than `0x3ff40000`:
+ *    1. Set `s` to `fabs(x)-one`.
+ *    2. Set `P` to `pa0+s*(pa1+s*(pa2+s*(pa3+s*(pa4+s*(pa5+s*pa6)))))`.
+ *    3. Set `Q` to `one+s*(qa1+s*(qa2+s*(qa3+s*(qa4+s*(qa5+s*qa6)))))`.
+ *    4. If `hx` is greater than or equal to `0`:
+ *       1. Return `erx + P/Q`.
+ *    5. Otherwise:
+ *       1. Return `-erx - P/Q`.
+ * 6. If `ix` is greater than or equal to `0x40180000`:
+ *    1. If `hx` is greater than or equal to `0`:
+ *       1. Return `one-tiny`.
+ *    2. Otherwise:
+ *       1. Return `tiny-one`.
+ * 7. Call `fabs()` with the argument `x`, and store the result in `x`.
+ * 8. Set `s` to `one/(x*x)`.
+ * 9. If `ix` is less than `0x4006DB6E`:
+ *    1. Set `R` to
+ *       `ra0+s*(ra1+s*(ra2+s*(ra3+s*(ra4+s*( ra5+s*(ra6+s*ra7))))))`.
+ *    2. Set `S` to
+ *       `one+s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*( sa5+s*(sa6+s*(sa7+s*sa8)))))))`.
+ * 10. Otherwise:
+ *     1. Set `R` to `rb0+s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*( rb5+s*rb6)))))`.
+ *     2. Set `S` to
+ *        `one+s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*( sb5+s*(sb6+s*sb7))))))`.
+ * 11. Set `z` to `x`.
+ * 12. Use the macro `SET_LOW_WORD()` with the arguments `z` and `0`.
+ * 13. Set `r` to `__ieee754_exp(-z*z-0.5625)*__ieee754_exp((z-x)*(z+x)+R/S)`.
+ * 14. If `hx` is greater than or equal to `0`:
+ *     1. Return `one-r/x`.
+ * 15. Otherwise:
+ *     1. Return `r/x-one`.
+ *
+ * @calls
+ * - `fabs()`
+ * - `__ieee754_exp()`
+ */
 double
 erf(double x)
 {
@@ -252,6 +411,160 @@ erf(double x)
 	if(hx>=0) return one-r/x; else return  r/x-one;
 }
 
+/**
+ * @funcname `erfc`
+ *
+ * @description
+ * Computes the complementary error function of x (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `erx` | `const double` | A constant of the algorithm |
+ * | `half` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `pa0` | `const double` | A constant of the algorithm |
+ * | `pa1` | `const double` | A constant of the algorithm |
+ * | `pa2` | `const double` | A constant of the algorithm |
+ * | `pa3` | `const double` | A constant of the algorithm |
+ * | `pa4` | `const double` | A constant of the algorithm |
+ * | `pa5` | `const double` | A constant of the algorithm |
+ * | `pa6` | `const double` | A constant of the algorithm |
+ * | `pp0` | `const double` | A constant of the algorithm |
+ * | `pp1` | `const double` | A constant of the algorithm |
+ * | `pp2` | `const double` | A constant of the algorithm |
+ * | `pp3` | `const double` | A constant of the algorithm |
+ * | `pp4` | `const double` | A constant of the algorithm |
+ * | `qa1` | `const double` | A constant of the algorithm |
+ * | `qa2` | `const double` | A constant of the algorithm |
+ * | `qa3` | `const double` | A constant of the algorithm |
+ * | `qa4` | `const double` | A constant of the algorithm |
+ * | `qa5` | `const double` | A constant of the algorithm |
+ * | `qa6` | `const double` | A constant of the algorithm |
+ * | `qq1` | `const double` | A constant of the algorithm |
+ * | `qq2` | `const double` | A constant of the algorithm |
+ * | `qq3` | `const double` | A constant of the algorithm |
+ * | `qq4` | `const double` | A constant of the algorithm |
+ * | `qq5` | `const double` | A constant of the algorithm |
+ * | `ra0` | `const double` | A constant of the algorithm |
+ * | `ra1` | `const double` | A constant of the algorithm |
+ * | `ra2` | `const double` | A constant of the algorithm |
+ * | `ra3` | `const double` | A constant of the algorithm |
+ * | `ra4` | `const double` | A constant of the algorithm |
+ * | `ra5` | `const double` | A constant of the algorithm |
+ * | `ra6` | `const double` | A constant of the algorithm |
+ * | `ra7` | `const double` | A constant of the algorithm |
+ * | `rb0` | `const double` | A constant of the algorithm |
+ * | `rb1` | `const double` | A constant of the algorithm |
+ * | `rb2` | `const double` | A constant of the algorithm |
+ * | `rb3` | `const double` | A constant of the algorithm |
+ * | `rb4` | `const double` | A constant of the algorithm |
+ * | `rb5` | `const double` | A constant of the algorithm |
+ * | `rb6` | `const double` | A constant of the algorithm |
+ * | `sa1` | `const double` | A constant of the algorithm |
+ * | `sa2` | `const double` | A constant of the algorithm |
+ * | `sa3` | `const double` | A constant of the algorithm |
+ * | `sa4` | `const double` | A constant of the algorithm |
+ * | `sa5` | `const double` | A constant of the algorithm |
+ * | `sa6` | `const double` | A constant of the algorithm |
+ * | `sa7` | `const double` | A constant of the algorithm |
+ * | `sa8` | `const double` | A constant of the algorithm |
+ * | `sb1` | `const double` | A constant of the algorithm |
+ * | `sb2` | `const double` | A constant of the algorithm |
+ * | `sb3` | `const double` | A constant of the algorithm |
+ * | `sb4` | `const double` | A constant of the algorithm |
+ * | `sb5` | `const double` | A constant of the algorithm |
+ * | `sb6` | `const double` | A constant of the algorithm |
+ * | `sb7` | `const double` | A constant of the algorithm |
+ * | `tiny` | `const double` | A constant of the algorithm |
+ * | `two` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `P` | `double` | A temporary of the computation |
+ * | `Q` | `double` | A temporary of the computation |
+ * | `R` | `double` | A temporary of the computation |
+ * | `S` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `y` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx&0x7fffffff`.
+ * 3. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. Return `(double)(((uint32_t)hx>>31)<<1)+one/x`.
+ * 4. If `ix` is less than `0x3feb0000`:
+ *    1. If `ix` is less than `0x3c700000`:
+ *       1. Return `one-x`.
+ *    2. Set `z` to `x*x`.
+ *    3. Set `r` to `pp0+z*(pp1+z*(pp2+z*(pp3+z*pp4)))`.
+ *    4. Set `s` to `one+z*(qq1+z*(qq2+z*(qq3+z*(qq4+z*qq5))))`.
+ *    5. Set `y` to `r/s`.
+ *    6. If `hx` is less than `0x3fd00000`:
+ *       1. Return `one-(x+x*y)`.
+ *    7. Otherwise:
+ *       1. Set `r` to `x*y`.
+ *       2. Add `(x-half)` to `r`.
+ *       3. Return `half - r`.
+ * 5. If `ix` is less than `0x3ff40000`:
+ *    1. Set `s` to `fabs(x)-one`.
+ *    2. Set `P` to `pa0+s*(pa1+s*(pa2+s*(pa3+s*(pa4+s*(pa5+s*pa6)))))`.
+ *    3. Set `Q` to `one+s*(qa1+s*(qa2+s*(qa3+s*(qa4+s*(qa5+s*qa6)))))`.
+ *    4. If `hx` is greater than or equal to `0`:
+ *       1. Set `z` to `one-erx`.
+ *       2. Return `z - P/Q`.
+ *    5. Otherwise:
+ *       1. Set `z` to `erx+P/Q`.
+ *       2. Return `one+z`.
+ * 6. If `ix` is less than `0x403c0000`:
+ *    1. Call `fabs()` with the argument `x`, and store the result in `x`.
+ *    2. Set `s` to `one/(x*x)`.
+ *    3. If `ix` is less than `0x4006DB6D`:
+ *       1. Set `R` to
+ *          `ra0+s*(ra1+s*(ra2+s*(ra3+s*(ra4+s*( ra5+s*(ra6+s*ra7))))))`.
+ *       2. Set `S` to `one+s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*(`
+ *          `sa5+s*(sa6+s*(sa7+s*sa8)))))))`.
+ *    4. Otherwise:
+ *       1. If `hx` is less than `0` and `ix` is greater than or equal to
+ *          `0x40180000`:
+ *          1. Return `two-tiny`.
+ *       2. Set `R` to `rb0+s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*( rb5+s*rb6)))))`.
+ *       3. Set `S` to
+ *          `one+s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*( sb5+s*(sb6+s*sb7))))))`.
+ *    5. Set `z` to `x`.
+ *    6. Use the macro `SET_LOW_WORD()` with the arguments `z` and `0`.
+ *    7. Set `r` to
+ *       `__ieee754_exp(-z*z-0.5625)* __ieee754_exp((z-x)*(z+x)+R/S)`.
+ *    8. If `hx` is greater than `0`:
+ *       1. Return `r/x`.
+ *    9. Otherwise:
+ *       1. Return `two-r/x`.
+ * 7. Otherwise:
+ *    1. If `hx` is greater than `0`:
+ *       1. Return `tiny*tiny`.
+ *    2. Otherwise:
+ *       1. Return `two-tiny`.
+ *
+ * @calls
+ * - `fabs()`
+ * - `__ieee754_exp()`
+ */
 double
 erfc(double x)
 {

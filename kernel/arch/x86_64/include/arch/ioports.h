@@ -22,6 +22,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; deviations are documented where a
  * guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file and
+ * its macros; the unused macro JET_ARCH_DECLARE_IO_PORT is removed.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -31,8 +35,6 @@
 #define POK_X86_64_IOPORTS_H
 #include <stdint.h>
 
-#define JET_ARCH_DECLARE_IO_PORT 1
-
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this header): the I/O port
  * instructions are GNU inline assembly, isolated in these macros; the
@@ -40,11 +42,34 @@
  * value read.
  */
 
+/**
+ * @macroname `ja_outb`
+ *
+ * @description
+ * Writes a byte to an I/O port.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `port` | The I/O port. |
+ * | `data` | The value written. |
+ */
 #define ja_outb(port, data)                                        \
   asm volatile ("outb %b0,%w1"                                  \
                 :						\
 		:"a" (data),"d" (port))
 
+/**
+ * @macroname `ja_inb`
+ *
+ * @description
+ * Reads a byte from an I/O port: the byte read.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `port` | The I/O port. |
+ */
 #define ja_inb(port)                                               \
 ({                                                              \
   uint8_t res;                                            \
@@ -54,11 +79,34 @@
   res;                                                          \
 })
 
+/**
+ * @macroname `ja_outw`
+ *
+ * @description
+ * Writes a 16-bit word to an I/O port.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `port` | The I/O port. |
+ * | `data` | The value written. |
+ */
 #define ja_outw(port, data)                                        \
   asm volatile ("outw %0,%w1"					\
                 :						\
 		:"a" (data),"d" (port))
 
+/**
+ * @macroname `ja_inw`
+ *
+ * @description
+ * Reads a 16-bit word from an I/O port: the word read.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `port` | The I/O port. |
+ */
 #define ja_inw(port)                                               \
 ({                                                              \
   uint16_t res;						\
@@ -68,11 +116,34 @@
   res;                                                          \
 })
 
+/**
+ * @macroname `ja_outl`
+ *
+ * @description
+ * Writes a 32-bit word to an I/O port.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `port` | The I/O port. |
+ * | `data` | The value written. |
+ */
 #define ja_outl(port, data)                                        \
   asm volatile ("outl %k0,%w1"					\
                 :						\
 		:"a" (data),"d" (port))
 
+/**
+ * @macroname `ja_inl`
+ *
+ * @description
+ * Reads a 32-bit word from an I/O port: the word read.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `port` | The I/O port. |
+ */
 #define ja_inl(port)                                               \
 ({                                                              \
   uint32_t res;						\

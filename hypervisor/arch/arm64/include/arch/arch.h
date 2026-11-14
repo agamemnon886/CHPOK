@@ -23,14 +23,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/*
- * arm64 part of the hypervisor's data structures (the arch members of
- * hv_vm_t, hv_vcpu_t and hv_cpu_t in <hv/hv.h>): a VM's stage-2
- * translation, its emulated GIC distributor and PL011s, and the saved
- * registers of a vCPU. Also the small functions that the common code uses
- * for locks and halting.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file and
+ * its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented); the types and
+ * macros are documented; the types shared with x86_64 point to their
+ * documentation, and their member comments start with arm64:.
  */
 
 #ifndef HV_ARCH_ARCH_H
@@ -41,86 +42,149 @@
 
 #include <arch/arm64.h>
 
-/*
- * Guest registers while the hypervisor runs, and the hypervisor's stack
- * pointer while the guest runs. vectors.S uses the offsets (checked in
- * vcpu.c): x at 0, elr at 248, spsr at 256, host_sp at 264.
- */
+/* Documented with its x86_64 definition. */
 typedef struct {
-    uint64_t x[31];             // X0-X30
-    uint64_t elr;               // ELR_EL2: where the guest goes on
-    uint64_t spsr;              // SPSR_EL2: its PSTATE
-    uint64_t host_sp;           // SP_EL2 in hv_guest_enter()
+    uint64_t x[31]; /**< arm64: X0-X30. */
+    uint64_t elr; /**< arm64: ELR_EL2: where the guest goes on. */
+    uint64_t spsr; /**< arm64: SPSR_EL2: its PSTATE. */
+    uint64_t host_sp; /**< arm64: SP_EL2 in hv_guest_enter(). */
 } hv_guest_regs_t;
 
-// Emulated GICv2 distributor of a VM: interrupts 0-31 (one CPU).
+/**
+ * @typename `hv_vgicd_t`
+ *
+ * @description
+ * Emulated GICv2 distributor of a VM: interrupts 0-31 (one CPU).
+ */
 typedef struct {
-    bool enabled;               // GICD_CTLR.EnableGrp0
-    uint32_t enable;            // Enabled PPIs (SGIs are always enabled)
-    uint8_t priority[32];       // GICD_IPRIORITYRn
-    uint32_t config_ppi;        // GICD_ICFGR1
+    bool enabled; /**< GICD_CTLR.EnableGrp0. */
+    uint32_t enable; /**< Enabled PPIs (SGIs are always enabled). */
+    uint8_t priority[32]; /**< GICD_IPRIORITYRn. */
+    uint32_t config_ppi; /**< GICD_ICFGR1. */
 } hv_vgicd_t;
 
-// Emulated PL011 of a VM (unless passed through).
+/**
+ * @typename `hv_vuart_t`
+ *
+ * @description
+ * Emulated PL011 of a VM (unless passed through).
+ */
 typedef struct {
-    uint16_t host_port;         // Host COM port, or HV_PORT_NONE
-    bool passthrough;           // Mapped to a host PL011 (no exits)
-    uint32_t cr;                // UARTCR
-    uint32_t lcr_h;             // UARTLCR_H
-    uint32_t ibrd;              // UARTIBRD
-    uint32_t fbrd;              // UARTFBRD
-    uint32_t ifls;              // UARTIFLS
-    uint32_t imsc;              // UARTIMSC
+    uint16_t host_port; /**< Host COM port, or HV_PORT_NONE. */
+    bool passthrough; /**< Mapped to a host PL011 (no exits). */
+    uint32_t cr; /**< UARTCR. */
+    uint32_t lcr_h; /**< UARTLCR_H. */
+    uint32_t ibrd; /**< UARTIBRD. */
+    uint32_t fbrd; /**< UARTFBRD. */
+    uint32_t ifls; /**< UARTIFLS. */
+    uint32_t imsc; /**< UARTIMSC. */
 } hv_vuart_t;
 
-// Emulated device pages: the GIC distributor, the two PL011s, the RTC.
+/**
+ * @macroname `HV_MMIO_GICD`
+ *
+ * @description
+ * The index of the page of the GIC distributor of the guest (the emulated
+ * device pages are the GIC distributor, the two PL011s and the RTC).
+ */
 #define HV_MMIO_GICD        0U
+
+/**
+ * @macroname `HV_MMIO_UART0`
+ *
+ * @description
+ * The index of the page of the first PL011 of the guest.
+ */
 #define HV_MMIO_UART0       1U
+
+/**
+ * @macroname `HV_MMIO_UART1`
+ *
+ * @description
+ * The index of the page of the second PL011 of the guest.
+ */
 #define HV_MMIO_UART1       2U
+
+/**
+ * @macroname `HV_MMIO_RTC`
+ *
+ * @description
+ * The index of the page of the PL031 of the guest.
+ */
 #define HV_MMIO_RTC         3U
+
+/**
+ * @macroname `HV_MMIO_DEVICES`
+ *
+ * @description
+ * The number of the emulated device pages.
+ */
 #define HV_MMIO_DEVICES     4U
 
-// One bit per 32-bit register of a 4 KiB page.
+/**
+ * @macroname `HV_MMIO_LOG_SIZE`
+ *
+ * @description
+ * The number of bytes of the log of a device page: one bit per 32-bit register
+ * of a 4 KiB page.
+ */
 #define HV_MMIO_LOG_SIZE    (0x1000U / 4U / 8U)
 
+/* Documented with its x86_64 definition. */
 typedef struct {
-    uint64_t vttbr;             // VTTBR_EL2: VMID and stage-2 tables
-    hv_vgicd_t gicd;
-    hv_vuart_t uart[2];         // UART0 (console) and UART1 (GDB port)
-    bool timer_pending;         // A timer tick the guest hasn't been given
-    uint32_t timer_irqs;        // Timer interrupts given to the guest
+    uint64_t vttbr; /**< arm64: VTTBR_EL2: VMID and stage-2 tables. */
+    hv_vgicd_t gicd; /**< arm64: The emulated GIC distributor. */
+    hv_vuart_t uart[2]; /**< arm64: UART0 (console) and UART1 (GDB port). */
+    bool timer_pending; /**< arm64: A timer tick the guest hasn't been given. */
+    uint32_t timer_irqs; /**< arm64: Timer interrupts given to the guest. */
+    /**
+     * arm64: The accesses to unhandled registers that were reported, one bit
+     * per register of each device page.
+     */
     uint8_t mmio_logged[HV_MMIO_DEVICES][HV_MMIO_LOG_SIZE];
 } hv_arch_vm_t;
 
+/* Documented with its x86_64 definition. */
 typedef struct {
-    hv_guest_regs_t regs;       // First: TPIDR_EL2 points to it
+    hv_guest_regs_t regs; /**< arm64: First: TPIDR_EL2 points to it. */
 } hv_arch_vcpu_t;
 
+/* Documented with its x86_64 definition. */
 typedef struct {
-    uint32_t irqs_logged;       // Unexpected SGIs and PPIs reported
-    bool fiq_logged;            // An unexpected FIQ reported
+    uint32_t irqs_logged; /**< arm64: Unexpected SGIs and PPIs reported. */
+    bool fiq_logged; /**< arm64: An unexpected FIQ reported. */
 } hv_arch_cpu_t;
 
-// Atomic exchange of a 32-bit word; returns the old value (spin locks).
+/*
+ * Atomically exchanges a 32-bit word (for the spin locks of the common code).
+ */
 static inline uint32_t hv_arch_xchg32(volatile uint32_t *word,
                                       uint32_t value)
 {
     return arm64_xchg32(word, value);
 }
 
-// Spin-wait hint.
+/*
+ * The spin-wait hint of the common code's spin locks.
+ */
 static inline void hv_arch_relax(void)
 {
     arm64_yield();
 }
 
-// Memory barrier: the accesses before it are seen before those after it.
+/*
+ * A memory barrier for the common code: the accesses before it are seen by the
+ * other CPUs before those after it.
+ */
 static inline void hv_arch_barrier(void)
 {
     arm64_dmb_ish();
 }
 
-// Mask the interrupts (and the other exceptions) on this CPU.
+/*
+ * Masks the interrupts and the other exceptions on this CPU (before a fatal
+ * error is reported).
+ */
 static inline void hv_arch_irq_disable(void)
 {
     arm64_mask_all();

@@ -19,12 +19,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef LIBJET_DEBUG_H
 #define LIBJET_DEBUG_H
 #include <stdint.h>
 
+/** \cond */
 void hexdump (const void *addr, int32_t len);
+/** \endcond */
 
 #endif /* LIBJET_DEBUG_H */

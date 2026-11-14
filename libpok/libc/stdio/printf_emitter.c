@@ -29,6 +29,24 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: digits is
  * defined in the function that uses it; deviations are documented where a
  * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the types are moved to
+ * libpok/libc/stdio/printf_emitter.h; struct emitter is the typedef emitter_t,
+ * struct format_spec is the typedef format_spec_t.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * The formatting of libpok's printf() family: the conversions %%s, %%p, %%x,
+ * %%d, %%i, %%u, %%f, %%c and %%, with a field width, the 0 flag, a precision
+ * and the l, ll and z length modifiers, emitted character by character.
  */
 
 /*
@@ -46,28 +64,103 @@
  * with a pointer into it.
  */
 
-
-/* Where the characters go. */
-struct emitter {
-    emit_character_t emit_character;
-    void *private_data;
-};
-
-/* Conversion specification: flags, field width, precision and length. */
-struct format_spec {
-    uint32_t length; // Number of 'l' modifiers; 'z' counts as one.
-    int32_t pad; // Field width.
-    int32_t precision;
-    bool pad_with_zero; // The '0' flag: pad with zeros instead of spaces.
-};
-
-static void emit(const struct emitter *e, char c)
+/**
+ * @funcname `emit`
+ *
+ * @description
+ * Emits one character with an emitter's output function.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e` | `const emitter_t *` | [in] The emitter. |
+ * | `c` | `char` | [in] The character. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call the function `e->emit_character` with the arguments `c` and
+ *    `e->private_data`.
+ *
+ * @calls
+ * - `e->emit_character()` (indirect)
+ */
+static void emit(const emitter_t *e, char c)
 {
     e->emit_character(c, e->private_data);
 }
 
-/* Emit characters, produced by a number with given modificators.*/
-static void print_num(const struct emitter *e,
+/**
+ * @funcname `print_num`
+ *
+ * @description
+ * Emits a number in a base, with its sign and the padding of the field width
+ * (zeros after the sign, or spaces before it).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e` | `const emitter_t *` | [in] The emitter. |
+ * | `value` | `uint64_t` | [in] The magnitude. |
+ * | `base` | `uint32_t` | [in] The base (10 or 16). |
+ * | `pad` | `int32_t` | [in] The field width. |
+ * | `neg` | `bool` | [in] Whether a minus sign comes first. |
+ * | `pad_with_zero` | `bool` | [in] Whether to pad with zeros. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `digit_str` | `char[32]` | The digits, least significant first |
+ * | `digits` | `static const char[17]` | The digit characters |
+ * | `rest` | `uint64_t` | The part not converted yet |
+ * | `size` | `int32_t` | The number of digits |
+ * | `width` | `int32_t` | The width left for the digits |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `size` to `0`.
+ * 2. Set `width` to `pad`.
+ * 3. Set `rest` to `value`.
+ * 4. Repeat the following while `rest` is not equal to `0U` (at least once):
+ *    1. Set `digit_str[size]` to `digits[rest % base]`.
+ *    2. Divide `rest` by `base`.
+ *    3. Increment `size`.
+ * 5. If `neg` is true:
+ *    1. Decrement `width`.
+ * 6. If `pad_with_zero` is true:
+ *    1. If `neg` is true:
+ *       1. Call `emit()` with the arguments `e` and `'-'`.
+ *    2. While `size` is less than `width`:
+ *       1. Call `emit()` with the arguments `e` and `'0'`.
+ *       2. Decrement `width`.
+ * 7. Otherwise:
+ *    1. While `size` is less than `width`:
+ *       1. Call `emit()` with the arguments `e` and `' '`.
+ *       2. Decrement `width`.
+ *    2. If `neg` is true:
+ *       1. Call `emit()` with the arguments `e` and `'-'`.
+ * 8. While `size` is greater than `0`:
+ *    1. Decrement `size`.
+ *    2. Call `emit()` with the arguments `e` and `digit_str[size]`.
+ *
+ * @calls
+ * - `emit()`
+ */
+static void print_num(const emitter_t *e,
                       uint64_t value,
                       uint32_t base,
                       int32_t pad,
@@ -115,9 +208,56 @@ static void print_num(const struct emitter *e,
     }
 }
 
-/* Emit a string, cut to the precision if one is given. */
-static void print_string(const struct emitter *e, const char *str,
-                         const struct format_spec *spec)
+/**
+ * @funcname `print_string`
+ *
+ * @description
+ * Emits a string ("(null)" for NULL), right-aligned in the field width, cut to
+ * the precision if one is given.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e` | `const emitter_t *` | [in] The emitter. |
+ * | `str` | `const char *` | [in] The string, or NULL. |
+ * | `spec` | `const format_spec_t *` | [in] The conversion: width and precision. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `size_t` | The index of the character |
+ * | `len` | `size_t` | The number of characters emitted |
+ * | `s` | `const char *` | The string, or "(null)" |
+ * | `width` | `size_t` | The field width |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `s` to `str` if `str` is not NULL, otherwise `"(null)"`.
+ * 2. Call `strlen()` with the argument `s`, and store the result in `len`.
+ * 3. Set `width` to `(size_t) spec->pad` if `spec->pad` is greater than `0`,
+ *    otherwise `0U`.
+ * 4. If `spec->precision` is greater than `0` and `(size_t) spec->precision` is
+ *    less than `len`:
+ *    1. Set `len` to `(size_t) spec->precision`.
+ * 5. While `width` is greater than `len`:
+ *    1. Call `emit()` with the arguments `e` and `' '`.
+ *    2. Decrement `width`.
+ * 6. Set `i` to `0U`; then while `i` is less than `len`, repeat (after each
+ *    pass: increment `i`):
+ *    1. Call `emit()` with the arguments `e` and `s[i]`.
+ *
+ * @calls
+ * - `strlen()`
+ * - `emit()`
+ */
+static void print_string(const emitter_t *e, const char *str,
+                         const format_spec_t *spec)
 {
     const char *s = (str != NULL) ? str : "(null)";
     size_t len = strlen(s);
@@ -136,8 +276,46 @@ static void print_string(const struct emitter *e, const char *str,
     }
 }
 
-/* Unsigned argument of the length given by the specification. */
-static uint64_t get_unsigned(const struct format_spec *spec, va_list *parg)
+/**
+ * @funcname `get_unsigned`
+ *
+ * @description
+ * Reads the next variable argument as an unsigned number of the length given by
+ * the specification.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `spec` | `const format_spec_t *` | [in] The conversion: its length. |
+ * | `parg` | `va_list *` | [in,out] The variable arguments. |
+ *
+ * @return The argument.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `value` | `uint64_t` | The argument |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `spec->length` is equal to `2U`:
+ *    1. Set `value` to `va_arg(*parg, unsigned long long)`.
+ * 2. Otherwise, if `spec->length` is equal to `1U`:
+ *    1. Set `value` to `va_arg(*parg, unsigned long)`.
+ * 3. Otherwise:
+ *    1. Set `value` to `va_arg(*parg, unsigned int)`.
+ * 4. Return `value`.
+ *
+ * @calls
+ * None.
+ */
+static uint64_t get_unsigned(const format_spec_t *spec, va_list *parg)
 {
     uint64_t value;
 
@@ -151,8 +329,46 @@ static uint64_t get_unsigned(const struct format_spec *spec, va_list *parg)
     return value;
 }
 
-/* Signed argument of the length given by the specification. */
-static int64_t get_signed(const struct format_spec *spec, va_list *parg)
+/**
+ * @funcname `get_signed`
+ *
+ * @description
+ * Reads the next variable argument as a signed number of the length given by
+ * the specification.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `spec` | `const format_spec_t *` | [in] The conversion: its length. |
+ * | `parg` | `va_list *` | [in,out] The variable arguments. |
+ *
+ * @return The argument.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `value` | `int64_t` | The argument |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `spec->length` is equal to `2U`:
+ *    1. Set `value` to `va_arg(*parg, long long)`.
+ * 2. Otherwise, if `spec->length` is equal to `1U`:
+ *    1. Set `value` to `va_arg(*parg, long)`.
+ * 3. Otherwise:
+ *    1. Set `value` to `va_arg(*parg, int)`.
+ * 4. Return `value`.
+ *
+ * @calls
+ * None.
+ */
+static int64_t get_signed(const format_spec_t *spec, va_list *parg)
 {
     int64_t value;
 
@@ -166,8 +382,54 @@ static int64_t get_signed(const struct format_spec *spec, va_list *parg)
     return value;
 }
 
-/* Emit characters, produced by a floating number with given modificators.*/
-static void print_float(const struct emitter *e,
+/**
+ * @funcname `print_float`
+ *
+ * @description
+ * Emits a floating number that isn't negative: its integer part, a point and
+ * the digits of the precision (truncated).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e` | `const emitter_t *` | [in] The emitter. |
+ * | `value` | `long double` | [in] The magnitude. |
+ * | `pad` | `int32_t` | [in] The field width. |
+ * | `precision` | `int32_t` | [in] The number of digits after the point. |
+ * | `neg` | `bool` | [in] Whether a minus sign comes first. |
+ * | `pad_with_zero` | `bool` | [in] Whether to pad with zeros. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `fractional` | `long double` | The fractional part, then scaled by the precision |
+ * | `i` | `int32_t` | The number of digits scaled |
+ * | `int_part` | `uint64_t` | The integer part |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `int_part` to `(uint64_t) value`.
+ * 2. Set `fractional` to `value - (long double) int_part`.
+ * 3. Call `print_num()` with the arguments `e`, `int_part`, `10U`,
+ *    `pad - (precision + 1)`, `neg` and `pad_with_zero`.
+ * 4. Call `emit()` with the arguments `e` and `'.'`.
+ * 5. Set `i` to `0`; then while `i` is less than `precision`, repeat (after
+ *    each pass: increment `i`):
+ *    1. Multiply `fractional` by `10.0L`.
+ * 6. Call `print_num()` with the arguments `e`, `(uint64_t) fractional`, `10U`,
+ *    `precision`, `false` and `true`.
+ *
+ * @calls
+ * - `print_num()`
+ * - `emit()`
+ */
+static void print_float(const emitter_t *e,
                         long double value,
                         int32_t pad,
                         int32_t precision,
@@ -187,9 +449,100 @@ static void print_float(const struct emitter *e,
     print_num(e, (uint64_t) fractional, 10U, precision, false, true);
 }
 
-/* Emit characters, produced by one conversion with its specification. */
-static void print_conversion(const struct emitter *e, char conversion,
-                             const struct format_spec *spec, va_list *parg)
+/**
+ * @funcname `print_conversion`
+ *
+ * @description
+ * Emits one conversion with its specification and the next argument; an unknown
+ * conversion is emitted as it is.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e` | `const emitter_t *` | [in] The emitter. |
+ * | `conversion` | `char` | [in] The conversion character. |
+ * | `spec` | `const format_spec_t *` | [in] The width, precision, length and flags. |
+ * | `parg` | `va_list *` | [in,out] The variable arguments. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `address` | `uintptr_t` | The argument of %%p |
+ * | `magnitude` | `uint64_t` | Its magnitude |
+ * | `precision` | `int32_t` | The precision of %%f (6 by default) |
+ * | `value` | `int64_t` | The argument of %%d and %%i, or of %%f |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Depending on `conversion`:
+ *    1. Case `'s'`:
+ *       1. Call `print_string()` with the arguments `e`,
+ *          `va_arg(*parg, const char *)` and `spec`.
+ *       2. Leave the switch.
+ *    2. Case `'p'`:
+ *       1. Set `address` to `(uintptr_t) va_arg(*parg, void *)`.
+ *       2. Call `emit()` with the arguments `e` and `'0'`.
+ *       3. Call `emit()` with the arguments `e` and `'x'`.
+ *       4. Call `print_num()` with the arguments `e`, `address`, `16U`,
+ *          `spec->pad`, `false` and `spec->pad_with_zero`.
+ *       5. Leave the switch.
+ *    3. Case `'x'`:
+ *       1. Call `print_num()` with the arguments `e`,
+ *          `get_unsigned(spec, parg)`, `16U`, `spec->pad`, `false` and
+ *          `spec->pad_with_zero`.
+ *       2. Leave the switch.
+ *    4. Case `'d'` or `'i'`:
+ *       1. Call `get_signed()` with the arguments `spec` and `parg`, and store
+ *          the result in `value`.
+ *       2. Set `magnitude` to `(0U - (uint64_t) value)` if `value` is less than
+ *          `0`, otherwise `(uint64_t) value`.
+ *       3. Call `print_num()` with the arguments `e`, `magnitude`, `10U`,
+ *          `spec->pad`, `value < 0` and `spec->pad_with_zero`.
+ *       4. Leave the switch.
+ *    5. Case `'u'`:
+ *       1. Call `print_num()` with the arguments `e`,
+ *          `get_unsigned(spec, parg)`, `10U`, `spec->pad`, `false` and
+ *          `spec->pad_with_zero`.
+ *       2. Leave the switch.
+ *    6. Case `'f'`:
+ *       1. Set `precision` to `6` if `spec->precision` is equal to `0`,
+ *          otherwise `spec->precision`.
+ *       2. If `spec->length` is equal to `2U`:
+ *          1. Set `value` to `va_arg(*parg, long double)`.
+ *       3. Otherwise:
+ *          1. Set `value` to `va_arg(*parg, double)`.
+ *       4. Call `print_float()` with the arguments `e`, `-value` if `value` is
+ *          less than `0.0L`, otherwise `value`, `spec->pad`, `precision`,
+ *          `value < 0.0L` and `spec->pad_with_zero`.
+ *       5. Leave the switch.
+ *    7. Case `'c'`:
+ *       1. Call `emit()` with the arguments `e` and
+ *          `(char) va_arg(*parg, int)`.
+ *       2. Leave the switch.
+ *    8. Case `'%%'`:
+ *       1. Call `emit()` with the arguments `e` and `'%%'`.
+ *       2. Leave the switch.
+ *    9. Otherwise (default):
+ *       1. Call `emit()` with the arguments `e` and `'%%'`.
+ *       2. Call `emit()` with the arguments `e` and `conversion`.
+ *       3. Leave the switch.
+ *
+ * @calls
+ * - `print_string()`
+ * - `emit()`
+ * - `print_num()`
+ * - `get_unsigned()`
+ * - `get_signed()`
+ * - `print_float()`
+ */
+static void print_conversion(const emitter_t *e, char conversion,
+                             const format_spec_t *spec, va_list *parg)
 {
     switch (conversion) {
         case 's':
@@ -257,17 +610,82 @@ static void print_conversion(const struct emitter *e, char conversion,
     }
 }
 
-/*
- * Parse format specifier (without leading '%') from format and emit
- * characters it produces.
+/**
+ * @funcname `handle_fmt`
  *
- * Return pointer to the character followed format specifier.
+ * @description
+ * Parses a conversion specification (without the leading '%%') from the format
+ * and emits the characters it produces.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e` | `const emitter_t *` | [in] The emitter. |
+ * | `format` | `const char *` | [in] The format, after the %. |
+ * | `parg` | `va_list *` | [in,out] The variable arguments. |
+ *
+ * @return The format after the conversion.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `char` | The character of the format |
+ * | `digit` | `int32_t` | The value of a digit |
+ * | `f` | `const char *` | The format being read |
+ * | `parsing` | `bool` | Whether the specification goes on |
+ * | `spec` | `format_spec_t` | The conversion specification |
+ * | `was_dot` | `bool` | Whether a precision follows |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `spec` to `{ 0U, 0, 0, false }`.
+ * 2. Set `was_dot` to `false`.
+ * 3. Set `parsing` to `true`.
+ * 4. Set `f` to `format`.
+ * 5. While `parsing` is true:
+ *    1. Set `c` to the value at `f`.
+ *    2. If `c` is greater than or equal to `'0'` and `c` is less than or equal
+ *       to `'9'`:
+ *       1. Set `digit` to `c - '0'`.
+ *       2. If `was_dot` is true:
+ *          1. Set `spec.precision` to `(spec.precision * 10) + digit`.
+ *       3. Otherwise, if `digit` is equal to `0` and `spec.pad` is equal to
+ *          `0`:
+ *          1. Set `spec.pad_with_zero` to `true`.
+ *       4. Otherwise:
+ *          1. Set `spec.pad` to `(spec.pad * 10) + digit`.
+ *       5. Increment `f`.
+ *    3. Otherwise, if `c` is equal to `'l'`:
+ *       1. Increment `spec.length`.
+ *       2. Increment `f`.
+ *    4. Otherwise, if `c` is equal to `'z'`:
+ *       1. Set `spec.length` to `1U`.
+ *       2. Increment `f`.
+ *    5. Otherwise, if `c` is equal to `'.'`:
+ *       1. Set `was_dot` to `true`.
+ *       2. Increment `f`.
+ *    6. Otherwise:
+ *       1. Set `parsing` to `false`.
+ * 6. If the value at `f` is not equal to `'\0'`:
+ *    1. Call `print_conversion()` with the arguments `e`, the value at `f`, the
+ *       address of `spec` and `parg`.
+ *    2. Increment `f`.
+ * 7. Return `f`.
+ *
+ * @calls
+ * - `print_conversion()`
  */
 //XXX for now precision is used only for floating points and strings
-static const char * handle_fmt(const struct emitter *e,
+static const char * handle_fmt(const emitter_t *e,
     const char* format, va_list* parg)
 {
-    struct format_spec spec = { 0U, 0, 0, false };
+    format_spec_t spec = { 0U, 0, 0, false };
     bool was_dot = false; // There was '.' in the specification.
     bool parsing = true;
     const char *f = format;
@@ -308,10 +726,60 @@ static const char * handle_fmt(const struct emitter *e,
     return f;
 }
 
+/**
+ * @funcname `printf_emitter`
+ *
+ * @description
+ * For each character that a format and its arguments determine, calls an output
+ * function. Where va_list is an array type (e.g. x86_64), the va_list argument
+ * is really a pointer and can't be passed by reference, so a copy of it is
+ * used.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `emit_character` | `emit_character_t` | [in] The output function. |
+ * | `private_data` | `void *` | [in] The data of the output function. |
+ * | `format` | `const char *` | [in] The format. |
+ * | `arg` | `va_list` | [in] The variable arguments. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arg1` | `va_list` | The copy of the variable arguments |
+ * | `e` | `emitter_t` | The emitter |
+ * | `f` | `const char *` | The format being read |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `f` to `format`.
+ * 2. Set `e.emit_character` to `emit_character`.
+ * 3. Set `e.private_data` to `private_data`.
+ * 4. Use the macro `va_copy()` with the arguments `arg1` and `arg`.
+ * 5. While the value at `f` is not equal to `'\0'`:
+ *    1. If the value at `f` is equal to `'%%'`:
+ *       1. Call `handle_fmt()` with the arguments the address of `e`, `f + 1`
+ *          and the address of `arg1`, and store the result in `f`.
+ *    2. Otherwise:
+ *       1. Call `emit()` with the arguments the address of `e` and the value at
+ *          `f`.
+ *       2. Increment `f`.
+ * 6. Use the macro `va_end()` with the argument `arg1`.
+ *
+ * @calls
+ * - `handle_fmt()`
+ * - `emit()`
+ */
 void printf_emitter(emit_character_t emit_character, void *private_data,
     const char* format, va_list arg)
 {
-    struct emitter e;
+    emitter_t e;
     const char *f = format;
 
     e.emit_character = emit_character;

@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Tue Dec  8 15:53:28 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-13: the macros NUM_WEAK_KEY and
+ * HPERM_OP are moved here from libpok/protocols/des/set_key.c.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* crypto/des/des_locl.h */
@@ -84,39 +90,201 @@
 */
 
 
+/**
+ * @macroname `DES_LONG`
+ *
+ * @description
+ * The type of the 32-bit words of DES.
+ */
 #define DES_LONG unsigned long
 #if defined(OPENSSL_SYS_VMS_NODECC)
+
+/**
+ * @macroname `OPENSSL_EXPORT`
+ *
+ * @description
+ * The storage class of an exported global of OpenSSL (extern here).
+ */
 # define OPENSSL_EXPORT globalref
+
+/**
+ * @macroname `OPENSSL_IMPORT`
+ *
+ * @description
+ * The storage class of an imported global of OpenSSL (extern here).
+ */
 # define OPENSSL_IMPORT globalref
+
+/**
+ * @macroname `OPENSSL_GLOBAL`
+ *
+ * @description
+ * The storage class of the definition of a global of OpenSSL (nothing here).
+ */
 # define OPENSSL_GLOBAL globaldef
 #elif defined(OPENSSL_SYS_WINDOWS) && defined(OPENSSL_OPT_WINDLL)
+
+/**
+ * @macroname `OPENSSL_EXPORT`
+ *
+ * @description
+ * The storage class of an exported global of OpenSSL (extern here).
+ */
 # define OPENSSL_EXPORT extern __declspec(dllexport)
+
+/**
+ * @macroname `OPENSSL_IMPORT`
+ *
+ * @description
+ * The storage class of an imported global of OpenSSL (extern here).
+ */
 # define OPENSSL_IMPORT extern __declspec(dllimport)
+
+/**
+ * @macroname `OPENSSL_GLOBAL`
+ *
+ * @description
+ * The storage class of the definition of a global of OpenSSL (nothing here).
+ */
 # define OPENSSL_GLOBAL
 #else
+
+/**
+ * @macroname `OPENSSL_EXPORT`
+ *
+ * @description
+ * The storage class of an exported global of OpenSSL (extern here).
+ */
 # define OPENSSL_EXPORT extern
+
+/**
+ * @macroname `OPENSSL_IMPORT`
+ *
+ * @description
+ * The storage class of an imported global of OpenSSL (extern here).
+ */
 # define OPENSSL_IMPORT extern
+
+/**
+ * @macroname `OPENSSL_GLOBAL`
+ *
+ * @description
+ * The storage class of the definition of a global of OpenSSL (nothing here).
+ */
 # define OPENSSL_GLOBAL
 #endif
+
+/**
+ * @macroname `OPENSSL_EXTERN`
+ *
+ * @description
+ * The storage class of a global of OpenSSL used by the library (OPENSSL_IMPORT,
+ * or OPENSSL_EXPORT when building the shared library).
+ */
 #define OPENSSL_EXTERN OPENSSL_IMPORT
 
 
 #ifdef OPENSSL_EXPORT_VAR_AS_FUNCTION
+
+/**
+ * @macroname `OPENSSL_IMPLEMENT_GLOBAL`
+ *
+ * @description
+ * Defines the global `name` of type `type` of OpenSSL (as _shadow_name, or
+ * behind a function that returns its address).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `type` | Its type. |
+ * | `name` | Its name. |
+ */
 # define OPENSSL_IMPLEMENT_GLOBAL(type,name)                         \
         extern type _hide_##name;                                    \
         type *_shadow_##name(void) { return &_hide_##name; }         \
         static type _hide_##name
+
+/**
+ * @macroname `OPENSSL_DECLARE_GLOBAL`
+ *
+ * @description
+ * Declares the global `name` of type `type` of OpenSSL.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `type` | Its type. |
+ * | `name` | Its name. |
+ */
 # define OPENSSL_DECLARE_GLOBAL(type,name) type *_shadow_##name(void)
+
+/**
+ * @macroname `OPENSSL_GLOBAL_REF`
+ *
+ * @description
+ * The global `name` of OpenSSL (an lvalue).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `name` | Its name. |
+ */
 # define OPENSSL_GLOBAL_REF(name) (*(_shadow_##name()))
 #else
+
+/**
+ * @macroname `OPENSSL_IMPLEMENT_GLOBAL`
+ *
+ * @description
+ * Defines the global `name` of type `type` of OpenSSL (as _shadow_name, or
+ * behind a function that returns its address).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `type` | Its type. |
+ * | `name` | Its name. |
+ */
 # define OPENSSL_IMPLEMENT_GLOBAL(type,name) OPENSSL_GLOBAL type _shadow_##name
+
+/**
+ * @macroname `OPENSSL_DECLARE_GLOBAL`
+ *
+ * @description
+ * Declares the global `name` of type `type` of OpenSSL.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `type` | Its type. |
+ * | `name` | Its name. |
+ */
 # define OPENSSL_DECLARE_GLOBAL(type,name) OPENSSL_EXPORT type _shadow_##name
+
+/**
+ * @macroname `OPENSSL_GLOBAL_REF`
+ *
+ * @description
+ * The global `name` of OpenSSL (an lvalue).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `name` | Its name. |
+ */
 # define OPENSSL_GLOBAL_REF(name) _shadow_##name
 #endif
 
 
 #if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
 #ifndef OPENSSL_SYS_MSDOS
+
+/**
+ * @macroname `OPENSSL_SYS_MSDOS`
+ *
+ * @description
+ * The system is MS-DOS or Windows (not here).
+ */
 #define OPENSSL_SYS_MSDOS
 #endif
 #endif
@@ -151,22 +319,81 @@
 
 #ifdef OPENSSL_BUILD_SHLIBCRYPTO
 # undef OPENSSL_EXTERN
+
+/**
+ * @macroname `OPENSSL_EXTERN`
+ *
+ * @description
+ * The storage class of a global of OpenSSL used by the library (OPENSSL_IMPORT,
+ * or OPENSSL_EXPORT when building the shared library).
+ */
 # define OPENSSL_EXTERN OPENSSL_EXPORT
 #endif
 
+/**
+ * @macroname `ITERATIONS`
+ *
+ * @description
+ * The number of rounds of DES.
+ */
 #define ITERATIONS 16
+
+/**
+ * @macroname `HALF_ITERATIONS`
+ *
+ * @description
+ * Half the number of rounds of DES.
+ */
 #define HALF_ITERATIONS 8
 
-/* used in des_read and des_write */
+/**
+ * @macroname `MAXWRITE`
+ *
+ * @description
+ * The largest message of DES_enc_read() and DES_enc_write().
+ */
 #define MAXWRITE	(1024*16)
+
+/**
+ * @macroname `BSIZE`
+ *
+ * @description
+ * The size of the buffer of DES_enc_read()/DES_enc_write().
+ */
 #define BSIZE		(MAXWRITE+4)
 
+/**
+ * @macroname `c2l`
+ *
+ * @description
+ * Reads 4 bytes at `c`, least significant first, into `l`, and advances `c`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `c` | The pointer to the bytes (an lvalue: unsigned char *). |
+ * | `l` | Receives the value. |
+ */
 #define c2l(c,l)	(l =((DES_LONG)(*((c)++)))    , \
 			 l|=((DES_LONG)(*((c)++)))<< 8L, \
 			 l|=((DES_LONG)(*((c)++)))<<16L, \
 			 l|=((DES_LONG)(*((c)++)))<<24L)
 
-/* NOTE - c is not incremented as per c2l */
+/**
+ * @macroname `c2ln`
+ *
+ * @description
+ * Reads `n` (1 to 8) bytes at `c`, least significant first, into `l1` and `l2`;
+ * `c` is not advanced (unlike c2l()).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `c` | The pointer to the bytes (an lvalue: unsigned char *). |
+ * | `l1` | Receives the first word. |
+ * | `l2` | Receives the second word. |
+ * | `n` | The number of bytes. |
+ */
 #define c2ln(c,l1,l2,n)	{ \
 			c+=n; \
 			l1=l2=0; \
@@ -182,26 +409,83 @@
 				} \
 			}
 
+/**
+ * @macroname `l2c`
+ *
+ * @description
+ * Writes `l` to 4 bytes at `c`, least significant first, and advances `c`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `l` | The value. |
+ * | `c` | The pointer to the bytes (an lvalue: unsigned char *). |
+ */
 #define l2c(l,c)	(*((c)++)=(unsigned char)(((l)     )&0xff), \
 			 *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>24L)&0xff))
 
-/* replacements for htonl and ntohl since I have no idea what to do
- * when faced with machines with 8 byte longs. */
+/**
+ * @macroname `HDRSIZE`
+ *
+ * @description
+ * The size of the length header of DES_enc_read()/DES_enc_write().
+ */
 #define HDRSIZE 4
 
+/**
+ * @macroname `n2l`
+ *
+ * @description
+ * Reads 4 bytes at `c`, most significant first (network order), into `l`, and
+ * advances `c`: a replacement for ntohl(), which doesn't fit machines with
+ * 8-byte longs.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `c` | The pointer to the bytes (an lvalue: unsigned char *). |
+ * | `l` | Receives the value. |
+ */
 #define n2l(c,l)	(l =((DES_LONG)(*((c)++)))<<24L, \
 			 l|=((DES_LONG)(*((c)++)))<<16L, \
 			 l|=((DES_LONG)(*((c)++)))<< 8L, \
 			 l|=((DES_LONG)(*((c)++))))
 
+/**
+ * @macroname `l2n`
+ *
+ * @description
+ * Writes `l` to 4 bytes at `c`, most significant first (network order), and
+ * advances `c`: a replacement for htonl().
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `l` | The value. |
+ * | `c` | The pointer to the bytes (an lvalue: unsigned char *). |
+ */
 #define l2n(l,c)	(*((c)++)=(unsigned char)(((l)>>24L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
 			 *((c)++)=(unsigned char)(((l)     )&0xff))
 
-/* NOTE - c is not incremented as per l2c */
+/**
+ * @macroname `l2cn`
+ *
+ * @description
+ * Writes `n` (1 to 8) bytes of `l1` and `l2` at `c`, least significant first;
+ * `c` is not advanced (unlike l2c()).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `l1` | The first word. |
+ * | `l2` | The second word. |
+ * | `c` | The pointer to the bytes (an lvalue: unsigned char *). |
+ * | `n` | The number of bytes. |
+ */
 #define l2cn(l1,l2,c,n)	{ \
 			c+=n; \
 			switch (n) { \
@@ -217,9 +501,37 @@
 			}
 
 #if (defined(OPENSSL_SYS_WIN32) && defined(_MSC_VER)) || defined(__ICC)
+
+/**
+ * @macroname `ROTATE`
+ *
+ * @description
+ * Rotates the 32-bit word `a` right by `n` bits (an instruction where the
+ * compiler allows it).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `a` | The word. |
+ * | `n` | The number of bits. |
+ */
 #define	ROTATE(a,n)	(_lrotr(a,n))
 #elif defined(__GNUC__) && __GNUC__>=2 && !defined(__STRICT_ANSI__) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM) && !defined(PEDANTIC)
 # if defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__)
+
+/**
+ * @macroname `ROTATE`
+ *
+ * @description
+ * Rotates the 32-bit word `a` right by `n` bits (an instruction where the
+ * compiler allows it).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `a` | The word. |
+ * | `n` | The number of bits. |
+ */
 #  define ROTATE(a,n)	({ register unsigned int ret;	\
 				asm ("rorl %1,%0"	\
 					: "=r"(ret)	\
@@ -230,6 +542,20 @@
 # endif
 #endif
 #ifndef ROTATE
+
+/**
+ * @macroname `ROTATE`
+ *
+ * @description
+ * Rotates the 32-bit word `a` right by `n` bits (an instruction where the
+ * compiler allows it).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `a` | The word. |
+ * | `n` | The number of bits. |
+ */
 #define	ROTATE(a,n)	(((a)>>(n))+((a)<<(32-(n))))
 #endif
 
@@ -238,16 +564,88 @@
 
 #ifdef DES_FCRYPT
 
+/**
+ * @macroname `LOAD_DATA_tmp`
+ *
+ * @description
+ * Loads the two subkey words of the round `S` mixed with `R` into `u` and `t`
+ * (LOAD_DATA() with a temporary of its own).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ * | `u` | Receives the first word. |
+ * | `t` | Receives the second word. |
+ * | `E0` | The salt mask (fcrypt()). |
+ * | `E1` | The salt mask (fcrypt()). |
+ */
 #define LOAD_DATA_tmp(R,S,u,t,E0,E1) \
 	{ DES_LONG tmp; LOAD_DATA(R,S,u,t,E0,E1,tmp); }
 
+/**
+ * @macroname `LOAD_DATA`
+ *
+ * @description
+ * Loads the two subkey words of the round `S` mixed with `R` into `u` and `t`
+ * (fcrypt() adds its salt with `E0`, `E1` and `tmp`).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ * | `u` | Receives the first word. |
+ * | `t` | Receives the second word. |
+ * | `E0` | The salt mask (fcrypt()). |
+ * | `E1` | The salt mask (fcrypt()). |
+ * | `tmp` | A temporary. |
+ */
 #define LOAD_DATA(R,S,u,t,E0,E1,tmp) \
 	t=R^(R>>16L); \
 	u=t&E0; t&=E1; \
 	tmp=(u<<16); u^=R^s[S  ]; u^=tmp; \
 	tmp=(t<<16); t^=R^s[S+1]; t^=tmp
 #else
+
+/**
+ * @macroname `LOAD_DATA_tmp`
+ *
+ * @description
+ * Loads the two subkey words of the round `S` mixed with `R` into `u` and `t`
+ * (LOAD_DATA() with a temporary of its own).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `a` | The right half. |
+ * | `b` | The index of the round's subkeys. |
+ * | `c` | Receives the first word. |
+ * | `d` | Receives the second word. |
+ * | `e` | The salt mask (not used without fcrypt()). |
+ * | `f` | The salt mask (not used without fcrypt()). |
+ */
 #define LOAD_DATA_tmp(a,b,c,d,e,f) LOAD_DATA(a,b,c,d,e,f,g)
+
+/**
+ * @macroname `LOAD_DATA`
+ *
+ * @description
+ * Loads the two subkey words of the round `S` mixed with `R` into `u` and `t`
+ * (fcrypt() adds its salt with `E0`, `E1` and `tmp`).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ * | `u` | Receives the first word. |
+ * | `t` | Receives the second word. |
+ * | `E0` | The salt mask (fcrypt()). |
+ * | `E1` | The salt mask (fcrypt()). |
+ * | `tmp` | A temporary. |
+ */
 #define LOAD_DATA(R,S,u,t,E0,E1,tmp) \
 	u=R^s[S  ]; \
 	t=R^s[S+1]
@@ -267,6 +665,21 @@
 
 #if defined(DES_RISC1) || defined(DES_RISC2)
 #ifdef DES_RISC1
+
+/**
+ * @macroname `D_ENCRYPT`
+ *
+ * @description
+ * One round of DES: xors into `LL` the S-box output of the right half `R` with
+ * the subkeys of the round `S`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `LL` | The left half, changed. |
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ */
 #define D_ENCRYPT(LL,R,S) { \
 	unsigned int u1,u2,u3; \
 	LOAD_DATA(R,S,u,t,E0,E1,u1); \
@@ -295,6 +708,21 @@
 	LL^= *(const DES_LONG *)(des_SP+0x700+u3); }
 #endif
 #ifdef DES_RISC2
+
+/**
+ * @macroname `D_ENCRYPT`
+ *
+ * @description
+ * One round of DES: xors into `LL` the S-box output of the right half `R` with
+ * the subkeys of the round `S`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `LL` | The left half, changed. |
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ */
 #define D_ENCRYPT(LL,R,S) { \
 	unsigned int u1,u2,s1,s2; \
 	LOAD_DATA(R,S,u,t,E0,E1,u1); \
@@ -323,6 +751,21 @@
 	LL^= *(const DES_LONG *)(des_SP+0x700+s2); }
 #endif
 #else
+
+/**
+ * @macroname `D_ENCRYPT`
+ *
+ * @description
+ * One round of DES: xors into `LL` the S-box output of the right half `R` with
+ * the subkeys of the round `S`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `LL` | The left half, changed. |
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ */
 #define D_ENCRYPT(LL,R,S) { \
 	LOAD_DATA_tmp(R,S,u,t,E0,E1); \
 	t=ROTATE(t,4); \
@@ -341,6 +784,21 @@
 
 #if defined(DES_RISC1) || defined(DES_RISC2)
 #ifdef DES_RISC1
+
+/**
+ * @macroname `D_ENCRYPT`
+ *
+ * @description
+ * One round of DES: xors into `LL` the S-box output of the right half `R` with
+ * the subkeys of the round `S`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `LL` | The left half, changed. |
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ */
 #define D_ENCRYPT(LL,R,S) {\
 	unsigned int u1,u2,u3; \
 	LOAD_DATA(R,S,u,t,E0,E1,u1); \
@@ -370,6 +828,21 @@
 	LL^=DES_SPtrans[7][u3]; }
 #endif
 #ifdef DES_RISC2
+
+/**
+ * @macroname `D_ENCRYPT`
+ *
+ * @description
+ * One round of DES: xors into `LL` the S-box output of the right half `R` with
+ * the subkeys of the round `S`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `LL` | The left half, changed. |
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ */
 #define D_ENCRYPT(LL,R,S) {\
 	unsigned int u1,u2,s1,s2; \
 	LOAD_DATA(R,S,u,t,E0,E1,u1); \
@@ -401,6 +874,20 @@
 
 #else
 
+/**
+ * @macroname `D_ENCRYPT`
+ *
+ * @description
+ * One round of DES: xors into `LL` the S-box output of the right half `R` with
+ * the subkeys of the round `S`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `LL` | The left half, changed. |
+ * | `R` | The right half. |
+ * | `S` | The index of the round's subkeys. |
+ */
 #define D_ENCRYPT(LL,R,S) {\
 	LOAD_DATA_tmp(R,S,u,t,E0,E1); \
 	t=ROTATE(t,4); \
@@ -453,10 +940,40 @@
 	I first got ~42 operations without xors.  When I remembered
 	how to use xors :-) I got it to its final state.
 	*/
+
+/**
+ * @macroname `PERM_OP`
+ *
+ * @description
+ * Swaps the bits of `b` selected by the mask `m` with those of `a` `n` places
+ * away, using `t` (a step of the initial and final permutations, see the
+ * comment above).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `a` | The first word. |
+ * | `b` | The second word. |
+ * | `t` | A temporary. |
+ * | `n` | The distance. |
+ * | `m` | The mask. |
+ */
 #define PERM_OP(a,b,t,n,m) ((t)=((((a)>>(n))^(b))&(m)),\
 	(b)^=(t),\
 	(a)^=((t)<<(n)))
 
+/**
+ * @macroname `IP`
+ *
+ * @description
+ * The initial permutation of DES on the halves `l` and `r`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `l` | The left half. |
+ * | `r` | The right half. |
+ */
 #define IP(l,r) \
 	{ \
 	register DES_LONG tt; \
@@ -467,6 +984,18 @@
 	PERM_OP(r,l,tt, 1,0x55555555L); \
 	}
 
+/**
+ * @macroname `FP`
+ *
+ * @description
+ * The final permutation of DES on the halves `l` and `r`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `l` | The left half. |
+ * | `r` | The right half. |
+ */
 #define FP(l,r) \
 	{ \
 	register DES_LONG tt; \
@@ -478,6 +1007,34 @@
 	}
 
 extern const DES_LONG DES_SPtrans[8][64];
+
+/**
+ * @macroname `NUM_WEAK_KEY`
+ *
+ * @description
+ * The number of weak and semi-weak keys of DES (the array weak_keys of
+ * set_key.c).
+ */
+#define NUM_WEAK_KEY	16
+
+/**
+ * @macroname `HPERM_OP`
+ *
+ * @description
+ * A half permutation of the key schedule of DES (DES_set_key_unchecked()):
+ * swaps the bits of `a` selected by the mask `m` with those `16 - n` places
+ * away, using `t`.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `a` | The value permuted. |
+ * | `t` | A temporary. |
+ * | `n` | The shift. |
+ * | `m` | The mask. |
+ */
+#define HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
+	(a)=(a)^(t)^(t>>(16-(n))))
 
 #endif
 

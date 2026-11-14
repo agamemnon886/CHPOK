@@ -91,13 +91,32 @@
 extern "C" {
 #endif
 
+/**
+ * @typename `DES_cblock`
+ *
+ * @description
+ * A DES block or key (8 bytes).
+ */
 typedef unsigned char DES_cblock[8];
+
+/**
+ * @typename `const_DES_cblock`
+ *
+ * @description
+ * A DES block or key that is only read (the same type as DES_cblock: with
+ * "const", old compilers took pointers to the two as incompatible).
+ */
 typedef /* const */ unsigned char const_DES_cblock[8];
 /* With "const", gcc 2.8.1 on Solaris thinks that DES_cblock *
  * and const_DES_cblock * are incompatible pointer types. */
 
-typedef struct DES_ks
-    {
+/**
+ * @typename `DES_key_schedule`
+ *
+ * @description
+ * The key schedule of DES: the 16 subkeys.
+ */
+typedef struct {
     union
 	{
 	DES_cblock cblock;
@@ -105,10 +124,22 @@ typedef struct DES_ks
 	 * 8 byte longs */
 	DES_LONG deslong[2];
 	} ks[16];
+	/**<
+	 * The subkeys: each one as bytes (cblock) or as two DES_LONG
+	 * (deslong, the right size on machines with 8-byte longs).
+	 */
     } DES_key_schedule;
 
 #ifndef OPENSSL_DISABLE_OLD_DES_SUPPORT
 # ifndef OPENSSL_ENABLE_OLD_DES_SUPPORT
+
+/**
+ * @macroname `OPENSSL_ENABLE_OLD_DES_SUPPORT`
+ *
+ * @description
+ * Enables the old DES interface of OpenSSL (unless
+ * OPENSSL_DISABLE_OLD_DES_SUPPORT); its header isn't included here.
+ */
 #  define OPENSSL_ENABLE_OLD_DES_SUPPORT
 # endif
 #endif
@@ -119,32 +150,159 @@ typedef struct DES_ks
 #endif
 */
 
+/**
+ * @macroname `DES_KEY_SZ`
+ *
+ * @description
+ * The size of a DES key, in bytes.
+ */
 #define DES_KEY_SZ 	(sizeof(DES_cblock))
+
+/**
+ * @macroname `DES_SCHEDULE_SZ`
+ *
+ * @description
+ * The size of a key schedule, in bytes.
+ */
 #define DES_SCHEDULE_SZ (sizeof(DES_key_schedule))
 
+/**
+ * @macroname `DES_ENCRYPT`
+ *
+ * @description
+ * Encrypt (the `enc` argument of the DES functions).
+ */
 #define DES_ENCRYPT	1
+
+/**
+ * @macroname `DES_DECRYPT`
+ *
+ * @description
+ * Decrypt (the `enc` argument of the DES functions).
+ */
 #define DES_DECRYPT	0
 
+/**
+ * @macroname `DES_CBC_MODE`
+ *
+ * @description
+ * The CBC mode of DES_enc_read()/DES_enc_write() (DES_rw_mode).
+ */
 #define DES_CBC_MODE	0
+
+/**
+ * @macroname `DES_PCBC_MODE`
+ *
+ * @description
+ * The PCBC mode of DES_enc_read()/DES_enc_write() (DES_rw_mode).
+ */
 #define DES_PCBC_MODE	1
 
+/**
+ * @macroname `DES_ecb2_encrypt`
+ *
+ * @description
+ * Two-key triple DES in ECB mode: DES_ecb3_encrypt() with the first key used
+ * again as the third.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `i` | The input block. |
+ * | `o` | The output block. |
+ * | `k1` | The first key schedule. |
+ * | `k2` | The second key schedule. |
+ * | `e` | DES_ENCRYPT or DES_DECRYPT. |
+ */
 #define DES_ecb2_encrypt(i,o,k1,k2,e) \
 	DES_ecb3_encrypt((i),(o),(k1),(k2),(k1),(e))
 
+/**
+ * @macroname `DES_ede2_cbc_encrypt`
+ *
+ * @description
+ * Two-key triple DES in CBC mode: DES_ede3_cbc_encrypt() with the first key
+ * used again as the third.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `i` | The input. |
+ * | `o` | The output. |
+ * | `l` | Its length. |
+ * | `k1` | The first key schedule. |
+ * | `k2` | The second key schedule. |
+ * | `iv` | The initialization vector. |
+ * | `e` | DES_ENCRYPT or DES_DECRYPT. |
+ */
 #define DES_ede2_cbc_encrypt(i,o,l,k1,k2,iv,e) \
 	DES_ede3_cbc_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(e))
 
+/**
+ * @macroname `DES_ede2_cfb64_encrypt`
+ *
+ * @description
+ * Two-key triple DES in 64-bit CFB mode: DES_ede3_cfb64_encrypt() with the
+ * first key used again as the third.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `i` | The input. |
+ * | `o` | The output. |
+ * | `l` | Its length. |
+ * | `k1` | The first key schedule. |
+ * | `k2` | The second key schedule. |
+ * | `iv` | The initialization vector. |
+ * | `n` | The position in the block. |
+ * | `e` | DES_ENCRYPT or DES_DECRYPT. |
+ */
 #define DES_ede2_cfb64_encrypt(i,o,l,k1,k2,iv,n,e) \
 	DES_ede3_cfb64_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(n),(e))
 
+/**
+ * @macroname `DES_ede2_ofb64_encrypt`
+ *
+ * @description
+ * Two-key triple DES in 64-bit OFB mode: DES_ede3_ofb64_encrypt() with the
+ * first key used again as the third.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `i` | The input. |
+ * | `o` | The output. |
+ * | `l` | Its length. |
+ * | `k1` | The first key schedule. |
+ * | `k2` | The second key schedule. |
+ * | `iv` | The initialization vector. |
+ * | `n` | The position in the block. |
+ */
 #define DES_ede2_ofb64_encrypt(i,o,l,k1,k2,iv,n) \
 	DES_ede3_ofb64_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(n))
 
 OPENSSL_DECLARE_GLOBAL(int,DES_check_key);	/* defaults to false */
+
+/**
+ * @macroname `DES_check_key`
+ *
+ * @description
+ * Whether DES_set_key() checks the parity and weakness of keys (a global, false
+ * by default).
+ */
 #define DES_check_key OPENSSL_GLOBAL_REF(DES_check_key)
 OPENSSL_DECLARE_GLOBAL(int,DES_rw_mode);	/* defaults to DES_PCBC_MODE */
+
+/**
+ * @macroname `DES_rw_mode`
+ *
+ * @description
+ * The mode of DES_enc_read()/DES_enc_write() (a global, DES_PCBC_MODE by
+ * default).
+ */
 #define DES_rw_mode OPENSSL_GLOBAL_REF(DES_rw_mode)
 
+/** \cond */
 const char *DES_options(void);
 void DES_ecb3_encrypt(const_DES_cblock *input, DES_cblock *output,
 		      DES_key_schedule *ks1,DES_key_schedule *ks2,
@@ -253,7 +411,14 @@ void DES_ofb64_encrypt(const unsigned char *in,unsigned char *out,long length,
 int DES_read_password(DES_cblock *key, const char *prompt, int verify);
 int DES_read_2passwords(DES_cblock *key1, DES_cblock *key2, const char *prompt,
 	int verify);
+/** \endcond */
 
+/**
+ * @macroname `DES_fixup_key_parity`
+ *
+ * @description
+ * The old name of DES_set_odd_parity().
+ */
 #define DES_fixup_key_parity DES_set_odd_parity
 
 #ifdef  __cplusplus

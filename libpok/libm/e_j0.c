@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_j0.c 5.1 93/09/24 */
@@ -26,6 +35,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_j0()`, `__ieee754_y0()`, pzero() and qzero() of libpok's math
+ * library (fdlibm, from Sun Microsystems).
+ */
 /* __ieee754_j0(x), __ieee754_y0(x)
  * Bessel function of the first and second kinds of order zero.
  * Method -- j0(x):
@@ -96,6 +110,101 @@ S04  =  1.16614003333790000205e-09; /* 0x3E1408BC, 0xF4745D8F */
 
 static const double zero = 0.0;
 
+/**
+ * @funcname `__ieee754_j0`
+ *
+ * @description
+ * Computes the Bessel function of the first kind of order 0 of x: the IEEE 754
+ * core of j0().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `R02` | `const double` | A constant of the algorithm |
+ * | `R03` | `const double` | A constant of the algorithm |
+ * | `R04` | `const double` | A constant of the algorithm |
+ * | `R05` | `const double` | A constant of the algorithm |
+ * | `S01` | `const double` | A constant of the algorithm |
+ * | `S02` | `const double` | A constant of the algorithm |
+ * | `S03` | `const double` | A constant of the algorithm |
+ * | `S04` | `const double` | A constant of the algorithm |
+ * | `huge` | `const double` | A constant of the algorithm |
+ * | `invsqrtpi` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `double` | A temporary of the computation |
+ * | `cc` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `ss` | `double` | A temporary of the computation |
+ * | `u` | `double` | A temporary of the computation |
+ * | `v` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx&0x7fffffff`.
+ * 3. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. Return `one/(x*x)`.
+ * 4. Call `fabs()` with the argument `x`, and store the result in `x`.
+ * 5. If `ix` is greater than or equal to `0x40000000`:
+ *    1. Call `sin()` with the argument `x`, and store the result in `s`.
+ *    2. Call `cos()` with the argument `x`, and store the result in `c`.
+ *    3. Set `ss` to `s-c`.
+ *    4. Set `cc` to `s+c`.
+ *    5. If `ix` is less than `0x7fe00000`:
+ *       1. Set `z` to `-cos(x+x)`.
+ *       2. If `(s*c)` is less than `zero`:
+ *          1. Set `cc` to `z/ss`.
+ *       3. Otherwise:
+ *          1. Set `ss` to `z/cc`.
+ *    6. If `ix` is greater than `0x48000000`:
+ *       1. Set `z` to `(invsqrtpi*cc)/sqrt(x)`.
+ *    7. Otherwise:
+ *       1. Call `pzero()` with the argument `x`, and store the result in `u`.
+ *       2. Call `qzero()` with the argument `x`, and store the result in `v`.
+ *       3. Set `z` to `invsqrtpi*(u*cc-v*ss)/sqrt(x)`.
+ *    8. Return `z`.
+ * 6. If `ix` is less than `0x3f200000`:
+ *    1. If `huge+x` is greater than `one`:
+ *       1. If `ix` is less than `0x3e400000`:
+ *          1. Return `one`.
+ *       2. Otherwise:
+ *          1. Return `one - 0.25*x*x`.
+ * 7. Set `z` to `x*x`.
+ * 8. Set `r` to `z*(R02+z*(R03+z*(R04+z*R05)))`.
+ * 9. Set `s` to `one+z*(S01+z*(S02+z*(S03+z*S04)))`.
+ * 10. If `ix` is less than `0x3FF00000`:
+ *     1. Return `one + z*(-0.25+(r/s))`.
+ * 11. Otherwise:
+ *     1. Set `u` to `0.5*x`.
+ *     2. Return `((one+u)*(one-u)+z*(r/s))`.
+ *
+ * @calls
+ * - `fabs()`
+ * - `sin()`
+ * - `cos()`
+ * - `sqrt()`
+ * - `pzero()`
+ * - `qzero()`
+ */
 double
 __ieee754_j0(double x)
 {
@@ -157,6 +266,100 @@ v02  =  7.60068627350353253702e-05, /* 0x3F13ECBB, 0xF578C6C1 */
 v03  =  2.59150851840457805467e-07, /* 0x3E91642D, 0x7FF202FD */
 v04  =  4.41110311332675467403e-10; /* 0x3DFE5018, 0x3BD6D9EF */
 
+/**
+ * @funcname `__ieee754_y0`
+ *
+ * @description
+ * Computes the Bessel function of the second kind of order 0 of x: the IEEE 754
+ * core of y0().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `invsqrtpi` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `tpi` | `const double` | A constant of the algorithm |
+ * | `u00` | `const double` | A constant of the algorithm |
+ * | `u01` | `const double` | A constant of the algorithm |
+ * | `u02` | `const double` | A constant of the algorithm |
+ * | `u03` | `const double` | A constant of the algorithm |
+ * | `u04` | `const double` | A constant of the algorithm |
+ * | `u05` | `const double` | A constant of the algorithm |
+ * | `u06` | `const double` | A constant of the algorithm |
+ * | `v01` | `const double` | A constant of the algorithm |
+ * | `v02` | `const double` | A constant of the algorithm |
+ * | `v03` | `const double` | A constant of the algorithm |
+ * | `v04` | `const double` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `double` | A temporary of the computation |
+ * | `cc` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `ix` | `int32_t` | A temporary of the computation |
+ * | `lx` | `int32_t` | The low word of x |
+ * | `s` | `double` | A temporary of the computation |
+ * | `ss` | `double` | A temporary of the computation |
+ * | `u` | `double` | A temporary of the computation |
+ * | `v` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `EXTRACT_WORDS()` with the arguments `hx`, `lx` and `x`.
+ * 2. Set `ix` to `0x7fffffff&hx`.
+ * 3. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. Return `one/(x+x*x)`.
+ * 4. If `(ix|lx)` is equal to `0`:
+ *    1. Return `-one/zero`.
+ * 5. If `hx` is less than `0`:
+ *    1. Return `zero/zero`.
+ * 6. If `ix` is greater than or equal to `0x40000000`:
+ *    1. Call `sin()` with the argument `x`, and store the result in `s`.
+ *    2. Call `cos()` with the argument `x`, and store the result in `c`.
+ *    3. Set `ss` to `s-c`.
+ *    4. Set `cc` to `s+c`.
+ *    5. If `ix` is less than `0x7fe00000`:
+ *       1. Set `z` to `-cos(x+x)`.
+ *       2. If `(s*c)` is less than `zero`:
+ *          1. Set `cc` to `z/ss`.
+ *       3. Otherwise:
+ *          1. Set `ss` to `z/cc`.
+ *    6. If `ix` is greater than `0x48000000`:
+ *       1. Set `z` to `(invsqrtpi*ss)/sqrt(x)`.
+ *    7. Otherwise:
+ *       1. Call `pzero()` with the argument `x`, and store the result in `u`.
+ *       2. Call `qzero()` with the argument `x`, and store the result in `v`.
+ *       3. Set `z` to `invsqrtpi*(u*ss+v*cc)/sqrt(x)`.
+ *    8. Return `z`.
+ * 7. If `ix` is less than or equal to `0x3e400000`:
+ *    1. Return `(u00 + tpi*__ieee754_log(x))`.
+ * 8. Set `z` to `x*x`.
+ * 9. Set `u` to `u00+z*(u01+z*(u02+z*(u03+z*(u04+z*(u05+z*u06)))))`.
+ * 10. Set `v` to `one+z*(v01+z*(v02+z*(v03+z*v04)))`.
+ * 11. Return `(u/v + tpi*(__ieee754_j0(x)*__ieee754_log(x)))`.
+ *
+ * @calls
+ * - `sin()`
+ * - `cos()`
+ * - `sqrt()`
+ * - `pzero()`
+ * - `qzero()`
+ * - `__ieee754_log()`
+ * - `__ieee754_j0()`
+ */
 double
 __ieee754_y0(double x)
 {
@@ -283,6 +486,70 @@ static const double pS2[5] = {
   1.46576176948256193810e+01, /* 0x402D50B3, 0x44391809 */
 };
 
+/**
+ * @funcname `pzero`
+ *
+ * @description
+ * The asymptotic expansion P0(x) of j0() and y0() for large x.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return P0(x).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `pR2` | `const double[6]` | A constant of the algorithm |
+ * | `pR3` | `const double[6]` | A constant of the algorithm |
+ * | `pR5` | `const double[6]` | A constant of the algorithm |
+ * | `pR8` | `const double[6]` | A constant of the algorithm |
+ * | `pS2` | `const double[5]` | A constant of the algorithm |
+ * | `pS3` | `const double[5]` | A constant of the algorithm |
+ * | `pS5` | `const double[5]` | A constant of the algorithm |
+ * | `pS8` | `const double[5]` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The high word of x |
+ * | `p` | `const double *` | A constant of the algorithm |
+ * | `q` | `const double *` | A constant of the algorithm |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `q = 0`.
+ * 2. Use the macro `GET_HIGH_WORD()` with the arguments `ix` and `x`.
+ * 3. Keep only the bits `0x7fffffff` of `ix`.
+ * 4. If `ix` is greater than or equal to `0x40200000`:
+ *    1. Set `p` to `pR8`.
+ *    2. Set `q` to `pS8`.
+ * 5. Otherwise, if `ix` is greater than or equal to `0x40122E8B`:
+ *    1. Set `p` to `pR5`.
+ *    2. Set `q` to `pS5`.
+ * 6. Otherwise, if `ix` is greater than or equal to `0x4006DB6D`:
+ *    1. Set `p` to `pR3`.
+ *    2. Set `q` to `pS3`.
+ * 7. Otherwise, if `ix` is greater than or equal to `0x40000000`:
+ *    1. Set `p` to `pR2`.
+ *    2. Set `q` to `pS2`.
+ * 8. Set `z` to `one/(x*x)`.
+ * 9. Set `r` to `p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))))`.
+ * 10. Set `s` to `one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))))`.
+ * 11. Return `one+ r/s`.
+ *
+ * @calls
+ * None.
+ */
 static double
 pzero(double x)
 {
@@ -381,6 +648,70 @@ static const double qS2[6] = {
  -5.31095493882666946917e+00, /* 0xC0153E6A, 0xF8B32931 */
 };
 
+/**
+ * @funcname `qzero`
+ *
+ * @description
+ * The asymptotic expansion Q0(x) of j0() and y0() for large x.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return Q0(x).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `qR2` | `const double[6]` | A constant of the algorithm |
+ * | `qR3` | `const double[6]` | A constant of the algorithm |
+ * | `qR5` | `const double[6]` | A constant of the algorithm |
+ * | `qR8` | `const double[6]` | A constant of the algorithm |
+ * | `qS2` | `const double[6]` | A constant of the algorithm |
+ * | `qS3` | `const double[6]` | A constant of the algorithm |
+ * | `qS5` | `const double[6]` | A constant of the algorithm |
+ * | `qS8` | `const double[6]` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The high word of x |
+ * | `p` | `const double *` | A constant of the algorithm |
+ * | `q` | `const double *` | A constant of the algorithm |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `q = 0`.
+ * 2. Use the macro `GET_HIGH_WORD()` with the arguments `ix` and `x`.
+ * 3. Keep only the bits `0x7fffffff` of `ix`.
+ * 4. If `ix` is greater than or equal to `0x40200000`:
+ *    1. Set `p` to `qR8`.
+ *    2. Set `q` to `qS8`.
+ * 5. Otherwise, if `ix` is greater than or equal to `0x40122E8B`:
+ *    1. Set `p` to `qR5`.
+ *    2. Set `q` to `qS5`.
+ * 6. Otherwise, if `ix` is greater than or equal to `0x4006DB6D`:
+ *    1. Set `p` to `qR3`.
+ *    2. Set `q` to `qS3`.
+ * 7. Otherwise, if `ix` is greater than or equal to `0x40000000`:
+ *    1. Set `p` to `qR2`.
+ *    2. Set `q` to `qS2`.
+ * 8. Set `z` to `one/(x*x)`.
+ * 9. Set `r` to `p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))))`.
+ * 10. Set `s` to `one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*(q[4]+z*q[5])))))`.
+ * 11. Return `(-.125 + r/s)/x`.
+ *
+ * @calls
+ * None.
+ */
 static double
 qzero(double x)
 {

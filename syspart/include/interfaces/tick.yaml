@@ -1,12 +1,23 @@
+# Modified by Kirill Brazhnikov, 2026-11-14: description gives the
+# documentation of the interfaces and of their functions (the interface's
+# type and its members in the generated header).
 - name: tick_t
+  description: >-
+    An example of an interface (no component uses it): a periodic tick.
   functions:
       - name: tick
+        description: >-
+          Tells the component (arg0) that a period has passed.
         return_type: void
         args_type: [self_t *]
 
 - name: some_interface_t
+  description: >-
+    An example of an interface (no component uses it): a periodic tick.
   functions:
       - name: tick
+        description: >-
+          Tells the component (arg0) that a period has passed.
         return_type: void
         args_type: [self_t *]
 

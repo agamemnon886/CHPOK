@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Dec 11 16:32:31 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-13: the macro
+ * FIPS_NON_FIPS_VCIPHER_Init is moved to bf_locl.h.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* crypto/bf/bf_skey.c */
@@ -82,9 +88,6 @@
 
 #include "bf_locl.h"
 #include "bf_pi.h"
-
-#define FIPS_NON_FIPS_VCIPHER_Init(alg) \
-	void alg##_set_key(alg##_KEY *key, int len, const unsigned char *data)
 
 FIPS_NON_FIPS_VCIPHER_Init(BF)
 	{

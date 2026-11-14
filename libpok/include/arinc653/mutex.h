@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 /*
@@ -40,32 +44,98 @@
 #define APEX_MUTEX
 
 #ifndef POK_NEEDS_ARINC653_PROCESS
+
+/* Documented in libpok/include/config.h. */
 #define POK_NEEDS_ARINC653_PROCESS 1
 #endif
 
 #include <arinc653/types.h>
 #include <arinc653/process.h>
 
+/**
+ * @macroname `MAX_NUMBER_OF_MUTEXES`
+ *
+ * @description
+ * The maximum number of mutexes of a partition
+ * (SYSTEM_LIMIT_NUMBER_OF_MUTEXES).
+ */
 #define MAX_NUMBER_OF_MUTEXES   SYSTEM_LIMIT_NUMBER_OF_MUTEXES
 
+/**
+ * @typename `MUTEX_NAME_TYPE`
+ *
+ * @description
+ * The name of a mutex.
+ */
 typedef NAME_TYPE        MUTEX_NAME_TYPE;
 
+/**
+ * @typename `MUTEX_ID_TYPE`
+ *
+ * @description
+ * The identifier of a mutex (or NO_MUTEX_OWNED, PREEMPTION_LOCK_MUTEX).
+ */
 typedef APEX_INTEGER     MUTEX_ID_TYPE;
-#define NO_MUTEX_OWNED          -2  /* GET_PROCESS_MUTEX_STATE: no mutex */
-#define PREEMPTION_LOCK_MUTEX   -3  /* the partition's preemption lock */
 
+/**
+ * @macroname `NO_MUTEX_OWNED`
+ *
+ * @description
+ * GET_PROCESS_MUTEX_STATE: no mutex.
+ */
+#define NO_MUTEX_OWNED          -2
+
+/**
+ * @macroname `PREEMPTION_LOCK_MUTEX`
+ *
+ * @description
+ * The partition's preemption lock.
+ */
+#define PREEMPTION_LOCK_MUTEX   -3
+
+/**
+ * @typename `LOCK_COUNT_TYPE`
+ *
+ * @description
+ * How many times a mutex is locked by its owner.
+ */
 typedef APEX_INTEGER     LOCK_COUNT_TYPE;
 
-typedef enum { AVAILABLE = 0, OWNED = 1 } MUTEX_STATE_TYPE;
+/**
+ * @typename `MUTEX_STATE_TYPE`
+ *
+ * @description
+ * Whether a mutex is owned.
+ */
+typedef enum {
+   AVAILABLE = 0, /**< No process owns the mutex. */
+   OWNED = 1 /**< A process owns the mutex. */
+} MUTEX_STATE_TYPE;
 
+/**
+ * @typename `MUTEX_STATUS_TYPE`
+ *
+ * @description
+ * The status of a mutex (GET_MUTEX_STATUS()).
+ */
 typedef struct {
-   PROCESS_ID_TYPE       MUTEX_OWNER;   /* NULL_PROCESS_ID if AVAILABLE */
-   MUTEX_STATE_TYPE      MUTEX_STATE;
+   PROCESS_ID_TYPE       MUTEX_OWNER; /**< NULL_PROCESS_ID if AVAILABLE. */
+   MUTEX_STATE_TYPE      MUTEX_STATE; /**< Whether the mutex is owned. */
+   /**
+    * The priority ceiling of the mutex.
+    */
    PRIORITY_TYPE         MUTEX_PRIORITY;
+   /**
+    * How many times the owner has locked it.
+    */
    LOCK_COUNT_TYPE       LOCK_COUNT;
+   /**
+    * The number of processes waiting.
+    */
    WAITING_RANGE_TYPE    WAITING_PROCESSES;
 } MUTEX_STATUS_TYPE;
 
+/** \cond */
 extern void CREATE_MUTEX (
       /*in */ const MUTEX_NAME_TYPE          MUTEX_NAME,
       /*in */ PRIORITY_TYPE            MUTEX_PRIORITY,
@@ -101,6 +171,7 @@ extern void GET_PROCESS_MUTEX_STATE (
       /*in */ PROCESS_ID_TYPE          PROCESS_ID,
       /*out*/ MUTEX_ID_TYPE            *MUTEX_ID,
       /*out*/ RETURN_CODE_TYPE         *RETURN_CODE );
+/** \endcond */
 
 #endif /* APEX_MUTEX */
 #endif /* POK_NEEDS_ARINC653_MUTEX */

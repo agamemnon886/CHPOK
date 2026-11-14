@@ -30,6 +30,17 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
  * Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; Doxygen comments for the file, its types (with their members) and
+ * its macros; pok_error_hm_partition_t is renamed pok_error_hm_part_t (names
+ * too long for the tables of the documentation).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macro ERROR_THREAD_PRIORITY of
+ * kernel/core/error_arinc.c is moved here; the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t); the Doxygen comment of the file is removed (header
+ * files are not documented).
  */
 
 #ifndef POK_CORE_ERROR_ARINC_H
@@ -47,21 +58,41 @@
 
 #include <uapi/error_arinc_types.h>
 
+/**
+ * @macroname `POK_ERROR_MAX_MSG_SIZE`
+ *
+ * @description
+ * The maximum size of the message of an error (RAISE_APPLICATION_ERROR,
+ * REPORT_APPLICATION_MESSAGE).
+ */
 #define POK_ERROR_MAX_MSG_SIZE                  250U
 
 
-/* Information about thread-level error. */
+/**
+ * @typename `pok_thread_error_info_t`
+ *
+ * @description
+ * Information about thread-level error.
+ */
 typedef struct {
-    pok_error_kind_t error_kind;
+    pok_error_kind_t error_kind; /**< The kind of the error. */
+    /**
+     * Its description (the message of the error).
+     */
     const char* error_description;
 }pok_thread_error_info_t;
 
-/* 
- * Mapping of errors in POK_SYSTEM_STATE_USER state
- * into thread-level errors.
+/**
+ * @typename `pok_thread_error_map_t`
+ *
+ * @description
+ * Mapping of errors in POK_SYSTEM_STATE_USER state into thread-level errors.
  */
 typedef struct
 {
+    /**
+     * The thread-level error of each error ID.
+     */
     pok_thread_error_info_t map[POK_ERROR_ID_MAX + 1U];
 }pok_thread_error_map_t;
 
@@ -70,7 +101,8 @@ typedef struct
  *
  * It's created in stopped state.
  */
-pok_ret_t   pok_error_thread_create (uint32_t stack_size, void* JET_USER entry);
+/** \cond */
+pok_ret_e   pok_error_thread_create (uint32_t stack_size, void* JET_USER entry);
 
 /*
  * Sets the concurrency control (POK_ERROR_HANDLER_PROCESSES_*) and the
@@ -86,7 +118,7 @@ pok_ret_t   pok_error_thread_create (uint32_t stack_size, void* JET_USER entry);
  *  - POK_ERRNO_PARAM if processor_core_id is not a core of the partition,
  *  - POK_ERRNO_PARTITION_MODE if the partition is in NORMAL mode.
  */
-pok_ret_t   pok_error_thread_configure (uint32_t concurrency_control,
+pok_ret_e   pok_error_thread_configure (uint32_t concurrency_control,
                                         int32_t processor_core_id);
 
 /*
@@ -95,7 +127,7 @@ pok_ret_t   pok_error_thread_configure (uint32_t concurrency_control,
  * This's a system call, it validates a couple of parameters
  * and passes them to pok_thread_error almost verbatim.
  */
-pok_ret_t   pok_error_raise_application_error (const char* JET_USER msg,
+pok_ret_e   pok_error_raise_application_error (const char* JET_USER msg,
                                                size_t msg_size);
 
 /*
@@ -106,7 +138,7 @@ pok_ret_t   pok_error_raise_application_error (const char* JET_USER msg,
  * kernel console together with the name of the reporting partition.
  * No error is raised and the calling process continues.
  */
-pok_ret_t   pok_error_report_application_message (const char* JET_USER msg,
+pok_ret_e   pok_error_report_application_message (const char* JET_USER msg,
                                                   size_t msg_size);
 
 /* 
@@ -114,12 +146,12 @@ pok_ret_t   pok_error_report_application_message (const char* JET_USER msg,
  * 
  * Application never continues to work.
  */
-pok_ret_t pok_error_raise_os_error (const char* JET_USER msg, size_t msg_size);
+pok_ret_e pok_error_raise_os_error (const char* JET_USER msg, size_t msg_size);
 
 /*
  * Pops an error from partition error queue.
  */
-pok_ret_t   pok_error_get (pok_error_status_t* status,
+pok_ret_e   pok_error_get (pok_error_status_t* status,
     void* JET_USER msg);
 
 
@@ -141,33 +173,82 @@ void error_check_after_handler(void);
  */
 void error_ignore_sync(void);
 
+/** \endcond */
+
 #endif
 
+/**
+ * @typename `pok_error_action_t`
+ *
+ * @description
+ * The action taken for a partition-level error (POK_ERROR_ACTION_*).
+ */
 typedef uint8_t pok_error_action_t;
+
+/**
+ * @name Partition-level actions
+ * The values of pok_error_action_t.
+ * @{
+ */
+
+/**
+ * @macroname `POK_ERROR_ACTION_IGNORE`
+ *
+ * @description
+ * Ignore the error.
+ */
 #define POK_ERROR_ACTION_IGNORE 1U
+
+/**
+ * @macroname `POK_ERROR_ACTION_IDLE`
+ *
+ * @description
+ * Stop the partition (IDLE mode).
+ */
 #define POK_ERROR_ACTION_IDLE 2U
+
+/**
+ * @macroname `POK_ERROR_ACTION_COLD_START`
+ *
+ * @description
+ * Restart the partition (cold start).
+ */
 #define POK_ERROR_ACTION_COLD_START 3U
+
+/**
+ * @macroname `POK_ERROR_ACTION_WARM_START`
+ *
+ * @description
+ * Restart the partition (warm start).
+ */
 #define POK_ERROR_ACTION_WARM_START 4U
 
-/*
+/** @} */
+
+
+/**
+ * @typename `pok_error_hm_part_t`
+ *
+ * @description
  * Table of actions for partition-level errors.
  */
 typedef struct {
-    /* 
-     * actions[STATE][ID] give action, which should be taken on module level.
-     * 
+    /**
+     * Actions[STATE][ID] give action, which should be taken on module level.
+     *
      * Only those [STATE][ID] cells are used, which corresponds to
      * partition-level errors.
      */
     pok_error_action_t
         actions[POK_SYSTEM_STATE_MAX + 1U][POK_ERROR_ID_MAX + 1U];
-} pok_error_hm_partition_t ;
+} pok_error_hm_part_t ;
 
 /* 
  * Process (synchronous) error detected via interrupt.
  * 
  * Callback for `pok_partition_operations.process_partition_error`.
  */
+/** \cond */
 void pok_partition_arinc_process_error(
     pok_system_state_t partition_state,
     pok_error_id_t error_id,
@@ -195,5 +276,16 @@ void pok_thread_emit_deadline_missed(pok_thread_t* thread);
  * should be stopped (or restarted).
  */
 void pok_thread_emit_deadline_oor(pok_thread_t* thread);
+
+/** \endcond */
+
+/**
+ * @macroname `ERROR_THREAD_PRIORITY`
+ *
+ * @description
+ * The priority of the error handler process of a partition: above that of any
+ * process (at most MAX_PRIORITY_VALUE, 239).
+ */
+#define ERROR_THREAD_PRIORITY 254
 
 #endif /* POK_CORE_ERROR_ARINC_H */

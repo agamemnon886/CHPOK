@@ -7,7 +7,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for its macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
+
 #ifndef POK_COMPILER_H
 #define POK_COMPILER_H
 
@@ -21,6 +31,13 @@
  * Currently assume compiler to be gcc.
  */
 
+/**
+ * @macroname `barrier`
+ *
+ * @description
+ * A compiler memory barrier: the compiler doesn't move memory accesses across
+ * it (GCC inline assembly).
+ */
 /*
  * MISRA C:2025 Dir 4.3 and Dir 1.2 deviation: a compiler memory barrier can
  * only be written as GCC inline assembly; it is isolated in this macro.
@@ -32,6 +49,20 @@
  * 
  * Applicable to simple types, which can be accessed using single asm instruction.
  */
+
+/**
+ * @macroname `ACCESS_ONCE`
+ *
+ * @description
+ * Access (read or write) given variable only once. Do not cache its value.
+ * Applicable to simple types, which can be accessed using single asm
+ * instruction (a volatile access of the variable's type).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `x` | The variable. |
+ */
 /*
  * MISRA C:2025 Dir 1.2 deviation: typeof (a GNU extension) gives the volatile
  * access the type of the variable, for variables of any type; standard C99
@@ -39,22 +70,24 @@
  */
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
-/* 
+/**
+ * @macroname `flag_set`
+ *
+ * @description
  * Set given variable as a signal of some operation performed before.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `var` | The flag (a pok_bool_t variable). |
  */
 #define flag_set(var) do { barrier(); ACCESS_ONCE(var) = true; } while (false)
 
 /*
- * Return current value of variable and reset it.
- * 
- * Variable is assumed to contain some operation's indicator, which is
- * "consumed" by given operation.
- * 
- * If the flag is set, clear it and return true; otherwise return false.
- * 
- * Such way, if flag_set() has been called concurrently, then either
- * non-zero will be returned, or variable will become non-zero, so
- * it can be found to be set after.
+ * Reads a flag and clears it if it is set (the flag may be set by an interrupt
+ * handler): the flag indicates an operation, which consumes it. If flag_set()
+ * runs concurrently, either TRUE is returned or the flag stays set, to be found
+ * later.
  */
 static inline bool flag_test_and_reset(volatile bool *var)
 {
@@ -68,11 +101,19 @@ static inline bool flag_test_and_reset(volatile bool *var)
 }
 
 
-/* 
+/**
+ * @macroname `flag_reset`
+ *
+ * @description
  * Reset given variable.
- * 
- * Note: Using flag_reset() and flag_test_and_reset() for *single*
- * variable has no sence.
+ *
+ * Note: Using flag_reset() and flag_test_and_reset() for *single* variable has
+ * no sence.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `var` | The flag (a pok_bool_t variable). |
  */
 #define flag_reset(var) \
     do { barrier(); ACCESS_ONCE(var) = false; } while (false)

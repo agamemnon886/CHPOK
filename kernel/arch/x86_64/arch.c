@@ -31,6 +31,19 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: #include
  * directives come before the code.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * The architecture's initialization and CPU control on x86_64: the
+ * interrupt flag, halting and resetting the CPU.
  */
 
 #include <ioports.h>
@@ -44,7 +57,35 @@
 #include <asp/arch.h>
 #include <asp/arch.h>
 
-/* Called from entry.S, in 64-bit mode. */
+/**
+ * @funcname `pok_arch_init`
+ *
+ * @description
+ * Initializes the architecture at boot (from entry.S, in 64-bit mode): the GDT,
+ * the IDT, the board and the memory spaces.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `ja_gdt_init()`.
+ * 2. Call `ja_idt_init()`.
+ * 3. Call `ja_bsp_init()`.
+ * 4. Call `ja_space_init()`.
+ *
+ * @calls
+ * - `ja_gdt_init()`
+ * - `ja_idt_init()`
+ * - `ja_bsp_init()`
+ * - `ja_space_init()`
+ */
 void pok_arch_init (void)
 {
   ja_gdt_init ();
@@ -54,6 +95,28 @@ void pok_arch_init (void)
   ja_space_init();
 }
 
+/**
+ * @funcname `ja_preempt_disable`
+ *
+ * @description
+ * Disables interrupts (cli).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `cli`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this file): privileged
  * instructions are written as GNU inline assembly, each isolated in a small
@@ -64,11 +127,60 @@ void ja_preempt_disable(void)
   asm volatile ("cli" ::: "memory");
 }
 
+/**
+ * @funcname `ja_preempt_enable`
+ *
+ * @description
+ * Enables interrupts (sti).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `sti`.
+ *
+ * @calls
+ * None.
+ */
 void ja_preempt_enable(void)
 {
   asm volatile ("sti" ::: "memory");
 }
 
+/**
+ * @funcname `get_flags`
+ *
+ * @description
+ * Reads RFLAGS.
+ *
+ * @return RFLAGS.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ret` | `uintptr_t` | RFLAGS |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `pushfq;`.
+ * 2. Return `ret`.
+ *
+ * @calls
+ * None.
+ */
 static uintptr_t get_flags(void)
 {
   uintptr_t ret;
@@ -84,12 +196,62 @@ static uintptr_t get_flags(void)
   return ret;
 }
 
+/**
+ * @funcname `ja_preempt_enabled`
+ *
+ * @description
+ * Tells whether interrupts are enabled (the IF flag of RFLAGS).
+ *
+ * @return TRUE if they are enabled.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `flags` | `uintptr_t` | RFLAGS |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `get_flags()`, and store the result in `flags`.
+ * 2. Return `((flags & (1UL << 9)) != 0U)`.
+ *
+ * @calls
+ * - `get_flags()`
+ */
 pok_bool_t ja_preempt_enabled(void)
 {
   uintptr_t flags = get_flags();
   return ((flags & (1UL << 9)) != 0U);
 }
 
+/**
+ * @funcname `ja_inf_loop`
+ *
+ * @description
+ * Halts the CPU forever (hlt in a loop).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. While `true` is true:
+ *    1. Execute the assembly code `hlt`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Dir 1.2 deviation: _Noreturn is a C11 keyword, accepted by GCC
  * in gnu99 mode; it tells the compiler and the reader that the function
@@ -103,6 +265,35 @@ _Noreturn void ja_inf_loop(void)
    }
 }
 
+/**
+ * @funcname `ja_cpu_reset`
+ *
+ * @description
+ * Resets the CPU through the keyboard controller (pulse of the reset line once
+ * its input buffer is empty).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `good` | `uint8_t` | The keyboard controller's status |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `good` to `0x02`.
+ * 2. While `(good & 0x02U)` is not equal to `0U`:
+ *    1. Set `good` to `inb(0x64)`.
+ * 3. Execute the assembly code `outb(0x64, 0xFE)`.
+ * 4. Call `ja_inf_loop()`.
+ *
+ * @calls
+ * - `ja_inf_loop()`
+ */
 void ja_cpu_reset(void)
 {
     uint8_t good = 0x02;

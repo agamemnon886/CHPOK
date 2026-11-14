@@ -38,6 +38,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header guard
  * isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros and types are
+ * documented.
  */
 
 #ifndef POK_VIRTIO_PCI_H
@@ -45,57 +48,156 @@
 
 #include "virtio_config.h"
 
-/* A 32-bit r/o bitmask of the features supported by the host */
+/**
+ * @macroname `VIRTIO_PCI_HOST_FEATURES`
+ *
+ * @description
+ * A 32-bit r/o bitmask of the features supported by the host.
+ */
 #define VIRTIO_PCI_HOST_FEATURES	0
 
-/* A 32-bit r/w bitmask of features activated by the guest */
+/**
+ * @macroname `VIRTIO_PCI_GUEST_FEATURES`
+ *
+ * @description
+ * A 32-bit r/w bitmask of features activated by the guest.
+ */
 #define VIRTIO_PCI_GUEST_FEATURES	4
 
-/* A 32-bit r/w PFN for the currently selected queue */
+/**
+ * @macroname `VIRTIO_PCI_QUEUE_PFN`
+ *
+ * @description
+ * A 32-bit r/w PFN for the currently selected queue.
+ */
 #define VIRTIO_PCI_QUEUE_PFN		8
 
-/* A 16-bit r/o queue size for the currently selected queue */
+/**
+ * @macroname `VIRTIO_PCI_QUEUE_NUM`
+ *
+ * @description
+ * A 16-bit r/o queue size for the currently selected queue.
+ */
 #define VIRTIO_PCI_QUEUE_NUM		12
 
-/* A 16-bit r/w queue selector */
+/**
+ * @macroname `VIRTIO_PCI_QUEUE_SEL`
+ *
+ * @description
+ * A 16-bit r/w queue selector.
+ */
 #define VIRTIO_PCI_QUEUE_SEL		14
 
-/* A 16-bit r/w queue notifier */
+/**
+ * @macroname `VIRTIO_PCI_QUEUE_NOTIFY`
+ *
+ * @description
+ * A 16-bit r/w queue notifier.
+ */
 #define VIRTIO_PCI_QUEUE_NOTIFY		16
 
-/* An 8-bit device status register.  */
+/**
+ * @macroname `VIRTIO_PCI_STATUS`
+ *
+ * @description
+ * An 8-bit device status register.
+ */
 #define VIRTIO_PCI_STATUS		18
 
-/* An 8-bit r/o interrupt status register.  Reading the value will return the
- * current contents of the ISR and will also clear it.  This is effectively
- * a read-and-acknowledge. */
+/**
+ * @macroname `VIRTIO_PCI_ISR`
+ *
+ * @description
+ * An 8-bit r/o interrupt status register. Reading the value will return the
+ * current contents of the ISR and will also clear it. This is effectively a
+ * read-and-acknowledge.
+ */
 #define VIRTIO_PCI_ISR			19
 
-/* The bit of the ISR which indicates a device configuration change. */
+/**
+ * @macroname `VIRTIO_PCI_ISR_CONFIG`
+ *
+ * @description
+ * The bit of the ISR which indicates a device configuration change.
+ */
 #define VIRTIO_PCI_ISR_CONFIG		0x2
 
 /* MSI-X registers: only enabled if MSI-X is enabled. */
-/* A 16-bit vector for configuration changes. */
+
+/**
+ * @macroname `VIRTIO_MSI_CONFIG_VECTOR`
+ *
+ * @description
+ * A 16-bit vector for configuration changes.
+ */
 #define VIRTIO_MSI_CONFIG_VECTOR        20
-/* A 16-bit vector for selected queue notifications. */
+
+/**
+ * @macroname `VIRTIO_MSI_QUEUE_VECTOR`
+ *
+ * @description
+ * A 16-bit vector for selected queue notifications.
+ */
 #define VIRTIO_MSI_QUEUE_VECTOR         22
-/* Vector value used to disable MSI for queue */
+
+/**
+ * @macroname `VIRTIO_MSI_NO_VECTOR`
+ *
+ * @description
+ * Vector value used to disable MSI for queue.
+ */
 #define VIRTIO_MSI_NO_VECTOR            0xffff
 
-/* The remaining space is defined by each driver as the per-driver
- * configuration space */
+/**
+ * @macroname `VIRTIO_PCI_CONFIG_OFF`
+ *
+ * @description
+ * The offset of the configuration space of the device (the rest of the space,
+ * defined by each driver): 24 with MSI-X, 20 without.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `msix_enabled` | Whether MSI-X is enabled. |
+ */
 #define VIRTIO_PCI_CONFIG_OFF(msix_enabled)	((msix_enabled) ? 24 : 20)
-/* Deprecated: please use VIRTIO_PCI_CONFIG_OFF instead */
+
+/**
+ * @macroname `VIRTIO_PCI_CONFIG`
+ *
+ * @description
+ * Deprecated: please use VIRTIO_PCI_CONFIG_OFF instead.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `dev` | The device (with msix_enabled). |
+ */
 #define VIRTIO_PCI_CONFIG(dev)	VIRTIO_PCI_CONFIG_OFF((dev)->msix_enabled)
 
-/* Virtio ABI version, this must match exactly */
+/**
+ * @macroname `VIRTIO_PCI_ABI_VERSION`
+ *
+ * @description
+ * Virtio ABI version, this must match exactly.
+ */
 #define VIRTIO_PCI_ABI_VERSION		0
 
-/* How many bits to shift physical queue address written to QUEUE_PFN.
- * 12 is historical, and due to x86 page size. */
+/**
+ * @macroname `VIRTIO_PCI_QUEUE_ADDR_SHIFT`
+ *
+ * @description
+ * How many bits to shift physical queue address written to QUEUE_PFN. 12 is
+ * historical, and due to x86 page size.
+ */
 #define VIRTIO_PCI_QUEUE_ADDR_SHIFT	12
 
-/* The alignment to use between consumer and producer parts of vring.
- * x86 pagesize again. */
+/**
+ * @macroname `VIRTIO_PCI_VRING_ALIGN`
+ *
+ * @description
+ * The alignment to use between consumer and producer parts of vring. x86
+ * pagesize again.
+ */
 #define VIRTIO_PCI_VRING_ALIGN		4096
 #endif

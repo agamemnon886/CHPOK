@@ -15,6 +15,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the structures and enums are used
+ * by their typedef names: msection_t, msection_wq_t.
  */
 
 #ifndef LIBJET_ARINC_BLACKBOARD_H
@@ -28,21 +31,31 @@
 #include <msection.h>
 #include <types.h>
 
-struct arinc_blackboard
-{
-    BLACKBOARD_NAME_TYPE blackboard_name;
+/**
+ * @typename `arinc_blackboard_t`
+ *
+ * @description
+ * A blackboard of the partition (CREATE_BLACKBOARD()), in the preallocated
+ * array arinc_blackboards.
+ */
+typedef struct {
+    BLACKBOARD_NAME_TYPE blackboard_name; /**< The name of the blackboard. */
     
-    MESSAGE_SIZE_TYPE max_message_size;
+    MESSAGE_SIZE_TYPE max_message_size; /**< The maximum size of a message. */
     
-    char* message;
-    MESSAGE_SIZE_TYPE message_size; // 0 means absent of the message.
+    char* message; /**< The message displayed (max_message_size bytes). */
+    MESSAGE_SIZE_TYPE message_size; /**< 0 means absent of the message. */
     
-    struct msection section;
-    struct msection_wq process_queue;
-};
+    /**
+     * Protects the blackboard (a critical section of the partition's
+     * processes).
+     */
+    msection_t section;
+    msection_wq_t process_queue; /**< The processes waiting for a message. */
+} arinc_blackboard_t;
 
 /* Preallocated array of blackboards. */
-extern struct arinc_blackboard* arinc_blackboards;
+extern arinc_blackboard_t* arinc_blackboards;
 
 #endif /* POK_NEEDS_ARINC653_BLACKBOARD */
 

@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the types and macros are
+ * documented; the member comments of the types shared with arm64 start with
+ * x86_64:.
  */
 
 /*
@@ -35,12 +39,48 @@
 #define HV_ARCH_CONFIG_H
 
 // Limit of the CPU table; hvconfig.py checks it too.
+
+/**
+ * @macroname `HV_MAX_CPUS`
+ *
+ * @description
+ * The size of the CPU table (x86_64: 16; arm64: 8, the CPUs of a GICv2).
+ */
 #define HV_MAX_CPUS     16U
 
 // Base I/O ports of the ISA serial ports.
+
+/**
+ * @macroname `HV_PORT_COM1`
+ *
+ * @description
+ * The first serial port (x86_64: its base I/O port, 0x3F8; arm64: its number,
+ * 1).
+ */
 #define HV_PORT_COM1    0x3F8U
+
+/**
+ * @macroname `HV_PORT_COM2`
+ *
+ * @description
+ * The second serial port (x86_64: 0x2F8; arm64: 2).
+ */
 #define HV_PORT_COM2    0x2F8U
+
+/**
+ * @macroname `HV_PORT_COM3`
+ *
+ * @description
+ * The third serial port (x86_64: 0x3E8; arm64: 3).
+ */
 #define HV_PORT_COM3    0x3E8U
+
+/**
+ * @macroname `HV_PORT_COM4`
+ *
+ * @description
+ * The fourth serial port (x86_64: 0x2E8; arm64: 4).
+ */
 #define HV_PORT_COM4    0x2E8U
 
 #endif // HV_ARCH_CONFIG_H

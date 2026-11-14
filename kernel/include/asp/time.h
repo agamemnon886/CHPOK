@@ -19,6 +19,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: ja_system_time_stop() and
  * ja_system_time_resume() stop the system time while the GDB server holds
  * the system.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef JET_ASP_TIME_H
@@ -29,10 +33,12 @@
 #include <uapi/time.h>
 
 /* Return current system time. */
+/** \cond */
 pok_time_t ja_system_time(void);
 
 /* Return current calendar time (seconds since Epoch). */
 time_t ja_calendar_time(void);
+/** \endcond */
 
 #ifdef POK_NEEDS_GDB
 /*
@@ -40,8 +46,10 @@ time_t ja_calendar_time(void);
  * go on from the same value when the system resumes, so that time slots,
  * deadlines and timers don't expire because of debugging.
  */
+/** \cond */
 void ja_system_time_stop(void);
 void ja_system_time_resume(void);
+/** \endcond */
 #endif /* POK_NEEDS_GDB */
 
 

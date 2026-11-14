@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* e_expf.c -- float version of e_exp.c.
@@ -29,6 +38,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_expf()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -53,6 +66,105 @@ P3   =  6.6137559770e-05, /* 0x388ab355 */
 P4   = -1.6533901999e-06, /* 0xb5ddea0e */
 P5   =  4.1381369442e-08; /* 0x3331bb4c */
 
+/**
+ * @funcname `__ieee754_expf`
+ *
+ * @description
+ * Computes e raised to the power x, in float: the IEEE 754 core of expf().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `P1` | `const float` | A constant of the algorithm |
+ * | `P2` | `const float` | A constant of the algorithm |
+ * | `P3` | `const float` | A constant of the algorithm |
+ * | `P4` | `const float` | A constant of the algorithm |
+ * | `P5` | `const float` | A constant of the algorithm |
+ * | `halF` | `const float[2]` | A constant of the algorithm |
+ * | `huge` | `const float` | A constant of the algorithm |
+ * | `invln2` | `const float` | A constant of the algorithm |
+ * | `ln2HI` | `const float[2]` | A constant of the algorithm |
+ * | `ln2LO` | `const float[2]` | A constant of the algorithm |
+ * | `o_threshold` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `twom100` | `const float` | A constant of the algorithm |
+ * | `u_threshold` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `float` | A temporary of the computation |
+ * | `hi` | `float` | A temporary of the computation |
+ * | `hx` | `uint32_t` | The bits of x |
+ * | `hy` | `uint32_t` | The bits of y |
+ * | `k` | `int32_t` | A temporary of the computation |
+ * | `lo` | `float` | A temporary of the computation |
+ * | `t` | `float` | A temporary of the computation |
+ * | `xsb` | `int32_t` | A temporary of the computation |
+ * | `y` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `hi` to `lo = 0`.
+ * 2. Set `k` to `0`.
+ * 3. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 4. Set `xsb` to `(hx>>31)&1`.
+ * 5. Keep only the bits `0x7fffffff` of `hx`.
+ * 6. If `hx` is greater than or equal to `0x42b17218`:
+ *    1. If `hx` is greater than `0x7f800000`:
+ *       1. Return `x+x`.
+ *    2. If `hx` is equal to `0x7f800000`:
+ *       1. Return `x` if `xsb` is equal to `0`, otherwise `0.0`.
+ *    3. If `x` is greater than `o_threshold`:
+ *       1. Return `huge*huge`.
+ *    4. If `x` is less than `u_threshold`:
+ *       1. Return `twom100*twom100`.
+ * 7. If `hx` is greater than `0x3eb17218`:
+ *    1. If `hx` is less than `0x3F851592`:
+ *       1. Set `hi` to `x-ln2HI[xsb]`.
+ *       2. Set `lo` to `ln2LO[xsb]`.
+ *       3. Set `k` to `1-xsb-xsb`.
+ *    2. Otherwise:
+ *       1. Set `k` to `invln2*x+halF[xsb]`.
+ *       2. Set `t` to `k`.
+ *       3. Set `hi` to `x - t*ln2HI[0]`.
+ *       4. Set `lo` to `t*ln2LO[0]`.
+ *    3. Set `x` to `hi - lo`.
+ * 8. Otherwise, if `hx` is less than `0x31800000`:
+ *    1. If `huge+x` is greater than `one`:
+ *       1. Return `one+x`.
+ * 9. Otherwise:
+ *    1. Set `k` to `0`.
+ * 10. Set `t` to `x*x`.
+ * 11. Set `c` to `x - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))))`.
+ * 12. If `k` is equal to `0`:
+ *     1. Return `one-((x*c)/(c-(float)2.0)-x)`.
+ * 13. Otherwise:
+ *     1. Set `y` to `one-((lo-(x*c)/((float)2.0-c))-hi)`.
+ * 14. If `k` is greater than or equal to `-125`:
+ *     1. Use the macro `GET_FLOAT_WORD()` with the arguments `hy` and `y`.
+ *     2. Use the macro `SET_FLOAT_WORD()` with the arguments `y` and
+ *        `hy+(k<<23)`.
+ *     3. Return `y`.
+ * 15. Otherwise:
+ *     1. Use the macro `GET_FLOAT_WORD()` with the arguments `hy` and `y`.
+ *     2. Use the macro `SET_FLOAT_WORD()` with the arguments `y` and
+ *        `hy+((k+100)<<23)`.
+ *     3. Return `y*twom100`.
+ *
+ * @calls
+ * None.
+ */
 float
 __ieee754_expf(float x)	/* default IEEE double exp */
 {

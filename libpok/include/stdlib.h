@@ -16,6 +16,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; deviations are documented where a
  * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 /*
@@ -30,11 +34,19 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/**
+ * @macroname `RAND_MAX`
+ *
+ * @description
+ * The largest value that rand() returns.
+ */
 #define RAND_MAX 32767
 
+/** \cond */
 void abort(void);
 
 int rand (void);
 void srand(unsigned int seed);
+/** \endcond */
 
 #endif /* LIBJET_STDLIB_H*/

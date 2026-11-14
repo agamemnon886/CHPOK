@@ -16,6 +16,9 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct msection is used by its
+ * typedef name, msection_t.
  */
 
 #include <stdio.h>
@@ -28,7 +31,7 @@
 
 static int32_t volatile global_val = 0;
 
-static struct msection s;
+static msection_t s;
 
 static void first_process(void)
 {

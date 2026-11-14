@@ -29,6 +29,19 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: debug_strlen()
  * doesn't modify its parameter; deviations are documented where a
  * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * Kernel debugging helpers: the length of a message, the fatal error stop
+ * and a hex dump.
  */
 
 #include <config.h>
@@ -48,6 +61,41 @@
  * dumped as bytes.
  */
 
+/**
+ * @funcname `debug_strlen`
+ *
+ * @description
+ * Returns the length of a string, for pok_fatal() (which can't rely on the rest
+ * of the C library).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `str` | `const char *` | [in] The string. |
+ *
+ * @return The number of characters before the NUL.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `int32_t` | The index of the character |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `i` to `0`.
+ * 2. While `str[i]` is not equal to `'\0'`:
+ *    1. Increment `i`.
+ * 3. Return `i`.
+ *
+ * @calls
+ * None.
+ */
 int32_t debug_strlen (const char* str)
 {
   int32_t		i = 0;
@@ -59,6 +107,29 @@ int32_t debug_strlen (const char* str)
   return i;
 }
 
+/**
+ * @funcname `pok_debug_print_current_state`
+ *
+ * @description
+ * Prints the state of the current partition and thread (a debugging aid). The
+ * printing code is commented out: it does nothing.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 void pok_debug_print_current_state (void)
 {
    /*uint32_t i;
@@ -96,6 +167,44 @@ void pok_debug_print_current_state (void)
    printf ("entry             : 0x%p\n", POK_CURRENT_THREAD.entry);*/
 }
 
+/**
+ * @funcname `pok_fatal`
+ *
+ * @description
+ * Stops the kernel after a fatal error: prints the message and loops forever.
+ * It can be called from a kernel thread with preemption enabled.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `message` | `const char *` | [in] The error message. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `ja_preempt_disable()`.
+ * 2. Call `jet_console_write()` with the arguments `"FATAL ERROR: \n"` and
+ *    `13`.
+ * 3. Call `jet_console_write()` with the arguments `message` and
+ *    `debug_strlen(message)`.
+ * 4. Use the macro `POK_DEBUG_PRINT_CURRENT_STATE`.
+ * 5. Call `ja_inf_loop()`.
+ *
+ * @calls
+ * - `ja_preempt_disable()`
+ * - `jet_console_write()`
+ * - `debug_strlen()`
+ * - `pok_debug_print_current_state()`
+ * - `ja_inf_loop()`
+ */
 _Noreturn void pok_fatal (const char* message)
 {
   // it can be called from a kernel thread
@@ -111,6 +220,58 @@ _Noreturn void pok_fatal (const char* message)
   ja_inf_loop();
 }
 
+/**
+ * @funcname `hexdump`
+ *
+ * @description
+ * Prints a block of memory as hex bytes, 16 per line with their offset and
+ * their printable characters.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `addr` | `const void *` | [in] The memory. |
+ * | `len` | `int32_t` | [in] The number of bytes. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `buff` | `uint8_t[17]` | The printable characters of the current line |
+ * | `i` | `int32_t` | The index of the byte |
+ * | `pc` | `const uint8_t *` | The memory, as bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `pc` to `(const uint8_t*)addr`.
+ * 2. If `len` is equal to `0`:
+ *    1. Call `printf()` with the argument `"Len is zero\n"`.
+ *    2. Return.
+ * 3. Set `i` to `0`; then while `i` is less than `len`, repeat (after each
+ *    pass: increment `i`):
+ *    1. If `(i % 16)` is equal to `0`:
+ *       1. If `i` is not equal to `0`:
+ *          1. Call `printf()` with the arguments `" %%s\n"` and `buff`.
+ *       2. Call `printf()` with the arguments `" %04x "` and `i`.
+ *    2. Call `printf()` with the arguments `" %02x"` and `pc[i]`.
+ *    3. If `pc[i]` is less than `0x20U` or `pc[i]` is greater than `0x7eU`:
+ *       1. Set `buff[i % 16]` to `'.'`.
+ *    4. Otherwise:
+ *       1. Set `buff[i % 16]` to `pc[i]`.
+ *    5. Set `buff[(i % 16) + 1]` to `'\0'`.
+ * 4. While `(i % 16)` is not equal to `0`:
+ *    1. Call `printf()` with the argument `" "`.
+ *    2. Increment `i`.
+ * 5. Call `printf()` with the arguments `" %%s\n"` and `buff`.
+ *
+ * @calls
+ * - `printf()`
+ */
 void hexdump (const void *addr, int32_t len)
 {
     int32_t i;

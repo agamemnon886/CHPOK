@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 13:44:27 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_sqrt.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_sqrt()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /* __ieee754_sqrt(x)
  * Return correctly rounded sqrt.
  *           ------------------------------------------
@@ -104,6 +117,129 @@
 
 static	const double	one	= 1.0, tiny=1.0e-300;
 
+/**
+ * @funcname `__ieee754_sqrt`
+ *
+ * @description
+ * Computes the square root of x: the IEEE 754 core of sqrt().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `tiny` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `int32_t` | A temporary of the computation |
+ * | `ix0` | `int32_t` | The high word of x |
+ * | `ix1` | `uint32_t` | The low word of x |
+ * | `m` | `int32_t` | A temporary of the computation |
+ * | `q` | `int32_t` | A temporary of the computation |
+ * | `q1` | `uint32_t` | A temporary of the computation |
+ * | `r` | `uint32_t` | A temporary of the computation |
+ * | `s0` | `int32_t` | A temporary of the computation |
+ * | `s1` | `uint32_t` | A temporary of the computation |
+ * | `sign` | `int32_t` | A temporary of the computation |
+ * | `t` | `int32_t` | A temporary of the computation |
+ * | `t1` | `uint32_t` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `sign` to `(int)0x80000000`.
+ * 2. Use the macro `EXTRACT_WORDS()` with the arguments `ix0`, `ix1` and `x`.
+ * 3. If `(ix0&0x7ff00000)` is equal to `0x7ff00000`:
+ *    1. Return `x*x+x`.
+ * 4. If `ix0` is less than or equal to `0`:
+ *    1. If `((ix0&(~sign))|ix1)` is equal to `0`:
+ *       1. Return `x`.
+ *    2. Otherwise, if `ix0` is less than `0`:
+ *       1. Return `(x-x)/(x-x)`.
+ * 5. Set `m` to `(ix0>>20)`.
+ * 6. If `m` is equal to `0`:
+ *    1. While `ix0` is equal to `0`:
+ *       1. Subtract `21` from `m`.
+ *       2. Set the bits `(ix1>>11)` in `ix0`.
+ *       3. Shift `ix1` left by `21` bits.
+ *    2. Set `i` to `0`; then while `(ix0&0x00100000)` is equal to `0`, repeat
+ *       (after each pass: increment `i`):
+ *       1. Shift `ix0` left by `1` bits.
+ *    3. Subtract `i-1` from `m`.
+ *    4. Set the bits `(ix1>>(32-i))` in `ix0`.
+ *    5. Shift `ix1` left by `i` bits.
+ * 7. Subtract `1023` from `m`.
+ * 8. Set `ix0` to `(ix0&0x000fffff)|0x00100000`.
+ * 9. If `m&1` is true:
+ *    1. Add `ix0 + ((ix1&sign)>>31)` to `ix0`.
+ *    2. Add `ix1` to `ix1`.
+ * 10. Shift `m` right by `1` bits.
+ * 11. Add `ix0 + ((ix1&sign)>>31)` to `ix0`.
+ * 12. Add `ix1` to `ix1`.
+ * 13. Set `q` to `q1 = s0 = s1 = 0`.
+ * 14. Set `r` to `0x00200000`.
+ * 15. While `r` is not equal to `0`:
+ *     1. Set `t` to `s0+r`.
+ *     2. If `t` is less than or equal to `ix0`:
+ *        1. Set `s0` to `t+r`.
+ *        2. Subtract `t` from `ix0`.
+ *        3. Add `r` to `q`.
+ *     3. Add `ix0 + ((ix1&sign)>>31)` to `ix0`.
+ *     4. Add `ix1` to `ix1`.
+ *     5. Shift `r` right by `1` bits.
+ * 16. Set `r` to `sign`.
+ * 17. While `r` is not equal to `0`:
+ *     1. Set `t1` to `s1+r`.
+ *     2. Set `t` to `s0`.
+ *     3. If `t` is less than `ix0` or (`t` is equal to `ix0` and `t1` is less
+ *        than or equal to `ix1`):
+ *        1. Set `s1` to `t1+r`.
+ *        2. If `(t1&sign)` is equal to `(uint32_t)sign` and `(s1&sign)` is
+ *           equal to `0`:
+ *           1. Add `1` to `s0`.
+ *        3. Subtract `t` from `ix0`.
+ *        4. If `ix1` is less than `t1`:
+ *           1. Subtract `1` from `ix0`.
+ *        5. Subtract `t1` from `ix1`.
+ *        6. Add `r` to `q1`.
+ *     4. Add `ix0 + ((ix1&sign)>>31)` to `ix0`.
+ *     5. Add `ix1` to `ix1`.
+ *     6. Shift `r` right by `1` bits.
+ * 18. If `(ix0|ix1)` is not equal to `0`:
+ *     1. Set `z` to `one-tiny`.
+ *     2. If `z` is greater than or equal to `one`:
+ *        1. Set `z` to `one+tiny`.
+ *        2. If `q1` is equal to `(uint32_t)0xffffffff`:
+ *           1. Set `q1` to `0`.
+ *           2. Add `1` to `q`.
+ *        3. Otherwise, if `z` is greater than `one`:
+ *           1. If `q1` is equal to `(uint32_t)0xfffffffe`:
+ *              1. Add `1` to `q`.
+ *           2. Add `2` to `q1`.
+ *        4. Otherwise:
+ *           1. Add `(q1&1)` to `q1`.
+ * 19. Set `ix0` to `(q>>1)+0x3fe00000`.
+ * 20. Set `ix1` to `q1>>1`.
+ * 21. If `(q&1)` is equal to `1`:
+ *     1. Set the bits `sign` in `ix1`.
+ * 22. Add `(m <<20)` to `ix0`.
+ * 23. Use the macro `INSERT_WORDS()` with the arguments `z`, `ix0` and `ix1`.
+ * 24. Return `z`.
+ *
+ * @calls
+ * None.
+ */
 double
 __ieee754_sqrt(double x)
 {

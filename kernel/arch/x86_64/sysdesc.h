@@ -18,6 +18,10 @@
  * kernel/arch/x86/sysdesc.h to x86_64 (64-bit).
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file and
+ * its types (with their members).
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -27,11 +31,16 @@
 
 #include <types.h>
 
-/* Operand of lgdt/lidt in 64-bit mode. */
+/**
+ * @typename `sysdesc_t`
+ *
+ * @description
+ * Operand of lgdt/lidt in 64-bit mode.
+ */
 typedef struct
 {
-  uint16_t limit;
-  uint64_t base;
+  uint16_t limit; /**< The size of the table, minus 1. */
+  uint64_t base; /**< The address of the table. */
 } __attribute__((packed)) sysdesc_t;
 
 #endif /* !POK_X86_64_SYSDESC_H */

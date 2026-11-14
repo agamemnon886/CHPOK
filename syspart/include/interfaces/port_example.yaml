@@ -1,11 +1,21 @@
+# Modified by Kirill Brazhnikov, 2026-11-14: description gives the
+# documentation of the interface and of its functions (the interface's type
+# and its members in the generated header).
 - name: port_example
+  description: >-
+    An example of an interface (no component uses it): it sends data.
   #additional_h_files: ['<1.h>', '<2.h>']
   functions:
       - name: send
+        description: >-
+          Sends data: arg0 is the component, arg1 the data and arg2 its
+          size.
         return_type: void
         args_type: [self_t *, void *, size_t]
 
       - name: flush
+        description: >-
+          Sends what the component (arg0) has queued.
         return_type: void
         args_type: [self_t *]
 

@@ -30,6 +30,18 @@
  * documented where a guideline can't be followed. In the kernel, the
  * syscall implementations are no longer declared again next to their
  * wrappers (Rule 8.5).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions (the function headers are in
+ * misc/templates/syscall_declarations_*.tpl).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the structures and enums are used
+ * by their typedef names: msection_t, msection_wq_t; the comment naming the
+ * removed alias pok_thread_status (libpok) is removed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_partition_mode_e (was pok_partition_mode_t); the Doxygen comment of the
+ * file is removed (header files are not documented).
  */
 
 /*
@@ -93,7 +105,6 @@ SYSCALL_DECLARE(POK_SYSCALL_THREAD_SUSPEND, pok_thread_suspend,
    const pok_time_t*, timeout)
 #endif
 
-//! User name - pok_thread_status
 SYSCALL_DECLARE(POK_SYSCALL_THREAD_STATUS, pok_thread_get_status,
    pok_thread_id_t, thread_id,
    char*, name,
@@ -134,31 +145,31 @@ SYSCALL_DECLARE(POK_SYSCALL_THREAD_FIND, pok_thread_find,
 SYSCALL_DECLARE(POK_SYSCALL_RESCHED, jet_resched)
 
 SYSCALL_DECLARE(POK_SYSCALL_MSECTION_ENTER_HELPER, jet_msection_enter_helper,
-   struct msection*, section)
+   msection_t*, section)
 
 SYSCALL_DECLARE(POK_SYSCALL_MSECTION_WAIT, jet_msection_wait,
-   struct msection*, section,
+   msection_t*, section,
    const pok_time_t*, timeout)
 
 SYSCALL_DECLARE(POK_SYSCALL_MSECTION_NOTIFY, jet_msection_notify,
-   struct msection*, section,
+   msection_t*, section,
    pok_thread_id_t, thread_id)
 
 SYSCALL_DECLARE(POK_SYSCALL_MSECTION_WQ_NOTIFY, jet_msection_wq_notify,
-   struct msection*, section,
-   struct msection_wq*, wq,
+   msection_t*, section,
+   msection_wq_t*, wq,
    pok_bool_t, is_all)
 
 SYSCALL_DECLARE(POK_SYSCALL_MSECTION_WQ_SIZE, jet_msection_wq_size,
-   struct msection*, section,
-   struct msection_wq*, wq,
+   msection_t*, section,
+   msection_wq_t*, wq,
    size_t*, size)
 
 
 #ifdef POK_NEEDS_PARTITIONS
 //! User name - pok_partition_set_mode
 SYSCALL_DECLARE(POK_SYSCALL_PARTITION_SET_MODE, pok_partition_set_mode_current,
-   pok_partition_mode_t, mode)
+   pok_partition_mode_e, mode)
 
 SYSCALL_DECLARE(POK_SYSCALL_PARTITION_GET_STATUS, pok_current_partition_get_status,
    pok_partition_status_t*, status)

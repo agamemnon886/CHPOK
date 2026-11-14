@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_pow.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_pow()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /* __ieee754_pow(x,y) return x**y
  *
  *		      n
@@ -110,6 +123,280 @@ ivln2    =  1.44269504088896338700e+00, /* 0x3FF71547, 0x652B82FE =1/ln2 */
 ivln2_h  =  1.44269502162933349609e+00, /* 0x3FF71547, 0x60000000 =24b 1/ln2*/
 ivln2_l  =  1.92596299112661746887e-08; /* 0x3E54AE0B, 0xF85DDF44 =1/ln2 tail*/
 
+/**
+ * @funcname `__ieee754_pow`
+ *
+ * @description
+ * Computes x raised to the power y: the IEEE 754 core of pow().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `y` | `double` | [in] The second argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `L1` | `const double` | A constant of the algorithm |
+ * | `L2` | `const double` | A constant of the algorithm |
+ * | `L3` | `const double` | A constant of the algorithm |
+ * | `L4` | `const double` | A constant of the algorithm |
+ * | `L5` | `const double` | A constant of the algorithm |
+ * | `L6` | `const double` | A constant of the algorithm |
+ * | `P1` | `const double` | A constant of the algorithm |
+ * | `P2` | `const double` | A constant of the algorithm |
+ * | `P3` | `const double` | A constant of the algorithm |
+ * | `P4` | `const double` | A constant of the algorithm |
+ * | `P5` | `const double` | A constant of the algorithm |
+ * | `bp` | `const double[2]` | A constant of the algorithm |
+ * | `cp` | `const double` | A constant of the algorithm |
+ * | `cp_h` | `const double` | A constant of the algorithm |
+ * | `cp_l` | `const double` | A constant of the algorithm |
+ * | `dp_h` | `const double[2]` | A constant of the algorithm |
+ * | `dp_l` | `const double[2]` | A constant of the algorithm |
+ * | `huge` | `const double` | A constant of the algorithm |
+ * | `ivln2` | `const double` | A constant of the algorithm |
+ * | `ivln2_h` | `const double` | A constant of the algorithm |
+ * | `ivln2_l` | `const double` | A constant of the algorithm |
+ * | `lg2` | `const double` | A constant of the algorithm |
+ * | `lg2_h` | `const double` | A constant of the algorithm |
+ * | `lg2_l` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `ovt` | `const double` | A constant of the algorithm |
+ * | `tiny` | `const double` | A constant of the algorithm |
+ * | `two` | `const double` | A constant of the algorithm |
+ * | `two53` | `const double` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ax` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `hy` | `int32_t` | The high word of y |
+ * | `i` | `int32_t` | The low word of z |
+ * | `ix` | `int32_t` | The high word of ax |
+ * | `iy` | `int32_t` | The high word of y without the sign bit |
+ * | `j` | `int32_t` | The high word of z |
+ * | `k` | `int32_t` | A temporary of the computation |
+ * | `lx` | `uint32_t` | The low word of x |
+ * | `ly` | `uint32_t` | The low word of y |
+ * | `n` | `int32_t` | A temporary of the computation |
+ * | `p_h` | `double` | A temporary of the computation |
+ * | `p_l` | `double` | A temporary of the computation |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `s2` | `double` | A temporary of the computation |
+ * | `s_h` | `double` | A temporary of the computation |
+ * | `s_l` | `double` | A temporary of the computation |
+ * | `ss` | `double` | A temporary of the computation |
+ * | `t` | `double` | A temporary of the computation |
+ * | `t1` | `double` | A temporary of the computation |
+ * | `t2` | `double` | A temporary of the computation |
+ * | `t_h` | `double` | A temporary of the computation |
+ * | `t_l` | `double` | A temporary of the computation |
+ * | `u` | `double` | A temporary of the computation |
+ * | `v` | `double` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ * | `yisint` | `int32_t` | A temporary of the computation |
+ * | `yy1` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ * | `z_h` | `double` | A temporary of the computation |
+ * | `z_l` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `EXTRACT_WORDS()` with the arguments `hx`, `lx` and `x`.
+ * 2. Use the macro `EXTRACT_WORDS()` with the arguments `hy`, `ly` and `y`.
+ * 3. Set `ix` to `hx&0x7fffffff`.
+ * 4. Set `iy` to `hy&0x7fffffff`.
+ * 5. If `(iy|ly)` is equal to `0`:
+ *    1. Return `one`.
+ * 6. If `ix` is greater than `0x7ff00000` or (`ix` is equal to `0x7ff00000`
+ *    and `lx` is not equal to `0`) or `iy` is greater than `0x7ff00000` or
+ *    (`iy` is equal to `0x7ff00000` and `ly` is not equal to `0`):
+ *    1. Return `x+y`.
+ * 7. Set `yisint` to `0`.
+ * 8. If `hx` is less than `0`:
+ *    1. If `iy` is greater than or equal to `0x43400000`:
+ *       1. Set `yisint` to `2`.
+ *    2. Otherwise, if `iy` is greater than or equal to `0x3ff00000`:
+ *       1. Set `k` to `(iy>>20)-0x3ff`.
+ *       2. If `k` is greater than `20`:
+ *          1. Set `j` to `ly>>(52-k)`.
+ *          2. If `(uint32_t)(j<<(52-k))` is equal to `ly`:
+ *             1. Set `yisint` to `2-(j&1)`.
+ *       3. Otherwise, if `ly` is equal to `0`:
+ *          1. Set `j` to `iy>>(20-k)`.
+ *          2. If `(j<<(20-k))` is equal to `iy`:
+ *             1. Set `yisint` to `2-(j&1)`.
+ * 9. If `ly` is equal to `0`:
+ *    1. If `iy` is equal to `0x7ff00000`:
+ *       1. If `((ix-0x3ff00000)|lx)` is equal to `0`:
+ *          1. Return `y - y`.
+ *       2. Otherwise, if `ix` is greater than or equal to `0x3ff00000`:
+ *          1. Return `y` if `hy` is greater than or equal to `0`, otherwise
+ *             `zero`.
+ *       3. Otherwise:
+ *          1. Return `-y` if `hy` is less than `0`, otherwise `zero`.
+ *    2. If `iy` is equal to `0x3ff00000`:
+ *       1. If `hy` is less than `0`:
+ *          1. Return `one/x`.
+ *       2. Otherwise:
+ *          1. Return `x`.
+ *    3. If `hy` is equal to `0x40000000`:
+ *       1. Return `x*x`.
+ *    4. If `hy` is equal to `0x3fe00000`:
+ *       1. If `hx` is greater than or equal to `0`:
+ *          1. Call `__ieee754_sqrt()` with the argument `x`, and return its
+ *             result.
+ * 10. Call `fabs()` with the argument `x`, and store the result in `ax`.
+ * 11. If `lx` is equal to `0`:
+ *     1. If `ix` is equal to `0x7ff00000` or `ix` is equal to `0` or `ix` is
+ *        equal to `0x3ff00000`:
+ *        1. Set `z` to `ax`.
+ *        2. If `hy` is less than `0`:
+ *           1. Set `z` to `one/z`.
+ *        3. If `hx` is less than `0`:
+ *           1. If `((ix-0x3ff00000)|yisint)` is equal to `0`:
+ *              1. Set `z` to `(z-z)/(z-z)`.
+ *           2. Otherwise, if `yisint` is equal to `1`:
+ *              1. Set `z` to `-z`.
+ *        4. Return `z`.
+ * 12. Set `n` to `(hx>>31)+1`.
+ * 13. If `(n|yisint)` is equal to `0`:
+ *     1. Return `(x-x)/(x-x)`.
+ * 14. Set `s` to `one`.
+ * 15. If `(n|(yisint-1))` is equal to `0`:
+ *     1. Set `s` to `-one`.
+ * 16. If `iy` is greater than `0x41e00000`:
+ *     1. If `iy` is greater than `0x43f00000`:
+ *        1. If `ix` is less than or equal to `0x3fefffff`:
+ *           1. Return `huge*huge` if `hy` is less than `0`, otherwise
+ *              `tiny*tiny`.
+ *        2. If `ix` is greater than or equal to `0x3ff00000`:
+ *           1. Return `huge*huge` if `hy` is greater than `0`, otherwise
+ *              `tiny*tiny`.
+ *     2. If `ix` is less than `0x3fefffff`:
+ *        1. Return `s*huge*huge` if `hy` is less than `0`, otherwise
+ *           `s*tiny*tiny`.
+ *     3. If `ix` is greater than `0x3ff00000`:
+ *        1. Return `s*huge*huge` if `hy` is greater than `0`, otherwise
+ *           `s*tiny*tiny`.
+ *     4. Set `t` to `ax-one`.
+ *     5. Set `w` to `(t*t)*(0.5-t*(0.3333333333333333333333-t*0.25))`.
+ *     6. Set `u` to `ivln2_h*t`.
+ *     7. Set `v` to `t*ivln2_l-w*ivln2`.
+ *     8. Set `t1` to `u+v`.
+ *     9. Use the macro `SET_LOW_WORD()` with the arguments `t1` and `0`.
+ *     10. Set `t2` to `v-(t1-u)`.
+ * 17. Otherwise:
+ *     1. Set `n` to `0`.
+ *     2. If `ix` is less than `0x00100000`:
+ *        1. Multiply `ax` by `two53`.
+ *        2. Subtract `53` from `n`.
+ *        3. Use the macro `GET_HIGH_WORD()` with the arguments `ix` and `ax`.
+ *     3. Add `((ix)>>20)-0x3ff` to `n`.
+ *     4. Set `j` to `ix&0x000fffff`.
+ *     5. Set `ix` to `j|0x3ff00000`.
+ *     6. If `j` is less than or equal to `0x3988E`:
+ *        1. Set `k` to `0`.
+ *     7. Otherwise, if `j` is less than `0xBB67A`:
+ *        1. Set `k` to `1`.
+ *     8. Otherwise:
+ *        1. Set `k` to `0`.
+ *        2. Add `1` to `n`.
+ *        3. Subtract `0x00100000` from `ix`.
+ *     9. Use the macro `SET_HIGH_WORD()` with the arguments `ax` and `ix`.
+ *     10. Set `u` to `ax-bp[k]`.
+ *     11. Set `v` to `one/(ax+bp[k])`.
+ *     12. Set `ss` to `u*v`.
+ *     13. Set `s_h` to `ss`.
+ *     14. Use the macro `SET_LOW_WORD()` with the arguments `s_h` and `0`.
+ *     15. Set `t_h` to `zero`.
+ *     16. Use the macro `SET_HIGH_WORD()` with the arguments `t_h` and
+ *         `((ix>>1)|0x20000000)+0x00080000+(k<<18)`.
+ *     17. Set `t_l` to `ax - (t_h-bp[k])`.
+ *     18. Set `s_l` to `v*((u-s_h*t_h)-s_h*t_l)`.
+ *     19. Set `s2` to `ss*ss`.
+ *     20. Set `r` to `s2*s2*(L1+s2*(L2+s2*(L3+s2*(L4+s2*(L5+s2*L6)))))`.
+ *     21. Add `s_l*(s_h+ss)` to `r`.
+ *     22. Set `s2` to `s_h*s_h`.
+ *     23. Set `t_h` to `3.0+s2+r`.
+ *     24. Use the macro `SET_LOW_WORD()` with the arguments `t_h` and `0`.
+ *     25. Set `t_l` to `r-((t_h-3.0)-s2)`.
+ *     26. Set `u` to `s_h*t_h`.
+ *     27. Set `v` to `s_l*t_h+t_l*ss`.
+ *     28. Set `p_h` to `u+v`.
+ *     29. Use the macro `SET_LOW_WORD()` with the arguments `p_h` and `0`.
+ *     30. Set `p_l` to `v-(p_h-u)`.
+ *     31. Set `z_h` to `cp_h*p_h`.
+ *     32. Set `z_l` to `cp_l*p_h+p_l*cp+dp_l[k]`.
+ *     33. Set `t` to `(double)n`.
+ *     34. Set `t1` to `(((z_h+z_l)+dp_h[k])+t)`.
+ *     35. Use the macro `SET_LOW_WORD()` with the arguments `t1` and `0`.
+ *     36. Set `t2` to `z_l-(((t1-t)-dp_h[k])-z_h)`.
+ * 18. Set `yy1` to `y`.
+ * 19. Use the macro `SET_LOW_WORD()` with the arguments `yy1` and `0`.
+ * 20. Set `p_l` to `(y-yy1)*t1+y*t2`.
+ * 21. Set `p_h` to `yy1*t1`.
+ * 22. Set `z` to `p_l+p_h`.
+ * 23. Use the macro `EXTRACT_WORDS()` with the arguments `j`, `i` and `z`.
+ * 24. If `j` is greater than or equal to `0x40900000`:
+ *     1. If `((j-0x40900000)|i)` is not equal to `0`:
+ *        1. Return `s*huge*huge`.
+ *     2. Otherwise:
+ *        1. If `p_l+ovt` is greater than `z-p_h`:
+ *           1. Return `s*huge*huge`.
+ * 25. Otherwise, if `(j&0x7fffffff)` is greater than or equal to `0x4090cc00`:
+ *     1. If `((j-0xc090cc00)|i)` is not equal to `0`:
+ *        1. Return `s*tiny*tiny`.
+ *     2. Otherwise:
+ *        1. If `p_l` is less than or equal to `z-p_h`:
+ *           1. Return `s*tiny*tiny`.
+ * 26. Set `i` to `j&0x7fffffff`.
+ * 27. Set `k` to `(i>>20)-0x3ff`.
+ * 28. Set `n` to `0`.
+ * 29. If `i` is greater than `0x3fe00000`:
+ *     1. Set `n` to `j+(0x00100000>>(k+1))`.
+ *     2. Set `k` to `((n&0x7fffffff)>>20)-0x3ff`.
+ *     3. Set `t` to `zero`.
+ *     4. Use the macro `SET_HIGH_WORD()` with the arguments `t` and
+ *        `n&~(0x000fffff>>k)`.
+ *     5. Set `n` to `((n&0x000fffff)|0x00100000)>>(20-k)`.
+ *     6. If `j` is less than `0`:
+ *        1. Set `n` to `-n`.
+ *     7. Subtract `t` from `p_h`.
+ * 30. Set `t` to `p_l+p_h`.
+ * 31. Use the macro `SET_LOW_WORD()` with the arguments `t` and `0`.
+ * 32. Set `u` to `t*lg2_h`.
+ * 33. Set `v` to `(p_l-(t-p_h))*lg2+t*lg2_l`.
+ * 34. Set `z` to `u+v`.
+ * 35. Set `w` to `v-(z-u)`.
+ * 36. Set `t` to `z*z`.
+ * 37. Set `t1` to `z - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))))`.
+ * 38. Set `r` to `(z*t1)/(t1-two)-(w+z*w)`.
+ * 39. Set `z` to `one-(r-z)`.
+ * 40. Use the macro `GET_HIGH_WORD()` with the arguments `j` and `z`.
+ * 41. Add `(n<<20)` to `j`.
+ * 42. If `(j>>20)` is less than or equal to `0`:
+ *     1. Call `scalbn()` with the arguments `z` and `n`, and store the result
+ *        in `z`.
+ * 43. Otherwise:
+ *     1. Use the macro `SET_HIGH_WORD()` with the arguments `z` and `j`.
+ * 44. Return `s*z`.
+ *
+ * @calls
+ * - `__ieee754_sqrt()`
+ * - `fabs()`
+ * - `scalbn()`
+ */
 double
 __ieee754_pow(double x, double y)
 {

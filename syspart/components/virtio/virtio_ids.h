@@ -1,3 +1,8 @@
+/*
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros and types are
+ * documented.
+ */
+
 #ifndef POK_VIRTIO_IDS_H
 #define POK_VIRTIO_IDS_H
 /*
@@ -33,15 +38,93 @@
  * isn't a reserved identifier.
  */
 
-#define VIRTIO_ID_NET		1 /* virtio net */
-#define VIRTIO_ID_BLOCK		2 /* virtio block */
-#define VIRTIO_ID_CONSOLE	3 /* virtio console */
-#define VIRTIO_ID_RNG		4 /* virtio rng */
-#define VIRTIO_ID_BALLOON	5 /* virtio balloon */
-#define VIRTIO_ID_RPMSG		7 /* virtio remote processor messaging */
-#define VIRTIO_ID_SCSI		8 /* virtio scsi */
-#define VIRTIO_ID_9P		9 /* 9p virtio console */
-#define VIRTIO_ID_RPROC_SERIAL 11 /* virtio remoteproc serial link */
-#define VIRTIO_ID_CAIF	       12 /* Virtio caif */
+/**
+ * @name Virtio device IDs
+ * The PCI subsystem device IDs of the virtio devices.
+ * @{
+ */
+
+/**
+ * @macroname `VIRTIO_ID_NET`
+ *
+ * @description
+ * Virtio net.
+ */
+#define VIRTIO_ID_NET		1
+
+/**
+ * @macroname `VIRTIO_ID_BLOCK`
+ *
+ * @description
+ * Virtio block.
+ */
+#define VIRTIO_ID_BLOCK		2
+
+/**
+ * @macroname `VIRTIO_ID_CONSOLE`
+ *
+ * @description
+ * Virtio console.
+ */
+#define VIRTIO_ID_CONSOLE	3
+
+/**
+ * @macroname `VIRTIO_ID_RNG`
+ *
+ * @description
+ * Virtio rng.
+ */
+#define VIRTIO_ID_RNG		4
+
+/**
+ * @macroname `VIRTIO_ID_BALLOON`
+ *
+ * @description
+ * Virtio balloon.
+ */
+#define VIRTIO_ID_BALLOON	5
+
+/**
+ * @macroname `VIRTIO_ID_RPMSG`
+ *
+ * @description
+ * Virtio remote processor messaging.
+ */
+#define VIRTIO_ID_RPMSG		7
+
+/**
+ * @macroname `VIRTIO_ID_SCSI`
+ *
+ * @description
+ * Virtio scsi.
+ */
+#define VIRTIO_ID_SCSI		8
+
+/**
+ * @macroname `VIRTIO_ID_9P`
+ *
+ * @description
+ * 9p virtio console.
+ */
+#define VIRTIO_ID_9P		9
+
+/**
+ * @macroname `VIRTIO_ID_RPROC_SERIAL`
+ *
+ * @description
+ * Virtio remoteproc serial link.
+ */
+#define VIRTIO_ID_RPROC_SERIAL 11
+
+/**
+ * @macroname `VIRTIO_ID_CAIF`
+ *
+ * @description
+ * Virtio caif.
+ */
+#define VIRTIO_ID_CAIF	       12
+
+/** @} */
+
 
 #endif /* POK_VIRTIO_IDS_H */

@@ -25,6 +25,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
  */
 
 #ifndef LIBPOK_ARM64_SYSCALL_H
@@ -33,42 +40,56 @@
 #include <uapi/syscall_types.h>
 #include <types.h>
 
+/* Documented with its x86_64 definition. */
 #define LIBJET_ARCH_DECLARE_SYSCALL 1
 
 /* Must match the kernel's definition (kernel/include/core/syscall.h). */
+/* Documented with its x86_64 definition. */
 typedef struct
 {
+	 /**
+	  * arm64: The number of arguments used (0 to 5).
+	  */
 	 uint32_t             nargs;
-	 uintptr_t            arg1;
-	 uintptr_t            arg2;
-	 uintptr_t            arg3;
-	 uintptr_t            arg4;
-	 uintptr_t            arg5;
+	 uintptr_t            arg1; /**< arm64: The first argument. */
+	 uintptr_t            arg2; /**< arm64: The second argument. */
+	 uintptr_t            arg3; /**< arm64: The third argument. */
+	 uintptr_t            arg4; /**< arm64: The fourth argument. */
+	 uintptr_t            arg5; /**< arm64: The fifth argument. */
 } pok_syscall_args_t;
 
 /* As on x86, all syscalls go through a single function. */
-pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args);
+/** \cond */
+pok_ret_e lja_do_syscall (pok_syscall_id_e syscall_id,
+    pok_syscall_args_t* args);
+/** \endcond */
 
+/* Documented with its x86_64 definition. */
 #define lja_syscall0(sid) \
 			 lja_do_syscall((sid), \
 	     &((pok_syscall_args_t){0U,0U,0U,0U,0U,0U}))
 
+/* Documented with its x86_64 definition. */
 #define lja_syscall1(sid,arg1) \
 			 lja_do_syscall((sid), \
 	     &((pok_syscall_args_t){1U,(arg1),0U,0U,0U,0U}))
 
+/* Documented with its x86_64 definition. */
 #define lja_syscall2(sid,arg1,arg2) \
 			 lja_do_syscall((sid), \
 	     &((pok_syscall_args_t){2U,(arg1),(arg2),0U,0U,0U}))
 
+/* Documented with its x86_64 definition. */
 #define lja_syscall3(sid,arg1,arg2,arg3) \
 			 lja_do_syscall((sid), \
 	     &((pok_syscall_args_t){3U,(arg1),(arg2),(arg3),0U,0U}))
 
+/* Documented with its x86_64 definition. */
 #define lja_syscall4(sid,arg1,arg2,arg3,arg4) \
 			 lja_do_syscall((sid), \
 	     &((pok_syscall_args_t){4U,(arg1),(arg2),(arg3),(arg4),0U}))
 
+/* Documented with its x86_64 definition. */
 #define lja_syscall5(sid,arg1,arg2,arg3,arg4,arg5) \
 			 lja_do_syscall((sid), \
 	     &((pok_syscall_args_t){5U,(arg1),(arg2),(arg3),(arg4),(arg5)}))

@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Jan 15 23:34:13 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
@@ -40,6 +47,7 @@
 /* */
 /*----------------------------------------------------------------------*/
 /*----------------------------------------------------------------------*/
+/** \cond */
 extern void TIMED_WAIT (
       /*in */ SYSTEM_TIME_TYPE delay_time,
       /*out*/ RETURN_CODE_TYPE *return_code );
@@ -52,6 +60,7 @@ extern void GET_TIME (
       /*out*/ RETURN_CODE_TYPE *return_code );
 /*----------------------------------------------------------------------*/
 void REPLENISH (SYSTEM_TIME_TYPE budget_time, RETURN_CODE_TYPE *return_code);
+/** \endcond */
 /*----------------------------------------------------------------------*/
 #endif
 #endif

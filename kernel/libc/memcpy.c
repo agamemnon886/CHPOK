@@ -19,8 +19,15 @@
  * uses an index.
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+ */
+
+/**
+ * @file
+ * memcpy() of the kernel's C library.
  */
 
 
@@ -32,6 +39,46 @@
  * unsigned char.
  */
 
+/**
+ * @funcname `memcpy`
+ *
+ * @description
+ * Copies a block of memory; the blocks must not overlap (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `to` | `void *` | [out] The destination. |
+ * | `from` | `const void *` | [in] The source. |
+ * | `n` | `size_t` | [in] The number of bytes. |
+ *
+ * @return to.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `cfrom` | `const char *` | The source, as bytes |
+ * | `cto` | `char *` | The destination, as bytes |
+ * | `i` | `size_t` | The index of the byte |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `cto` to `(char *)to`.
+ * 2. Set `cfrom` to `(const char *)from`.
+ * 3. Set `i` to `0U`; then while `i` is less than `n`, repeat (after each pass:
+ *    increment `i`):
+ *    1. Set `cto[i]` to `cfrom[i]`.
+ * 4. Return `(to)`.
+ *
+ * @calls
+ * None.
+ */
 void* memcpy (void*        to,
               const void*  from,
               size_t       n)

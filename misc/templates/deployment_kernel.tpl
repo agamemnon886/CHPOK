@@ -21,6 +21,12 @@
  * blocks have one unused element instead of size 0 and an empty
  * initializer; the number of partition events is computed by the
  * generator; memory block addresses have a U suffix.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct memory_block is used by its
+ * typedef name, memory_block_t; pok_error_module_action_table_t is renamed
+ * pok_error_hm_module_t, pok_error_hm_partition_t is renamed
+ * pok_error_hm_part_t, pok_error_level_selector_t is renamed pok_error_levels_t
+ * (names too long for the tables of the documentation).
  */
 
 #include <config.h>
@@ -40,7 +46,7 @@
  * HM module selector (System_HM_Table): bit N is 0 if the error is a
  * module level error in system state N.
  */
-pok_error_level_selector_t pok_hm_module_selector = {
+pok_error_levels_t pok_hm_module_selector = {
     .levels = {
 {%for error_id in conf.error_ids_all%}
         {{conf.module_hm_table.level_selector_total(error_id)}}, /* POK_ERROR_ID_{{error_id}} */
@@ -53,7 +59,7 @@ pok_error_level_selector_t pok_hm_module_selector = {
  *
  * SHUTDOWN for errors the configuration doesn't list.
  */
-pok_error_module_action_table_t pok_hm_module_table = {
+pok_error_hm_module_t pok_hm_module_table = {
     .actions = {
 {%for system_state in conf.system_states_all%}
     /* POK_SYSTEM_STATE_{{system_state}} */
@@ -119,7 +125,7 @@ uint8_t pok_channels_sampling_n = {{ conf.channels_sampling | length }};
 {%for part in conf.partitions%}
 /****************** Setup partition{{loop.index0}} (auxiliary) **********************/
 // HM partition level selector.
-static const pok_error_level_selector_t partition_hm_selector_{{loop.index0}} = {
+static const pok_error_levels_t partition_hm_selector_{{loop.index0}} = {
     .levels = {
 {%for error_id in conf.error_ids_all %}
         {{part.hm_table.level_selector_total(error_id)}}, /*POK_ERROR_ID_{{error_id}}*/
@@ -143,7 +149,7 @@ static const pok_thread_error_map_t partition_thread_error_info_{{loop.index0}} 
 /* 
  * Pointer to partition HM table.
  */
-static const pok_error_hm_partition_t partition_hm_table_{{loop.index0}} = {
+static const pok_error_hm_part_t partition_hm_table_{{loop.index0}} = {
     .actions = {
 {%for s in conf.system_states_all %}
     /* POK_SYSTEM_STATE_{{s}} */
@@ -303,9 +309,9 @@ const pok_time_t pok_config_scheduling_major_frame = {{conf.major_frame}};
 
 /************************ Memory blocks ************************/
 {%if not conf.memory_blocks%}
-struct memory_block jet_memory_blocks[1];
+memory_block_t jet_memory_blocks[1];
 {%else%}
-struct memory_block jet_memory_blocks[] = {
+memory_block_t jet_memory_blocks[] = {
     {%for mblock in conf.memory_blocks%}
     {
         .name = "{{mblock.name}}",

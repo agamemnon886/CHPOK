@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Sat Jan 31 20:12:07 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)k_sin.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__kernel_sin()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -69,6 +82,61 @@ S4  =  2.75573137070700676789e-06, /* 0x3EC71DE3, 0x57B1FE7D */
 S5  = -2.50507602534068634195e-08, /* 0xBE5AE5E6, 0x8A2B9CEB */
 S6  =  1.58969099521155010221e-10; /* 0x3DE5D93A, 0x5ACFD57C */
 
+/**
+ * @funcname `__kernel_sin`
+ *
+ * @description
+ * The kernel sine of x + y on [-pi/4, pi/4] (y is the tail of x).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `y` | `double` | [in] The tail of x. |
+ * | `iy` | `int` | [in] 0 if y is 0. |
+ *
+ * @return The sine.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `S1` | `const double` | A constant of the algorithm |
+ * | `S2` | `const double` | A constant of the algorithm |
+ * | `S3` | `const double` | A constant of the algorithm |
+ * | `S4` | `const double` | A constant of the algorithm |
+ * | `S5` | `const double` | A constant of the algorithm |
+ * | `S6` | `const double` | A constant of the algorithm |
+ * | `half` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The high word of x |
+ * | `r` | `double` | A temporary of the computation |
+ * | `v` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `ix` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `ix`.
+ * 3. If `ix` is less than `0x3e400000`:
+ *    1. If `(int)x` is equal to `0`:
+ *       1. Return `x`.
+ * 4. Set `z` to `x*x`.
+ * 5. Set `v` to `z*x`.
+ * 6. Set `r` to `S2+z*(S3+z*(S4+z*(S5+z*S6)))`.
+ * 7. If `iy` is equal to `0`:
+ *    1. Return `x+v*(S1+z*r)`.
+ * 8. Otherwise:
+ *    1. Return `x-((z*(half*y-v*r)-y)-v*S1)`.
+ *
+ * @calls
+ * None.
+ */
 double
 __kernel_sin(double x, double y, int iy)
 {

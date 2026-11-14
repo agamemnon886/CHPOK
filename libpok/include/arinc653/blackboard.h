@@ -18,6 +18,9 @@
  * parameters and the message parameter of the send or write service are
  * const (they are only read), so callers can pass string literals and
  * const data.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -36,26 +39,72 @@
 #define APEX_BLACKBOARD 
 
 #ifndef POK_NEEDS_ARINC653_PROCESS
+
+/* Documented in libpok/include/config.h. */
 #define POK_NEEDS_ARINC653_PROCESS
 #endif
 
 #include <arinc653/types.h>
 #include <arinc653/process.h>
  
+/**
+ * @macroname `MAX_NUMBER_OF_BLACKBOARDS`
+ *
+ * @description
+ * The maximum number of blackboards of a partition
+ * (SYSTEM_LIMIT_NUMBER_OF_BLACKBOARDS).
+ */
 #define  MAX_NUMBER_OF_BLACKBOARDS      SYSTEM_LIMIT_NUMBER_OF_BLACKBOARDS 
  
+/**
+ * @typename `BLACKBOARD_NAME_TYPE`
+ *
+ * @description
+ * The name of a blackboard.
+ */
 typedef  NAME_TYPE       BLACKBOARD_NAME_TYPE; 
  
+/**
+ * @typename `BLACKBOARD_ID_TYPE`
+ *
+ * @description
+ * The identifier of a blackboard.
+ */
 typedef  APEX_INTEGER    BLACKBOARD_ID_TYPE; 
  
-typedef  enum { EMPTY = 0, OCCUPIED = 1 } EMPTY_INDICATOR_TYPE; 
+/**
+ * @typename `EMPTY_INDICATOR_TYPE`
+ *
+ * @description
+ * Whether a blackboard displays a message.
+ */
+typedef  enum {
+   EMPTY = 0, /**< No message is displayed. */
+   OCCUPIED = 1 /**< A message is displayed. */
+} EMPTY_INDICATOR_TYPE; 
  
+/**
+ * @typename `BLACKBOARD_STATUS_TYPE`
+ *
+ * @description
+ * The status of a blackboard (GET_BLACKBOARD_STATUS()).
+ */
 typedef struct { 
+   /**
+    * Whether a message is displayed.
+    */
    EMPTY_INDICATOR_TYPE  EMPTY_INDICATOR; 
+   /**
+    * The maximum size of a message.
+    */
    MESSAGE_SIZE_TYPE     MAX_MESSAGE_SIZE; 
+   /**
+    * The number of processes waiting.
+    */
    WAITING_RANGE_TYPE    WAITING_PROCESSES; 
 } BLACKBOARD_STATUS_TYPE; 
  
+/** \cond */
 extern void CREATE_BLACKBOARD ( 
        /*in */ const BLACKBOARD_NAME_TYPE     BLACKBOARD_NAME, 
        /*in */ MESSAGE_SIZE_TYPE        MAX_MESSAGE_SIZE, 
@@ -88,6 +137,7 @@ extern void GET_BLACKBOARD_STATUS (
        /*in */ BLACKBOARD_ID_TYPE       BLACKBOARD_ID, 
        /*out*/ BLACKBOARD_STATUS_TYPE   *BLACKBOARD_STATUS, 
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE ); 
+/** \endcond */
  
 #endif 
 

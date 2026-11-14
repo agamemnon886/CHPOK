@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* e_lgammaf_r.c -- float version of e_lgamma_r.c.
@@ -29,6 +38,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * sin_pif() and `__ieee754_lgammaf_r()` of libpok's math library (fdlibm, from
+ * Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -105,6 +119,89 @@ w6  = -1.6309292987e-03; /* 0xbad5c4e8 */
 
 static const float zero=  0.0000000000e+00;
 
+/**
+ * @funcname `sin_pif`
+ *
+ * @description
+ * Returns sin(pi*x) for the reflection of lgammaf().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return sin(pi*x).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `pi` | `const float` | A constant of the algorithm |
+ * | `two23` | `const float` | A constant of the algorithm |
+ * | `zero` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int` | The bits of x |
+ * | `n` | `int` | The bits of z |
+ * | `y` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `ix` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `ix`.
+ * 3. If `ix` is less than `0x3e800000`:
+ *    1. Call `__kernel_sinf()` with the arguments `pi*x`, `zero` and `0`, and
+ *       return its result.
+ * 4. Set `y` to `-x`.
+ * 5. Call `floorf()` with the argument `y`, and store the result in `z`.
+ * 6. If `z` is not equal to `y`:
+ *    1. Multiply `y` by `(float)0.5`.
+ *    2. Set `y` to `(float)2.0*(y - floorf(y))`.
+ *    3. Set `n` to `(int) (y*(float)4.0)`.
+ * 7. Otherwise:
+ *    1. If `ix` is greater than or equal to `0x4b800000`:
+ *       1. Set `y` to `zero`.
+ *       2. Set `n` to `0`.
+ *    2. Otherwise:
+ *       1. If `ix` is less than `0x4b000000`:
+ *          1. Set `z` to `y+two23`.
+ *       2. Use the macro `GET_FLOAT_WORD()` with the arguments `n` and `z`.
+ *       3. Keep only the bits `1` of `n`.
+ *       4. Set `y` to `n`.
+ *       5. Shift `n` left by `2` bits.
+ * 8. Depending on `n`:
+ *    1. Case `0`:
+ *       1. Call `__kernel_sinf()` with the arguments `pi*y`, `zero` and `0`,
+ *          and store the result in `y`.
+ *       2. Leave the switch.
+ *    2. Case `1` or `2`:
+ *       1. Call `__kernel_cosf()` with the arguments `pi*((float)0.5-y)` and
+ *          `zero`, and store the result in `y`.
+ *       2. Leave the switch.
+ *    3. Case `3` or `4`:
+ *       1. Call `__kernel_sinf()` with the arguments `pi*(one-y)`, `zero` and
+ *          `0`, and store the result in `y`.
+ *       2. Leave the switch.
+ *    4. Case `5` or `6`:
+ *       1. Set `y` to `-__kernel_cosf(pi*(y-(float)1.5),zero)`.
+ *       2. Leave the switch.
+ *    5. Otherwise (default):
+ *       1. Call `__kernel_sinf()` with the arguments `pi*(y-(float)2.0)`,
+ *          `zero` and `0`, and store the result in `y`.
+ *       2. Leave the switch.
+ * 9. Return `-y`.
+ *
+ * @calls
+ * - `__kernel_sinf()`
+ * - `floorf()`
+ * - `__kernel_cosf()`
+ */
 static float
 sin_pif(float x)
 {
@@ -151,6 +248,223 @@ sin_pif(float x)
 }
 
 
+/**
+ * @funcname `__ieee754_lgammaf_r`
+ *
+ * @description
+ * Computes the logarithm of the absolute value of the gamma function of x, in
+ * float: the IEEE 754 core of lgammaf_r().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ * | `signgamp` | `int *` | [out] Where the sign of gamma(x) is stored. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `a0` | `const float` | A constant of the algorithm |
+ * | `a1` | `const float` | A constant of the algorithm |
+ * | `a10` | `const float` | A constant of the algorithm |
+ * | `a11` | `const float` | A constant of the algorithm |
+ * | `a2` | `const float` | A constant of the algorithm |
+ * | `a3` | `const float` | A constant of the algorithm |
+ * | `a4` | `const float` | A constant of the algorithm |
+ * | `a5` | `const float` | A constant of the algorithm |
+ * | `a6` | `const float` | A constant of the algorithm |
+ * | `a7` | `const float` | A constant of the algorithm |
+ * | `a8` | `const float` | A constant of the algorithm |
+ * | `a9` | `const float` | A constant of the algorithm |
+ * | `half` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `pi` | `const float` | A constant of the algorithm |
+ * | `r1` | `const float` | A constant of the algorithm |
+ * | `r2` | `const float` | A constant of the algorithm |
+ * | `r3` | `const float` | A constant of the algorithm |
+ * | `r4` | `const float` | A constant of the algorithm |
+ * | `r5` | `const float` | A constant of the algorithm |
+ * | `r6` | `const float` | A constant of the algorithm |
+ * | `s0` | `const float` | A constant of the algorithm |
+ * | `s1` | `const float` | A constant of the algorithm |
+ * | `s2` | `const float` | A constant of the algorithm |
+ * | `s3` | `const float` | A constant of the algorithm |
+ * | `s4` | `const float` | A constant of the algorithm |
+ * | `s5` | `const float` | A constant of the algorithm |
+ * | `s6` | `const float` | A constant of the algorithm |
+ * | `t0` | `const float` | A constant of the algorithm |
+ * | `t1` | `const float` | A constant of the algorithm |
+ * | `t10` | `const float` | A constant of the algorithm |
+ * | `t11` | `const float` | A constant of the algorithm |
+ * | `t12` | `const float` | A constant of the algorithm |
+ * | `t13` | `const float` | A constant of the algorithm |
+ * | `t14` | `const float` | A constant of the algorithm |
+ * | `t2` | `const float` | A constant of the algorithm |
+ * | `t3` | `const float` | A constant of the algorithm |
+ * | `t4` | `const float` | A constant of the algorithm |
+ * | `t5` | `const float` | A constant of the algorithm |
+ * | `t6` | `const float` | A constant of the algorithm |
+ * | `t7` | `const float` | A constant of the algorithm |
+ * | `t8` | `const float` | A constant of the algorithm |
+ * | `t9` | `const float` | A constant of the algorithm |
+ * | `tc` | `const float` | A constant of the algorithm |
+ * | `tf` | `const float` | A constant of the algorithm |
+ * | `tt` | `const float` | A constant of the algorithm |
+ * | `u0` | `const float` | A constant of the algorithm |
+ * | `u1` | `const float` | A constant of the algorithm |
+ * | `u2` | `const float` | A constant of the algorithm |
+ * | `u3` | `const float` | A constant of the algorithm |
+ * | `u4` | `const float` | A constant of the algorithm |
+ * | `u5` | `const float` | A constant of the algorithm |
+ * | `v1` | `const float` | A constant of the algorithm |
+ * | `v2` | `const float` | A constant of the algorithm |
+ * | `v3` | `const float` | A constant of the algorithm |
+ * | `v4` | `const float` | A constant of the algorithm |
+ * | `v5` | `const float` | A constant of the algorithm |
+ * | `w0` | `const float` | A constant of the algorithm |
+ * | `w1` | `const float` | A constant of the algorithm |
+ * | `w2` | `const float` | A constant of the algorithm |
+ * | `w3` | `const float` | A constant of the algorithm |
+ * | `w4` | `const float` | A constant of the algorithm |
+ * | `w5` | `const float` | A constant of the algorithm |
+ * | `w6` | `const float` | A constant of the algorithm |
+ * | `zero` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hx` | `int` | The bits of x |
+ * | `i` | `int` | A temporary of the computation |
+ * | `ix` | `int` | The bits of x without the sign bit |
+ * | `nadj` | `float` | A temporary of the computation |
+ * | `p` | `float` | A temporary of the computation |
+ * | `p1` | `float` | A temporary of the computation |
+ * | `p2` | `float` | A temporary of the computation |
+ * | `p3` | `float` | A temporary of the computation |
+ * | `q` | `float` | A temporary of the computation |
+ * | `r` | `float` | A temporary of the computation |
+ * | `t` | `float` | A temporary of the computation |
+ * | `w` | `float` | A temporary of the computation |
+ * | `y` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `nadj` to `0`.
+ * 2. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 3. Set `*signgamp` to `1`.
+ * 4. Set `ix` to `hx&0x7fffffff`.
+ * 5. If `ix` is greater than or equal to `0x7f800000`:
+ *    1. Return `x*x`.
+ * 6. If `ix` is equal to `0`:
+ *    1. Return `one/zero`.
+ * 7. If `ix` is less than `0x1c800000`:
+ *    1. If `hx` is less than `0`:
+ *       1. Set `*signgamp` to `-1`.
+ *       2. Return `-__ieee754_logf(-x)`.
+ *    2. Otherwise:
+ *       1. Return `-__ieee754_logf(x)`.
+ * 8. If `hx` is less than `0`:
+ *    1. If `ix` is greater than or equal to `0x4b000000`:
+ *       1. Return `one/zero`.
+ *    2. Call `sin_pif()` with the argument `x`, and store the result in `t`.
+ *    3. If `t` is equal to `zero`:
+ *       1. Return `one/zero`.
+ *    4. Call `__ieee754_logf()` with the argument `pi/fabsf(t*x)`, and store
+ *       the result in `nadj`.
+ *    5. If `t` is less than `zero`:
+ *       1. Set `*signgamp` to `-1`.
+ *    6. Set `x` to `-x`.
+ * 9. If `ix` is equal to `0x3f800000` or `ix` is equal to `0x40000000`:
+ *    1. Set `r` to `0`.
+ * 10. Otherwise, if `ix` is less than `0x40000000`:
+ *     1. If `ix` is less than or equal to `0x3f666666`:
+ *        1. Set `r` to `-__ieee754_logf(x)`.
+ *        2. If `ix` is greater than or equal to `0x3f3b4a20`:
+ *           1. Set `y` to `one-x`.
+ *           2. Set `i` to `0`.
+ *        3. Otherwise, if `ix` is greater than or equal to `0x3e6d3308`:
+ *           1. Set `y` to `x-(tc-one)`.
+ *           2. Set `i` to `1`.
+ *        4. Otherwise:
+ *           1. Set `y` to `x`.
+ *           2. Set `i` to `2`.
+ *     2. Otherwise:
+ *        1. Set `r` to `zero`.
+ *        2. If `ix` is greater than or equal to `0x3fdda618`:
+ *           1. Set `y` to `(float)2.0-x`.
+ *           2. Set `i` to `0`.
+ *        3. Otherwise, if `ix` is greater than or equal to `0x3F9da620`:
+ *           1. Set `y` to `x-tc`.
+ *           2. Set `i` to `1`.
+ *        4. Otherwise:
+ *           1. Set `y` to `x-one`.
+ *           2. Set `i` to `2`.
+ *     3. Depending on `i`:
+ *        1. Case `0`:
+ *           1. Set `z` to `y*y`.
+ *           2. Set `p1` to `a0+z*(a2+z*(a4+z*(a6+z*(a8+z*a10))))`.
+ *           3. Set `p2` to `z*(a1+z*(a3+z*(a5+z*(a7+z*(a9+z*a11)))))`.
+ *           4. Set `p` to `y*p1+p2`.
+ *           5. Add `(p-(float)0.5*y)` to `r`.
+ *           6. Leave the switch.
+ *        2. Case `1`:
+ *           1. Set `z` to `y*y`.
+ *           2. Set `w` to `z*y`.
+ *           3. Set `p1` to `t0+w*(t3+w*(t6+w*(t9 +w*t12)))`.
+ *           4. Set `p2` to `t1+w*(t4+w*(t7+w*(t10+w*t13)))`.
+ *           5. Set `p3` to `t2+w*(t5+w*(t8+w*(t11+w*t14)))`.
+ *           6. Set `p` to `z*p1-(tt-w*(p2+y*p3))`.
+ *           7. Add `(tf + p)` to `r`.
+ *           8. Leave the switch.
+ *        3. Case `2`:
+ *           1. Set `p1` to `y*(u0+y*(u1+y*(u2+y*(u3+y*(u4+y*u5)))))`.
+ *           2. Set `p2` to `one+y*(v1+y*(v2+y*(v3+y*(v4+y*v5))))`.
+ *           3. Add `(-(float)0.5*y + p1/p2)` to `r`.
+ * 11. Otherwise, if `ix` is less than `0x41000000`:
+ *     1. Set `i` to `(int)x`.
+ *     2. Set `t` to `zero`.
+ *     3. Set `y` to `x-(float)i`.
+ *     4. Set `p` to `y*(s0+y*(s1+y*(s2+y*(s3+y*(s4+y*(s5+y*s6))))))`.
+ *     5. Set `q` to `one+y*(r1+y*(r2+y*(r3+y*(r4+y*(r5+y*r6)))))`.
+ *     6. Set `r` to `half*y+p/q`.
+ *     7. Set `z` to `one`.
+ *     8. Depending on `i`:
+ *        1. Case `7`:
+ *           1. Multiply `z` by `(y+(float)6.0)`.
+ *        2. Case `6`:
+ *           1. Multiply `z` by `(y+(float)5.0)`.
+ *        3. Case `5`:
+ *           1. Multiply `z` by `(y+(float)4.0)`.
+ *        4. Case `4`:
+ *           1. Multiply `z` by `(y+(float)3.0)`.
+ *        5. Case `3`:
+ *           1. Multiply `z` by `(y+(float)2.0)`.
+ *           2. Add `__ieee754_logf(z)` to `r`.
+ *           3. Leave the switch.
+ * 12. Otherwise, if `ix` is less than `0x5c800000`:
+ *     1. Call `__ieee754_logf()` with the argument `x`, and store the result in
+ *        `t`.
+ *     2. Set `z` to `one/x`.
+ *     3. Set `y` to `z*z`.
+ *     4. Set `w` to `w0+z*(w1+y*(w2+y*(w3+y*(w4+y*(w5+y*w6)))))`.
+ *     5. Set `r` to `(x-half)*(t-one)+w`.
+ * 13. Otherwise:
+ *     1. Set `r` to `x*(__ieee754_logf(x)-one)`.
+ * 14. If `hx` is less than `0`:
+ *     1. Set `r` to `nadj - r`.
+ * 15. Return `r`.
+ *
+ * @calls
+ * - `__ieee754_logf()`
+ * - `sin_pif()`
+ * - `fabsf()`
+ */
 float
 __ieee754_lgammaf_r(float x, int *signgamp)
 {

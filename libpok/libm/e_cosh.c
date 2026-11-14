@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_cosh.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_cosh()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /* __ieee754_cosh(x)
  * Method :
  * mathematically cosh(x) if defined to be (exp(x)+exp(-x))/2
@@ -54,6 +67,70 @@
 
 static const double one = 1.0, half=0.5, huge = 1.0e300;
 
+/**
+ * @funcname `__ieee754_cosh`
+ *
+ * @description
+ * Computes the hyperbolic cosine of x: the IEEE 754 core of cosh().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `half` | `const double` | A constant of the algorithm |
+ * | `huge` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The high word of x |
+ * | `lx` | `uint32_t` | The low word of x |
+ * | `t` | `double` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `ix` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `ix`.
+ * 3. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. Return `x*x`.
+ * 4. If `ix` is less than `0x3fd62e43`:
+ *    1. Call `expm1()` with the argument `fabs(x)`, and store the result in
+ *       `t`.
+ *    2. Set `w` to `one+t`.
+ *    3. If `ix` is less than `0x3c800000`:
+ *       1. Return `w`.
+ *    4. Return `one+(t*t)/(w+w)`.
+ * 5. If `ix` is less than `0x40360000`:
+ *    1. Call `__ieee754_exp()` with the argument `fabs(x)`, and store the
+ *       result in `t`.
+ *    2. Return `half*t+half/t`.
+ * 6. If `ix` is less than `0x40862E42`:
+ *    1. Return `half*__ieee754_exp(fabs(x))`.
+ * 7. Use the macro `GET_LOW_WORD()` with the arguments `lx` and `x`.
+ * 8. If `ix` is less than `0x408633CE` or (`ix` is equal to `0x408633ce` and
+ *    `lx` is less than or equal to `(uint32_t)0x8fb9f87d`):
+ *    1. Call `__ieee754_exp()` with the argument `half*fabs(x)`, and store the
+ *       result in `w`.
+ *    2. Set `t` to `half*w`.
+ *    3. Return `t*w`.
+ * 9. Return `huge*huge`.
+ *
+ * @calls
+ * - `expm1()`
+ * - `fabs()`
+ * - `__ieee754_exp()`
+ */
 double
 __ieee754_cosh(double x)
 {

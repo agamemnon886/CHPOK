@@ -18,6 +18,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: unused
  * parameters are cast to void.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: pok_part_ops_t is used
+ * by its typedef name.
+ */
+
+/**
+ * @file
+ * The idle partition: it runs when no other partition has time, and only
+ * loops.
  */
 
 // Implementation for idle partition.
@@ -27,11 +39,67 @@
 #include <asp/arch.h>
 #include <core/sched.h>
 
+/**
+ * @funcname `partition_idle_thread`
+ *
+ * @description
+ * The start function of the idle partition: loops forever.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `ja_inf_loop()`.
+ *
+ * @calls
+ * - `ja_inf_loop()`
+ */
 static void partition_idle_thread(void)
 {
     ja_inf_loop();
 }
 
+/**
+ * @funcname `partition_idle_process_error`
+ *
+ * @description
+ * The error processing of the idle partition: any error in it is fatal.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `partition_state` | `pok_system_state_t` | [in] The system state (not used). |
+ * | `error_id` | `pok_error_id_t` | [in] The error (not used). |
+ * | `state_byte_preempt_local` | `pok_bool_t` | [in] Whether local preemption was disabled (not used). |
+ * | `failed_address` | `void *` | [in] The faulting address (not used). |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Mark `partition_state` as not used.
+ * 2. Mark `error_id` as not used.
+ * 3. Mark `state_byte_preempt_local` as not used.
+ * 4. Mark `failed_address` as not used.
+ * 5. Call `pok_fatal()` with the argument `"Error in idle partition"`.
+ *
+ * @calls
+ * - `pok_fatal()`
+ */
 static void partition_idle_process_error(pok_system_state_t partition_state,
         pok_error_id_t error_id,
         pok_bool_t state_byte_preempt_local,
@@ -45,7 +113,7 @@ static void partition_idle_process_error(pok_system_state_t partition_state,
 }
 
 
-static const struct pok_partition_operations partition_idle_operations =
+static const pok_part_ops_t partition_idle_operations =
 {
     .start = partition_idle_thread,
     .process_partition_error = partition_idle_process_error

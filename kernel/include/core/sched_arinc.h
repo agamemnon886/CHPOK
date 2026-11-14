@@ -18,6 +18,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: the syscall jet_resched() is
  * declared here instead of only in the generated syscall map.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t).
  */
 
 #ifndef POK_SCHED_ARINC_H
@@ -29,14 +40,15 @@
  * Local scheduler for ARINC partition.
  */
 
-/**
+/*
  * Set `invalidate` flag for local scheduler.
  * 
  * This flag can be checked with pok_sched_local_check_invalidated().
  */
+/** \cond */
 void pok_sched_local_invalidate(void);
 
-/**
+/*
  * Return true if data for local scheduler has changed.
  * 
  * Clear `invalidate` flag for local scheduler.
@@ -44,7 +56,7 @@ void pok_sched_local_invalidate(void);
 pok_bool_t pok_sched_local_check_invalidated(void);
 
 
-/**
+/*
  *  Return true if new time slot is started.
  * 
  * Clear corresponded flag.
@@ -54,7 +66,7 @@ pok_bool_t pok_sched_local_check_invalidated(void);
 pok_bool_t pok_sched_local_check_slot_started(void);
 
 
-/**
+/*
  * Begins critical section, local to given ARINC partition.
  * 
  * Only preemption between current partition's threads is disabled.
@@ -77,6 +89,7 @@ void sched_arinc_start(void);
 void pok_sched_arinc_on_event(void);
 
 /* Syscall: reschedule after leaving an msection (see <uapi/msection.h>). */
-pok_ret_t jet_resched(void);
+pok_ret_e jet_resched(void);
+/** \endcond */
 
 #endif /* ! POK_SCHED_ARINC_H */

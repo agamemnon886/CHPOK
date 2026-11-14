@@ -25,6 +25,19 @@
  * Modified by Kirill Brazhnikov, 2026-11-05: the interface doesn't assume
  * how many hardware breakpoints and watchpoints there are, or that the
  * server runs with them disabled (arm64 ports the GDB server too).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; enum ja_gdb_hw_type is the typedef ja_gdb_hw_type_t; the
+ * structures and enums are used by their typedef names: interrupt_frame,
+ * jet_fp_store_t; Doxygen comments for the file and its types (with their
+ * members).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the type hw_slot_t of
+ * kernel/arch/x86_64/gdb.c and kernel/arch/arm64/gdb.c (the same on both) is
+ * moved here; the enum types are named with _e: ja_gdb_hw_type_e (was
+ * ja_gdb_hw_type_t); the Doxygen comment of the file is removed (header files
+ * are not documented).
  */
 
 #ifndef JET_ASP_GDB_H
@@ -50,8 +63,6 @@
  */
 #include <arch/gdb.h>
 
-struct jet_interrupt_context;
-struct jet_fp_store;
 
 /*
  * Context from the last interrupt. Used for extract registers for
@@ -61,14 +72,18 @@ struct jet_fp_store;
  *
  * TODO: Naming is bad.
  */
-extern struct jet_interrupt_context* global_thread_stack;
+extern interrupt_frame* global_thread_stack;
 
 /* Execute the breakpoint instruction: enter the GDB server. */
+/** \cond */
 void pok_trap(void);
+
+/** \endcond */
 
 #ifdef POK_NEEDS_GDB
 
 /* Size, in bytes, of register 'regno' (less than JA_GDB_NUM_REGS). */
+/** \cond */
 size_t ja_gdb_register_size(uint32_t regno);
 
 /*
@@ -81,8 +96,8 @@ size_t ja_gdb_register_size(uint32_t regno);
  *
  * Return FALSE if the register is not available.
  */
-pok_bool_t ja_gdb_register_get(const struct jet_interrupt_context* ctx,
-    const struct jet_fp_store* fp, uint32_t regno, uint8_t* value);
+pok_bool_t ja_gdb_register_get(const interrupt_frame* ctx,
+    const jet_fp_store_t* fp, uint32_t regno, uint8_t* value);
 
 /*
  * Write register 'regno' of a thread from 'value'.
@@ -91,22 +106,24 @@ pok_bool_t ja_gdb_register_get(const struct jet_interrupt_context* ctx,
  * Registers which define the privilege level of the thread are never
  * written.
  */
-pok_bool_t ja_gdb_register_set(struct jet_interrupt_context* ctx,
-    struct jet_fp_store* fp, uint32_t regno, const uint8_t* value);
+pok_bool_t ja_gdb_register_set(interrupt_frame* ctx,
+    jet_fp_store_t* fp, uint32_t regno, const uint8_t* value);
 
 /* Program counter of the context. */
-uintptr_t ja_gdb_pc_get(const struct jet_interrupt_context* ctx);
-void ja_gdb_pc_set(struct jet_interrupt_context* ctx, uintptr_t pc);
+uintptr_t ja_gdb_pc_get(const interrupt_frame* ctx);
+void ja_gdb_pc_set(interrupt_frame* ctx, uintptr_t pc);
 
 /*
  * Enable or disable single-stepping for the context: when it is resumed
  * with stepping enabled, it executes one instruction and traps.
  */
-void ja_gdb_single_step(struct jet_interrupt_context* ctx,
+void ja_gdb_single_step(interrupt_frame* ctx,
     pok_bool_t enable);
 
 /* Whether the context was saved on entry from user space. */
-pok_bool_t ja_gdb_context_is_user(const struct jet_interrupt_context* ctx);
+pok_bool_t ja_gdb_context_is_user(const interrupt_frame* ctx);
+
+/** \endcond */
 
 /* Breakpoint instruction, written over the code by the GDB server. */
 extern const uint8_t ja_gdb_breakpoint_insn[JA_GDB_BREAKPOINT_SIZE];
@@ -115,16 +132,44 @@ extern const uint8_t ja_gdb_breakpoint_insn[JA_GDB_BREAKPOINT_SIZE];
  * Make instructions written at 'addr' (a kernel address) visible to
  * instruction fetch.
  */
+/** \cond */
 void ja_gdb_sync_icache(void* addr, size_t size);
 
-/* Kinds of hardware breakpoints and watchpoints. */
-enum ja_gdb_hw_type
+/** \endcond */
+
+/**
+ * @typename `ja_gdb_hw_type_e`
+ *
+ * @description
+ * Kinds of hardware breakpoints and watchpoints.
+ */
+typedef enum {
+    JA_GDB_HW_EXEC, /**< Breakpoint: execution of the instruction. */
+    JA_GDB_HW_WRITE, /**< Watchpoint: write. */
+    JA_GDB_HW_READ, /**< Watchpoint: read. */
+    JA_GDB_HW_ACCESS /**< Watchpoint: read or write. */
+} ja_gdb_hw_type_e;
+
+/**
+ * @typename `hw_slot_t`
+ *
+ * @description
+ * Hardware breakpoint or watchpoint in a debug register, as the GDB server
+ * set it; the same type on x86_64 and arm64. On x86_64
+ * (kernel/arch/x86_64/gdb.c), hw_slots has one for each debug address register
+ * (DR0 to DR3, JA_GDB_HW_SLOTS); on arm64 (kernel/arch/arm64/gdb.c),
+ * hw_breakpoints has one for each breakpoint register (DBGBVRn) and
+ * hw_watchpoints one for each watchpoint register (DBGWVRn).
+ */
+typedef struct
 {
-    JA_GDB_HW_EXEC,     /* Breakpoint: execution of the instruction. */
-    JA_GDB_HW_WRITE,    /* Watchpoint: write. */
-    JA_GDB_HW_READ,     /* Watchpoint: read. */
-    JA_GDB_HW_ACCESS    /* Watchpoint: read or write. */
-};
+    pok_bool_t used;          /**< The slot is in use. */
+    ja_gdb_hw_type_e type;    /**< Breakpoint or watchpoint type. */
+    uintptr_t addr;           /**< The address watched. */
+    size_t len;               /**< The length watched (on x86_64:
+                                   1, 2, 4 or 8). */
+    jet_space_id space_id;    /**< The space of the address. */
+} hw_slot_t;
 
 /*
  * Add a hardware breakpoint or watchpoint for 'len' bytes at virtual
@@ -134,11 +179,12 @@ enum ja_gdb_hw_type
  *
  * Return FALSE if there is no free slot or the area is not supported.
  */
-pok_bool_t ja_gdb_hw_insert(enum ja_gdb_hw_type type, uintptr_t addr,
+/** \cond */
+pok_bool_t ja_gdb_hw_insert(ja_gdb_hw_type_e type, uintptr_t addr,
     size_t len, jet_space_id space_id);
 
 /* Remove a hardware breakpoint or watchpoint. FALSE if there is none. */
-pok_bool_t ja_gdb_hw_remove(enum ja_gdb_hw_type type, uintptr_t addr,
+pok_bool_t ja_gdb_hw_remove(ja_gdb_hw_type_e type, uintptr_t addr,
     size_t len, jet_space_id space_id);
 
 /* Remove all hardware breakpoints and watchpoints. */
@@ -153,6 +199,8 @@ void ja_gdb_hw_remove_all(void);
  */
 void ja_gdb_hw_enter(void);
 void ja_gdb_hw_leave(void);
+
+/** \endcond */
 
 #endif /* POK_NEEDS_GDB */
 

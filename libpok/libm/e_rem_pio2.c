@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_rem_pio2.c 5.1 93/09/24 */
@@ -26,6 +35,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_rem_pio2()` of libpok's math library (fdlibm, from Sun
+ * Microsystems).
+ */
 /* __ieee754_rem_pio2(x,y)
  *
  * return the remainder of x rem pi/2 in y[0]+y[1]
@@ -86,6 +100,152 @@ pio2_2t =  2.02226624879595063154e-21, /* 0x3BA3198A, 0x2E037073 */
 pio2_3  =  2.02226624871116645580e-21, /* 0x3BA3198A, 0x2E000000 */
 pio2_3t =  8.47842766036889956997e-32; /* 0x397B839A, 0x252049C1 */
 
+/**
+ * @funcname `__ieee754_rem_pio2`
+ *
+ * @description
+ * Reduces x modulo pi/2: x - n*pi/2 as the sum y[0] + y[1].
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `y` | `double *` | [in,out] Where the reduced argument is stored. |
+ *
+ * @return n (modulo 8).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `half` | `const double` | A constant of the algorithm |
+ * | `invpio2` | `const double` | A constant of the algorithm |
+ * | `npio2_hw` | `const int32_t[32]` | A constant of the algorithm |
+ * | `pio2_1` | `const double` | A constant of the algorithm |
+ * | `pio2_1t` | `const double` | A constant of the algorithm |
+ * | `pio2_2` | `const double` | A constant of the algorithm |
+ * | `pio2_2t` | `const double` | A constant of the algorithm |
+ * | `pio2_3` | `const double` | A constant of the algorithm |
+ * | `pio2_3t` | `const double` | A constant of the algorithm |
+ * | `two24` | `const double` | A constant of the algorithm |
+ * | `two_over_pi` | `const int32_t[66]` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e0` | `int32_t` | A temporary of the computation |
+ * | `fn` | `double` | A temporary of the computation |
+ * | `high` | `uint32_t` | The high word of y[0] |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `i` | `int32_t` | A temporary of the computation |
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `j` | `int32_t` | A temporary of the computation |
+ * | `low` | `uint32_t` | The low word of x |
+ * | `n` | `int32_t` | A temporary of the computation |
+ * | `nx` | `int32_t` | A temporary of the computation |
+ * | `r` | `double` | A temporary of the computation |
+ * | `t` | `double` | A temporary of the computation |
+ * | `tx` | `double[3]` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `z` to `0`.
+ * 2. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 3. Set `ix` to `hx&0x7fffffff`.
+ * 4. If `ix` is less than or equal to `0x3fe921fb`:
+ *    1. Set `y[0]` to `x`.
+ *    2. Set `y[1]` to `0`.
+ *    3. Return `0`.
+ * 5. If `ix` is less than `0x4002d97c`:
+ *    1. If `hx` is greater than `0`:
+ *       1. Set `z` to `x - pio2_1`.
+ *       2. If `ix` is not equal to `0x3ff921fb`:
+ *          1. Set `y[0]` to `z - pio2_1t`.
+ *          2. Set `y[1]` to `(z-y[0])-pio2_1t`.
+ *       3. Otherwise:
+ *          1. Subtract `pio2_2` from `z`.
+ *          2. Set `y[0]` to `z - pio2_2t`.
+ *          3. Set `y[1]` to `(z-y[0])-pio2_2t`.
+ *       4. Return `1`.
+ *    2. Otherwise:
+ *       1. Set `z` to `x + pio2_1`.
+ *       2. If `ix` is not equal to `0x3ff921fb`:
+ *          1. Set `y[0]` to `z + pio2_1t`.
+ *          2. Set `y[1]` to `(z-y[0])+pio2_1t`.
+ *       3. Otherwise:
+ *          1. Add `pio2_2` to `z`.
+ *          2. Set `y[0]` to `z + pio2_2t`.
+ *          3. Set `y[1]` to `(z-y[0])+pio2_2t`.
+ *       4. Return `-1`.
+ * 6. If `ix` is less than or equal to `0x413921fb`:
+ *    1. Call `fabs()` with the argument `x`, and store the result in `t`.
+ *    2. Set `n` to `(int32_t) (t*invpio2+half)`.
+ *    3. Set `fn` to `(double)n`.
+ *    4. Set `r` to `t-fn*pio2_1`.
+ *    5. Set `w` to `fn*pio2_1t`.
+ *    6. If `n` is less than `32` and `ix` is not equal to `npio2_hw[n-1]`:
+ *       1. Set `y[0]` to `r-w`.
+ *    7. Otherwise:
+ *       1. Set `j` to `ix>>20`.
+ *       2. Set `y[0]` to `r-w`.
+ *       3. Use the macro `GET_HIGH_WORD()` with the arguments `high` and
+ *          `y[0]`.
+ *       4. Set `i` to `j-((high>>20)&0x7ff)`.
+ *       5. If `i` is greater than `16`:
+ *          1. Set `t` to `r`.
+ *          2. Set `w` to `fn*pio2_2`.
+ *          3. Set `r` to `t-w`.
+ *          4. Set `w` to `fn*pio2_2t-((t-r)-w)`.
+ *          5. Set `y[0]` to `r-w`.
+ *          6. Use the macro `GET_HIGH_WORD()` with the arguments `high` and
+ *             `y[0]`.
+ *          7. Set `i` to `j-((high>>20)&0x7ff)`.
+ *          8. If `i` is greater than `49`:
+ *             1. Set `t` to `r`.
+ *             2. Set `w` to `fn*pio2_3`.
+ *             3. Set `r` to `t-w`.
+ *             4. Set `w` to `fn*pio2_3t-((t-r)-w)`.
+ *             5. Set `y[0]` to `r-w`.
+ *    8. Set `y[1]` to `(r-y[0])-w`.
+ *    9. If `hx` is less than `0`:
+ *       1. Set `y[0]` to `-y[0]`.
+ *       2. Set `y[1]` to `-y[1]`.
+ *       3. Return `-n`.
+ *    10. Otherwise:
+ *        1. Return `n`.
+ * 7. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. Set `y[0]` to `y[1]=x-x`.
+ *    2. Return `0`.
+ * 8. Use the macro `GET_LOW_WORD()` with the arguments `low` and `x`.
+ * 9. Use the macro `SET_LOW_WORD()` with the arguments `z` and `low`.
+ * 10. Set `e0` to `(ix>>20)-1046`.
+ * 11. Use the macro `SET_HIGH_WORD()` with the arguments `z` and
+ *     `ix - ((int32_t)(e0<<20))`.
+ * 12. Set `i` to `0`; then while `i` is less than `2`, repeat (after each pass:
+ *     increment `i`):
+ *     1. Set `tx[i]` to `(double)((int32_t)(z))`.
+ *     2. Set `z` to `(z-tx[i])*two24`.
+ * 13. Set `tx[2]` to `z`.
+ * 14. Set `nx` to `3`.
+ * 15. While `tx[nx-1]` is equal to `zero`:
+ *     1. Decrement `nx`.
+ * 16. Call `__kernel_rem_pio2()` with the arguments `tx`, `y`, `e0`, `nx`, `2`
+ *     and `(int*)two_over_pi`, and store the result in `n`.
+ * 17. If `hx` is less than `0`:
+ *     1. Set `y[0]` to `-y[0]`.
+ *     2. Set `y[1]` to `-y[1]`.
+ *     3. Return `-n`.
+ * 18. Return `n`.
+ *
+ * @calls
+ * - `fabs()`
+ * - `__kernel_rem_pio2()`
+ */
 int32_t
 __ieee754_rem_pio2(double x, double *y)
 {

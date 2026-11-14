@@ -21,6 +21,14 @@
  * guard isn't a reserved identifier; the parameters of the prototypes are
  * named; __<component>_init__() and __<component>_activity__() are
  * declared.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: Doxygen comments for the file,
+ * its types and their members (the descriptions are in the component's
+ * configuration: description and state_doc); the function declarations are
+ * hidden from Doxygen (\cond).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef {{component.name}}_GEN_H
@@ -38,16 +46,37 @@
     #include <interfaces/{{p.type}}_gen.h>
 {% endfor %}
 
-typedef struct {{component.name}}_state {
+/**
+ * @typename `{{component.name}}_state`
+ *
+ * @description
+ * The state of an instance of the {{component.name}} component
+ * (state_struct in its configuration).
+ */
+typedef struct {
  {% if component.state_struct %}
   {%for name, type in component.state_struct.items()%}
     {{type}} {{name}};
+    /**< {{component.get('state_doc', {}).get(name, '')
+        | wordwrap(66, False, '\n     * ')}} */
   {% endfor %}
  {% endif %}
 }{{component.name}}_state;
 
+{% macro port_list(ports) %}
+  {%- for p in ports %}{{p.name}} ({{p.type}}){{ ', ' if not loop.last }}
+  {%- else %}none{% endfor %}
+{%- endmacro %}
+/**
+ * @typename `{{component.name}}`
+ *
+ * @description
+ * An instance of the {{component.name}} component: its state and its
+ * ports.
+ * {{component.get('description', '') | wordwrap(73, False, '\n * ')}}
+ */
 typedef struct {
-    {{component.name}}_state state;
+    {{component.name}}_state state; /**< The state of the instance. */
     struct {
         {% for p in component.in_ports %}
             struct {
@@ -55,6 +84,8 @@ typedef struct {
             } {{p.name}};
         {% endfor %}
     } in;
+    /**< The in ports, each with the operations of its interface that the
+     * component implements: {{port_list(component.in_ports)}}. */
     struct {
         {% for p in component.out_ports %}
           {% if p.is_array %}
@@ -70,9 +101,13 @@ typedef struct {
           {% endif %}
         {% endfor %}
     } out;
+    /**< The out ports, each with the operations of the component it is
+     * connected to and that component (owner):
+     * {{port_list(component.out_ports)}}. */
 } {{component.name}};
 
 
+/** \cond */
 {% macro args(func)%}
     {% for arg in func.args_type[1:]%}, {{arg}} arg{{loop.index}}{%endfor%}
 {% endmacro %}
@@ -115,6 +150,7 @@ typedef struct {
  */
 void __{{component.name}}_init__({{component.name}} *self);
 void __{{component.name}}_activity__({{component.name}} *self);
+/** \endcond */
 
 
 #endif

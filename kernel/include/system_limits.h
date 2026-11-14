@@ -18,6 +18,12 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; U suffixes for unsigned constants.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file and
+ * its macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 /*
@@ -30,14 +36,47 @@
 #define POK_SYSTEM_LIMITS_H
 
 // Number of partition should be contstrainted by integrator.
-#define SYSTEM_LIMIT_NUMBER_OF_MESSAGES       512  /* module scope */
-#define SYSTEM_LIMIT_MESSAGE_SIZE             8192 /* module scope */
+
+/**
+ * @macroname `SYSTEM_LIMIT_NUMBER_OF_MESSAGES`
+ *
+ * @description
+ * The maximum number of messages of a queuing port or buffer (module scope).
+ */
+#define SYSTEM_LIMIT_NUMBER_OF_MESSAGES       512
+
+/**
+ * @macroname `SYSTEM_LIMIT_MESSAGE_SIZE`
+ *
+ * @description
+ * The maximum size of a message, in bytes (module scope).
+ */
+#define SYSTEM_LIMIT_MESSAGE_SIZE             8192
 
 // SYSTEM_LIMIT_NUMBER_OF_.. should be constrainted by integrator.
 
+/**
+ * @macroname `MAX_LOCK_LEVEL`
+ *
+ * @description
+ * The maximum lock level of a partition (LOCK_PREEMPTION).
+ */
 #define MAX_LOCK_LEVEL 16U
 
+/**
+ * @macroname `MIN_PRIORITY_VALUE`
+ *
+ * @description
+ * The lowest priority of a process.
+ */
 #define MIN_PRIORITY_VALUE 1U
+
+/**
+ * @macroname `MAX_PRIORITY_VALUE`
+ *
+ * @description
+ * The highest priority of a process.
+ */
 #define MAX_PRIORITY_VALUE 239U
 
 #endif /* POK_SYSTEM_LIMITS_H */

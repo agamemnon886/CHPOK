@@ -25,38 +25,56 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
- * arch/x86_64/.
+ * arch/x86_64/. Doxygen headers for the file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
- * Physical legacy timers: the 8259A PIC is masked (the hypervisor uses
- * the local APIC timer), and the TSC and local APIC timer frequencies are
+/**
+ * @file
+ * Physical legacy timers: the 8259A PIC is masked (the hypervisor uses the
+ * local APIC timer), and the TSC and local APIC timer frequencies are
  * measured once against PIT channel 2.
  */
 
 #include <arch/internal.h>
 
-#define PIC_MASTER          0x20U
-#define PIC_SLAVE           0xA0U
-
-#define PIT_CHANNEL2        0x42U
-#define PIT_COMMAND         0x43U
-#define PORT_B              0x61U
-#define PORT_B_GATE2        0x01U
-#define PORT_B_SPEAKER      0x02U
-#define PORT_B_OUT2         0x20U
-
-// Calibration time in PIT ticks (at most 0xFFFF): 50 ms.
-#define CALIBRATION_TICKS   (HV_PIT_HZ / 20U)
-
-#define LAPIC_TIMER_START   0xFFFFFFFFU
-
 static uint64_t tsc_hz;
 static uint64_t lapic_hz;
 
-/*
- * Program the legacy 8259A PIC pair away from the exception vectors (to
- * 0x20-0x2F) and mask all its interrupts: the hypervisor uses the local APIC.
+/**
+ * @funcname `hv_legacy_pic_disable`
+ *
+ * @description
+ * Programs the legacy 8259A PIC pair away from the exception vectors (to
+ * 0x20-0x2F) and masks all its interrupts: the hypervisor uses the local
+ * APIC.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `x86_outb()` with the arguments `PIC_MASTER` and `0x11U`.
+ * 2. Call `x86_outb()` with the arguments `PIC_SLAVE` and `0x11U`.
+ * 3. Call `x86_outb()` with the arguments `PIC_MASTER + 1U` and `0x20U`.
+ * 4. Call `x86_outb()` with the arguments `PIC_SLAVE + 1U` and `0x28U`.
+ * 5. Call `x86_outb()` with the arguments `PIC_MASTER + 1U` and `0x04U`.
+ * 6. Call `x86_outb()` with the arguments `PIC_SLAVE + 1U` and `0x02U`.
+ * 7. Call `x86_outb()` with the arguments `PIC_MASTER + 1U` and `0x01U`.
+ * 8. Call `x86_outb()` with the arguments `PIC_SLAVE + 1U` and `0x01U`.
+ * 9. Call `x86_outb()` with the arguments `PIC_MASTER + 1U` and `0xFFU`.
+ * 10. Call `x86_outb()` with the arguments `PIC_SLAVE + 1U` and `0xFFU`.
+ *
+ * @calls
+ * - `x86_outb()`
  */
 void hv_legacy_pic_disable(void)
 {
@@ -74,9 +92,68 @@ void hv_legacy_pic_disable(void)
     x86_outb(PIC_SLAVE + 1U, 0xFFU);
 }
 
-/*
- * Measure the TSC and local APIC timer frequencies against 50 ms of PIT channel
- * 2 (gated by port B, mode 0). Stops the hypervisor if they can't be measured.
+/**
+ * @funcname `hv_timing_init`
+ *
+ * @description
+ * Measures the TSC and local APIC timer frequencies against 50 ms of PIT
+ * channel 2 (gated by port B, mode 0). Stops the hypervisor if they can't be
+ * measured.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `tsc_hz` | `uint64_t` | The TSC frequency, Hz |
+ * | `lapic_hz` | `uint64_t` | The local APIC timer frequency, Hz |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `port_b` | `uint8_t` | Port B before the measure |
+ * | `tsc_start` | `uint64_t` | The TSC when channel 2 starts |
+ * | `tsc_end` | `uint64_t` | The TSC when channel 2 ends |
+ * | `lapic_end` | `uint32_t` | The local APIC timer count when channel 2 ends |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `x86_inb()` with the argument `PORT_B`, and store the result in
+ *    `port_b`.
+ * 2. Call `x86_outb()` with the arguments `PORT_B` and
+ *    `(uint8_t) ((port_b & ~PORT_B_SPEAKER) | PORT_B_GATE2)`.
+ * 3. Call `x86_outb()` with the arguments `PIT_COMMAND` and `0xB0U`.
+ * 4. Call `x86_outb()` with the arguments `PIT_CHANNEL2` and
+ *    `(uint8_t) (CALIBRATION_TICKS & 0xFFU)`.
+ * 5. Call `lapic_timer_oneshot()` with the argument `LAPIC_TIMER_START`.
+ * 6. Call `x86_rdtsc()`, and store the result in `tsc_start`.
+ * 7. Call `x86_outb()` with the arguments `PIT_CHANNEL2` and
+ *    `(uint8_t) (CALIBRATION_TICKS >> 8)`.
+ * 8. While `(x86_inb(PORT_B) & PORT_B_OUT2)` is equal to `0U`:
+ *    1. Call `x86_pause()`.
+ * 9. Call `x86_rdtsc()`, and store the result in `tsc_end`.
+ * 10. Call `lapic_timer_current()`, and store the result in `lapic_end`.
+ * 11. Call `x86_outb()` with the arguments `PORT_B` and `port_b`.
+ * 12. Call `lapic_timer_stop()`.
+ * 13. Set `tsc_hz` to
+ *     `((tsc_end - tsc_start) * HV_PIT_HZ) / CALIBRATION_TICKS`.
+ * 14. Set `lapic_hz` to
+ *     `(((uint64_t) LAPIC_TIMER_START - (uint64_t) lapic_end) * HV_PIT_HZ) /`
+ *     `CALIBRATION_TICKS`.
+ * 15. If `tsc_hz` is equal to `0U` or `lapic_hz` is equal to `0U`:
+ *     1. Call `hv_fatal()` with the argument
+ *        `"TSC or local APIC timer calibration failed"`.
+ *
+ * @calls
+ * - `x86_inb()`
+ * - `x86_outb()`
+ * - `lapic_timer_oneshot()`
+ * - `x86_rdtsc()`
+ * - `x86_pause()`
+ * - `lapic_timer_current()`
+ * - `lapic_timer_stop()`
+ * - `hv_fatal()`
  */
 void hv_timing_init(void)
 {
@@ -111,19 +188,103 @@ void hv_timing_init(void)
     }
 }
 
-// TSC frequency, Hz.
+/**
+ * @funcname `hv_tsc_hz`
+ *
+ * @description
+ * Returns the TSC frequency measured at boot.
+ *
+ * @return The TSC frequency, Hz.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `tsc_hz` | `uint64_t` | The TSC frequency, Hz |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `tsc_hz`.
+ *
+ * @calls
+ * None.
+ */
 uint64_t hv_tsc_hz(void)
 {
     return tsc_hz;
 }
 
-// Local APIC timer frequency (after the divider), Hz.
+/**
+ * @funcname `hv_lapic_hz`
+ *
+ * @description
+ * Returns the local APIC timer frequency (after the divider) measured at
+ * boot.
+ *
+ * @return The local APIC timer frequency, Hz.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `lapic_hz` | `uint64_t` | The local APIC timer frequency, Hz |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `lapic_hz`.
+ *
+ * @calls
+ * None.
+ */
 uint64_t hv_lapic_hz(void)
 {
     return lapic_hz;
 }
 
-// Busy-wait for the given number of microseconds (by the TSC).
+/**
+ * @funcname `hv_udelay`
+ *
+ * @description
+ * Busy-waits for a number of microseconds, by the TSC.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `microseconds` | `uint64_t` | [in] The time to wait. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `tsc_hz` | `uint64_t` | The TSC frequency, Hz |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `end` | `uint64_t` | The TSC value at which the wait ends |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `end` to `x86_rdtsc() + ((microseconds * tsc_hz) / 1000000U)`.
+ * 2. While `x86_rdtsc()` is less than `end`:
+ *    1. Call `x86_pause()`.
+ *
+ * @calls
+ * - `x86_rdtsc()`
+ * - `x86_pause()`
+ */
 void hv_udelay(uint64_t microseconds)
 {
     uint64_t end = x86_rdtsc() + ((microseconds * tsc_hz) / 1000000U);
@@ -135,7 +296,40 @@ void hv_udelay(uint64_t microseconds)
     }
 }
 
-// Convert a number of TSC ticks to PIT ticks, without overflow.
+/**
+ * @funcname `hv_tsc_to_pit_ticks`
+ *
+ * @description
+ * Converts a number of TSC ticks to PIT ticks (1.193182 MHz), without
+ * overflow.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `tsc_ticks` | `uint64_t` | [in] The TSC ticks. |
+ *
+ * @return The PIT ticks.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `tsc_hz` | `uint64_t` | The TSC frequency, Hz |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return
+ *    `((tsc_ticks / tsc_hz) * HV_PIT_HZ) + (((tsc_ticks % tsc_hz) * HV_PIT_HZ)`
+ *    `/ tsc_hz)`.
+ *
+ * @calls
+ * None.
+ */
 uint64_t hv_tsc_to_pit_ticks(uint64_t tsc_ticks)
 {
     // Whole seconds and the rest separately: the product can't overflow.

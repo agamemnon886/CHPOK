@@ -23,6 +23,9 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: file-local
  * definitions have internal linkage; the header guard isn't a reserved
  * identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: OK (from pci.c) is here and
+ * documented.
  */
 #ifndef POK_PCI_INTERNAL_H
 #define POK_PCI_INTERNAL_H
@@ -126,5 +129,12 @@ static const struct {
     {0x0000, NULL}
 };
 
+/**
+ * @macroname `OK`
+ *
+ * @description
+ * The success result of the PCI functions (0).
+ */
+#define OK 0
 
 #endif

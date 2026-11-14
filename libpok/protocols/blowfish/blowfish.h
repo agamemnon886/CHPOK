@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Dec 11 16:32:31 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* crypto/bf/blowfish.h */
@@ -82,32 +89,73 @@
 //#include <openssl/e_os2.h>
 #include <types.h>
 
+/**
+ * @macroname `BF_ENCRYPT`
+ *
+ * @description
+ * Encrypt (the `encrypt` argument of the blowfish functions).
+ */
 #define BF_ENCRYPT	1
+
+/**
+ * @macroname `BF_DECRYPT`
+ *
+ * @description
+ * Decrypt (the `encrypt` argument of the blowfish functions).
+ */
 #define BF_DECRYPT	0
 
-/*
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * ! BF_LONG has to be at least 32 bits wide. If it's wider, then !
- * ! BF_LONG_LOG2 has to be defined along.                        !
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- */
 
+/**
+ * @macroname `BF_LONG`
+ *
+ * @description
+ * An unsigned integer of 32 bits: the words of blowfish. It has to be at least
+ * 32 bits wide; if it is wider, BF_LONG_LOG2 has to be defined along.
+ */
 #define BF_LONG uint32_t
 
+/**
+ * @macroname `BF_PTR2`
+ *
+ * @description
+ * Selects the blowfish round of BF_ENC() that walks BF_KEY directly.
+ */
 #define BF_PTR2
 
+/**
+ * @macroname `BF_ROUNDS`
+ *
+ * @description
+ * The number of rounds of blowfish.
+ */
 #define BF_ROUNDS	16
+
+/**
+ * @macroname `BF_BLOCK`
+ *
+ * @description
+ * The size of a block, in bytes.
+ */
 #define BF_BLOCK	8
 
-typedef struct bf_key_st
-	{
-	BF_LONG P[BF_ROUNDS+2];
-	BF_LONG S[4*256];
+/**
+ * @typename `BF_KEY`
+ *
+ * @description
+ * The key schedule of blowfish (BF_set_key()).
+ */
+typedef struct {
+	BF_LONG P[BF_ROUNDS+2]; /**< The P-array: BF_ROUNDS + 2 subkeys. */
+	BF_LONG S[4*256]; /**< The four S-boxes of 256 entries. */
 	} BF_KEY;
 
 #ifdef OPENSSL_FIPS 
+/** \cond */
 void private_BF_set_key(BF_KEY *key, int len, const unsigned char *data);
+/** \endcond */
 #endif
+/** \cond */
 void BF_set_key(BF_KEY *key, int len, const unsigned char *data);
 
 void BF_encrypt(BF_LONG *data,const BF_KEY *key);
@@ -122,6 +170,7 @@ void BF_cfb64_encrypt(const unsigned char *in, unsigned char *out, long length,
 void BF_ofb64_encrypt(const unsigned char *in, unsigned char *out, long length,
 	const BF_KEY *schedule, unsigned char *ivec, int *num);
 const char *BF_options(void);
+/** \endcond */
 
 #ifdef  __cplusplus
 }

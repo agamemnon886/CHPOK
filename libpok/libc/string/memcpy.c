@@ -20,6 +20,15 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: an index loop
  * that doesn't modify the parameters; deviations are documented where a
  * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * memcpy() of libpok (GCC requires it even for a freestanding
+ * environment).
  */
 
 #include <string.h>
@@ -30,7 +39,46 @@
  * unsigned char.
  */
 
-/* GCC requires this function even for freestanding environment. */
+/**
+ * @funcname `memcpy`
+ *
+ * @description
+ * Copies a block of memory; the blocks must not overlap (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dest` | `void *` | [out] The destination. |
+ * | `src` | `const void *` | [in] The source. |
+ * | `n` | `size_t` | [in] The number of bytes. |
+ *
+ * @return dest.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `d` | `unsigned char *` | The destination, as bytes |
+ * | `i` | `size_t` | The index of the byte |
+ * | `s` | `const unsigned char *` | The source, as bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `s` to `(const unsigned char*) src`.
+ * 2. Set `d` to `(unsigned char*) dest`.
+ * 3. Set `i` to `0U`; then while `i` is less than `n`, repeat (after each pass:
+ *    increment `i`):
+ *    1. Set `d[i]` to `s[i]`.
+ * 4. Return `dest`.
+ *
+ * @calls
+ * None.
+ */
 void *memcpy(void * dest, const void * src, size_t n)
 {
     const unsigned char *s = (const unsigned char*) src;

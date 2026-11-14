@@ -16,8 +16,15 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: includes
  * <core/kernel.h>, which declares the functions defined here.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+ */
+
+/**
+ * @file
+ * Restart and stop of the whole kernel (error handling); not implemented.
  */
 
 #include <config.h>
@@ -25,6 +32,29 @@
 
 #ifdef POK_NEEDS_ERROR_HANDLING
 
+/**
+ * @funcname `pok_kernel_restart`
+ *
+ * @description
+ * Restarts the kernel, as an error handling action of the module. Not
+ * implemented: it does nothing.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 void pok_kernel_restart (void)
 {
    /*
@@ -32,6 +62,29 @@ void pok_kernel_restart (void)
     */
 }
 
+/**
+ * @funcname `pok_kernel_stop`
+ *
+ * @description
+ * Stops the kernel, as an error handling action of the module. Not implemented:
+ * it does nothing.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 void pok_kernel_stop (void)
 {
    /*

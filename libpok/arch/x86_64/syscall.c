@@ -18,24 +18,63 @@
  * libpok/arch/x86/syscall.c to x86_64 (64-bit).
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+ */
+
+/**
+ * @file
+ * Syscalls of libpok on x86_64.
  */
 
 #include <arch/syscall.h>
 #include <types.h>
 
-/*
- * Syscall convention (see kernel/arch/x86_64/syscalls.c):
+/**
+ * @funcname `lja_do_syscall`
  *
- *   int $0x80, %rax - syscall id, %rbx - address of the arguments.
- *   Result is returned in %rax, other registers are preserved.
+ * @description
+ * Performs a syscall. The convention (see kernel/arch/x86_64/syscalls.c) is int
+ * $0x80 with the syscall ID in %%rax and the address of the arguments in %%rbx;
+ * the result is returned in %%rax, other registers are preserved.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `syscall_id` | `pok_syscall_id_e` | [in] The syscall ID. |
+ * | `args` | `pok_syscall_args_t *` | [in] The arguments. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ret` | `uint64_t` | The ID, then the result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `ret` to `(uint64_t)syscall_id`.
+ * 2. Execute the assembly code `int $0x80`.
+ * 3. Return `(pok_ret_e)ret`.
+ *
+ * @calls
+ * None.
  */
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation: the system call instruction
  * is GNU inline assembly, isolated in this function.
  */
-pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args)
+pok_ret_e lja_do_syscall (pok_syscall_id_e syscall_id, pok_syscall_args_t* args)
 {
    uint64_t ret = (uint64_t)syscall_id;
 
@@ -44,5 +83,5 @@ pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args)
                   : "+a" (ret)
                   : "b" (args)
                   : "memory");
-   return (pok_ret_t)ret;
+   return (pok_ret_e)ret;
 }

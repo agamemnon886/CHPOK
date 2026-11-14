@@ -17,6 +17,15 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; __user/__kuser are renamed
  * JET_USER/JET_KUSER; U suffixes for unsigned constants.
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; Doxygen comments for the file and its macros.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t); the Doxygen comment of the file is removed (header
+ * files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -34,18 +43,34 @@
 #include <asp/time.h>
 
 /**
- * The rate of the clock in POK
+ * @macroname `POK_TIMER_FREQUENCY`
+ *
+ * @description
+ * The rate of the clock in POK, in Hz.
  */
 #define POK_TIMER_FREQUENCY 10000U
 
-/* Return current system time, in nanoseconds. */
+/**
+ * @macroname `jet_system_time`
+ *
+ * @description
+ * Return current system time, in nanoseconds.
+ */
 #define jet_system_time() ja_system_time()
 
-/* Return calendar time, in seconds since Epoch. */
+/**
+ * @macroname `jet_calendar_time`
+ *
+ * @description
+ * Return calendar time, in seconds since Epoch.
+ */
 #define jet_calendar_time() ja_calendar_time()
 
-pok_ret_t pok_clock_gettime (clockid_t clk_id, pok_time_t* JET_USER val);
+/** \cond */
+pok_ret_e pok_clock_gettime (clockid_t clk_id, pok_time_t* JET_USER val);
 
-pok_ret_t jet_time(time_t* JET_USER val);
+pok_ret_e jet_time(time_t* JET_USER val);
+
+/** \endcond */
 
 #endif  /* POK_TIME_H */

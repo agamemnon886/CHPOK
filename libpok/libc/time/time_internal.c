@@ -33,4 +33,4 @@ struct tm global_tm;
 
 long timezone = 0;
 
-struct locale_time* current_locale_time = &locale_time_c;
+locale_time_t* current_locale_time = &locale_time_c;

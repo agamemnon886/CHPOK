@@ -25,12 +25,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from
- * hypervisor/include/hv/ to arch/x86_64/include/arch/.
- */
-
-/*
- * x86_64 instructions used by the hypervisor: port I/O, MSRs, CPUID, the
- * TSC, interrupt flag and halt, and an atomic exchange for locks.
+ * hypervisor/include/hv/ to arch/x86_64/include/arch/. Doxygen headers for the
+ * file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented); the types and
+ * macros are documented; the member comments of the types shared with arm64
+ * start with x86_64:.
  */
 
 /*
@@ -45,50 +47,201 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/**
+ * @macroname `X86_RFLAGS_IF`
+ *
+ * @description
+ * The interrupt flag of RFLAGS.
+ */
 #define X86_RFLAGS_IF   (1UL << 9)
 
+/**
+ * @macroname `X86_CR0_PE`
+ *
+ * @description
+ * The protected mode enable bit of CR0.
+ */
 #define X86_CR0_PE      (1UL << 0)
+
+/**
+ * @macroname `X86_CR0_ET`
+ *
+ * @description
+ * The extension type bit of CR0.
+ */
 #define X86_CR0_ET      (1UL << 4)
 
+/**
+ * @macroname `MSR_TSC`
+ *
+ * @description
+ * The number of the time stamp counter MSR.
+ */
 #define MSR_TSC                 0x00000010U
+
+/**
+ * @macroname `MSR_APIC_BASE`
+ *
+ * @description
+ * The number of the local APIC base address MSR.
+ */
 #define MSR_APIC_BASE           0x0000001BU
+
+/**
+ * @macroname `MSR_SYSENTER_CS`
+ *
+ * @description
+ * The number of the SYSENTER code segment MSR.
+ */
 #define MSR_SYSENTER_CS         0x00000174U
+
+/**
+ * @macroname `MSR_SYSENTER_ESP`
+ *
+ * @description
+ * The number of the SYSENTER stack pointer MSR.
+ */
 #define MSR_SYSENTER_ESP        0x00000175U
+
+/**
+ * @macroname `MSR_SYSENTER_EIP`
+ *
+ * @description
+ * The number of the SYSENTER instruction pointer MSR.
+ */
 #define MSR_SYSENTER_EIP        0x00000176U
+
+/**
+ * @macroname `MSR_PAT`
+ *
+ * @description
+ * The number of the page attribute table MSR.
+ */
 #define MSR_PAT                 0x00000277U
+
+/**
+ * @macroname `MSR_EFER`
+ *
+ * @description
+ * The number of the extended feature enable register MSR.
+ */
 #define MSR_EFER                0xC0000080U
+
+/**
+ * @macroname `MSR_STAR`
+ *
+ * @description
+ * The number of the STAR (SYSCALL segments) MSR.
+ */
 #define MSR_STAR                0xC0000081U
+
+/**
+ * @macroname `MSR_LSTAR`
+ *
+ * @description
+ * The number of the LSTAR (SYSCALL target) MSR.
+ */
 #define MSR_LSTAR               0xC0000082U
+
+/**
+ * @macroname `MSR_CSTAR`
+ *
+ * @description
+ * The number of the CSTAR (compatibility SYSCALL target) MSR.
+ */
 #define MSR_CSTAR               0xC0000083U
+
+/**
+ * @macroname `MSR_SFMASK`
+ *
+ * @description
+ * The number of the SYSCALL flag mask MSR.
+ */
 #define MSR_SFMASK              0xC0000084U
+
+/**
+ * @macroname `MSR_FS_BASE`
+ *
+ * @description
+ * The number of the FS segment base MSR.
+ */
 #define MSR_FS_BASE             0xC0000100U
+
+/**
+ * @macroname `MSR_GS_BASE`
+ *
+ * @description
+ * The number of the GS segment base MSR.
+ */
 #define MSR_GS_BASE             0xC0000101U
+
+/**
+ * @macroname `MSR_KERNEL_GS_BASE`
+ *
+ * @description
+ * The number of the MSR that holds the GS base for SWAPGS.
+ */
 #define MSR_KERNEL_GS_BASE      0xC0000102U
+
+/**
+ * @macroname `MSR_VM_CR`
+ *
+ * @description
+ * The number of the SVM control MSR.
+ */
 #define MSR_VM_CR               0xC0010114U
+
+/**
+ * @macroname `MSR_VM_HSAVE_PA`
+ *
+ * @description
+ * The number of the MSR of the physical address of the host save area.
+ */
 #define MSR_VM_HSAVE_PA         0xC0010117U
 
+/**
+ * @macroname `EFER_SVME`
+ *
+ * @description
+ * The SVM enable bit of EFER.
+ */
 #define EFER_SVME               (1UL << 12)
+
+/**
+ * @macroname `VM_CR_SVMDIS`
+ *
+ * @description
+ * The bit of VM_CR that disables SVM.
+ */
 #define VM_CR_SVMDIS            (1UL << 4)
 
-// Write a byte to an I/O port.
+/*
+ * Writes a byte to an I/O port.
+ */
 static inline void x86_outb(uint16_t port, uint8_t value)
 {
     asm volatile ("outb %0, %1" : : "a" (value), "Nd" (port) : "memory");
 }
 
-// Write a 16-bit word to an I/O port.
+/*
+ * Writes a 16-bit word to an I/O port.
+ */
 static inline void x86_outw(uint16_t port, uint16_t value)
 {
     asm volatile ("outw %0, %1" : : "a" (value), "Nd" (port) : "memory");
 }
 
-// Write a 32-bit word to an I/O port.
+/*
+ * Writes a 32-bit word to an I/O port.
+ */
 static inline void x86_outl(uint16_t port, uint32_t value)
 {
     asm volatile ("outl %0, %1" : : "a" (value), "Nd" (port) : "memory");
 }
 
-// Read a byte from an I/O port.
+/*
+ * Reads a byte from an I/O port.
+ */
 static inline uint8_t x86_inb(uint16_t port)
 {
     uint8_t value;
@@ -97,7 +250,9 @@ static inline uint8_t x86_inb(uint16_t port)
     return value;
 }
 
-// Read a 16-bit word from an I/O port.
+/*
+ * Reads a 16-bit word from an I/O port.
+ */
 static inline uint16_t x86_inw(uint16_t port)
 {
     uint16_t value;
@@ -106,7 +261,9 @@ static inline uint16_t x86_inw(uint16_t port)
     return value;
 }
 
-// Read a 32-bit word from an I/O port.
+/*
+ * Reads a 32-bit word from an I/O port.
+ */
 static inline uint32_t x86_inl(uint16_t port)
 {
     uint32_t value;
@@ -115,7 +272,9 @@ static inline uint32_t x86_inl(uint16_t port)
     return value;
 }
 
-// Read a model-specific register.
+/*
+ * Reads a model-specific register.
+ */
 static inline uint64_t x86_rdmsr(uint32_t msr)
 {
     uint32_t low;
@@ -125,7 +284,9 @@ static inline uint64_t x86_rdmsr(uint32_t msr)
     return ((uint64_t) high << 32) | (uint64_t) low;
 }
 
-// Write a model-specific register.
+/*
+ * Writes a model-specific register.
+ */
 static inline void x86_wrmsr(uint32_t msr, uint64_t value)
 {
     uint32_t low = (uint32_t) value;
@@ -135,7 +296,9 @@ static inline void x86_wrmsr(uint32_t msr, uint64_t value)
                   : "memory");
 }
 
-// CPUID of leaf and subleaf: regs[0..3] are EAX, EBX, ECX, EDX.
+/*
+ * Executes CPUID for a leaf and subleaf.
+ */
 static inline void x86_cpuid(uint32_t leaf, uint32_t subleaf,
                              uint32_t regs[4])
 {
@@ -153,7 +316,9 @@ static inline void x86_cpuid(uint32_t leaf, uint32_t subleaf,
     regs[3] = d;
 }
 
-// Read the time stamp counter.
+/*
+ * Reads the time stamp counter.
+ */
 static inline uint64_t x86_rdtsc(void)
 {
     uint32_t low;
@@ -163,34 +328,43 @@ static inline uint64_t x86_rdtsc(void)
     return ((uint64_t) high << 32) | (uint64_t) low;
 }
 
-// Disable interrupts.
+/*
+ * Disables interrupts on this CPU.
+ */
 static inline void x86_cli(void)
 {
     asm volatile ("cli" : : : "memory");
 }
 
 /*
- * Halt until an interrupt arrives, let it be handled, then disable
- * interrupts again (sti's shadow covers hlt, so no interrupt is missed).
+ * Halts until an interrupt arrives, lets it be handled, then disables
+ * interrupts again. No interrupt is missed: the interrupt shadow of sti covers
+ * hlt.
  */
 static inline void x86_wait_interrupt(void)
 {
     asm volatile ("sti; hlt; cli" : : : "memory");
 }
 
-// Halt until the next interrupt (or forever, with interrupts disabled).
+/*
+ * Halts until the next interrupt (or forever, with interrupts disabled).
+ */
 static inline void x86_hlt(void)
 {
     asm volatile ("hlt" : : : "memory");
 }
 
-// Spin-wait hint: lets the other logical CPU (or QEMU) run.
+/*
+ * Spin-wait hint: lets the other logical CPU (or QEMU) run.
+ */
 static inline void x86_pause(void)
 {
     asm volatile ("pause" : : : "memory");
 }
 
-// Atomic exchange of a 32-bit word; returns the old value (spin locks).
+/*
+ * Atomically exchanges a 32-bit word (spin locks).
+ */
 static inline uint32_t x86_xchg32(volatile uint32_t *word, uint32_t value)
 {
     uint32_t old = value;
@@ -199,7 +373,9 @@ static inline uint32_t x86_xchg32(volatile uint32_t *word, uint32_t value)
     return old;
 }
 
-// Compiler barrier: memory accesses are not moved across it.
+/*
+ * Compiler barrier: memory accesses are not moved across it.
+ */
 static inline void x86_barrier(void)
 {
     asm volatile ("" : : : "memory");

@@ -23,74 +23,74 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file and
+ * its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and declarations
+ * are in arch/internal.h, documented there.
  */
 
-/*
+/**
+ * @file
  * EL2 address translation: the hypervisor sees the physical address space
  * through an identity map of 1 GiB blocks (one level 1 table, 39-bit
  * addresses, 4 KiB granule). The RAM of QEMU 'virt' (1 GiB to 4 GiB) is
  * normal write-back memory, the devices (first GiB) and the PCI
- * configuration space (256 GiB, QEMU's high ECAM) are device memory;
- * nothing else is mapped. The MMU and the caches are needed for the
- * exclusive accesses of the console lock and for coherency with the
- * guests, which run with their caches on.
+ * configuration space (256 GiB, QEMU's high ECAM) are device memory; nothing
+ * else is mapped. The MMU and the caches are needed for the exclusive
+ * accesses of the console lock and for coherency with the guests, which run
+ * with their caches on.
  */
 
 #include <arch/internal.h>
 
-#define L1_ENTRIES          512U
-#define L1_SHIFT            30U
-
-// Block descriptor fields.
-#define DESC_BLOCK          0x1UL
-#define DESC_ATTR(i)        ((uint64_t) (i) << 2)
-#define DESC_AP_RW          (1UL << 6)      // AP[1] is RES1 at EL2
-#define DESC_SH_INNER       (3UL << 8)
-#define DESC_AF             (1UL << 10)
-#define DESC_XN             (1UL << 54)
-
-// MAIR_EL2 attributes: 0 device-nGnRE, 1 normal write-back.
-#define MAIR_DEVICE         0U
-#define MAIR_NORMAL         1U
-#define MAIR_VALUE          ((0x04UL << (8U * MAIR_DEVICE)) \
-                             | (0xFFUL << (8U * MAIR_NORMAL)))
-
-#define DESC_DEVICE         (DESC_BLOCK | DESC_ATTR(MAIR_DEVICE) \
-                             | DESC_AP_RW | DESC_AF | DESC_XN)
-#define DESC_NORMAL         (DESC_BLOCK | DESC_ATTR(MAIR_NORMAL) \
-                             | DESC_AP_RW | DESC_SH_INNER | DESC_AF)
-
-// TCR_EL2: 39-bit addresses, write-back walks, 4 KiB granule, 40-bit PA.
-#define TCR_T0SZ            25UL
-#define TCR_IRGN0_WBWA      (1UL << 8)
-#define TCR_ORGN0_WBWA      (1UL << 10)
-#define TCR_SH0_INNER       (3UL << 12)
-#define TCR_PS_40BIT        (2UL << 16)
-#define TCR_RES1            ((1UL << 31) | (1UL << 23))
-#define TCR_VALUE           (TCR_T0SZ | TCR_IRGN0_WBWA | TCR_ORGN0_WBWA \
-                             | TCR_SH0_INNER | TCR_PS_40BIT | TCR_RES1)
-
-// SCTLR_EL2: MMU, data and instruction caches, stack alignment check.
-#define SCTLR_RES1          0x30C50830UL
-#define SCTLR_M             (1UL << 0)
-#define SCTLR_C             (1UL << 2)
-#define SCTLR_SA            (1UL << 3)
-#define SCTLR_I             (1UL << 12)
-#define SCTLR_VALUE         (SCTLR_RES1 | SCTLR_M | SCTLR_C | SCTLR_SA \
-                             | SCTLR_I)
-
-// What is mapped: the GiB numbers (physical address >> 30).
-#define GIB_DEVICES         0U
-#define GIB_RAM_FIRST       1U
-#define GIB_RAM_LAST        3U
-#define GIB_HIGH_ECAM       256U
-
 hv_mmu_regs_t hv_el2_mmu;
 
-/*
- * Build the identity map and turn the MMU on, on the boot CPU (called
- * first, with the MMU off: the tables and hv_el2_mmu are written to
- * memory, where the other CPUs read them with their MMU still off).
+/**
+ * @funcname `hv_mmu_init`
+ *
+ * @description
+ * Builds the EL2 identity map and turns the MMU on, on the boot CPU. It is
+ * called first, with the MMU off: the table and hv_el2_mmu are written to
+ * memory, where the other CPUs read them with their MMU still off.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hv_el2_mmu` | `hv_mmu_regs_t` | The EL2 translation registers (MAIR, TCR, TTBR0, SCTLR), also for the other CPUs |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `el2_l1` | `static uint64_t[L1_ENTRIES]` | The level 1 table |
+ * | `i` | `uint32_t` | The index of an entry |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `i` to `0U`; then while `i` is less than `L1_ENTRIES`, repeat (after
+ *    each pass: increment `i`):
+ *    1. Set `el2_l1[i]` to `0U`.
+ * 2. Set `el2_l1[GIB_DEVICES]` to
+ *    `((uint64_t) GIB_DEVICES << L1_SHIFT) | DESC_DEVICE`.
+ * 3. Set `i` to `GIB_RAM_FIRST`; then while `i` is less than or equal to
+ *    `GIB_RAM_LAST`, repeat (after each pass: increment `i`):
+ *    1. Set `el2_l1[i]` to `((uint64_t) i << L1_SHIFT) | DESC_NORMAL`.
+ * 4. Set `el2_l1[GIB_HIGH_ECAM]` to
+ *    `((uint64_t) GIB_HIGH_ECAM << L1_SHIFT) | DESC_DEVICE`.
+ * 5. Set `hv_el2_mmu.mair` to `MAIR_VALUE`.
+ * 6. Set `hv_el2_mmu.tcr` to `TCR_VALUE`.
+ * 7. Set `hv_el2_mmu.ttbr0` to `(uint64_t) (uintptr_t) el2_l1`.
+ * 8. Set `hv_el2_mmu.sctlr` to `SCTLR_VALUE`.
+ * 9. Call `arm64_dsb_ish()`.
+ * 10. Call `hv_mmu_enable()` with the address of `hv_el2_mmu`.
+ *
+ * @calls
+ * - `arm64_dsb_ish()`
+ * - `hv_mmu_enable()`
  */
 /*
  * MISRA C:2025 Rule 11.4 deviation (hv_mmu_init()): the CPU is given the

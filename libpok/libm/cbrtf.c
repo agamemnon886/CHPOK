@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* s_cbrtf.c -- float version of s_cbrt.c.
@@ -29,6 +38,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * cbrtf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -50,6 +63,72 @@ E =  1.4142856598e+00, /* 99/70     = 0x3fb50750 */
 F =  1.6071428061e+00, /* 45/28     = 0x3fcdb6db */
 G =  3.5714286566e-01; /* 5/14      = 0x3eb6db6e */
 
+/**
+ * @funcname `cbrtf`
+ *
+ * @description
+ * Computes the cube root of x, in float (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `B1` | `const unsigned int` | A constant of the algorithm |
+ * | `B2` | `const unsigned int` | A constant of the algorithm |
+ * | `C` | `const float` | A constant of the algorithm |
+ * | `D` | `const float` | A constant of the algorithm |
+ * | `E` | `const float` | A constant of the algorithm |
+ * | `F` | `const float` | A constant of the algorithm |
+ * | `G` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `high` | `uint32_t` | The bits of t |
+ * | `hx` | `int32_t` | The bits of x |
+ * | `r` | `float` | A temporary of the computation |
+ * | `s` | `float` | A temporary of the computation |
+ * | `sign` | `uint32_t` | A temporary of the computation |
+ * | `t` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `sign` to `hx&0x80000000`.
+ * 3. Toggle the bits `sign` in `hx`.
+ * 4. If `hx` is greater than or equal to `0x7f800000`:
+ *    1. Return `(x+x)`.
+ * 5. If `hx` is equal to `0`:
+ *    1. Return `(x)`.
+ * 6. Use the macro `SET_FLOAT_WORD()` with the arguments `x` and `hx`.
+ * 7. If `hx` is less than `0x00800000`:
+ *    1. Use the macro `SET_FLOAT_WORD()` with the arguments `t` and
+ *       `0x4b800000`.
+ *    2. Multiply `t` by `x`.
+ *    3. Use the macro `GET_FLOAT_WORD()` with the arguments `high` and `t`.
+ *    4. Use the macro `SET_FLOAT_WORD()` with the arguments `t` and
+ *       `high/3+B2`.
+ * 8. Otherwise:
+ *    1. Use the macro `SET_FLOAT_WORD()` with the arguments `t` and `hx/3+B1`.
+ * 9. Set `r` to `t*t/x`.
+ * 10. Set `s` to `C+r*t`.
+ * 11. Multiply `t` by `G+F/(s+E+D/s)`.
+ * 12. Use the macro `GET_FLOAT_WORD()` with the arguments `high` and `t`.
+ * 13. Use the macro `SET_FLOAT_WORD()` with the arguments `t` and `high|sign`.
+ * 14. Return `(t)`.
+ *
+ * @calls
+ * None.
+ */
 float
 cbrtf(float x)
 {

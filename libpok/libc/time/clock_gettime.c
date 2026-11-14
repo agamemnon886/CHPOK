@@ -21,6 +21,17 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025:
  * clock_gettime() passes its clock ID to the kernel (it always asked for
  * CLOCK_REALTIME). Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t).
+ */
+
+/**
+ * @file
+ * clock_gettime() of libpok.
  */
 
 /*
@@ -30,6 +41,47 @@
 #include <time.h>
 #include <core/syscall.h>
 
+/**
+ * @funcname `clock_gettime`
+ *
+ * @description
+ * Returns the time of a clock (POSIX): the clock_gettime syscall, in seconds
+ * and nanoseconds.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `clock_id` | `clockid_t` | [in] The clock. |
+ * | `tp` | `struct timespec *` | [out] Where the time is stored. |
+ *
+ * @return 0, or -1 on an error (errno isn't set).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ret` | `pok_ret_e` | The result of the syscall |
+ * | `t` | `pok_time_t` | The time, in nanoseconds |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `ret` to
+ *    `pok_syscall2(POK_SYSCALL_CLOCK_GETTIME, (uintptr_t)clock_id,`
+ *    `(uintptr_t)&t)`.
+ * 2. If `ret` is not equal to `POK_ERRNO_OK`:
+ *    1. Return `-1`.
+ * 3. Set `tp->tv_sec` to `t / 1000000000`.
+ * 4. Set `tp->tv_nsec` to `t % 1000000000`.
+ * 5. Return `0`.
+ *
+ * @calls
+ * - `lja_do_syscall()`
+ */
 int clock_gettime(clockid_t clock_id, struct timespec* tp)
 {
     pok_time_t t;
@@ -38,7 +90,7 @@ int clock_gettime(clockid_t clock_id, struct timespec* tp)
      * MISRA C:2025 Rule 11.4 deviation: system call arguments are passed as
      * integers; the kernel converts the address back to a pointer.
      */
-    pok_ret_t ret = pok_syscall2(POK_SYSCALL_CLOCK_GETTIME, (uintptr_t)clock_id,
+    pok_ret_e ret = pok_syscall2(POK_SYSCALL_CLOCK_GETTIME, (uintptr_t)clock_id,
                                  (uintptr_t)&t);
     
     if(ret != POK_ERRNO_OK) {

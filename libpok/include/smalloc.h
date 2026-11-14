@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; the unused macro libjet_mem_get_alignment is removed.
  */
 
 #ifndef LIBJET_ALLOC_H
@@ -28,6 +32,7 @@
  * 
  * May be used only in init mode.
  */
+/** \cond */
 void* smalloc_aligned(size_t size, size_t alignment);
 
 /* 
@@ -46,11 +51,10 @@ void* smalloc(size_t size);
  * May be used only in init mode.
  */
 void* scalloc(size_t nmemb, size_t size);
+/** \endcond */
 
 
 // free() is not supported.
-
-#define libjet_mem_get_alignment libja_mem_get_alignment
 
 // Set by the init, used by the alloc implementation.
 extern char* heap_current;

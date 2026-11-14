@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* w_atan2f.c -- float version of w_atan2.c.
@@ -29,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * atan2f() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -44,6 +54,38 @@
 __weak_alias(atan2f, _atan2f)
 #endif
 
+/**
+ * @funcname `atan2f`
+ *
+ * @description
+ * Computes the arc tangent of y/x, in the quadrant of (x, y), in float (C
+ * standard): the wrapper of `__ieee754_atan2f()`.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `y` | `float` | [in] The second argument. |
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ieee754_atan2f()` with the arguments `y` and `x`, and return its
+ *    result.
+ *
+ * @calls
+ * - `__ieee754_atan2f()`
+ */
 float
 atan2f(float y, float x)		/* wrapper atan2f */
 {

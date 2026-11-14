@@ -28,19 +28,24 @@
  * the size_t arguments; one declarator per declaration; operands of mixed
  * precedence are parenthesized; deviations are documented where a
  * guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-13: jet_space_layout_t is used by its
+ * typedef name; the declarations of the partition images are moved to
+ * kernel/include/core/loader.h.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the string literals of the Design
+ * steps are wrapped at their spaces, each in one code span (they were cut
+ * inside names).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
 
 /**
- * \file loader.c
- * \author Julian Pidancet
- * \author Julien Delange
- * \date 2008-2009
- *
+ * @file
  * Contains all needed stuff to load partitions (elf files).
  * This needs the partitioning service (POK_NEEDS_PARTITIONS must
- * be defined) to work.
+ * be defined) to work. (Written by Julian Pidancet and Julien Delange
+ * for POK, 2008-2009.)
  */
 
 #include <config.h>
@@ -67,13 +72,139 @@
  * memory, and the segments are checked against the bounds of that memory.
  */
 
-extern size_t pok_elf_sizes[];
-extern char __archive2_begin;
 
 /**
- * Load an ELF file.
+ * @funcname `jet_loader_elf_load`
  *
- *  @param file
+ * @description
+ * Loads a partition's ELF image from the kernel's archive into the partition's
+ * memory: checks the image and its PT_LOAD segments against the partition's
+ * space, copies them and clears their BSS, and gives the entry point. A bad
+ * image raises a configuration or partition load error.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `elf_id` | `uint8_t` | [in] The index of the image in the archive. |
+ * | `space_id` | `jet_space_id` | [in] The partition's memory space. |
+ * | `entry` | `void (**)(void)` | [out] Where the entry point is stored. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `__archive2_begin` | `char` | The start of the archive of images (linker) |
+ * | `pok_elf_sizes` | `size_t[]` | The size of each image (generated) |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `elf_end_user` | `char *` | The highest user address the segments reach |
+ * | `elf_header` | `const Elf_Ehdr *` | The ELF header |
+ * | `elf_offset` | `size_t` | The offset of the image in the archive |
+ * | `elf_phdr` | `const Elf_Phdr *` | The program headers |
+ * | `elf_section_end_user` | `char *` | The user address of the end of a segment |
+ * | `elf_size` | `size_t` | The size of the image |
+ * | `elf_span` | `ptrdiff_t` | How far the segments reach above the space's start |
+ * | `elf_start` | `const char *` | The start of the image |
+ * | `filesz` | `size_t` | The size of a segment in the file |
+ * | `i` | `uint32_t` | The index of an image, then of a program header |
+ * | `kernel_dest` | `char *` | The kernel address of a segment |
+ * | `memsz` | `size_t` | The size of a segment in memory |
+ * | `space_layout` | `jet_space_layout_t` | The space's user and kernel addresses and its size |
+ * | `user_dest` | `char *` | The user address of a segment |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `ja_space_layout_get()` with the arguments `space_id` and the address
+ *    of `space_layout`.
+ * 2. Set `elf_offset` to `0`.
+ * 3. Set `i` to `0`; then while `i` is less than `elf_id`, repeat (after each
+ *    pass: increment `i`):
+ *    1. Add `pok_elf_sizes[i]` to `elf_offset`.
+ * 4. Set `elf_size` to `pok_elf_sizes[elf_id]`.
+ * 5. If `elf_size` is greater than `space_layout.size`:
+ *    1. Call `printf()` with the arguments
+ *       `"Attempt to load elf %%u of size %%zx into space of size %%zx.\n"`,
+ *       `elf_id`, `elf_size` and `space_layout.size`.
+ *    2. Call `pok_raise_error()` with the arguments
+ *       `POK_ERROR_ID_CONFIG_ERROR`, `FALSE` and `NULL`.
+ * 6. Set `elf_start` to `&__archive2_begin + elf_offset`.
+ * 7. Set `elf_header` to `(const Elf_Ehdr*)elf_start`.
+ * 8. If `elf_header->e_ident[0]` is not equal to `0x7fU` or
+ *    `elf_header->e_ident[1]` is not equal to `0x45U` or
+ *    `elf_header->e_ident[2]` is not equal to `0x4cU` or
+ *    `elf_header->e_ident[3]` is not equal to `0x46U`:
+ *    1. Call `printf()` with the argument
+ *       `"Partition's ELF has incorrect format"`.
+ *    2. Call `pok_raise_error()` with the arguments
+ *       `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
+ * 9. Set `*entry` to `(void (*)(void)) elf_header->e_entry`.
+ * 10. Set `elf_phdr` to `(const Elf_Phdr*)(elf_start + elf_header->e_phoff)`.
+ * 11. Set `elf_end_user` to `space_layout.user_addr`.
+ * 12. Set `i` to `0U`; then while `i` is less than `elf_header->e_phnum`,
+ *     repeat (after each pass: increment `i`):
+ *     1. If `elf_phdr[i].p_type` is not equal to `PT_LOAD`:
+ *        1. Go on with the next pass of the loop.
+ *     2. Set `user_dest` to `(char *)elf_phdr[i].p_vaddr`.
+ *     3. Set `filesz` to `elf_phdr[i].p_filesz`.
+ *     4. Set `memsz` to `elf_phdr[i].p_memsz`.
+ *     5. If `filesz` is greater than `memsz`:
+ *        1. Call `printf()` with the arguments
+ *           `"Partition's ELF has section with 'filesz=%%zu' which is more "`
+ *           `"than 'memsz=%%zu'.\n"`, `filesz` and `memsz`.
+ *        2. Call `pok_raise_error()` with the arguments
+ *           `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
+ *     6. If `user_dest` is less than `space_layout.user_addr`:
+ *        1. Call `printf()` with the arguments
+ *           `"Partition's ELF maps to virtual address %%p, but space starts "`
+ *           `"with %%p.\n"`, `user_dest` and `space_layout.user_addr`.
+ *        2. Call `pok_raise_error()` with the arguments
+ *           `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
+ *     7. Set `elf_section_end_user` to `user_dest + memsz`.
+ *     8. If `elf_end_user` is less than `elf_section_end_user`:
+ *        1. Set `elf_end_user` to `elf_section_end_user`.
+ * 13. If `elf_end_user` is greater than
+ *     `(space_layout.user_addr + space_layout.size)`:
+ *     1. Set `elf_span` to `elf_end_user - space_layout.user_addr`.
+ *     2. Call `printf()` with the arguments
+ *        `"ERROR: Elf maps up to virtual address %%p, which is above
+ *        section's " "start by 0x%%zx. But size of the section is only
+ *        0x%%zx.\n"`, `elf_end_user`, `(size_t) elf_span` and
+ *        `space_layout.size`.
+ *     3. Call `printf()` with the argument
+ *        `"HINT: Probably, you need to configure more space for the "`
+ *        `"partition.\n"`.
+ *     4. Call `pok_raise_error()` with the arguments
+ *        `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
+ * 14. Set `i` to `0U`; then while `i` is less than `elf_header->e_phnum`,
+ *     repeat (after each pass: increment `i`):
+ *     1. If `elf_phdr[i].p_type` is not equal to `PT_LOAD`:
+ *        1. Go on with the next pass of the loop.
+ *     2. Set `user_dest` to `(char *)elf_phdr[i].p_vaddr`.
+ *     3. Set `filesz` to `elf_phdr[i].p_filesz`.
+ *     4. Set `memsz` to `elf_phdr[i].p_memsz`.
+ *     5. Check that
+ *        `(user_dest >= space_layout.user_addr) && ((user_dest + filesz) <=`
+ *        `(space_layout.user_addr + space_layout.size)) && ((user_dest +`
+ *        `memsz) <= (space_layout.user_addr + space_layout.size))` holds
+ *        (assert: stop otherwise).
+ *     6. Set `kernel_dest` to
+ *        `space_layout.kernel_addr + (user_dest - space_layout.user_addr)`.
+ *     7. Call `memcpy()` with the arguments `kernel_dest`,
+ *        `elf_phdr[i].p_offset + elf_start` and `filesz`.
+ *     8. Call `memset()` with the arguments `kernel_dest + filesz`, `0` and
+ *        `memsz - filesz`.
+ *
+ * @calls
+ * - `ja_space_layout_get()`
+ * - `printf()`
+ * - `pok_raise_error()`
+ * - `pok_assertion_fail()`
+ * - `memcpy()`
+ * - `memset()`
  */
 void jet_loader_elf_load   (uint8_t elf_id,
                                  jet_space_id space_id,
@@ -82,7 +213,7 @@ void jet_loader_elf_load   (uint8_t elf_id,
     size_t elf_offset;
     size_t elf_size;
 
-    struct jet_space_layout space_layout;
+    jet_space_layout_t space_layout;
     ja_space_layout_get(space_id, &space_layout);
 
     elf_offset = 0;

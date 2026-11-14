@@ -1,41 +1,85 @@
+# Modified by Kirill Brazhnikov, 2026-11-11: args_dir gives the direction
+# of each argument of a function (in, out or "in,out"; in if missing), as
+# the function documentation shows it.
+#
+# Modified by Kirill Brazhnikov, 2026-11-12: description gives the
+# documentation of an interface and of each of its functions (the
+# interface's type and its members in the generated header).
+#
+# Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+# ret_e (was ret_t).
+
 - name: preallocated_sender
+  description: >-
+    Sends a payload that has free room before it, where the components on
+    the way down add their headers (the sender of a frame).
   additional_h_files: ['<ret_type.h>']
   functions:
       - name: send
-        return_type: ret_t
+        description: >-
+          Sends a payload: arg0 is the component, arg1 the payload, arg2 its
+          size and arg3 the room before it for the headers (max_backstep).
+          Returns EOK or an error.
+        return_type: ret_e
         # component, payload, size, max_backstep
         args_type: [self_t *, char *, size_t, size_t]
+        args_dir: ["in,out", "in,out", in, in]
 
       - name: flush
-        return_type: ret_t
+        description: >-
+          Sends what the component (arg0) has queued. Returns EOK or an
+          error.
+        return_type: ret_e
         # component
         args_type: [self_t *]
 
 - name: ethernet_packet_sender
+  description: >-
+    Sends a payload in an Ethernet frame to a MAC address.
   additional_h_files: ['<ret_type.h>', '<net/ether.h>']
   functions:
       - name: mac_send
-        return_type: ret_t
+        description: >-
+          Sends a payload in an Ethernet frame: arg0 is the component, arg1
+          the payload, arg2 its size, arg3 the room before it for the
+          headers (max_backstep), arg4 the destination MAC address and arg5
+          the type of the frame. Returns EOK or an error.
+        return_type: ret_e
         # component, payload, payload_size, max_backstep, dst_mac_addr, ethertype
-        args_type: [self_t *, char *, size_t, size_t, uint8_t *, enum ethertype]
+        args_type: [self_t *, char *, size_t, size_t, uint8_t *, ethertype_e]
+        args_dir: [in, "in,out", in, in, in, in]
 
       - name: flush
-        return_type: ret_t
+        description: >-
+          Sends what the component (arg0) has queued. Returns EOK or an
+          error.
+        return_type: ret_e
         # component
         args_type: [self_t *]
 
 - name: message_handler
+  description: >-
+    Receives a message (a frame or a packet) for processing.
   additional_h_files: ['<ret_type.h>']
   functions:
       - name: handle
-        return_type: ret_t
+        description: >-
+          Processes a message: arg0 is the component, arg1 the message and
+          arg2 its size. Returns EOK or an error.
+        return_type: ret_e
         # component, msg, size
         args_type: [self_t *, const char *, size_t] #const char *!!
 
 - name: udp_message_handler
+  description: >-
+    Receives the payload of a UDP datagram for processing.
   additional_h_files: ['<ret_type.h>']
   functions:
       - name: udp_message_handle #udp_message_handle
-        return_type: ret_t
+        description: >-
+          Processes the payload of a UDP datagram: arg0 is the component,
+          arg1 the payload, arg2 its size, arg3 the destination IPv4 address
+          and arg4 the destination UDP port. Returns EOK or an error.
+        return_type: ret_e
         # component, udp_msg, size, dst_ip, dst_udp_port
         args_type: [self_t *, const char *, size_t, uint32_t, uint16_t]  #const char *!!

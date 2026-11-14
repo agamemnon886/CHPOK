@@ -34,8 +34,23 @@
  * restored when an interrupt of kernel code returns), user space may
  * execute int3, and debug and breakpoint exceptions go to the GDB server
  * first.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-13: interrupt_frame is used by its
+ * typedef name; the macros, the types and the declarations of the entry stubs
+ * are moved to kernel/arch/x86_64/interrupt.h; the type of the table of the
+ * exceptions is the typedef exception_info_t.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
+ */
+
+/**
+ * @file
+ * Interrupts and exceptions on x86_64: the IDT and the common interrupt
+ * handler (syscalls, the timer, GDB traps, exceptions).
  */
 
 #include <libc.h>
@@ -54,27 +69,36 @@
  * starts right after its interrupt frame, at frame + 1.
  */
 
-typedef struct
-{
-  uint16_t offset_low;
-  uint16_t selector;
-  uint8_t  ist;
-  uint8_t  type_attr;
-  uint16_t offset_mid;
-  uint32_t offset_high;
-  uint32_t reserved;
-} __attribute__((packed)) idt_entry_t;
-
-#define IDT_SIZE 256
-/* Present, 64-bit interrupt gate (interrupts are disabled on entry). */
-#define IDT_INTERRUPT_GATE(dpl) ((uint8_t) (0x8EU | ((dpl) << 5)))
-
 static idt_entry_t pok_idt[IDT_SIZE] __attribute__((aligned(16)));
 
-/* Defined in interrupt_entries.S. */
-extern void (* const ja_interrupt_stubs[IRQ_VECTOR_LAST + 1U])(void);
-void ja_interrupt_stub_syscall(void);
 
+/**
+ * @funcname `cpu_load_idt`
+ *
+ * @description
+ * Loads the IDT register (lidt).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `desc` | `const sysdesc_t *` | [in] The IDT's limit and base. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `lidt %0`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Rule 11.1 and Rule 11.4 deviation (this file): the IDT and
  * its gates are described to the CPU by addresses, as integers: the
@@ -91,7 +115,33 @@ static void cpu_load_idt(const sysdesc_t* desc)
    asm volatile ("lidt %0" : : "m" (*desc));
 }
 
-/* Address of the last page fault. */
+/**
+ * @funcname `cpu_read_cr2`
+ *
+ * @description
+ * Reads CR2: the address of the last page fault.
+ *
+ * @return CR2.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `cr2` | `uint64_t` | CR2 |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `mov %%%cr2, %0`.
+ * 2. Return `cr2`.
+ *
+ * @calls
+ * None.
+ */
 static uint64_t cpu_read_cr2(void)
 {
    uint64_t cr2;
@@ -100,6 +150,47 @@ static uint64_t cpu_read_cr2(void)
    return cr2;
 }
 
+/**
+ * @funcname `idt_set_gate`
+ *
+ * @description
+ * Writes an interrupt gate of the IDT (interrupts disabled on entry).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `index` | `uint32_t` | [in] The vector. |
+ * | `entry` | `void (*)(void)` | [in] The entry stub. |
+ * | `dpl` | `uint32_t` | [in] The privilege level that may use it with int (3: user space). |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pok_idt` | `idt_entry_t[256]` | The IDT |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `offset` | `uint64_t` | The stub's address |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `offset` to `(uint64_t)entry`.
+ * 2. Set `pok_idt[index].offset_low` to `(uint16_t) (offset & 0xFFFFU)`.
+ * 3. Set `pok_idt[index].selector` to `GDT_KERNEL_CODE`.
+ * 4. Set `pok_idt[index].ist` to `0`.
+ * 5. Set `pok_idt[index].type_attr` to `IDT_INTERRUPT_GATE(dpl)`.
+ * 6. Set `pok_idt[index].offset_mid` to
+ *    `(uint16_t) ((offset >> 16) & 0xFFFFU)`.
+ * 7. Set `pok_idt[index].offset_high` to `(uint32_t) (offset >> 32)`.
+ * 8. Set `pok_idt[index].reserved` to `0`.
+ *
+ * @calls
+ * None.
+ */
 static void idt_set_gate(uint32_t index, void (*entry)(void), uint32_t dpl)
 {
    uint64_t offset = (uint64_t)entry;
@@ -113,6 +204,48 @@ static void idt_set_gate(uint32_t index, void (*entry)(void), uint32_t dpl)
    pok_idt[index].reserved    = 0;
 }
 
+/**
+ * @funcname `ja_idt_init`
+ *
+ * @description
+ * Fills the IDT with the stubs of interrupt_entries.S, the syscall gate open to
+ * user space (and int3 with GDB), and loads it.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ja_interrupt_stubs` | `void (*const[48])(void)` | The entry stubs of the vectors (interrupt_entries.S) |
+ * | `pok_idt` | `idt_entry_t[256]` | The IDT |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `uint32_t` | The vector |
+ * | `sysdesc` | `sysdesc_t` | The IDT's limit and base |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `memset()` with the arguments `pok_idt`, `0` and `sizeof(pok_idt)`.
+ * 2. Set `i` to `0`; then while `i` is less than or equal to `IRQ_VECTOR_LAST`,
+ *    repeat (after each pass: increment `i`):
+ *    1. Call `idt_set_gate()` with the arguments `i`, `ja_interrupt_stubs[i]`
+ *       and `0`.
+ * 3. Call `idt_set_gate()` with the arguments `EXCEPTION_SYSCALL`,
+ *    `ja_interrupt_stub_syscall` and `3`.
+ * 4. Call `idt_set_gate()` with the arguments `EXCEPTION_BREAKPOINT`,
+ *    `ja_interrupt_stubs[EXCEPTION_BREAKPOINT]` and `3`.
+ * 5. Set `sysdesc.limit` to `sizeof(pok_idt) - 1U`.
+ * 6. Set `sysdesc.base` to `(uint64_t)pok_idt`.
+ * 7. Call `cpu_load_idt()` with the address of `sysdesc`.
+ *
+ * @calls
+ * - `memset()`
+ * - `idt_set_gate()`
+ * - `cpu_load_idt()`
+ */
 void ja_idt_init(void)
 {
    sysdesc_t sysdesc;
@@ -137,6 +270,46 @@ void ja_idt_init(void)
 }
 
 
+/**
+ * @funcname `dump_registers`
+ *
+ * @description
+ * Prints the registers of an interrupt frame (debug output).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `frame` | `const interrupt_frame *` | [in] The frame. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Evaluate `printf_debug("CS: %%lx, SS: %%lx, RFLAGS: %%lx\n", (unsigned`
+ *    `long)frame->cs, (unsigned long)frame->ss, (unsigned long)frame->rflags)`.
+ * 2. Evaluate
+ *    `printf_debug("RIP: %%lx, RSP: %%lx, RBP: %%lx, ErrorCode: %%lx\n",`
+ *    `(unsigned`
+ *    `long)frame->rip, (unsigned long)frame->rsp, (unsigned long)frame->rbp,`
+ *    `(unsigned long)frame->error)`.
+ * 3. Evaluate
+ *    `printf_debug("RAX: %%lx, RBX: %%lx, RCX: %%lx, RDX: %%lx\n", (unsigned`
+ *    `long)frame->rax, (unsigned long)frame->rbx, (unsigned long)frame->rcx,`
+ *    `(unsigned long)frame->rdx)`.
+ * 4. Evaluate
+ *    `printf_debug("RSI: %%lx, RDI: %%lx\n", (unsigned long)frame->rsi,`
+ *    `(unsigned long)frame->rdi)`.
+ *
+ * @calls
+ * - `printf()`
+ */
 static void dump_registers(const interrupt_frame* frame)
 {
    printf_debug("CS: %lx, SS: %lx, RFLAGS: %lx\n",
@@ -151,14 +324,69 @@ static void dump_registers(const interrupt_frame* frame)
       (unsigned long)frame->rsi, (unsigned long)frame->rdi);
 }
 
+/**
+ * @funcname `process_exception`
+ *
+ * @description
+ * Handles an exception: prints it, raises its health monitoring error; an
+ * exception in the kernel is fatal.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `frame` | `interrupt_frame *` | [in] The frame. |
+ * | `from_user` | `pok_bool_t` | [in] Whether it came from user space. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `cr2` | `uint64_t` | The page fault address |
+ * | `error_id` | `pok_error_id_t` | Its error |
+ * | `exceptions` | `static const exception_info_t[32]` | The name and error of each exception |
+ * | `name` | `const char *` | The exception's name |
+ * | `vector` | `uint32_t` | The vector |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `vector` to `frame->vector`.
+ * 2. Set `name` to `exceptions[vector].name` if `exceptions[vector].name` is
+ *    not NULL, otherwise `"reserved"`.
+ * 3. Set `error_id` to `exceptions[vector].error_id` if
+ *    `exceptions[vector].name` is not NULL, otherwise
+ *    `POK_ERROR_ID_UNHANDLED_INT`.
+ * 4. Call `dump_registers()` with the argument `frame`.
+ * 5. If `vector` is equal to `14U`:
+ *    1. Call `cpu_read_cr2()`, and store the result in `cr2`.
+ *    2. Evaluate
+ *       `printf_debug("[KERNEL] Raise exception %%s at 0x%%lx. RIP=0x%%lx\n",`
+ *       `name, (unsigned long)cr2, (unsigned long)frame->rip)`.
+ * 6. Otherwise:
+ *    1. Evaluate
+ *       `printf_debug("[KERNEL] Raise exception %%s. RIP=0x%%lx\n", name,`
+ *       `(unsigned long)frame->rip)`.
+ * 7. Call `pok_raise_error()` with the arguments `error_id`, `from_user` and
+ *    `(void*)frame->rip`.
+ * 8. If `from_user` is false:
+ *    1. Call `pok_fatal()` with the argument
+ *       `"Unrecoverable exception in kernel"`.
+ *
+ * @calls
+ * - `dump_registers()`
+ * - `cpu_read_cr2()`
+ * - `printf()`
+ * - `pok_raise_error()`
+ * - `pok_fatal()`
+ */
 static void process_exception(interrupt_frame* frame, pok_bool_t from_user)
 {
    /* Same mapping as for (32-bit) x86. */
-   static const struct
-   {
-      const char* name;
-      pok_error_id_t error_id;
-   } exceptions[EXCEPTION_COUNT] =
+   static const exception_info_t exceptions[EXCEPTION_COUNT] =
    {
       [0]  = {"divide by zero error", POK_ERROR_ID_NUMERIC_ERROR},
       [1]  = {"debug", POK_ERROR_ID_ILLEGAL_REQUEST},
@@ -211,6 +439,72 @@ static void process_exception(interrupt_frame* frame, pok_bool_t from_user)
    }
 }
 
+/**
+ * @funcname `ja_interrupt_handler`
+ *
+ * @description
+ * The common interrupt handler (from interrupt_entries.S): a syscall, the
+ * timer, a spurious IRQ, a GDB trap or an exception; on the way back to user
+ * space it sets the kernel stack of the thread that returns and restores its FP
+ * registers.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `frame` | `interrupt_frame *` | [in,out] The interrupt frame. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `global_thread_stack` | `interrupt_frame *` | The frame of the interrupted thread, for the GDB server |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `from_user` | `pok_bool_t` | Whether it came from user space |
+ * | `handled` | `pok_bool_t` | Whether GDB handled the trap |
+ * | `previous_frame` | `interrupt_frame *` | The frame before |
+ * | `vector` | `uint64_t` | The vector |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `from_user` to `(frame->cs & 3U) == 3U`.
+ * 2. Set `vector` to `frame->vector`.
+ * 3. Set `previous_frame` to `global_thread_stack`.
+ * 4. Set `global_thread_stack` to `frame`.
+ * 5. If `vector` is equal to `EXCEPTION_SYSCALL`:
+ *    1. Call `process_syscall()` with the argument `frame`.
+ * 6. Otherwise, if `vector` is equal to `EXCEPTION_TIMER`:
+ *    1. Call `ja_bsp_process_timer()` with the argument `frame`.
+ * 7. Otherwise, if `vector` is greater than or equal to `IRQ_VECTOR_FIRST` and
+ *    `vector` is less than or equal to `IRQ_VECTOR_LAST`:
+ *    1. Do nothing.
+ * 8. Otherwise:
+ *    1. Set `handled` to `FALSE`.
+ *    2. If `vector` is equal to `EXCEPTION_DEBUG` or `vector` is equal to
+ *       `EXCEPTION_BREAKPOINT`:
+ *       1. Call `ja_gdb_trap()` with the arguments `frame`, `(uint32_t)vector`
+ *          and `from_user`, and store the result in `handled`.
+ *    3. If `handled` is false:
+ *       1. Call `process_exception()` with the arguments `frame` and
+ *          `from_user`.
+ * 9. If `from_user` is false:
+ *    1. Set `global_thread_stack` to `previous_frame`.
+ * 10. If `from_user` is true:
+ *     1. Call `ja_tss_set_rsp0()` with the argument `(uint64_t)(frame + 1)`.
+ *     2. Call `pok_partition_return_user_fp()`.
+ *
+ * @calls
+ * - `process_syscall()`
+ * - `ja_bsp_process_timer()`
+ * - `ja_gdb_trap()`
+ * - `process_exception()`
+ * - `ja_tss_set_rsp0()`
+ * - `pok_partition_return_user_fp()`
+ */
 void ja_interrupt_handler(interrupt_frame* frame)
 {
    pok_bool_t from_user = (frame->cs & 3U) == 3U;
@@ -218,7 +512,7 @@ void ja_interrupt_handler(interrupt_frame* frame)
 
 #ifdef POK_NEEDS_GDB
    // Registers of the interrupted thread, for the GDB server.
-   struct jet_interrupt_context* previous_frame = global_thread_stack;
+   interrupt_frame* previous_frame = global_thread_stack;
    global_thread_stack = frame;
 #endif /* POK_NEEDS_GDB */
 

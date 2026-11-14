@@ -23,41 +23,71 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file and
+ * its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * hv_action_e (was hv_action_t); the macros, types and declarations are in
+ * arch/internal.h, documented there.
  */
 
-/*
+/**
+ * @file
  * PSCI (Arm Power State Coordination Interface), both ways:
  *
- * - The hypervisor starts the other CPUs with CPU_ON, through smc: with
- *   EL2 and no EL3, QEMU 'virt' answers PSCI calls made with smc.
+ * - The hypervisor starts the other CPUs with CPU_ON, through smc: with EL2
+ *   and no EL3, QEMU 'virt' answers PSCI calls made with smc.
  * - A guest's calls (hvc, or smc, which HCR_EL2.TSC traps) are answered
  *   here, for a VM with one running vCPU: VERSION (1.0), FEATURES,
  *   AFFINITY_INFO, CPU_ON (the only CPU is on already), CPU_OFF and
- *   SYSTEM_OFF (the VM stops) and SYSTEM_RESET (the VM restarts).
- *   Anything else is NOT_SUPPORTED.
+ *   SYSTEM_OFF (the VM stops) and SYSTEM_RESET (the VM restarts). Anything
+ *   else is NOT_SUPPORTED.
  */
 
 #include <arch/internal.h>
 
-#define PSCI_VERSION            0x84000000U
-#define PSCI_CPU_OFF            0x84000002U
-#define PSCI_CPU_ON_32          0x84000003U
-#define PSCI_CPU_ON_64          0xC4000003U
-#define PSCI_AFFINITY_INFO_32   0x84000004U
-#define PSCI_AFFINITY_INFO_64   0xC4000004U
-#define PSCI_SYSTEM_OFF         0x84000008U
-#define PSCI_SYSTEM_RESET       0x84000009U
-#define PSCI_FEATURES           0x8400000AU
-
-#define PSCI_VERSION_1_0        0x00010000
-#define PSCI_SUCCESS            0
-#define PSCI_NOT_SUPPORTED      (-1)
-#define PSCI_INVALID_PARAMETERS (-2)
-#define PSCI_ALREADY_ON         (-4)
-#define PSCI_AFFINITY_ON        0
-
-#define MPIDR_AFFINITY          0xFFFFFFUL  // Affinity levels 0-2
-
+/**
+ * @funcname `psci_host_cpu_on`
+ *
+ * @description
+ * Starts a physical CPU with PSCI CPU_ON (64-bit), through smc.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `mpidr` | `uint64_t` | [in] The CPU's MPIDR. |
+ * | `entry` | `uint64_t` | [in] The physical address where it starts. |
+ * | `context` | `uint64_t` | [in] The context ID it gets in x0 (its index). |
+ *
+ * @return The PSCI result: 0 on success.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x0` | `uint64_t` | Register x0: the function ID, then the result |
+ * | `x1` | `uint64_t` | Register x1: the MPIDR |
+ * | `x2` | `uint64_t` | Register x2: the entry point |
+ * | `x3` | `uint64_t` | Register x3: the context ID |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `x0` to `PSCI_CPU_ON_64`.
+ * 2. Set `x1` to `mpidr`.
+ * 3. Set `x2` to `entry`.
+ * 4. Set `x3` to `context`.
+ * 5. Execute the assembly code `smc #0`.
+ * 6. Return `(int64_t) x0`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (psci_host_cpu_on()): the
  * smc instruction is GNU inline assembly, with GNU register variables
@@ -77,7 +107,46 @@ int64_t psci_host_cpu_on(uint64_t mpidr, uint64_t entry, uint64_t context)
     return (int64_t) x0;
 }
 
-// Whether a guest PSCI function is answered (PSCI_FEATURES).
+/**
+ * @funcname `supported`
+ *
+ * @description
+ * Tells whether a guest PSCI function is answered (for PSCI_FEATURES).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `function` | `uint32_t` | [in] The function ID. |
+ *
+ * @return true for the functions of this file.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `yes` | `bool` | Whether it is answered |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Depending on `function`:
+ *    1. Case `PSCI_VERSION` or `PSCI_CPU_OFF` or `PSCI_CPU_ON_32` or
+ *       `PSCI_CPU_ON_64` or `PSCI_AFFINITY_INFO_32` or `PSCI_AFFINITY_INFO_64`
+ *       or `PSCI_SYSTEM_OFF` or `PSCI_SYSTEM_RESET` or `PSCI_FEATURES`:
+ *       1. Set `yes` to `true`.
+ *       2. Leave the switch.
+ *    2. Otherwise (default):
+ *       1. Set `yes` to `false`.
+ *       2. Leave the switch.
+ * 2. Return `yes`.
+ *
+ * @calls
+ * None.
+ */
 static bool supported(uint32_t function)
 {
     bool yes;
@@ -101,17 +170,90 @@ static bool supported(uint32_t function)
     return yes;
 }
 
-/*
- * A guest's PSCI call (hvc or smc #immediate, function in x0): the result
- * goes to x0; returns what the run loop does next.
+/**
+ * @funcname `psci_guest_call`
+ *
+ * @description
+ * Answers a guest's PSCI call (hvc or smc, the function in x0); the result goes
+ * to x0.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `vcpu` | `hv_vcpu_t *` | [in,out] The vCPU. |
+ * | `immediate` | `uint32_t` | [in] The immediate of the hvc or smc (0 for PSCI). |
+ *
+ * @return What the run loop does next: HV_CONTINUE, HV_STOP or HV_RESET.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `regs` | `hv_guest_regs_t *` | The guest's registers |
+ * | `function` | `uint32_t` | The function ID |
+ * | `target` | `uint64_t` | The target MPIDR (x1) |
+ * | `result` | `int64_t` | The result |
+ * | `action` | `hv_action_e` | What the run loop does next |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `regs` to the address of `vcpu->arch.regs`.
+ * 2. Set `function` to `(uint32_t) regs->x[0]`.
+ * 3. Set `target` to `regs->x[1] & MPIDR_AFFINITY`.
+ * 4. Set `result` to `PSCI_NOT_SUPPORTED`.
+ * 5. Set `action` to `HV_CONTINUE`.
+ * 6. If `immediate` is not equal to `0U`:
+ *    1. Set `function` to `0U`.
+ * 7. Depending on `function`:
+ *    1. Case `PSCI_VERSION`:
+ *       1. Set `result` to `PSCI_VERSION_1_0`.
+ *       2. Leave the switch.
+ *    2. Case `PSCI_FEATURES`:
+ *       1. Set `result` to `PSCI_SUCCESS` if `supported((uint32_t) regs->x[1])`
+ *          is true, otherwise `PSCI_NOT_SUPPORTED`.
+ *       2. Leave the switch.
+ *    3. Case `PSCI_AFFINITY_INFO_32` or `PSCI_AFFINITY_INFO_64`:
+ *       1. Set `result` to `PSCI_AFFINITY_ON` if `target` is equal to
+ *          `vcpu->index`, otherwise `PSCI_INVALID_PARAMETERS`.
+ *       2. Leave the switch.
+ *    4. Case `PSCI_CPU_ON_32` or `PSCI_CPU_ON_64`:
+ *       1. Set `result` to `PSCI_ALREADY_ON` if `target` is equal to
+ *          `vcpu->index`, otherwise `PSCI_INVALID_PARAMETERS`.
+ *       2. Leave the switch.
+ *    5. Case `PSCI_CPU_OFF`:
+ *       1. Call `vm_print()` with the arguments `vcpu->vm` and
+ *          `"turned its CPU off (PSCI CPU_OFF)"`.
+ *       2. Set `action` to `HV_STOP`.
+ *       3. Leave the switch.
+ *    6. Case `PSCI_SYSTEM_OFF`:
+ *       1. Call `vm_print()` with the arguments `vcpu->vm` and
+ *          `"powered off (PSCI SYSTEM_OFF)"`.
+ *       2. Set `action` to `HV_STOP`.
+ *       3. Leave the switch.
+ *    7. Case `PSCI_SYSTEM_RESET`:
+ *       1. Set `action` to `HV_RESET`.
+ *       2. Leave the switch.
+ *    8. Otherwise (default):
+ *       1. Leave the switch.
+ * 8. Set `regs->x[0]` to `(uint64_t) result`.
+ * 9. Return `action`.
+ *
+ * @calls
+ * - `supported()`
+ * - `vm_print()`
  */
-hv_action_t psci_guest_call(hv_vcpu_t *vcpu, uint32_t immediate)
+hv_action_e psci_guest_call(hv_vcpu_t *vcpu, uint32_t immediate)
 {
     hv_guest_regs_t *regs = &vcpu->arch.regs;
     uint32_t function = (uint32_t) regs->x[0];
     uint64_t target = regs->x[1] & MPIDR_AFFINITY;
     int64_t result = PSCI_NOT_SUPPORTED;
-    hv_action_t action = HV_CONTINUE;
+    hv_action_e action = HV_CONTINUE;
 
     if (immediate != 0U) {
         function = 0U;          // Not a PSCI call: NOT_SUPPORTED

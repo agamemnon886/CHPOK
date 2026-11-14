@@ -1,3 +1,9 @@
+/*
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
+ */
+
 #ifndef POK_VIRTIO_RING_H
 #define POK_VIRTIO_RING_H
 /* An interface for efficient virtio implementation, currently for use by KVM
@@ -42,88 +48,170 @@
  * of mixed precedence are parenthesized; deviations are documented where a
  * guideline can't be followed; vring_init() doesn't do arithmetic on a void
  * pointer.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
  */
 
 #include <types.h>
 
-/* This marks a buffer as continuing via the next field. */
+/**
+ * @macroname `VRING_DESC_F_NEXT`
+ *
+ * @description
+ * This marks a buffer as continuing via the next field.
+ */
 #define VRING_DESC_F_NEXT	1U
-/* This marks a buffer as write-only (otherwise read-only). */
+
+/**
+ * @macroname `VRING_DESC_F_WRITE`
+ *
+ * @description
+ * This marks a buffer as write-only (otherwise read-only).
+ */
 #define VRING_DESC_F_WRITE	2
-/* This means the buffer contains a list of buffer descriptors. */
+
+/**
+ * @macroname `VRING_DESC_F_INDIRECT`
+ *
+ * @description
+ * This means the buffer contains a list of buffer descriptors.
+ */
 #define VRING_DESC_F_INDIRECT	4
 
-/* The Host uses this in used->flags to advise the Guest: don't kick me when
- * you add a buffer.  It's unreliable, so it's simply an optimization.  Guest
- * will still kick if it's out of buffers. */
+/**
+ * @macroname `VRING_USED_F_NO_NOTIFY`
+ *
+ * @description
+ * The Host uses this in used->flags to advise the Guest: don't kick me when you
+ * add a buffer. It's unreliable, so it's simply an optimization. Guest will
+ * still kick if it's out of buffers.
+ */
 #define VRING_USED_F_NO_NOTIFY	1
-/* The Guest uses this in avail->flags to advise the Host: don't interrupt me
- * when you consume a buffer.  It's unreliable, so it's simply an
- * optimization.  */
+
+/**
+ * @macroname `VRING_AVAIL_F_NO_INTERRUPT`
+ *
+ * @description
+ * The Guest uses this in avail->flags to advise the Host: don't interrupt me
+ * when you consume a buffer. It's unreliable, so it's simply an optimization.
+ */
 #define VRING_AVAIL_F_NO_INTERRUPT	1
 
-/* We support indirect buffer descriptors */
+/**
+ * @macroname `VIRTIO_RING_F_INDIRECT_DESC`
+ *
+ * @description
+ * We support indirect buffer descriptors.
+ */
 #define VIRTIO_RING_F_INDIRECT_DESC	28
 
-/* The Guest publishes the used index for which it expects an interrupt
- * at the end of the avail ring. Host should ignore the avail->flags field. */
-/* The Host publishes the avail index for which it expects a kick
- * at the end of the used ring. Guest should ignore the used->flags field. */
+
+/**
+ * @macroname `VIRTIO_RING_F_EVENT_IDX`
+ *
+ * @description
+ * The event index feature: the guest publishes the used index for which it
+ * expects an interrupt at the end of the available ring, and the host publishes
+ * the available index for which it expects a kick at the end of the used ring;
+ * the flags fields are then ignored.
+ */
 #define VIRTIO_RING_F_EVENT_IDX		29
 
-/* Virtio ring descriptors: 16 bytes.  These can chain together via "next". */
-struct vring_desc {
-	/* Address (guest-physical). */
+/**
+ * @typename `vring_desc_t`
+ *
+ * @description
+ * Virtio ring descriptors: 16 bytes. These can chain together via "next".
+ */
+typedef struct {
+	/**
+	 * Address (guest-physical).
+	 */
 	uint64_t addr;
-	/* Length. */
+	/**
+	 * Length.
+	 */
 	uint32_t len;
-	/* The flags as indicated above. */
+	/**
+	 * The flags as indicated above.
+	 */
 	uint16_t flags;
-	/* We chain unused descriptors via this, too */
+	/**
+	 * We chain unused descriptors via this, too.
+	 */
 	uint16_t next;
-};
+} vring_desc_t;
 
-struct vring_avail {
-	uint16_t flags;
-	uint16_t idx;
+/**
+ * @typename `vring_avail_t`
+ *
+ * @description
+ * The available ring: the buffers the driver offers to the device.
+ */
+typedef struct {
+	uint16_t flags; /**< The flags (VRING_AVAIL_F_NO_INTERRUPT). */
+	uint16_t idx; /**< Where the driver puts the next entry. */
 	/* MISRA C:2025 Rule 18.7 deviation: the ring has the queue size,
 	 * which the device sets. */
-	uint16_t ring[];
-};
+	uint16_t ring[]; /**< The heads of the available descriptor chains. */
+} vring_avail_t;
 
-/* u32 is used here for ids for padding reasons. */
-struct vring_used_elem {
-	/* Index of start of used descriptor chain. */
+/**
+ * @typename `vring_used_elem_t`
+ *
+ * @description
+ * An entry of the used ring: a used descriptor chain (32-bit fields for padding
+ * reasons).
+ */
+typedef struct {
+	/**
+	 * Index of start of used descriptor chain.
+	 */
 	uint32_t id;
-	/* Total length of the descriptor chain which was used (written to) */
+	/**
+	 * Total length of the descriptor chain which was used (written to).
+	 */
 	uint32_t len;
-};
+} vring_used_elem_t;
 
-struct vring_used {
-	uint16_t flags;
-	uint16_t idx;
+/**
+ * @typename `vring_used_t`
+ *
+ * @description
+ * The used ring: the buffers the device has used.
+ */
+typedef struct {
+	uint16_t flags; /**< The flags (VRING_USED_F_NO_NOTIFY). */
+	uint16_t idx; /**< Where the device puts the next entry. */
 	/* MISRA C:2025 Rule 18.7 deviation: the ring has the queue size,
 	 * which the device sets. */
-	struct vring_used_elem ring[];
-};
+	vring_used_elem_t ring[]; /**< The used buffers. */
+} vring_used_t;
 
-struct vring {
-	uint32_t num;
+/**
+ * @typename `vring_t`
+ *
+ * @description
+ * A virtio ring: its descriptor table, its available ring and its used ring.
+ */
+typedef struct {
+	uint32_t num; /**< The number of descriptors. */
 
-	struct vring_desc *desc;
+	vring_desc_t *desc; /**< The descriptor table. */
 
-	struct vring_avail *avail;
+	vring_avail_t *avail; /**< The available ring. */
 
-	struct vring_used *used;
-};
+	vring_used_t *used; /**< The used ring. */
+} vring_t;
 
 /* The standard layout for the ring is a continuous chunk of memory which looks
  * like this.  We assume num is a power of 2.
  *
- * struct vring
+ * vring_t
  * {
  *	// The actual descriptors (16 bytes each)
- *	struct vring_desc desc[num];
+ *	vring_desc_t desc[num];
  *
  *	// A ring of available descriptor heads with free-running index.
  *	uint16_t avail_flags;
@@ -137,21 +225,51 @@ struct vring {
  *	// A ring of used descriptor heads with free-running index.
  *	uint16_t used_flags;
  *	uint16_t used_idx;
- *	struct vring_used_elem used[num];
+ *	vring_used_elem_t used[num];
  *	uint16_t avail_event_idx;
  * };
  */
-/* We publish the used event index at the end of the available ring, and vice
- * versa. They are at the end for backwards compatibility. */
+
+/**
+ * @macroname `vring_used_event`
+ *
+ * @description
+ * We publish the used event index at the end of the available ring, and vice
+ * versa. They are at the end for backwards compatibility.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `vr` | The ring (vring_t *). |
+ */
 #define vring_used_event(vr) ((vr)->avail->ring[(vr)->num])
+
+/**
+ * @macroname `vring_avail_event`
+ *
+ * @description
+ * The avail event index, published by the host at the end of the used ring (an
+ * lvalue).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `vr` | The ring (vring_t *). |
+ */
 #define vring_avail_event(vr) (*(uint16_t *)&(vr)->used->ring[(vr)->num])
 
-static inline void vring_init(struct vring *vr, uint32_t num, void *p,
+/*
+ * Lays out the rings of a virtqueue in its memory: the descriptors, the
+ * available ring after them, and the used ring at the next multiple of the
+ * alignment after the available ring (as the virtio specification lays them
+ * out).
+ */
+static inline void vring_init(vring_t *vr, uint32_t num, void *p,
 			      uintptr_t align)
 {
 	vr->num = num;
 	vr->desc = p;
-	vr->avail = (void *) ((char *) p + (num * sizeof(struct vring_desc)));
+	vr->avail = (void *) ((char *) p + (num * sizeof(vring_desc_t)));
 	/* MISRA C:2025 Rule 11.4 and Rule 11.6 deviation: the used ring
 	 * starts at the next multiple of align after the available ring, as
 	 * the virtio specification lays the rings out. */
@@ -159,19 +277,23 @@ static inline void vring_init(struct vring *vr, uint32_t num, void *p,
 		+ align-1U) & ~(align - 1U));
 }
 
+/*
+ * Returns the size of the memory of a virtqueue's rings.
+ */
 static inline uint32_t vring_size(uint32_t num, uintptr_t align)
 {
-	return (((sizeof(struct vring_desc) * num)
+	return (((sizeof(vring_desc_t) * num)
                  + (sizeof(uint16_t) * (3U + num))
 		 + align - 1U) & ~(align - 1U))
 		+ (sizeof(uint16_t) * 3U)
-		    + (sizeof(struct vring_used_elem) * num);
+		    + (sizeof(vring_used_elem_t) * num);
 }
 
-/* The following is used with USED_EVENT_IDX and AVAIL_EVENT_IDX */
-/* Assuming a given event_idx value from the other size, if
- * we have just incremented index from old to new_idx,
- * should we trigger an event? */
+/*
+ * Tells whether an event should be triggered: after the index was incremented
+ * from old to new_idx, given the event index from the other side
+ * (USED_EVENT_IDX and AVAIL_EVENT_IDX).
+ */
 static inline int32_t vring_need_event(uint16_t event_idx, uint16_t new_idx, uint16_t old)
 {
 	/* Note: Xen has similar logic for notification hold-off

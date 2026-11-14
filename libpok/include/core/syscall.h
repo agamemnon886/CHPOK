@@ -35,11 +35,52 @@
 
 #include <asp/syscall.h>
 
+/**
+ * @macroname `pok_syscall0`
+ *
+ * @description
+ * Makes a system call with 0 arguments: lja_syscall0() of the architecture.
+ */
 #define pok_syscall0 lja_syscall0
+
+/**
+ * @macroname `pok_syscall1`
+ *
+ * @description
+ * Makes a system call with 1 argument: lja_syscall1() of the architecture.
+ */
 #define pok_syscall1 lja_syscall1
+
+/**
+ * @macroname `pok_syscall2`
+ *
+ * @description
+ * Makes a system call with 2 arguments: lja_syscall2() of the architecture.
+ */
 #define pok_syscall2 lja_syscall2
+
+/**
+ * @macroname `pok_syscall3`
+ *
+ * @description
+ * Makes a system call with 3 arguments: lja_syscall3() of the architecture.
+ */
 #define pok_syscall3 lja_syscall3
+
+/**
+ * @macroname `pok_syscall4`
+ *
+ * @description
+ * Makes a system call with 4 arguments: lja_syscall4() of the architecture.
+ */
 #define pok_syscall4 lja_syscall4
+
+/**
+ * @macroname `pok_syscall5`
+ *
+ * @description
+ * Makes a system call with 5 arguments: lja_syscall5() of the architecture.
+ */
 #define pok_syscall5 lja_syscall5
 
 // This should come after pok_syscall* definitions

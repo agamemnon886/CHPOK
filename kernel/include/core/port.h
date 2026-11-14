@@ -20,6 +20,15 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed; the structure tag
  * pok_partition_arinc replaces the reserved _pok_patition_arinc.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; Doxygen comments for the file and its types.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_queuing_discipline_e (was pok_queuing_discipline_t), pok_ret_e (was
+ * pok_ret_t); the Doxygen comment of the file is removed (header files are not
+ * documented).
  */
 
 #ifndef POK_KERNEL_PORT_H
@@ -34,89 +43,96 @@
 
 struct pok_partition_arinc;
 
-/* 
- * Queuing port. 
+/**
+ * @typename `pok_port_queuing_t`
+ *
+ * @description
+ * Queuing port.
  */
 typedef struct
 {
-    /* 
+    /**
      * Name of the port.
-     * 
+     *
      * Set in the deployment.c.
      */
     const char                  *name;
-    /*
+    /**
      * Queue of waited threads.
      */
     pok_thread_wq_t             waiters;
     
-    /*
+    /**
      * Channel to which port is connected.
-     * 
+     *
      * Set in the deployment.c.
      */
     pok_channel_queuing_t       *channel;
 
-    /*
+    /**
      * Direction (IN or OUT).
-     * 
+     *
      * Set in the deployment.c.
      */
     pok_port_directions_t       direction;
     
-    /*
+    /**
      * Queuing discipline.
-     * 
+     *
      * Set on port creation.
      */
-    pok_queuing_discipline_t    discipline;
+    pok_queuing_discipline_e    discipline;
 
-    /* Whether port has been created (with CREATE_QUEUING_PORT)*/
+    /**
+     * Whether port has been created (with CREATE_QUEUING_PORT).
+     */
     pok_bool_t                  is_created;
 } pok_port_queuing_t;
 
 // Initialize queuing port.
+
+/** \cond */
 void pok_port_queuing_init(pok_port_queuing_t* port_queuing);
 
 
-pok_ret_t pok_port_queuing_create(
+pok_ret_e pok_port_queuing_create(
     const char* JET_USER              name,
     pok_port_size_t                 message_size,
     pok_port_size_t                 max_nb_message,
     pok_port_direction_t            direction,
-    pok_queuing_discipline_t        discipline,
+    pok_queuing_discipline_e        discipline,
     pok_port_id_t* JET_USER           id);
 
 
-pok_ret_t pok_port_queuing_create_packed(
+pok_ret_e pok_port_queuing_create_packed(
     const char* JET_USER              name,
     const pok_port_queuing_create_arg_t* JET_USER arg,
     pok_port_id_t* JET_USER           id);
     
 
-pok_ret_t pok_port_queuing_receive(
+pok_ret_e pok_port_queuing_receive(
     pok_port_id_t               id, 
     const pok_time_t* JET_USER    timeout, 
     void* JET_USER                data, 
     pok_port_size_t* JET_USER     len);
 
 
-pok_ret_t pok_port_queuing_send(
+pok_ret_e pok_port_queuing_send(
     pok_port_id_t               id, 
     const void* JET_USER          data,
     pok_port_size_t             len,
     const pok_time_t* JET_USER    timeout);
 
 
-pok_ret_t pok_port_queuing_status(
+pok_ret_e pok_port_queuing_status(
     pok_port_id_t               id,
     pok_port_queuing_status_t* JET_USER status);
 
-pok_ret_t pok_port_queuing_id(
+pok_ret_e pok_port_queuing_id(
     const char* JET_USER name,
     pok_port_id_t* JET_USER id);
 
-pok_ret_t pok_port_queuing_clear(pok_port_id_t id);
+pok_ret_e pok_port_queuing_clear(pok_port_id_t id);
 
 /* 
  * Receive message from the port into specified process.
@@ -150,50 +166,62 @@ void port_queuing_receive(pok_port_queuing_t* port, pok_thread_t* t);
  */
 void port_queuing_send(pok_port_queuing_t* port, pok_thread_t* t);
 
+/** \endcond */
 
-/* 
+
+/**
+ * @typename `pok_port_sampling_t`
+ *
+ * @description
  * Sampling port.
- * 
- * Contain common parts for "in" and "out" ports +
- * refresh_period for "in" port.
+ *
+ * Contain common parts for "in" and "out" ports + refresh_period for "in" port.
  */
 typedef struct
 {
-    /* 
+    /**
      * Name of the port.
-     * 
+     *
      * Should be set initially.
      */
     const char                  *name;
     
-    /*
+    /**
      * Channel to which port is connected.
-     * 
+     *
      * Should be set initially.
      */
     pok_channel_sampling_t       *channel;
 
-    /*
+    /**
      * Direction (IN or OUT).
-     * 
+     *
      * Should be set initially.
      */
     pok_port_directions_t       direction;
 
-    /* Whether port has been created (with CREATE_SAMPLING_PORT)*/
+    /**
+     * Whether port has been created (with CREATE_SAMPLING_PORT).
+     */
     pok_bool_t                  is_created;
 
-    /* Refresh period for IN port. */
+    /**
+     * Refresh period for IN port.
+     */
     pok_time_t                  refresh_period;
     
-    /* Validity of last message read from the port. */
+    /**
+     * Validity of last message read from the port.
+     */
     pok_bool_t                  last_message_validity;
 } pok_port_sampling_t;
 
 // Initialize sampling port
+
+/** \cond */
 void pok_port_sampling_init(pok_port_sampling_t* port_sampling);
 
-pok_ret_t pok_port_sampling_create(
+pok_ret_e pok_port_sampling_create(
     const char* JET_USER          name,
     pok_port_size_t             size,
     pok_port_direction_t        direction,
@@ -201,29 +229,31 @@ pok_ret_t pok_port_sampling_create(
     pok_port_id_t               *id
 );
 
-pok_ret_t pok_port_sampling_write(
+pok_ret_e pok_port_sampling_write(
     pok_port_id_t           id,
     const void JET_USER       *data,
     pok_port_size_t         len
 );
 
-pok_ret_t pok_port_sampling_read(
+pok_ret_e pok_port_sampling_read(
     pok_port_id_t           id,
     void JET_USER             *data,
     pok_port_size_t JET_USER  *len,
     pok_bool_t JET_USER       *valid
 );
 
-pok_ret_t pok_port_sampling_id(
+pok_ret_e pok_port_sampling_id(
     const char JET_USER       *name,
     pok_port_id_t           *id
 );
 
-pok_ret_t pok_port_sampling_status (
+pok_ret_e pok_port_sampling_status (
     pok_port_id_t                      id,
     pok_port_sampling_status_t JET_USER   *status
 );
 
-pok_ret_t pok_port_sampling_check(pok_port_id_t id);
+pok_ret_e pok_port_sampling_check(pok_port_id_t id);
+
+/** \endcond */
 
 #endif /* POK_KERNEL_PORT_H */

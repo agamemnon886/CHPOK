@@ -19,6 +19,14 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * memchr() of libpok.
  */
 
 #include <string.h>
@@ -29,6 +37,46 @@
  * unsigned char.
  */
 
+/**
+ * @funcname `memchr`
+ *
+ * @description
+ * Finds the first byte of a value in a block of memory (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s` | `const void *` | [in] The memory. |
+ * | `c` | `int` | [in] The value (converted to unsigned char). |
+ * | `n` | `size_t` | [in] The size of the memory. |
+ *
+ * @return The address of the byte, or NULL if there is none.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ch` | `const unsigned char` | The value |
+ * | `i` | `size_t` | The index of the byte |
+ * | `mem` | `const unsigned char *` | The memory, as bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `mem` to `(const unsigned char *)s`.
+ * 2. Set `ch` to `(unsigned char)c`.
+ * 3. Set `i` to `0U`.
+ * 4. While `i` is less than `n` and `mem[i]` is not equal to `ch`:
+ *    1. Increment `i`.
+ * 5. Return `(void*)&mem[i]` if `i` is less than `n`, otherwise `NULL`.
+ *
+ * @calls
+ * None.
+ */
 void *memchr(const void *s, int c, size_t n)
 {
     const unsigned char *mem = (const unsigned char *)s;

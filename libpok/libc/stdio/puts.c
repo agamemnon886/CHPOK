@@ -22,6 +22,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: an index loop
  * that doesn't modify the parameter.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * puts() of libpok.
  */
 
 /*
@@ -31,9 +43,54 @@
 #include <stdio.h>
 #include "stream.h"
 
+/**
+ * @funcname `puts`
+ *
+ * @description
+ * Writes a string and a newline to stdout (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s` | `const char *` | [in] The string. |
+ *
+ * @return 0.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `stdout` | `FILE *` | The standard output stream |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `size_t` | The index of the character |
+ * | `op` | `stdio_operation_t` | The output operation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `stdio_operation_begin()` with the arguments the address of `op` and
+ *    `stdout`.
+ * 2. Set `i` to `0U`; then while `s[i]` is not equal to `'\0'`, repeat (after
+ *    each pass: increment `i`):
+ *    1. Call `stdio_operation_emit_character()` with the arguments `s[i]` and
+ *       the address of `op`.
+ * 3. Call `stdio_operation_emit_character()` with the arguments `'\n'` and the
+ *    address of `op`.
+ * 4. Call `stdio_operation_end()` with the address of `op`.
+ * 5. Return `0`.
+ *
+ * @calls
+ * - `stdio_operation_begin()`
+ * - `stdio_operation_emit_character()`
+ * - `stdio_operation_end()`
+ */
 int puts(const char *s)
 {
-    struct stdio_operation op;
+    stdio_operation_t op;
 
     stdio_operation_begin(&op, stdout);
     for(size_t i = 0U; s[i] != '\0'; i++) {

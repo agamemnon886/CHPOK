@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 13:44:27 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)s_isnan.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * isnan() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /*
  * isnan(x) returns 1 is x is nan, else 0;
  * no branching!
@@ -36,6 +49,42 @@
 #include <types.h>
 #include "math_private.h"
 
+/**
+ * @funcname `isnan`
+ *
+ * @description
+ * Tells whether x is a NaN.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return Non-zero if it is.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hx` | `int32_t` | The high word of x |
+ * | `lx` | `int32_t` | The low word of x |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `EXTRACT_WORDS()` with the arguments `hx`, `lx` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `hx`.
+ * 3. Set the bits `(uint32_t)(lx|(-lx))>>31` in `hx`.
+ * 4. Set `hx` to `0x7ff00000 - hx`.
+ * 5. Return `(int)((uint32_t)(hx))>>31`.
+ *
+ * @calls
+ * None.
+ */
 int
 isnan(double x)
 {

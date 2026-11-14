@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)er_lgamma.c 5.1 93/09/24 */
@@ -26,6 +35,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * sin_pi() and `__ieee754_lgamma_r()` of libpok's math library (fdlibm, from
+ * Sun Microsystems).
+ */
 /* __ieee754_lgamma_r(x, signgamp)
  * Reentrant version of the logarithm of the Gamma function
  * with user provide pointer for the sign of Gamma(x).
@@ -169,6 +183,89 @@ w6  = -1.63092934096575273989e-03; /* 0xBF5AB89D, 0x0B9E43E4 */
 
 static const double zero=  0.00000000000000000000e+00;
 
+/**
+ * @funcname `sin_pi`
+ *
+ * @description
+ * Returns sin(pi*x) for the reflection of lgamma().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return sin(pi*x).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `pi` | `const double` | A constant of the algorithm |
+ * | `two52` | `const double` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int` | The high word of x |
+ * | `n` | `int` | The low word of z |
+ * | `y` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `ix` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `ix`.
+ * 3. If `ix` is less than `0x3fd00000`:
+ *    1. Call `__kernel_sin()` with the arguments `pi*x`, `zero` and `0`, and
+ *       return its result.
+ * 4. Set `y` to `-x`.
+ * 5. Call `floor()` with the argument `y`, and store the result in `z`.
+ * 6. If `z` is not equal to `y`:
+ *    1. Multiply `y` by `0.5`.
+ *    2. Set `y` to `2.0*(y - floor(y))`.
+ *    3. Set `n` to `(int) (y*4.0)`.
+ * 7. Otherwise:
+ *    1. If `ix` is greater than or equal to `0x43400000`:
+ *       1. Set `y` to `zero`.
+ *       2. Set `n` to `0`.
+ *    2. Otherwise:
+ *       1. If `ix` is less than `0x43300000`:
+ *          1. Set `z` to `y+two52`.
+ *       2. Use the macro `GET_LOW_WORD()` with the arguments `n` and `z`.
+ *       3. Keep only the bits `1` of `n`.
+ *       4. Set `y` to `n`.
+ *       5. Shift `n` left by `2` bits.
+ * 8. Depending on `n`:
+ *    1. Case `0`:
+ *       1. Call `__kernel_sin()` with the arguments `pi*y`, `zero` and `0`,
+ *          and store the result in `y`.
+ *       2. Leave the switch.
+ *    2. Case `1` or `2`:
+ *       1. Call `__kernel_cos()` with the arguments `pi*(0.5-y)` and `zero`,
+ *          and store the result in `y`.
+ *       2. Leave the switch.
+ *    3. Case `3` or `4`:
+ *       1. Call `__kernel_sin()` with the arguments `pi*(one-y)`, `zero` and
+ *          `0`, and store the result in `y`.
+ *       2. Leave the switch.
+ *    4. Case `5` or `6`:
+ *       1. Set `y` to `-__kernel_cos(pi*(y-1.5),zero)`.
+ *       2. Leave the switch.
+ *    5. Otherwise (default):
+ *       1. Call `__kernel_sin()` with the arguments `pi*(y-2.0)`, `zero` and
+ *          `0`, and store the result in `y`.
+ *       2. Leave the switch.
+ * 9. Return `-y`.
+ *
+ * @calls
+ * - `__kernel_sin()`
+ * - `floor()`
+ * - `__kernel_cos()`
+ */
 static
 double sin_pi(double x)
 {
@@ -215,6 +312,225 @@ double sin_pi(double x)
 }
 
 
+/**
+ * @funcname `__ieee754_lgamma_r`
+ *
+ * @description
+ * Computes the logarithm of the absolute value of the gamma function of x: the
+ * IEEE 754 core of lgamma_r().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `signgamp` | `int *` | [out] Where the sign of gamma(x) is stored. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `a0` | `const double` | A constant of the algorithm |
+ * | `a1` | `const double` | A constant of the algorithm |
+ * | `a10` | `const double` | A constant of the algorithm |
+ * | `a11` | `const double` | A constant of the algorithm |
+ * | `a2` | `const double` | A constant of the algorithm |
+ * | `a3` | `const double` | A constant of the algorithm |
+ * | `a4` | `const double` | A constant of the algorithm |
+ * | `a5` | `const double` | A constant of the algorithm |
+ * | `a6` | `const double` | A constant of the algorithm |
+ * | `a7` | `const double` | A constant of the algorithm |
+ * | `a8` | `const double` | A constant of the algorithm |
+ * | `a9` | `const double` | A constant of the algorithm |
+ * | `half` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `pi` | `const double` | A constant of the algorithm |
+ * | `r1` | `const double` | A constant of the algorithm |
+ * | `r2` | `const double` | A constant of the algorithm |
+ * | `r3` | `const double` | A constant of the algorithm |
+ * | `r4` | `const double` | A constant of the algorithm |
+ * | `r5` | `const double` | A constant of the algorithm |
+ * | `r6` | `const double` | A constant of the algorithm |
+ * | `s0` | `const double` | A constant of the algorithm |
+ * | `s1` | `const double` | A constant of the algorithm |
+ * | `s2` | `const double` | A constant of the algorithm |
+ * | `s3` | `const double` | A constant of the algorithm |
+ * | `s4` | `const double` | A constant of the algorithm |
+ * | `s5` | `const double` | A constant of the algorithm |
+ * | `s6` | `const double` | A constant of the algorithm |
+ * | `t0` | `const double` | A constant of the algorithm |
+ * | `t1` | `const double` | A constant of the algorithm |
+ * | `t10` | `const double` | A constant of the algorithm |
+ * | `t11` | `const double` | A constant of the algorithm |
+ * | `t12` | `const double` | A constant of the algorithm |
+ * | `t13` | `const double` | A constant of the algorithm |
+ * | `t14` | `const double` | A constant of the algorithm |
+ * | `t2` | `const double` | A constant of the algorithm |
+ * | `t3` | `const double` | A constant of the algorithm |
+ * | `t4` | `const double` | A constant of the algorithm |
+ * | `t5` | `const double` | A constant of the algorithm |
+ * | `t6` | `const double` | A constant of the algorithm |
+ * | `t7` | `const double` | A constant of the algorithm |
+ * | `t8` | `const double` | A constant of the algorithm |
+ * | `t9` | `const double` | A constant of the algorithm |
+ * | `tc` | `const double` | A constant of the algorithm |
+ * | `tf` | `const double` | A constant of the algorithm |
+ * | `tt` | `const double` | A constant of the algorithm |
+ * | `u0` | `const double` | A constant of the algorithm |
+ * | `u1` | `const double` | A constant of the algorithm |
+ * | `u2` | `const double` | A constant of the algorithm |
+ * | `u3` | `const double` | A constant of the algorithm |
+ * | `u4` | `const double` | A constant of the algorithm |
+ * | `u5` | `const double` | A constant of the algorithm |
+ * | `v1` | `const double` | A constant of the algorithm |
+ * | `v2` | `const double` | A constant of the algorithm |
+ * | `v3` | `const double` | A constant of the algorithm |
+ * | `v4` | `const double` | A constant of the algorithm |
+ * | `v5` | `const double` | A constant of the algorithm |
+ * | `w0` | `const double` | A constant of the algorithm |
+ * | `w1` | `const double` | A constant of the algorithm |
+ * | `w2` | `const double` | A constant of the algorithm |
+ * | `w3` | `const double` | A constant of the algorithm |
+ * | `w4` | `const double` | A constant of the algorithm |
+ * | `w5` | `const double` | A constant of the algorithm |
+ * | `w6` | `const double` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hx` | `int` | The high word of x |
+ * | `i` | `int` | A temporary of the computation |
+ * | `ix` | `int` | The high word of x without the sign bit |
+ * | `lx` | `int` | The low word of x |
+ * | `nadj` | `double` | A temporary of the computation |
+ * | `p` | `double` | A temporary of the computation |
+ * | `p1` | `double` | A temporary of the computation |
+ * | `p2` | `double` | A temporary of the computation |
+ * | `p3` | `double` | A temporary of the computation |
+ * | `q` | `double` | A temporary of the computation |
+ * | `r` | `double` | A temporary of the computation |
+ * | `t` | `double` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ * | `y` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `nadj` to `0`.
+ * 2. Use the macro `EXTRACT_WORDS()` with the arguments `hx`, `lx` and `x`.
+ * 3. Set `*signgamp` to `1`.
+ * 4. Set `ix` to `hx&0x7fffffff`.
+ * 5. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. Return `x*x`.
+ * 6. If `(ix|lx)` is equal to `0`:
+ *    1. Return `one/zero`.
+ * 7. If `ix` is less than `0x3b900000`:
+ *    1. If `hx` is less than `0`:
+ *       1. Set `*signgamp` to `-1`.
+ *       2. Return `-__ieee754_log(-x)`.
+ *    2. Otherwise:
+ *       1. Return `-__ieee754_log(x)`.
+ * 8. If `hx` is less than `0`:
+ *    1. If `ix` is greater than or equal to `0x43300000`:
+ *       1. Return `one/zero`.
+ *    2. Call `sin_pi()` with the argument `x`, and store the result in `t`.
+ *    3. If `t` is equal to `zero`:
+ *       1. Return `one/zero`.
+ *    4. Call `__ieee754_log()` with the argument `pi/fabs(t*x)`, and store the
+ *       result in `nadj`.
+ *    5. If `t` is less than `zero`:
+ *       1. Set `*signgamp` to `-1`.
+ *    6. Set `x` to `-x`.
+ * 9. If `((ix-0x3ff00000)|lx)` is equal to `0` or `((ix-0x40000000)|lx)` is
+ *    equal to `0`:
+ *    1. Set `r` to `0`.
+ * 10. Otherwise, if `ix` is less than `0x40000000`:
+ *     1. If `ix` is less than or equal to `0x3feccccc`:
+ *        1. Set `r` to `-__ieee754_log(x)`.
+ *        2. If `ix` is greater than or equal to `0x3FE76944`:
+ *           1. Set `y` to `one-x`.
+ *           2. Set `i` to `0`.
+ *        3. Otherwise, if `ix` is greater than or equal to `0x3FCDA661`:
+ *           1. Set `y` to `x-(tc-one)`.
+ *           2. Set `i` to `1`.
+ *        4. Otherwise:
+ *           1. Set `y` to `x`.
+ *           2. Set `i` to `2`.
+ *     2. Otherwise:
+ *        1. Set `r` to `zero`.
+ *        2. If `ix` is greater than or equal to `0x3FFBB4C3`:
+ *           1. Set `y` to `2.0-x`.
+ *           2. Set `i` to `0`.
+ *        3. Otherwise, if `ix` is greater than or equal to `0x3FF3B4C4`:
+ *           1. Set `y` to `x-tc`.
+ *           2. Set `i` to `1`.
+ *        4. Otherwise:
+ *           1. Set `y` to `x-one`.
+ *           2. Set `i` to `2`.
+ *     3. Depending on `i`:
+ *        1. Case `0`:
+ *           1. Set `z` to `y*y`.
+ *           2. Set `p1` to `a0+z*(a2+z*(a4+z*(a6+z*(a8+z*a10))))`.
+ *           3. Set `p2` to `z*(a1+z*(a3+z*(a5+z*(a7+z*(a9+z*a11)))))`.
+ *           4. Set `p` to `y*p1+p2`.
+ *           5. Add `(p-0.5*y)` to `r`.
+ *           6. Leave the switch.
+ *        2. Case `1`:
+ *           1. Set `z` to `y*y`.
+ *           2. Set `w` to `z*y`.
+ *           3. Set `p1` to `t0+w*(t3+w*(t6+w*(t9 +w*t12)))`.
+ *           4. Set `p2` to `t1+w*(t4+w*(t7+w*(t10+w*t13)))`.
+ *           5. Set `p3` to `t2+w*(t5+w*(t8+w*(t11+w*t14)))`.
+ *           6. Set `p` to `z*p1-(tt-w*(p2+y*p3))`.
+ *           7. Add `(tf + p)` to `r`.
+ *           8. Leave the switch.
+ *        3. Case `2`:
+ *           1. Set `p1` to `y*(u0+y*(u1+y*(u2+y*(u3+y*(u4+y*u5)))))`.
+ *           2. Set `p2` to `one+y*(v1+y*(v2+y*(v3+y*(v4+y*v5))))`.
+ *           3. Add `(-0.5*y + p1/p2)` to `r`.
+ * 11. Otherwise, if `ix` is less than `0x40200000`:
+ *     1. Set `i` to `(int)x`.
+ *     2. Set `t` to `zero`.
+ *     3. Set `y` to `x-(double)i`.
+ *     4. Set `p` to `y*(s0+y*(s1+y*(s2+y*(s3+y*(s4+y*(s5+y*s6))))))`.
+ *     5. Set `q` to `one+y*(r1+y*(r2+y*(r3+y*(r4+y*(r5+y*r6)))))`.
+ *     6. Set `r` to `half*y+p/q`.
+ *     7. Set `z` to `one`.
+ *     8. Depending on `i`:
+ *        1. Case `7`:
+ *           1. Multiply `z` by `(y+6.0)`.
+ *        2. Case `6`:
+ *           1. Multiply `z` by `(y+5.0)`.
+ *        3. Case `5`:
+ *           1. Multiply `z` by `(y+4.0)`.
+ *        4. Case `4`:
+ *           1. Multiply `z` by `(y+3.0)`.
+ *        5. Case `3`:
+ *           1. Multiply `z` by `(y+2.0)`.
+ *           2. Add `__ieee754_log(z)` to `r`.
+ *           3. Leave the switch.
+ * 12. Otherwise, if `ix` is less than `0x43900000`:
+ *     1. Call `__ieee754_log()` with the argument `x`, and store the result in
+ *        `t`.
+ *     2. Set `z` to `one/x`.
+ *     3. Set `y` to `z*z`.
+ *     4. Set `w` to `w0+z*(w1+y*(w2+y*(w3+y*(w4+y*(w5+y*w6)))))`.
+ *     5. Set `r` to `(x-half)*(t-one)+w`.
+ * 13. Otherwise:
+ *     1. Set `r` to `x*(__ieee754_log(x)-one)`.
+ * 14. If `hx` is less than `0`:
+ *     1. Set `r` to `nadj - r`.
+ * 15. Return `r`.
+ *
+ * @calls
+ * - `__ieee754_log()`
+ * - `sin_pi()`
+ * - `fabs()`
+ */
 double
 __ieee754_lgamma_r(double x, int *signgamp)
 {

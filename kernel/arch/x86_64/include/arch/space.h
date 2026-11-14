@@ -18,6 +18,12 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file and
+ * its types.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 /* (Memory) space. */
@@ -27,6 +33,13 @@
 
 #include <stdint.h>
 
+/**
+ * @typename `jet_ustack_t`
+ *
+ * @description
+ * The address of a user stack (0: none). The same type on arm64
+ * (kernel/arch/arm64/include/arch/space.h).
+ */
 typedef uintptr_t jet_ustack_t;
 
 #endif /* JET_X86_64_SPACE_H */

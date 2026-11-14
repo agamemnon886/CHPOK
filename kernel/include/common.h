@@ -27,6 +27,19 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for its macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
 
 #ifndef POK_COMMON_H
@@ -35,29 +48,35 @@
 
 #include <compiler.h>
 
-/*
+/**
+ * @macroname `JET_USER`
+ *
+ * @description
  * Mark pointer as pointer to user space.
- * 
- * Pointers of such types should be dereferenced only with special function
- * (see uaccess.h).
- * 
- * Some checkers can set this mark to something, which *actually*
- * prohibits incorrect usage of marked pointers.
- * 
+ *
+ * Pointers of such types should be dereferenced only with special function (see
+ * uaccess.h).
+ *
+ * Some checkers can set this mark to something, which *actually* prohibits
+ * incorrect usage of marked pointers.
+ *
  * Usage example:
- * 
- *    void a(char* JET_USER buf);
+ *
+ *    void a(char* JET_USER buf);.
  */
 #define JET_USER
 
-/*
+/**
+ * @macroname `JET_KUSER`
+ *
+ * @description
  * Kernel-space address of user memory area.
- * 
+ *
  * The address can be accessed only while being in corresponded space.
  */
 #define JET_KUSER
 
-/**
+/*
  * Casts pointer to member of structure to pointer to structure itself.
  * 
  * @ptr: the pointer to the member
@@ -76,15 +95,28 @@
  * GNU extensions (statement expression, typeof) make the compiler check
  * that ptr has the member's type, which plain C can't express.
  */
+
+/**
+ * @macroname `container_of`
+ *
+ * @description
+ * Casts pointer to member of structure to pointer to structure itself: the
+ * structure of type type whose member member is at ptr. Implementation is taken
+ * from Linux kernel.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `ptr` | The pointer to the member. |
+ * | `type` | The type of the container struct. |
+ * | `member` | The name of the member within the container. |
+ */
 #define container_of(ptr, type, member) ({                   \
     const typeof( ((type *)0)->member)* container_of_mptr = (ptr); \
     (type *)( (char*) container_of_mptr - offsetof(type, member) ); })
 
 /*
- * Return minimal value, which is greater-or-equal than given value
- * and has corresponded alignment.
- * 
- * @align should be constant and be power of 2.
+ * Rounds a value up to a multiple of an alignment.
  */
 static inline uintptr_t ALIGN_VAL(uintptr_t val, uintptr_t align)
 {

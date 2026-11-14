@@ -6,6 +6,7 @@
 /*
  * Institute for System Programming of the Russian Academy of Sciences
  * Copyright (C) 2016 ISPRAS
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -16,6 +17,17 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * See the GNU General Public License version 3 for more details.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions (the format of the function documentation, see
+ * README.md).
+ */
+
+/**
+ * @file
+ * The glue code of the components of a partition: the component
+ * instances, their initialization and links, and the loop of their
+ * activities (generated from misc/templates/glue.c.tpl).
  */
 
 struct port_ops{
@@ -28,12 +40,12 @@ struct port_ops{
         void __ARINC_SENDER_activity__(ARINC_SENDER*);
         ARINC_SENDER arinc_sender_1 = {
             .state = {
-                .port_direction = DESTINATION,
-                .q_port_max_nb_messages = 150,
-                .port_max_message_size = 4096,
                 .port_name = "UOUT",
+                .port_direction = DESTINATION,
                 .overhead = 42,
+                .port_max_message_size = 4096,
                 .is_queuing_port = 1,
+                .q_port_max_nb_messages = 150,
             },
 
         };
@@ -44,10 +56,10 @@ struct port_ops{
         UDP_IP_SENDER udp_ip_sender_1 = {
             .state = {
                 .src_ip = IP_ADDR(192, 168, 56, 101),
-                .dst_ip = IP_ADDR(192, 168, 56, 1),
-                .dst_mac = {0xc2, 0xc0, 0x31, 0xe9, 0x2c, 0xfe},
                 .src_port = 10002,
+                .dst_ip = IP_ADDR(192, 168, 56, 1),
                 .dst_port = 10003,
+                .dst_mac = {0x42, 0xdc, 0xec, 0x47, 0x99, 0x4d},
             },
 
         };
@@ -67,9 +79,9 @@ struct port_ops{
         void __VIRTIO_NET_DEV_activity__(VIRTIO_NET_DEV*);
         VIRTIO_NET_DEV net_dev_1 = {
             .state = {
-                .pci_fn = 0,
-                .pci_dev = 2,
                 .pci_bus = 0,
+                .pci_dev = 2,
+                .pci_fn = 0,
             },
 
         };
@@ -123,10 +135,10 @@ struct port_ops{
         void __ARINC_RECEIVER_activity__(ARINC_RECEIVER*);
         ARINC_RECEIVER arinc_receiver_1 = {
             .state = {
-                .port_direction = SOURCE,
-                .is_queuing_port = 1,
-                .port_max_message_size = 4096,
                 .port_name = "UIN",
+                .port_direction = SOURCE,
+                .port_max_message_size = 4096,
+                .is_queuing_port = 1,
                 .q_port_max_nb_messages = 150,
             },
 
@@ -134,6 +146,73 @@ struct port_ops{
 
 
 
+/**
+ * @funcname `__components_init__`
+ *
+ * @description
+ * Initializes the components of the partition: each one, then the links
+ * from their out ports to the in ports of other components.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_sender_1` | `ARINC_SENDER` | The component instance arinc_sender_1 |
+ * | `udp_ip_sender_1` | `UDP_IP_SENDER` | The component instance udp_ip_sender_1 |
+ * | `mac_sender_1` | `MAC_SENDER` | The component instance mac_sender_1 |
+ * | `net_dev_1` | `VIRTIO_NET_DEV` | The component instance net_dev_1 |
+ * | `arp_answerer_1` | `ARP_ANSWERER` | The component instance arp_answerer_1 |
+ * | `mac_receiver_1` | `MAC_RECEIVER` | The component instance mac_receiver_1 |
+ * | `udp_receiver` | `UDP_RECEIVER` | The component instance udp_receiver |
+ * | `router` | `ROUTER` | The component instance router |
+ * | `arinc_receiver_1` | `ARINC_RECEIVER` | The component instance arinc_receiver_1 |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ARINC_SENDER_init__()` with the argument `&arinc_sender_1`.
+ * 2. Call `__UDP_IP_SENDER_init__()` with the argument `&udp_ip_sender_1`.
+ * 3. Call `__MAC_SENDER_init__()` with the argument `&mac_sender_1`.
+ * 4. Call `__VIRTIO_NET_DEV_init__()` with the argument `&net_dev_1`.
+ * 5. Call `__ARP_ANSWERER_init__()` with the argument `&arp_answerer_1`.
+ * 6. Call `__MAC_RECEIVER_init__()` with the argument `&mac_receiver_1`.
+ * 7. Call `__UDP_RECEIVER_init__()` with the argument `&udp_receiver`.
+ * 8. Call `__ROUTER_init__()` with the argument `&router`.
+ * 9. Call `__ARINC_RECEIVER_init__()` with the argument `&arinc_receiver_1`.
+ * 10. Set `arinc_sender_1.out.portA.ops` to `&udp_ip_sender_1.in.portA.ops`.
+ * 11. Set `arinc_sender_1.out.portA.owner` to `&udp_ip_sender_1`.
+ * 12. Set `udp_ip_sender_1.out.portB.ops` to `&mac_sender_1.in.portA.ops`.
+ * 13. Set `udp_ip_sender_1.out.portB.owner` to `&mac_sender_1`.
+ * 14. Set `mac_sender_1.out.portB.ops` to `&net_dev_1.in.portA.ops`.
+ * 15. Set `mac_sender_1.out.portB.owner` to `&net_dev_1`.
+ * 16. Set `net_dev_1.out.portB.ops` to `&mac_receiver_1.in.portA.ops`.
+ * 17. Set `net_dev_1.out.portB.owner` to `&mac_receiver_1`.
+ * 18. Set `mac_receiver_1.out.port_ARP.ops` to `&arp_answerer_1.in.portA.ops`.
+ * 19. Set `mac_receiver_1.out.port_ARP.owner` to `&arp_answerer_1`.
+ * 20. Set `arp_answerer_1.out.portB.ops` to `&mac_sender_1.in.portA.ops`.
+ * 21. Set `arp_answerer_1.out.portB.owner` to `&mac_sender_1`.
+ * 22. Set `mac_receiver_1.out.port_UDP.ops` to `&udp_receiver.in.portA.ops`.
+ * 23. Set `mac_receiver_1.out.port_UDP.owner` to `&udp_receiver`.
+ * 24. Set `udp_receiver.out.portB.ops` to `&router.in.portA.ops`.
+ * 25. Set `udp_receiver.out.portB.owner` to `&router`.
+ * 26. Set `router.out.portArray[0].ops` to `&arinc_receiver_1.in.portA.ops`.
+ * 27. Set `router.out.portArray[0].owner` to `&arinc_receiver_1`.
+ *
+ * @calls
+ * - `__ARINC_SENDER_init__()`
+ * - `__UDP_IP_SENDER_init__()`
+ * - `__MAC_SENDER_init__()`
+ * - `__VIRTIO_NET_DEV_init__()`
+ * - `__ARP_ANSWERER_init__()`
+ * - `__MAC_RECEIVER_init__()`
+ * - `__UDP_RECEIVER_init__()`
+ * - `__ROUTER_init__()`
+ * - `__ARINC_RECEIVER_init__()`
+ */
 void __components_init__()
 {
             __ARINC_SENDER_init__(&arinc_sender_1);
@@ -176,6 +255,65 @@ void __components_init__()
 
 }
 
+/**
+ * @funcname `__components_activity__`
+ *
+ * @description
+ * The loop of the partition's components: forever, one step of the
+ * activity of each component in turn.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_sender_1` | `ARINC_SENDER` | The component instance arinc_sender_1 |
+ * | `udp_ip_sender_1` | `UDP_IP_SENDER` | The component instance udp_ip_sender_1 |
+ * | `mac_sender_1` | `MAC_SENDER` | The component instance mac_sender_1 |
+ * | `net_dev_1` | `VIRTIO_NET_DEV` | The component instance net_dev_1 |
+ * | `arp_answerer_1` | `ARP_ANSWERER` | The component instance arp_answerer_1 |
+ * | `mac_receiver_1` | `MAC_RECEIVER` | The component instance mac_receiver_1 |
+ * | `udp_receiver` | `UDP_RECEIVER` | The component instance udp_receiver |
+ * | `router` | `ROUTER` | The component instance router |
+ * | `arinc_receiver_1` | `ARINC_RECEIVER` | The component instance arinc_receiver_1 |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. While `1` is true:
+ *    1. Call `__ARINC_SENDER_activity__()` with the argument
+ *       `&arinc_sender_1`.
+ *    2. Call `__UDP_IP_SENDER_activity__()` with the argument
+ *       `&udp_ip_sender_1`.
+ *    3. Call `__MAC_SENDER_activity__()` with the argument
+ *       `&mac_sender_1`.
+ *    4. Call `__VIRTIO_NET_DEV_activity__()` with the argument
+ *       `&net_dev_1`.
+ *    5. Call `__ARP_ANSWERER_activity__()` with the argument
+ *       `&arp_answerer_1`.
+ *    6. Call `__MAC_RECEIVER_activity__()` with the argument
+ *       `&mac_receiver_1`.
+ *    7. Call `__UDP_RECEIVER_activity__()` with the argument
+ *       `&udp_receiver`.
+ *    8. Call `__ROUTER_activity__()` with the argument
+ *       `&router`.
+ *    9. Call `__ARINC_RECEIVER_activity__()` with the argument
+ *       `&arinc_receiver_1`.
+ *
+ * @calls
+ * - `__ARINC_SENDER_activity__()`
+ * - `__UDP_IP_SENDER_activity__()`
+ * - `__MAC_SENDER_activity__()`
+ * - `__VIRTIO_NET_DEV_activity__()`
+ * - `__ARP_ANSWERER_activity__()`
+ * - `__MAC_RECEIVER_activity__()`
+ * - `__UDP_RECEIVER_activity__()`
+ * - `__ROUTER_activity__()`
+ * - `__ARINC_RECEIVER_activity__()`
+ */
 void __components_activity__()
 {
     while (1) {

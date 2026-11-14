@@ -18,3 +18,6 @@ build/
 *.directory
 *.gdb_history
 MISRA.md
+
+# The function documentation (make docs): docs/<component>.pdf.
+/docs/

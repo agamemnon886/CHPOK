@@ -15,6 +15,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: jet_kernel_shared_t is used
+ * by its typedef name.
  */
 
 #ifndef LIBJET_KERNEL_SHARED_DATA_H
@@ -23,6 +26,6 @@
 #include <uapi/kernel_shared_data.h>
 
 /* This variable is defined by the linker. */
-extern struct jet_kernel_shared_data kshd;
+extern jet_kernel_shared_t kshd;
 
 #endif /* LIBJET_KERNEL_SHARED_DATA_H */

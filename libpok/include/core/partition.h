@@ -16,6 +16,8 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the unused macro
+ * pok_current_partition_preemption_disabled is removed.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -37,14 +39,30 @@
 
 #include <core/syscall.h>
 
-// Rename some syscalls
+/**
+ * @macroname `pok_partition_set_mode`
+ *
+ * @description
+ * The name of the system call pok_partition_set_mode_current() in libpok.
+ */
 #define pok_partition_set_mode pok_partition_set_mode_current
+
+/**
+ * @macroname `pok_partition_inc_lock_level`
+ *
+ * @description
+ * The name of the system call pok_current_partition_inc_lock_level() in libpok.
+ */
 #define pok_partition_inc_lock_level pok_current_partition_inc_lock_level
+
+/**
+ * @macroname `pok_partition_dec_lock_level`
+ *
+ * @description
+ * The name of the system call pok_current_partition_dec_lock_level() in libpok.
+ */
 #define pok_partition_dec_lock_level pok_current_partition_dec_lock_level
 
-// Wrapper around corresponded syscall. Returns whether preemption is disabled.
-#define pok_current_partition_preemption_disabled() \
-    ({int32_t lock_level; pok_current_partition_get_lock_level(&lock_level); lock_level > 0;})
 
 
 #endif

@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef POK_DRIVERS_NE2000_NE2000_NETWORK_H
@@ -22,6 +26,8 @@
 
 #include <net/network.h>
 
+/** \cond */
 void ne2000_net_init();
+/** \endcond */
 
 #endif

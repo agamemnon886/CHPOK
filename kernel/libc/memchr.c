@@ -1,32 +1,66 @@
-/* Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
+/*
+ * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
  * Boolean conditions; U suffixes for unsigned constants; deviations are
  * documented where a guideline can't be followed.
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: an index loop
  * that doesn't modify the parameters; deviations are documented where a
  * guideline can't be followed. Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * memchr() of the kernel's C library.
  */
 
 #include <libc.h>
 
+/**
+ * @funcname `memchr`
+ *
+ * @description
+ * Finds the first byte of a value in a block of memory (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s` | `const void *` | [in] The memory. |
+ * | `c` | `int` | [in] The value (converted to unsigned char). |
+ * | `n` | `size_t` | [in] The size of the memory. |
+ *
+ * @return The address of the byte, or NULL if there is none.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `size_t` | The index of the byte |
+ * | `p` | `const unsigned char *` | The memory, as bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `s`.
+ * 2. Set `i` to `0U`; then while `i` is less than `n`, repeat (after each pass:
+ *    increment `i`):
+ *    1. If `(unsigned char)c` is equal to `p[i]`:
+ *       1. Return `(void *)&p[i]`.
+ * 3. Return `NULL`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Rule 11.5 deviation (this file): the standard memchr() takes
  * and returns pointers to void; the bytes are accessed through pointers to
  * unsigned char.
- */
-/*
- *  linux/lib/string.c
- *
- *  Copyright (C) 1991, 1992  Linus Torvalds
- */
-/**
- * memchr - Find a character in an area of memory.
- * @s: The memory area
- * @c: The byte to search for
- * @n: The size of the area.
- *
- * returns the address of the first occurrence of @c, or %NULL
- * if @c is not found
  */
 void *memchr(const void *s, int c, size_t n)
 {

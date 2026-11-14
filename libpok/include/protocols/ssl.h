@@ -17,6 +17,13 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -28,21 +35,19 @@
 
 #include <types.h>
 
-/**
- * \file    libpok/protocols/ssl.h
- * \author  Julien Delange
- * \date    2009
- * \brief   SSL crypto protocol.
- *
- * More information at:
- * http://en.wikipedia.org/wiki/Transport_Layer_Security
- */
-
 #ifdef POK_NEEDS_PROTOCOLS
+/** \cond */
 void pok_protocols_ssl_unmarshall (void* crypted_data, pok_size_t crypted_size, void* uncrypted_data, size_t* uncrypted_size);
 
 void pok_protocols_ssl_marshall (void* uncrypted_data, pok_size_t uncrypted_size, void* crypted_data, size_t* crypted_size);
+/** \endcond */
 
+/**
+ * @macroname `pok_protocols_ssl_data_t`
+ *
+ * @description
+ * The type of the data of the SSL protocol.
+ */
 #define pok_protocols_ssl_data_t int32_t
 
 #endif

@@ -31,6 +31,16 @@
  * parameters and the message parameter of the send or write service are
  * const (they are only read), so callers can pass string literals and
  * const data.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * ARINC 653 blackboards (intra-partition communication): CREATE_BLACKBOARD,
+ * DISPLAY_BLACKBOARD, READ_BLACKBOARD, CLEAR_BLACKBOARD, GET_BLACKBOARD_ID
+ * and GET_BLACKBOARD_STATUS.
  */
 
 #include <config.h>
@@ -63,12 +73,52 @@
 
 static size_t nblackboards_used = 0;
 
-/* Find blackboard by name (in UPPERCASE). Returns NULL if not found. */
-static struct arinc_blackboard* find_blackboard(const char* name)
+/**
+ * @funcname `find_blackboard`
+ *
+ * @description
+ * Finds a blackboard by name (case insensitive).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `name` | `const char *` | [in] The name. |
+ *
+ * @return The blackboard, or NULL if there is none.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_blackboards` | `arinc_blackboard_t *` | The blackboards of the partition |
+ * | `nblackboards_used` | `size_t` | The number of blackboards created |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `blackboard` | `arinc_blackboard_t *` | The blackboard |
+ * | `i` | `size_t` | The index of a blackboard |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `i` to `0U`; then while `i` is less than `nblackboards_used`, repeat
+ *    (after each pass: increment `i`):
+ *    1. Set `blackboard` to the address of `arinc_blackboards[i]`.
+ *    2. If `strncasecmp(blackboard->blackboard_name, name, MAX_NAME_LENGTH)` is
+ *       equal to `0`:
+ *       1. Return `blackboard`.
+ * 2. Return `NULL`.
+ *
+ * @calls
+ * - `strncasecmp()`
+ */
+static arinc_blackboard_t* find_blackboard(const char* name)
 {
    for(size_t i = 0U; i < nblackboards_used; i++)
    {
-      struct arinc_blackboard* blackboard = &arinc_blackboards[i];
+      arinc_blackboard_t* blackboard = &arinc_blackboards[i];
       if(strncasecmp(blackboard->blackboard_name, name, MAX_NAME_LENGTH) == 0) {
          return blackboard;
       }
@@ -78,6 +128,76 @@ static struct arinc_blackboard* find_blackboard(const char* name)
 }
 
 
+/**
+ * @funcname `CREATE_BLACKBOARD`
+ *
+ * @description
+ * Creates a blackboard (ARINC 653 service), not in NORMAL mode: its message
+ * memory comes from the message allocator.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `BLACKBOARD_NAME` | `const BLACKBOARD_NAME_TYPE` | [in] The name. |
+ * | `MAX_MESSAGE_SIZE` | `MESSAGE_SIZE_TYPE` | [in] The maximum size of the message. |
+ * | `BLACKBOARD_ID` | `BLACKBOARD_ID_TYPE *` | [out] Where its ID is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, INVALID_MODE, NO_ACTION (the name exists), INVALID_CONFIG (too many or no memory) or INVALID_PARAM. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_blackboards` | `arinc_blackboard_t *` | The blackboards of the partition |
+ * | `arinc_config_nblackboards` | `size_t` | The maximum number of blackboards (configuration) |
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ * | `nblackboards_used` | `size_t` | The number of blackboards created |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `blackboard` | `arinc_blackboard_t *` | The new blackboard |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `kshd.partition_mode` is equal to `POK_PARTITION_MODE_NORMAL`:
+ *    1. Set `*RETURN_CODE` to `INVALID_MODE`.
+ *    2. Return.
+ * 2. If `find_blackboard(BLACKBOARD_NAME)` is not NULL:
+ *    1. Set `*RETURN_CODE` to `NO_ACTION`.
+ *    2. Return.
+ * 3. If `nblackboards_used` is equal to `arinc_config_nblackboards`:
+ *    1. Set `*RETURN_CODE` to `INVALID_CONFIG`.
+ *    2. Return.
+ * 4. If `MAX_MESSAGE_SIZE` is less than or equal to `0` or `MAX_MESSAGE_SIZE`
+ *    is greater than `SYSTEM_LIMIT_MESSAGE_SIZE`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 5. Set `blackboard` to the address of `arinc_blackboards[nblackboards_used]`.
+ * 6. Set `blackboard->max_message_size` to `MAX_MESSAGE_SIZE`.
+ * 7. Call `arinc_alloc()` with the arguments `blackboard->max_message_size` and
+ *    `__alignof__(int32_t)`, and store the result in `blackboard->message`.
+ * 8. If `blackboard->message` is NULL:
+ *    1. Set `*RETURN_CODE` to `INVALID_CONFIG`.
+ *    2. Return.
+ * 9. Call `strncpy()` with the arguments `blackboard->blackboard_name`,
+ *    `BLACKBOARD_NAME` and `MAX_NAME_LENGTH`.
+ * 10. Set `blackboard->message_size` to `0`.
+ * 11. Call `msection_init()` with the address of `blackboard->section`.
+ * 12. Call `msection_wq_init()` with the address of
+ *     `blackboard->process_queue`.
+ * 13. Set `*BLACKBOARD_ID` to `nblackboards_used + 1U`.
+ * 14. Increment `nblackboards_used`.
+ * 15. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * - `find_blackboard()`
+ * - `arinc_alloc()`
+ * - `strncpy()`
+ * - `msection_init()`
+ * - `msection_wq_init()`
+ */
 void CREATE_BLACKBOARD (
        /*in */ const BLACKBOARD_NAME_TYPE     BLACKBOARD_NAME,
        /*in */ MESSAGE_SIZE_TYPE        MAX_MESSAGE_SIZE,
@@ -109,7 +229,7 @@ void CREATE_BLACKBOARD (
       return;
    }
 
-   struct arinc_blackboard* blackboard = &arinc_blackboards[nblackboards_used];
+   arinc_blackboard_t* blackboard = &arinc_blackboards[nblackboards_used];
 
    blackboard->max_message_size = MAX_MESSAGE_SIZE;
 
@@ -137,6 +257,75 @@ void CREATE_BLACKBOARD (
    *RETURN_CODE = NO_ERROR;
 }
 
+/**
+ * @funcname `DISPLAY_BLACKBOARD`
+ *
+ * @description
+ * Displays a message on a blackboard (ARINC 653 service): the processes waiting
+ * on it receive the message and are released.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `BLACKBOARD_ID` | `BLACKBOARD_ID_TYPE` | [in] The blackboard. |
+ * | `MESSAGE_ADDR` | `const APEX_BYTE *` | [in] The message. |
+ * | `LENGTH` | `MESSAGE_SIZE_TYPE` | [in] Its length. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_PARAM. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_blackboards` | `arinc_blackboard_t *` | The blackboards of the partition |
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ * | `nblackboards_used` | `size_t` | The number of blackboards created |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `blackboard` | `arinc_blackboard_t *` | The blackboard |
+ * | `t` | `pok_thread_id_t` | A waiting process |
+ * | `w_dest` | `char *` | Its buffer |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `BLACKBOARD_ID` is less than or equal to `0` or `(size_t)BLACKBOARD_ID`
+ *    is greater than `nblackboards_used`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 2. Set `blackboard` to the address of `arinc_blackboards[BLACKBOARD_ID - 1]`.
+ * 3. If `LENGTH` is less than or equal to `0` or `LENGTH` is greater than
+ *    `blackboard->max_message_size`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 4. Call `msection_enter()` with the address of `blackboard->section`.
+ * 5. Call `memcpy()` with the arguments `blackboard->message`, `MESSAGE_ADDR`
+ *    and `LENGTH`.
+ * 6. Set `blackboard->message_size` to `LENGTH`.
+ * 7. If `msection_wq_notify(&blackboard->section, &blackboard->process_queue,`
+ *    `TRUE)` is equal to `POK_ERRNO_OK`:
+ *    1. Set `t` to `blackboard->process_queue.first`.
+ *    2. Repeat the following while `t` is not equal to `JET_THREAD_ID_NONE` (at
+ *       least once):
+ *       1. Set `w_dest` to `kshd.tshd[t].wq_buffer.dst`.
+ *       2. Call `memcpy()` with the arguments `w_dest`, `blackboard->message`
+ *          and `blackboard->message_size`.
+ *       3. Set `kshd.tshd[t].wq_len` to `blackboard->message_size`.
+ *       4. Call `msection_wq_del()` with the arguments the address of
+ *          `blackboard->process_queue` and `t`.
+ *       5. Set `t` to `blackboard->process_queue.first`.
+ * 8. Call `msection_leave()` with the address of `blackboard->section`.
+ * 9. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * - `msection_enter()`
+ * - `memcpy()`
+ * - `msection_wq_notify()`
+ * - `msection_wq_del()`
+ * - `msection_leave()`
+ */
 void DISPLAY_BLACKBOARD (
        /*in */ BLACKBOARD_ID_TYPE       BLACKBOARD_ID,
        /*in */ const APEX_BYTE *       MESSAGE_ADDR,       /* by reference */
@@ -149,7 +338,7 @@ void DISPLAY_BLACKBOARD (
       return;
    }
 
-   struct arinc_blackboard* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
+   arinc_blackboard_t* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
 
    if((LENGTH <= 0) || (LENGTH > blackboard->max_message_size)) {
       // LENGTH is non-positive or too big.
@@ -183,6 +372,90 @@ void DISPLAY_BLACKBOARD (
    *RETURN_CODE = NO_ERROR;
 }
 
+/**
+ * @funcname `READ_BLACKBOARD`
+ *
+ * @description
+ * Reads the message of a blackboard (ARINC 653 service); if it is empty, the
+ * process waits up to a time-out (released in priority, then FIFO order).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `BLACKBOARD_ID` | `BLACKBOARD_ID_TYPE` | [in] The blackboard. |
+ * | `TIME_OUT` | `SYSTEM_TIME_TYPE` | [in] The time-out (0: no wait). |
+ * | `MESSAGE_ADDR` | `MESSAGE_ADDR_TYPE` | [out] Where the message is stored. |
+ * | `LENGTH` | `MESSAGE_SIZE_TYPE *` | [out] Where its length is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, INVALID_PARAM, NOT_AVAILABLE, INVALID_MODE (waiting isn't allowed) or TIMED_OUT. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_blackboards` | `arinc_blackboard_t *` | The blackboards of the partition |
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ * | `nblackboards_used` | `size_t` | The number of blackboards created |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `blackboard` | `arinc_blackboard_t *` | The blackboard |
+ * | `t` | `pok_thread_id_t` | The current process |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `BLACKBOARD_ID` is less than or equal to `0` or `(size_t)BLACKBOARD_ID`
+ *    is greater than `nblackboards_used`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 2. Set `blackboard` to the address of `arinc_blackboards[BLACKBOARD_ID - 1]`.
+ * 3. Call `msection_enter()` with the address of `blackboard->section`.
+ * 4. If `blackboard->message_size` is greater than `0`:
+ *    1. Call `memcpy()` with the arguments `MESSAGE_ADDR`,
+ *       `blackboard->message` and `blackboard->message_size`.
+ *    2. Set `*LENGTH` to `blackboard->message_size`.
+ *    3. Set `*RETURN_CODE` to `NO_ERROR`.
+ * 5. Otherwise, if `TIME_OUT` is equal to `0`:
+ *    1. Set `*LENGTH` to `0`.
+ *    2. Set `*RETURN_CODE` to `NOT_AVAILABLE`.
+ * 6. Otherwise:
+ *    1. Set `t` to `kshd.current_thread_id`.
+ *    2. Set `kshd.tshd[t].wq_buffer.dst` to `MESSAGE_ADDR`.
+ *    3. Call `arinc_process_queue_add_common()` with the arguments the address
+ *       of `blackboard->process_queue` and `PRIORITY`.
+ *    4. Depending on `msection_wait(&blackboard->section, TIME_OUT)`:
+ *       1. Case `POK_ERRNO_OK`:
+ *          1. Set `*LENGTH` to `kshd.tshd[t].wq_len`.
+ *          2. Set `*RETURN_CODE` to `NO_ERROR`.
+ *          3. Leave the switch.
+ *       2. Case `POK_ERRNO_MODE` or `POK_ERRNO_CANCELLED`:
+ *          1. Call `msection_wq_del()` with the arguments the address of
+ *             `blackboard->process_queue` and `t`.
+ *          2. Set `*LENGTH` to `0`.
+ *          3. Set `*RETURN_CODE` to `INVALID_MODE`.
+ *          4. Leave the switch.
+ *       3. Case `POK_ERRNO_TIMEOUT`:
+ *          1. Call `msection_wq_del()` with the arguments the address of
+ *             `blackboard->process_queue` and `t`.
+ *          2. Set `*LENGTH` to `0`.
+ *          3. Set `*RETURN_CODE` to `TIMED_OUT`.
+ *          4. Leave the switch.
+ *       4. Otherwise (default):
+ *          1. Check that `FALSE` holds (assert_os: stop otherwise).
+ *          2. Leave the switch.
+ * 7. Call `msection_leave()` with the address of `blackboard->section`.
+ *
+ * @calls
+ * - `msection_enter()`
+ * - `memcpy()`
+ * - `arinc_process_queue_add_common()`
+ * - `msection_wait()`
+ * - `msection_wq_del()`
+ * - `assertion_os_fail()`
+ * - `msection_leave()`
+ */
 void READ_BLACKBOARD (
        /*in */ BLACKBOARD_ID_TYPE       BLACKBOARD_ID,
        /*in */ SYSTEM_TIME_TYPE         TIME_OUT,
@@ -196,7 +469,7 @@ void READ_BLACKBOARD (
       return;
    }
 
-   struct arinc_blackboard* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
+   arinc_blackboard_t* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
 
    msection_enter(&blackboard->section);
 
@@ -257,6 +530,48 @@ void READ_BLACKBOARD (
    msection_leave(&blackboard->section);
 }
 
+/**
+ * @funcname `CLEAR_BLACKBOARD`
+ *
+ * @description
+ * Clears the message of a blackboard (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `BLACKBOARD_ID` | `BLACKBOARD_ID_TYPE` | [in] The blackboard. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_PARAM. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_blackboards` | `arinc_blackboard_t *` | The blackboards of the partition |
+ * | `nblackboards_used` | `size_t` | The number of blackboards created |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `blackboard` | `arinc_blackboard_t *` | The blackboard |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `BLACKBOARD_ID` is less than or equal to `0` or `(size_t)BLACKBOARD_ID`
+ *    is greater than `nblackboards_used`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 2. Set `blackboard` to the address of `arinc_blackboards[BLACKBOARD_ID - 1]`.
+ * 3. Call `msection_enter()` with the address of `blackboard->section`.
+ * 4. Set `blackboard->message_size` to `0`.
+ * 5. Call `msection_leave()` with the address of `blackboard->section`.
+ * 6. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * - `msection_enter()`
+ * - `msection_leave()`
+ */
 void CLEAR_BLACKBOARD (
        /*in */ BLACKBOARD_ID_TYPE       BLACKBOARD_ID,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
@@ -267,7 +582,7 @@ void CLEAR_BLACKBOARD (
       return;
    }
 
-   struct arinc_blackboard* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
+   arinc_blackboard_t* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
 
    msection_enter(&blackboard->section);
    blackboard->message_size = 0;
@@ -276,13 +591,52 @@ void CLEAR_BLACKBOARD (
    *RETURN_CODE = NO_ERROR;
 }
 
+/**
+ * @funcname `GET_BLACKBOARD_ID`
+ *
+ * @description
+ * Returns the ID of a blackboard by name (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `BLACKBOARD_NAME` | `const BLACKBOARD_NAME_TYPE` | [in] The name. |
+ * | `BLACKBOARD_ID` | `BLACKBOARD_ID_TYPE *` | [out] Where the ID is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_CONFIG. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_blackboards` | `arinc_blackboard_t *` | The blackboards of the partition |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `blackboard` | `arinc_blackboard_t *` | The blackboard |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `find_blackboard()` with the argument `BLACKBOARD_NAME`, and store
+ *    the result in `blackboard`.
+ * 2. If `blackboard` is NULL:
+ *    1. Set `*RETURN_CODE` to `INVALID_CONFIG`.
+ *    2. Return.
+ * 3. Set `*BLACKBOARD_ID` to `(blackboard - arinc_blackboards) + 1`.
+ * 4. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * - `find_blackboard()`
+ */
 void GET_BLACKBOARD_ID (
        /*in */ const BLACKBOARD_NAME_TYPE     BLACKBOARD_NAME,
        /*out*/ BLACKBOARD_ID_TYPE       *BLACKBOARD_ID,
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE )
 {
 
-   struct arinc_blackboard* blackboard = find_blackboard(BLACKBOARD_NAME);
+   arinc_blackboard_t* blackboard = find_blackboard(BLACKBOARD_NAME);
    if(blackboard == NULL) {
       *RETURN_CODE = INVALID_CONFIG;
       return;
@@ -292,6 +646,57 @@ void GET_BLACKBOARD_ID (
    *RETURN_CODE = NO_ERROR;
 }
 
+/**
+ * @funcname `GET_BLACKBOARD_STATUS`
+ *
+ * @description
+ * Returns the status of a blackboard (ARINC 653 service): its maximum message
+ * size, whether it is empty and the number of waiting processes.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `BLACKBOARD_ID` | `BLACKBOARD_ID_TYPE` | [in] The blackboard. |
+ * | `BLACKBOARD_STATUS` | `BLACKBOARD_STATUS_TYPE *` | [out] Where the status is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_PARAM. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_blackboards` | `arinc_blackboard_t *` | The blackboards of the partition |
+ * | `nblackboards_used` | `size_t` | The number of blackboards created |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `blackboard` | `arinc_blackboard_t *` | The blackboard |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `BLACKBOARD_ID` is less than or equal to `0` or `(size_t)BLACKBOARD_ID`
+ *    is greater than `nblackboards_used`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 2. Set `blackboard` to the address of `arinc_blackboards[BLACKBOARD_ID - 1]`.
+ * 3. Set `BLACKBOARD_STATUS->MAX_MESSAGE_SIZE` to
+ *    `blackboard->max_message_size`.
+ * 4. Call `msection_enter()` with the address of `blackboard->section`.
+ * 5. Set `BLACKBOARD_STATUS->EMPTY_INDICATOR` to `EMPTY` if
+ *    `blackboard->message_size` is equal to `0`, otherwise `OCCUPIED`.
+ * 6. Call `msection_wq_size()` with the arguments the address of
+ *    `blackboard->section` and the address of `blackboard->process_queue`, and
+ *    store the result in `BLACKBOARD_STATUS->WAITING_PROCESSES`.
+ * 7. Call `msection_leave()` with the address of `blackboard->section`.
+ * 8. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * - `msection_enter()`
+ * - `msection_wq_size()`
+ * - `msection_leave()`
+ */
 void GET_BLACKBOARD_STATUS (
        /*in */ BLACKBOARD_ID_TYPE       BLACKBOARD_ID,
        /*out*/ BLACKBOARD_STATUS_TYPE   *BLACKBOARD_STATUS,
@@ -303,7 +708,7 @@ void GET_BLACKBOARD_STATUS (
       return;
    }
 
-   struct arinc_blackboard* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
+   arinc_blackboard_t* blackboard = &arinc_blackboards[BLACKBOARD_ID - 1];
 
    BLACKBOARD_STATUS->MAX_MESSAGE_SIZE = blackboard->max_message_size;
 

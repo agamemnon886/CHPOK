@@ -25,10 +25,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
- * arch/x86_64/.
+ * arch/x86_64/. Doxygen headers for the file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
+/**
+ * @file
  * Local APIC of the physical CPUs (xAPIC, memory-mapped): the timer that
  * drives the guests' virtual PIT, end of interrupt, and the INIT/SIPI
  * messages that start the other CPUs. The guests have no access to it.
@@ -36,34 +40,43 @@
 
 #include <arch/internal.h>
 
-#define LAPIC_ID            0x020U
-#define LAPIC_EOI           0x0B0U
-#define LAPIC_SVR           0x0F0U
-#define LAPIC_ICR_LOW       0x300U
-#define LAPIC_ICR_HIGH      0x310U
-#define LAPIC_LVT_TIMER     0x320U
-#define LAPIC_LVT_LINT0     0x350U
-#define LAPIC_LVT_LINT1     0x360U
-#define LAPIC_LVT_ERROR     0x370U
-#define LAPIC_TIMER_INIT    0x380U
-#define LAPIC_TIMER_CURRENT 0x390U
-#define LAPIC_TIMER_DIVIDE  0x3E0U
-
-#define LAPIC_SVR_ENABLE        ((uint32_t) 1U << 8)
-#define LAPIC_LVT_MASKED        ((uint32_t) 1U << 16)
-#define LAPIC_LVT_NMI           ((uint32_t) 4U << 8)
-#define LAPIC_TIMER_PERIODIC    ((uint32_t) 1U << 17)
-#define LAPIC_TIMER_DIVIDE_16   0x3U
-#define LAPIC_ICR_PENDING       ((uint32_t) 1U << 12)
-#define LAPIC_ICR_INIT          0x00004500U  // INIT, level, assert
-#define LAPIC_ICR_STARTUP       0x00004600U  // Start-up, level, assert
-
-#define APIC_BASE_ADDR_MASK     0xFFFFF000UL
-
 // Physical (= virtual) address of the local APIC registers.
 static uintptr_t lapic_base = 0xFEE00000UL;
 
-// Read a local APIC register.
+/**
+ * @funcname `lapic_read`
+ *
+ * @description
+ * Reads a local APIC register.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `reg` | `uint32_t` | [in] The register offset. |
+ *
+ * @return The register value.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `lapic_base` | `uintptr_t` | The address of the local APIC registers |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `p` | `const volatile uint32_t *` | The register |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `(const volatile uint32_t *) (lapic_base + reg)`.
+ * 2. Return the value at `p`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Rule 11.4 deviation (lapic_read(), lapic_write()): the
  * registers are at a fixed physical address, identity-mapped (uncached)
@@ -77,7 +90,39 @@ static uint32_t lapic_read(uint32_t reg)
     return *p;
 }
 
-// Write a local APIC register.
+/**
+ * @funcname `lapic_write`
+ *
+ * @description
+ * Writes a local APIC register.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `reg` | `uint32_t` | [in] The register offset. |
+ * | `value` | `uint32_t` | [in] The value. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `lapic_base` | `uintptr_t` | The address of the local APIC registers |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `p` | `volatile uint32_t *` | The register |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `(volatile uint32_t *) (lapic_base + reg)`.
+ * 2. Set `*p` to `value`.
+ *
+ * @calls
+ * None.
+ */
 static void lapic_write(uint32_t reg, uint32_t value)
 {
     volatile uint32_t *p = (volatile uint32_t *) (lapic_base + reg);
@@ -85,16 +130,72 @@ static void lapic_write(uint32_t reg, uint32_t value)
     *p = value;
 }
 
-// Take the address of the local APIC registers from IA32_APIC_BASE.
+/**
+ * @funcname `lapic_init_base`
+ *
+ * @description
+ * Takes the address of the local APIC registers from the IA32_APIC_BASE
+ * MSR. Called once at boot.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `lapic_base` | `uintptr_t` | The address of the local APIC registers |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `lapic_base` to
+ *    `(uintptr_t) (x86_rdmsr(MSR_APIC_BASE) & APIC_BASE_ADDR_MASK)`.
+ *
+ * @calls
+ * - `x86_rdmsr()`
+ */
 void lapic_init_base(void)
 {
     lapic_base = (uintptr_t) (x86_rdmsr(MSR_APIC_BASE)
                               & APIC_BASE_ADDR_MASK);
 }
 
-/*
- * Set up the local APIC of this CPU: enabled, LINT0 masked, LINT1 the NMI, the
- * timer stopped and divided by 16.
+/**
+ * @funcname `lapic_init_cpu`
+ *
+ * @description
+ * Sets up the local APIC of this CPU: software-enabled with the spurious
+ * vector, LINT0 masked (the legacy PIC isn't used), LINT1 the NMI, errors
+ * masked, the timer stopped and divided by 16.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_write()` with the arguments `LAPIC_SVR` and
+ *    `LAPIC_SVR_ENABLE | HV_VECTOR_SPURIOUS`.
+ * 2. Call `lapic_write()` with the arguments `LAPIC_LVT_LINT0` and
+ *    `LAPIC_LVT_MASKED`.
+ * 3. Call `lapic_write()` with the arguments `LAPIC_LVT_LINT1` and
+ *    `LAPIC_LVT_NMI`.
+ * 4. Call `lapic_write()` with the arguments `LAPIC_LVT_ERROR` and
+ *    `LAPIC_LVT_MASKED`.
+ * 5. Call `lapic_write()` with the arguments `LAPIC_TIMER_DIVIDE` and
+ *    `LAPIC_TIMER_DIVIDE_16`.
+ * 6. Call `lapic_timer_stop()`.
+ *
+ * @calls
+ * - `lapic_write()`
+ * - `lapic_timer_stop()`
  */
 void lapic_init_cpu(void)
 {
@@ -108,48 +209,229 @@ void lapic_init_cpu(void)
     lapic_timer_stop();
 }
 
-// Local APIC ID of this CPU.
+/**
+ * @funcname `lapic_id`
+ *
+ * @description
+ * Returns the local APIC ID of this CPU.
+ *
+ * @return The APIC ID.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `lapic_read(LAPIC_ID) >> 24`.
+ *
+ * @calls
+ * - `lapic_read()`
+ */
 uint32_t lapic_id(void)
 {
     return lapic_read(LAPIC_ID) >> 24;
 }
 
-// Signal the end of the current interrupt to the local APIC.
+/**
+ * @funcname `lapic_eoi`
+ *
+ * @description
+ * Signals the end of the current interrupt to the local APIC.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_write()` with the arguments `LAPIC_EOI` and `0U`.
+ *
+ * @calls
+ * - `lapic_write()`
+ */
 void lapic_eoi(void)
 {
     lapic_write(LAPIC_EOI, 0U);
 }
 
-// Timer interrupts every 'count' ticks (of the bus clock divided by 16).
+/**
+ * @funcname `lapic_timer_periodic`
+ *
+ * @description
+ * Starts the local APIC timer in periodic mode: an interrupt (the timer
+ * vector) every count ticks of the bus clock divided by 16.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `count` | `uint32_t` | [in] The period, in timer ticks. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_write()` with the arguments `LAPIC_LVT_TIMER` and
+ *    `LAPIC_TIMER_PERIODIC | HV_VECTOR_TIMER`.
+ * 2. Call `lapic_write()` with the arguments `LAPIC_TIMER_INIT` and `count`.
+ *
+ * @calls
+ * - `lapic_write()`
+ */
 void lapic_timer_periodic(uint32_t count)
 {
     lapic_write(LAPIC_LVT_TIMER, LAPIC_TIMER_PERIODIC | HV_VECTOR_TIMER);
     lapic_write(LAPIC_TIMER_INIT, count);
 }
 
-// Count down once from 'count', without an interrupt (calibration).
+/**
+ * @funcname `lapic_timer_oneshot`
+ *
+ * @description
+ * Starts the local APIC timer counting down once from count, without an
+ * interrupt (used to calibrate it).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `count` | `uint32_t` | [in] The initial count. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_write()` with the arguments `LAPIC_LVT_TIMER` and
+ *    `LAPIC_LVT_MASKED | HV_VECTOR_TIMER`.
+ * 2. Call `lapic_write()` with the arguments `LAPIC_TIMER_INIT` and `count`.
+ *
+ * @calls
+ * - `lapic_write()`
+ */
 void lapic_timer_oneshot(uint32_t count)
 {
     lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASKED | HV_VECTOR_TIMER);
     lapic_write(LAPIC_TIMER_INIT, count);
 }
 
-// Stop the local APIC timer of this CPU.
+/**
+ * @funcname `lapic_timer_stop`
+ *
+ * @description
+ * Stops the local APIC timer of this CPU.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_write()` with the arguments `LAPIC_LVT_TIMER` and
+ *    `LAPIC_LVT_MASKED | HV_VECTOR_TIMER`.
+ * 2. Call `lapic_write()` with the arguments `LAPIC_TIMER_INIT` and `0U`.
+ *
+ * @calls
+ * - `lapic_write()`
+ */
 void lapic_timer_stop(void)
 {
     lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASKED | HV_VECTOR_TIMER);
     lapic_write(LAPIC_TIMER_INIT, 0U);
 }
 
-// Current count of the local APIC timer of this CPU.
+/**
+ * @funcname `lapic_timer_current`
+ *
+ * @description
+ * Returns the current count of the local APIC timer of this CPU.
+ *
+ * @return The current count.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_read()` with the argument `LAPIC_TIMER_CURRENT`, and return
+ *    its result.
+ *
+ * @calls
+ * - `lapic_read()`
+ */
 uint32_t lapic_timer_current(void)
 {
     return lapic_read(LAPIC_TIMER_CURRENT);
 }
 
-/*
- * Send an interprocessor interrupt (ICR command) to a CPU and wait until it is
+/**
+ * @funcname `lapic_send_ipi`
+ *
+ * @description
+ * Sends an interprocessor interrupt to a CPU and waits until it is
  * delivered.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `apic_id` | `uint32_t` | [in] The destination's local APIC ID. |
+ * | `command` | `uint32_t` | [in] The low word of the ICR: delivery mode, level, vector. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_write()` with the arguments `LAPIC_ICR_HIGH` and
+ *    `apic_id << 24`.
+ * 2. Call `lapic_write()` with the arguments `LAPIC_ICR_LOW` and `command`.
+ * 3. While `(lapic_read(LAPIC_ICR_LOW) & LAPIC_ICR_PENDING)` is not equal to
+ *    `0U`:
+ *    1. Call `x86_pause()`.
+ *
+ * @calls
+ * - `lapic_write()`
+ * - `lapic_read()`
+ * - `x86_pause()`
  */
 static void lapic_send_ipi(uint32_t apic_id, uint32_t command)
 {
@@ -161,13 +443,67 @@ static void lapic_send_ipi(uint32_t apic_id, uint32_t command)
     }
 }
 
-// Send INIT to a CPU (by local APIC ID).
+/**
+ * @funcname `lapic_send_init`
+ *
+ * @description
+ * Sends INIT to a CPU, to start the INIT-SIPI-SIPI sequence.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `apic_id` | `uint32_t` | [in] The CPU's local APIC ID. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_send_ipi()` with the arguments `apic_id` and `LAPIC_ICR_INIT`.
+ *
+ * @calls
+ * - `lapic_send_ipi()`
+ */
 void lapic_send_init(uint32_t apic_id)
 {
     lapic_send_ipi(apic_id, LAPIC_ICR_INIT);
 }
 
-// Send a start-up IPI to a CPU: it starts in real mode at vector * 4 KiB.
+/**
+ * @funcname `lapic_send_sipi`
+ *
+ * @description
+ * Sends a start-up IPI to a CPU: it starts in real mode at vector * 4 KiB.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `apic_id` | `uint32_t` | [in] The CPU's local APIC ID. |
+ * | `vector` | `uint8_t` | [in] The start page (address / 4 KiB). |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_send_ipi()` with the arguments `apic_id` and
+ *    `LAPIC_ICR_STARTUP | (uint32_t) vector`.
+ *
+ * @calls
+ * - `lapic_send_ipi()`
+ */
 void lapic_send_sipi(uint32_t apic_id, uint8_t vector)
 {
     lapic_send_ipi(apic_id, LAPIC_ICR_STARTUP | (uint32_t) vector);

@@ -20,6 +20,10 @@
  * from <stdint.h>.
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: U suffixes for
  * unsigned constants.
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file, its
+ * types (with their members) and its macros.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -29,82 +33,178 @@
 #define ELF_H_
 #include <stdint.h>
 
+/**
+ * @typename `Elf32_Half`
+ *
+ * @description
+ * An unsigned 16-bit field of a 32-bit ELF file.
+ */
 typedef uint16_t Elf32_Half;
+
+/**
+ * @typename `Elf32_Word`
+ *
+ * @description
+ * An unsigned 32-bit field of a 32-bit ELF file.
+ */
 typedef uint32_t Elf32_Word;
+
+/**
+ * @typename `Elf32_Off`
+ *
+ * @description
+ * A file offset in a 32-bit ELF file.
+ */
 typedef uint32_t Elf32_Off;
+
+/**
+ * @typename `Elf32_Addr`
+ *
+ * @description
+ * An address in a 32-bit ELF file.
+ */
 typedef uint32_t Elf32_Addr;
 
+/**
+ * @macroname `EI_NIDENT`
+ *
+ * @description
+ * The size of e_ident, the identification bytes of an ELF header.
+ */
 #define EI_NIDENT (16)
 
+/**
+ * @typename `Elf32_Ehdr`
+ *
+ * @description
+ * The header of a 32-bit ELF file.
+ */
 typedef struct
 {
-  uint8_t	e_ident[EI_NIDENT];	/* Magic number and other info */
-  Elf32_Half	e_type;			/* Object file type */
-  Elf32_Half	e_machine;		/* Architecture */
-  Elf32_Word	e_version;		/* Object file version */
-  Elf32_Addr	e_entry;		/* Entry point virtual address */
-  Elf32_Off	e_phoff;		/* Program header table file offset */
-  Elf32_Off	e_shoff;		/* Section header table file offset */
-  Elf32_Word	e_flags;		/* Processor-specific flags */
-  Elf32_Half	e_ehsize;		/* ELF header size in bytes */
-  Elf32_Half	e_phentsize;		/* Program header table entry size */
-  Elf32_Half	e_phnum;		/* Program header table entry count */
-  Elf32_Half	e_shentsize;		/* Section header table entry size */
-  Elf32_Half	e_shnum;		/* Section header table entry count */
-  Elf32_Half	e_shstrndx;		/* Section header string table index */
+  uint8_t	e_ident[EI_NIDENT]; /**< Magic number and other info. */
+  Elf32_Half	e_type; /**< Object file type. */
+  Elf32_Half	e_machine; /**< Architecture. */
+  Elf32_Word	e_version; /**< Object file version. */
+  Elf32_Addr	e_entry; /**< Entry point virtual address. */
+  Elf32_Off	e_phoff; /**< Program header table file offset. */
+  Elf32_Off	e_shoff; /**< Section header table file offset. */
+  Elf32_Word	e_flags; /**< Processor-specific flags. */
+  Elf32_Half	e_ehsize; /**< ELF header size in bytes. */
+  Elf32_Half	e_phentsize; /**< Program header table entry size. */
+  Elf32_Half	e_phnum; /**< Program header table entry count. */
+  Elf32_Half	e_shentsize; /**< Section header table entry size. */
+  Elf32_Half	e_shnum; /**< Section header table entry count. */
+  Elf32_Half	e_shstrndx; /**< Section header string table index. */
 } Elf32_Ehdr;
 
 /* Program segment header.  */
 
+/**
+ * @typename `Elf32_Phdr`
+ *
+ * @description
+ * Program segment header (32-bit).
+ */
 typedef struct
 {
-  Elf32_Word	p_type;			/* Segment type */
-  Elf32_Off	p_offset;		/* Segment file offset */
-  Elf32_Addr	p_vaddr;		/* Segment virtual address */
-  Elf32_Addr	p_paddr;		/* Segment physical address */
-  Elf32_Word	p_filesz;		/* Segment size in file */
-  Elf32_Word	p_memsz;		/* Segment size in memory */
-  Elf32_Word	p_flags;		/* Segment flags */
-  Elf32_Word	p_align;		/* Segment alignment */
+  Elf32_Word	p_type; /**< Segment type. */
+  Elf32_Off	p_offset; /**< Segment file offset. */
+  Elf32_Addr	p_vaddr; /**< Segment virtual address. */
+  Elf32_Addr	p_paddr; /**< Segment physical address. */
+  Elf32_Word	p_filesz; /**< Segment size in file. */
+  Elf32_Word	p_memsz; /**< Segment size in memory. */
+  Elf32_Word	p_flags; /**< Segment flags. */
+  Elf32_Word	p_align; /**< Segment alignment. */
 } Elf32_Phdr;
 
+/**
+ * @typename `Elf64_Half`
+ *
+ * @description
+ * An unsigned 16-bit field of a 64-bit ELF file.
+ */
 typedef uint16_t Elf64_Half;
+
+/**
+ * @typename `Elf64_Word`
+ *
+ * @description
+ * An unsigned 32-bit field of a 64-bit ELF file.
+ */
 typedef uint32_t Elf64_Word;
+
+/**
+ * @typename `Elf64_Xword`
+ *
+ * @description
+ * An unsigned 64-bit field of a 64-bit ELF file.
+ */
 typedef uint64_t Elf64_Xword;
+
+/**
+ * @typename `Elf64_Off`
+ *
+ * @description
+ * A file offset in a 64-bit ELF file.
+ */
 typedef uint64_t Elf64_Off;
+
+/**
+ * @typename `Elf64_Addr`
+ *
+ * @description
+ * An address in a 64-bit ELF file.
+ */
 typedef uint64_t Elf64_Addr;
 
+/**
+ * @typename `Elf64_Ehdr`
+ *
+ * @description
+ * The header of a 64-bit ELF file.
+ */
 typedef struct
 {
-  uint8_t	e_ident[EI_NIDENT];	/* Magic number and other info */
-  Elf64_Half	e_type;			/* Object file type */
-  Elf64_Half	e_machine;		/* Architecture */
-  Elf64_Word	e_version;		/* Object file version */
-  Elf64_Addr	e_entry;		/* Entry point virtual address */
-  Elf64_Off	e_phoff;		/* Program header table file offset */
-  Elf64_Off	e_shoff;		/* Section header table file offset */
-  Elf64_Word	e_flags;		/* Processor-specific flags */
-  Elf64_Half	e_ehsize;		/* ELF header size in bytes */
-  Elf64_Half	e_phentsize;		/* Program header table entry size */
-  Elf64_Half	e_phnum;		/* Program header table entry count */
-  Elf64_Half	e_shentsize;		/* Section header table entry size */
-  Elf64_Half	e_shnum;		/* Section header table entry count */
-  Elf64_Half	e_shstrndx;		/* Section header string table index */
+  uint8_t	e_ident[EI_NIDENT]; /**< Magic number and other info. */
+  Elf64_Half	e_type; /**< Object file type. */
+  Elf64_Half	e_machine; /**< Architecture. */
+  Elf64_Word	e_version; /**< Object file version. */
+  Elf64_Addr	e_entry; /**< Entry point virtual address. */
+  Elf64_Off	e_phoff; /**< Program header table file offset. */
+  Elf64_Off	e_shoff; /**< Section header table file offset. */
+  Elf64_Word	e_flags; /**< Processor-specific flags. */
+  Elf64_Half	e_ehsize; /**< ELF header size in bytes. */
+  Elf64_Half	e_phentsize; /**< Program header table entry size. */
+  Elf64_Half	e_phnum; /**< Program header table entry count. */
+  Elf64_Half	e_shentsize; /**< Section header table entry size. */
+  Elf64_Half	e_shnum; /**< Section header table entry count. */
+  Elf64_Half	e_shstrndx; /**< Section header string table index. */
 } Elf64_Ehdr;
 
+/**
+ * @typename `Elf64_Phdr`
+ *
+ * @description
+ * Program segment header (64-bit).
+ */
 typedef struct
 {
-  Elf64_Word	p_type;			/* Segment type */
-  Elf64_Word	p_flags;		/* Segment flags */
-  Elf64_Off	p_offset;		/* Segment file offset */
-  Elf64_Addr	p_vaddr;		/* Segment virtual address */
-  Elf64_Addr	p_paddr;		/* Segment physical address */
-  Elf64_Xword	p_filesz;		/* Segment size in file */
-  Elf64_Xword	p_memsz;		/* Segment size in memory */
-  Elf64_Xword	p_align;		/* Segment alignment */
+  Elf64_Word	p_type; /**< Segment type. */
+  Elf64_Word	p_flags; /**< Segment flags. */
+  Elf64_Off	p_offset; /**< Segment file offset. */
+  Elf64_Addr	p_vaddr; /**< Segment virtual address. */
+  Elf64_Addr	p_paddr; /**< Segment physical address. */
+  Elf64_Xword	p_filesz; /**< Segment size in file. */
+  Elf64_Xword	p_memsz; /**< Segment size in memory. */
+  Elf64_Xword	p_align; /**< Segment alignment. */
 } Elf64_Phdr;
 
-/* Segment types (p_type). */
+/**
+ * @macroname `PT_LOAD`
+ *
+ * @description
+ * Segment types (p_type).
+ */
 #define PT_LOAD 1U
 
 /* ELF class of the target: partitions are built for the same arch as the kernel. */
@@ -112,7 +212,24 @@ typedef struct
 typedef Elf64_Ehdr Elf_Ehdr;
 typedef Elf64_Phdr Elf_Phdr;
 #else
+
+/**
+ * @typename `Elf_Ehdr`
+ *
+ * @description
+ * ELF class of the target: partitions are built for the same arch as the
+ * kernel. The ELF header of the target (Elf64_Ehdr on 64-bit targets,
+ * Elf32_Ehdr otherwise).
+ */
 typedef Elf32_Ehdr Elf_Ehdr;
+
+/**
+ * @typename `Elf_Phdr`
+ *
+ * @description
+ * The program segment header of the target (Elf64_Phdr on 64-bit targets,
+ * Elf32_Phdr otherwise).
+ */
 typedef Elf32_Phdr Elf_Phdr;
 #endif
 

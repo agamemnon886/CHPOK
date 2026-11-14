@@ -18,6 +18,14 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * strcspn() and strspn() of libpok (forward implementation, O(m^2)).
  */
 
 #include <string.h>
@@ -28,6 +36,44 @@
  * them.
  */
 
+/**
+ * @funcname `strcspn`
+ *
+ * @description
+ * Returns the length of the initial part of a string with no character of
+ * another (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const char *` | [in] The string. |
+ * | `s2` | `const char *` | [in] The characters. |
+ *
+ * @return The length.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1_iter` | `const char *` | The position in s1 |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `s1_iter` to `s1`.
+ * 2. While the value at `s1_iter` is not equal to `'\0'`, repeat (after each
+ *    pass: increment `s1_iter`):
+ *    1. If `strchr(s2, *s1_iter)` is not NULL:
+ *       1. Leave the loop.
+ * 3. Return `s1_iter - s1`.
+ *
+ * @calls
+ * - `strchr()`
+ */
 size_t strcspn(const char *s1, const char *s2)
 {
     // Forward implementation, O(m^2)
@@ -42,6 +88,44 @@ size_t strcspn(const char *s1, const char *s2)
     return s1_iter - s1;
 }
 
+/**
+ * @funcname `strspn`
+ *
+ * @description
+ * Returns the length of the initial part of a string made only of characters of
+ * another (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const char *` | [in] The string. |
+ * | `s2` | `const char *` | [in] The characters. |
+ *
+ * @return The length.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1_iter` | `const char *` | The position in s1 |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `s1_iter` to `s1`.
+ * 2. While the value at `s1_iter` is not equal to `'\0'`, repeat (after each
+ *    pass: increment `s1_iter`):
+ *    1. If `strchr(s2, *s1_iter)` is NULL:
+ *       1. Leave the loop.
+ * 3. Return `s1_iter - s1`.
+ *
+ * @calls
+ * - `strchr()`
+ */
 size_t strspn(const char *s1, const char *s2)
 {
     // Forward implementation, O(m^2)

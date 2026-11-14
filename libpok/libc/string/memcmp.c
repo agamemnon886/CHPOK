@@ -19,6 +19,15 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: an index loop
  * with a single exit; the bytes are compared as int; deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * memcmp() of libpok (GCC requires it even for a freestanding
+ * environment).
  */
 
 #include <string.h>
@@ -29,7 +38,51 @@
  * unsigned char.
  */
 
-/* GCC requires this function even for freestanding environment. */
+/**
+ * @funcname `memcmp`
+ *
+ * @description
+ * Compares two blocks of memory (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const void *` | [in] The first block. |
+ * | `s2` | `const void *` | [in] The second block. |
+ * | `n` | `size_t` | [in] The number of bytes. |
+ *
+ * @return 0 if they are equal, otherwise the difference of the first bytes that
+ *         differ.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `size_t` | The index of the byte |
+ * | `mem1` | `const unsigned char *` | The first block, as bytes |
+ * | `mem2` | `const unsigned char *` | The second block, as bytes |
+ * | `result` | `int` | The result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `mem1` to `s1`.
+ * 2. Set `mem2` to `s2`.
+ * 3. Set `i` to `0U`.
+ * 4. Set `result` to `0`.
+ * 5. While `i` is less than `n` and `mem1[i]` is equal to `mem2[i]`:
+ *    1. Increment `i`.
+ * 6. If `i` is less than `n`:
+ *    1. Set `result` to `(int) mem1[i] - (int) mem2[i]`.
+ * 7. Return `result`.
+ *
+ * @calls
+ * None.
+ */
 int memcmp(const void *s1, const void *s2, size_t n)
 {
     const unsigned char *mem1 = s1;

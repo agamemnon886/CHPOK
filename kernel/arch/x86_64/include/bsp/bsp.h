@@ -21,6 +21,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: #include
  * directives come before the declarations.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef JA_X86_64_BSP_BSP_H
@@ -40,9 +44,11 @@
 #include <board/bsp.h>
 
 /* Initialize all board-specific stuff. */
+/** \cond */
 void ja_bsp_init(void);
 
 /* Called when interrupt from the timer occures. */
 void ja_bsp_process_timer(interrupt_frame* frame);
+/** \endcond */
 
 #endif /* JA_X86_64_BSP_BSP_H */

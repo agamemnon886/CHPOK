@@ -15,11 +15,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef POK_DRIVERS_VIRTIO_VIRTIO_NETWORK_H
 #define POK_DRIVERS_VIRTIO_VIRTIO_NETWORK_H
 
+/** \cond */
 void virtio_net_init(void);
+/** \endcond */
 
 #endif // POK_DRIVERS_VIRTIO_VIRTIO_NETWORK_H

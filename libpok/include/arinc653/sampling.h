@@ -18,6 +18,9 @@
  * parameters and the message parameter of the send or write service are
  * const (they are only read), so callers can pass string literals and
  * const data.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -37,22 +40,70 @@
 #ifndef APEX_SAMPLING 
 #define APEX_SAMPLING 
  
+/**
+ * @macroname `MAX_NUMBER_OF_SAMPLING_PORTS`
+ *
+ * @description
+ * The maximum number of sampling ports of a partition
+ * (SYSTEM_LIMIT_NUMBER_OF_SAMPLING_PORTS).
+ */
 #define  MAX_NUMBER_OF_SAMPLING_PORTS   SYSTEM_LIMIT_NUMBER_OF_SAMPLING_PORTS 
  
+/**
+ * @typename `SAMPLING_PORT_NAME_TYPE`
+ *
+ * @description
+ * The name of a sampling port.
+ */
 typedef  NAME_TYPE       SAMPLING_PORT_NAME_TYPE; 
  
+/**
+ * @typename `SAMPLING_PORT_ID_TYPE`
+ *
+ * @description
+ * The identifier of a sampling port.
+ */
 typedef  APEX_INTEGER    SAMPLING_PORT_ID_TYPE; 
  
-typedef  enum { INVALID = 0, VALID = 1 } VALIDITY_TYPE; 
+/**
+ * @typename `VALIDITY_TYPE`
+ *
+ * @description
+ * Whether the last message read from a sampling port is fresh (its age is
+ * within the refresh period).
+ */
+typedef  enum {
+   INVALID = 0, /**< The message is too old. */
+   VALID = 1 /**< The message is fresh. */
+} VALIDITY_TYPE; 
  
+/**
+ * @typename `SAMPLING_PORT_STATUS_TYPE`
+ *
+ * @description
+ * The status of a sampling port (GET_SAMPLING_PORT_STATUS()).
+ */
 typedef struct
 { 
+   /**
+    * The maximum size of a message.
+    */
    MESSAGE_SIZE_TYPE        MAX_MESSAGE_SIZE;
+   /**
+    * Whether the port sends or receives.
+    */
    PORT_DIRECTION_TYPE      PORT_DIRECTION;
+   /**
+    * The refresh period of the port.
+    */
    SYSTEM_TIME_TYPE         REFRESH_PERIOD;
+   /**
+    * Whether the last message read was fresh.
+    */
    VALIDITY_TYPE            LAST_MSG_VALIDITY;
 } SAMPLING_PORT_STATUS_TYPE; 
  
+/** \cond */
 extern void CREATE_SAMPLING_PORT ( 
        /*in */ const SAMPLING_PORT_NAME_TYPE    SAMPLING_PORT_NAME, 
        /*in */ MESSAGE_SIZE_TYPE          MAX_MESSAGE_SIZE, 
@@ -87,6 +138,7 @@ extern void GET_SAMPLING_PORT_STATUS (
 
 extern pok_bool_t SYS_SAMPLING_PORT_CHECK_IS_NEW_DATA(
         /*in */ SAMPLING_PORT_ID_TYPE      SAMPLING_PORT_ID);
+/** \endcond */
 #endif 
 
 #endif

@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* e_rem_pio2f.c -- float version of e_rem_pio2.c
@@ -29,6 +38,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_rem_pio2f()` of libpok's math library (fdlibm, from Sun
+ * Microsystems).
+ */
 /* __ieee754_rem_pio2f(x,y)
  *
  * return the remainder of x rem pi/2 in y[0]+y[1]
@@ -101,6 +115,149 @@ pio2_2t =  6.0770999344e-11, /* 0x2e85a308 */
 pio2_3  =  6.0770943833e-11, /* 0x2e85a300 */
 pio2_3t =  6.1232342629e-17; /* 0x248d3132 */
 
+/**
+ * @funcname `__ieee754_rem_pio2f`
+ *
+ * @description
+ * Reduces x modulo pi/2: x - n*pi/2 as the sum y[0] + y[1].
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ * | `y` | `float *` | [in,out] Where the reduced argument is stored. |
+ *
+ * @return n (modulo 8).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `half` | `const float` | A constant of the algorithm |
+ * | `invpio2` | `const float` | A constant of the algorithm |
+ * | `npio2_hw` | `const int32_t[32]` | A constant of the algorithm |
+ * | `pio2_1` | `const float` | A constant of the algorithm |
+ * | `pio2_1t` | `const float` | A constant of the algorithm |
+ * | `pio2_2` | `const float` | A constant of the algorithm |
+ * | `pio2_2t` | `const float` | A constant of the algorithm |
+ * | `pio2_3` | `const float` | A constant of the algorithm |
+ * | `pio2_3t` | `const float` | A constant of the algorithm |
+ * | `two8` | `const float` | A constant of the algorithm |
+ * | `two_over_pi` | `const int32_t[198]` | A constant of the algorithm |
+ * | `zero` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `e0` | `int32_t` | A temporary of the computation |
+ * | `fn` | `float` | A temporary of the computation |
+ * | `high` | `uint32_t` | The bits of y[0] |
+ * | `hx` | `int32_t` | The bits of x |
+ * | `i` | `int32_t` | A temporary of the computation |
+ * | `ix` | `int32_t` | The bits of x without the sign bit |
+ * | `j` | `int32_t` | A temporary of the computation |
+ * | `n` | `int32_t` | A temporary of the computation |
+ * | `nx` | `int32_t` | A temporary of the computation |
+ * | `r` | `float` | A temporary of the computation |
+ * | `t` | `float` | A temporary of the computation |
+ * | `tx` | `float[3]` | A temporary of the computation |
+ * | `w` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx&0x7fffffff`.
+ * 3. If `ix` is less than or equal to `0x3f490fd8`:
+ *    1. Set `y[0]` to `x`.
+ *    2. Set `y[1]` to `0`.
+ *    3. Return `0`.
+ * 4. If `ix` is less than `0x4016cbe4`:
+ *    1. If `hx` is greater than `0`:
+ *       1. Set `z` to `x - pio2_1`.
+ *       2. If `(ix&0xfffffff0)` is not equal to `0x3fc90fd0`:
+ *          1. Set `y[0]` to `z - pio2_1t`.
+ *          2. Set `y[1]` to `(z-y[0])-pio2_1t`.
+ *       3. Otherwise:
+ *          1. Subtract `pio2_2` from `z`.
+ *          2. Set `y[0]` to `z - pio2_2t`.
+ *          3. Set `y[1]` to `(z-y[0])-pio2_2t`.
+ *       4. Return `1`.
+ *    2. Otherwise:
+ *       1. Set `z` to `x + pio2_1`.
+ *       2. If `(ix&0xfffffff0)` is not equal to `0x3fc90fd0`:
+ *          1. Set `y[0]` to `z + pio2_1t`.
+ *          2. Set `y[1]` to `(z-y[0])+pio2_1t`.
+ *       3. Otherwise:
+ *          1. Add `pio2_2` to `z`.
+ *          2. Set `y[0]` to `z + pio2_2t`.
+ *          3. Set `y[1]` to `(z-y[0])+pio2_2t`.
+ *       4. Return `-1`.
+ * 5. If `ix` is less than or equal to `0x43490f80`:
+ *    1. Call `fabsf()` with the argument `x`, and store the result in `t`.
+ *    2. Set `n` to `(int32_t) (t*invpio2+half)`.
+ *    3. Set `fn` to `(float)n`.
+ *    4. Set `r` to `t-fn*pio2_1`.
+ *    5. Set `w` to `fn*pio2_1t`.
+ *    6. If `n` is less than `32` and `(int32_t)(ix&0xffffff00)` is not equal
+ *       to `npio2_hw[n-1]`:
+ *       1. Set `y[0]` to `r-w`.
+ *    7. Otherwise:
+ *       1. Set `j` to `ix>>23`.
+ *       2. Set `y[0]` to `r-w`.
+ *       3. Use the macro `GET_FLOAT_WORD()` with the arguments `high` and
+ *          `y[0]`.
+ *       4. Set `i` to `j-((high>>23)&0xff)`.
+ *       5. If `i` is greater than `8`:
+ *          1. Set `t` to `r`.
+ *          2. Set `w` to `fn*pio2_2`.
+ *          3. Set `r` to `t-w`.
+ *          4. Set `w` to `fn*pio2_2t-((t-r)-w)`.
+ *          5. Set `y[0]` to `r-w`.
+ *          6. Use the macro `GET_FLOAT_WORD()` with the arguments `high` and
+ *             `y[0]`.
+ *          7. Set `i` to `j-((high>>23)&0xff)`.
+ *          8. If `i` is greater than `25`:
+ *             1. Set `t` to `r`.
+ *             2. Set `w` to `fn*pio2_3`.
+ *             3. Set `r` to `t-w`.
+ *             4. Set `w` to `fn*pio2_3t-((t-r)-w)`.
+ *             5. Set `y[0]` to `r-w`.
+ *    8. Set `y[1]` to `(r-y[0])-w`.
+ *    9. If `hx` is less than `0`:
+ *       1. Set `y[0]` to `-y[0]`.
+ *       2. Set `y[1]` to `-y[1]`.
+ *       3. Return `-n`.
+ *    10. Otherwise:
+ *        1. Return `n`.
+ * 6. If `ix` is greater than or equal to `0x7f800000`:
+ *    1. Set `y[0]` to `y[1]=x-x`.
+ *    2. Return `0`.
+ * 7. Set `e0` to `(ix>>23)-134`.
+ * 8. Use the macro `SET_FLOAT_WORD()` with the arguments `z` and
+ *    `ix - ((int32_t)(e0<<23))`.
+ * 9. Set `i` to `0`; then while `i` is less than `2`, repeat (after each pass:
+ *    increment `i`):
+ *    1. Set `tx[i]` to `(float)((int32_t)(z))`.
+ *    2. Set `z` to `(z-tx[i])*two8`.
+ * 10. Set `tx[2]` to `z`.
+ * 11. Set `nx` to `3`.
+ * 12. While `tx[nx-1]` is equal to `zero`:
+ *     1. Decrement `nx`.
+ * 13. Call `__kernel_rem_pio2f()` with the arguments `tx`, `y`, `e0`, `nx`, `2`
+ *     and `(int*)two_over_pi`, and store the result in `n`.
+ * 14. If `hx` is less than `0`:
+ *     1. Set `y[0]` to `-y[0]`.
+ *     2. Set `y[1]` to `-y[1]`.
+ *     3. Return `-n`.
+ * 15. Return `n`.
+ *
+ * @calls
+ * - `fabsf()`
+ * - `__kernel_rem_pio2f()`
+ */
 int32_t
 __ieee754_rem_pio2f(float x, float *y)
 {

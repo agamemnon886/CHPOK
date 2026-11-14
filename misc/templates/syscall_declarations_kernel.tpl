@@ -6,11 +6,24 @@
    syscall implementation is no longer declared again here; the core header
    that <core/syscall.h> includes declares it. Long lines are wrapped at 80
    columns. -#}
+{# Modified by Kirill Brazhnikov, 2026-11-08: a Doxygen header for each
+   wrapper (the format of the function documentation, see README.md). -#}
+{# Modified by Kirill Brazhnikov, 2026-11-14: the wrappers (static inline
+   functions of a header) have a plain comment instead of a Doxygen header;
+   pok_ret_t is renamed pok_ret_e (the enum types are named with _e). -#}
 {# TODO: Copyright there -#}
 {% macro full_type(arg) -%}
 {{arg.arg_type}}{%if arg.is_pointer%} JET_USER{%endif%}
 {%- endmacro %}
-static inline pok_ret_t pok_syscall_wrapper_{{sd.syscall_id}}(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * {{sd.syscall_id}}:
+ * calls {{sd.func}}()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_{{sd.syscall_id}}(
+    const pok_syscall_args_t* args)
 {
 {% if not sd.args %}
     (void) args;

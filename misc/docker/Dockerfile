@@ -26,9 +26,13 @@
 # Modified by Kirill Brazhnikov, 2026-11-05: the kernel's GDB server works
 # on arm64 too (a comment).
 #
+# Modified by Kirill Brazhnikov, 2026-11-11: the image also builds the
+# function documentation (make docs): Doxygen, built from source in a
+# stage of its own, the TeX packages of its PDF output, and make.
+#
 # Build environment for CHPOK's x86_64-qemu and arm64-qemu examples, used
-# by the top-level Makefile (`make all`). Works the same on macOS and
-# Linux hosts.
+# by the top-level Makefile (`make all`), and of the function documentation
+# (`make docs`). Works the same on macOS and Linux hosts.
 #
 # Uses Debian's native compiler for the host architecture and a genuine
 # cross-compiler for the other one, so the image runs natively (no
@@ -37,6 +41,34 @@
 # The image contains only tools: the source tree is bind-mounted at
 # run time, and the build runs as the invoking host user so that
 # generated files are not owned by root.
+
+# Doxygen: the function documentation needs 1.18 or later (Debian has
+# 1.9.4). It is built from its source release (checked against its
+# SHA-256) in this stage, so that its build tools stay out of the image.
+FROM debian:bookworm-slim AS doxygen
+
+ARG DOXYGEN_VERSION=1.18.0
+ARG DOXYGEN_SHA256_A=a1deed70a6785bbec95a2b2a9e419dc7
+ARG DOXYGEN_SHA256_B=f7b223a9d74a8644ae611c8e2dcdd354
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        cmake \
+        g++ \
+        make \
+        flex \
+        bison \
+        python3 \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL -o /tmp/doxygen.tar.gz \
+        "https://www.doxygen.nl/files/doxygen-${DOXYGEN_VERSION}.src.tar.gz" \
+    && echo "${DOXYGEN_SHA256_A}${DOXYGEN_SHA256_B}  /tmp/doxygen.tar.gz" \
+        | sha256sum -c - \
+    && tar -xzf /tmp/doxygen.tar.gz -C /tmp \
+    && cmake -S "/tmp/doxygen-${DOXYGEN_VERSION}" -B /tmp/build \
+        -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /tmp/build -j"$(nproc)" \
+    && install -s /tmp/build/bin/doxygen /usr/local/bin/doxygen
 
 FROM debian:bookworm-slim
 
@@ -62,6 +94,22 @@ RUN case "$(dpkg --print-architecture)" in \
         $cross_tools \
     && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir --break-system-packages ipaddr
+
+# The function documentation (make docs): make, and the TeX packages of
+# Doxygen's PDF output (those of Debian's doxygen-latex, without its
+# Doxygen).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        make \
+        texlive-latex-extra \
+        texlive-latex-recommended \
+        texlive-fonts-recommended \
+        texlive-plain-generic \
+        texlive-font-utils \
+        texlive-extra-utils \
+        ghostscript \
+        cm-super-minimal \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=doxygen /usr/local/bin/doxygen /usr/local/bin/doxygen
 
 # The build runs under an arbitrary host uid that has no passwd entry
 # or home directory, so give it a writable HOME.

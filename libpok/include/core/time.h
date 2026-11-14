@@ -24,8 +24,18 @@
  * checks the result of the system call (it returned an uninitialized
  * value on failure); deviations are documented where a guideline can't be
  * followed.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t); the Doxygen comment of the file is removed (header
+ * files are not documented); the Doxygen headers of the static inline functions
+ * are plain comments (they are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: the function declarations are
+ * hidden from Doxygen (\cond), which would otherwise document the functions a
+ * second time, in the section of this header.
  */
 
 
@@ -47,10 +57,14 @@
  * Compute a deadline from now according to the first parameter.
  * This function is a facility to compute tasks' deadline.
  */
-pok_ret_t pok_time_compute_deadline (const pok_time_t relative, pok_time_t* absolute);
+/** \cond */
+pok_ret_e pok_time_compute_deadline (const pok_time_t relative,
+    pok_time_t* absolute);
+/** \endcond */
 
 /*
- * Get number of nanoseconds that passed since the system starts.
+ * Returns the number of nanoseconds since the system started (the clock_gettime
+ * syscall).
  */
 static inline pok_time_t pok_time_get(void)
 {
@@ -68,6 +82,12 @@ static inline pok_time_t pok_time_get(void)
     return res;
 }
 
+/**
+ * @macroname `pok_thread_replenish`
+ *
+ * @description
+ * The name of the system call pok_sched_replenish() in libpok.
+ */
 #define pok_thread_replenish pok_sched_replenish
 
 #endif  /* POK_TIME_H */

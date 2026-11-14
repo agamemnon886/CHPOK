@@ -19,7 +19,7 @@
 
 #include "time_locale_c.h"
 
-struct locale_time locale_time_c = {
+locale_time_t locale_time_c = {
     .weekday = {
         "Sunday",
         "Monday",

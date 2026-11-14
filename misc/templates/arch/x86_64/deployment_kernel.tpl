@@ -25,9 +25,12 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: <arch/deployment.h>
  * is included at the top of deployment_kernel.tpl (Rule 20.1).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct ja_x86_64_space is used by
+ * its typedef name, ja_x86_64_space_t.
  */
 
-struct ja_x86_64_space ja_spaces[{{conf.spaces | length}}] =
+ja_x86_64_space_t ja_spaces[{{conf.spaces | length}}] =
 {
 {%for space in conf.spaces%}
     {

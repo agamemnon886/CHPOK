@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team
  *
  * Created by julien on Fri Jan 30 14:41:34 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* e_asinf.c -- float version of e_asin.c.
@@ -29,6 +38,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_asinf()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 #include <libm.h>
@@ -52,6 +65,101 @@ qS2 =  2.0209457874e+00, /* 0x4001572d */
 qS3 = -6.8828397989e-01, /* 0xbf303361 */
 qS4 =  7.7038154006e-02; /* 0x3d9dc62e */
 
+/**
+ * @funcname `__ieee754_asinf`
+ *
+ * @description
+ * Computes the arc sine of x, in float: the IEEE 754 core of asinf().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `huge` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `pS0` | `const float` | A constant of the algorithm |
+ * | `pS1` | `const float` | A constant of the algorithm |
+ * | `pS2` | `const float` | A constant of the algorithm |
+ * | `pS3` | `const float` | A constant of the algorithm |
+ * | `pS4` | `const float` | A constant of the algorithm |
+ * | `pS5` | `const float` | A constant of the algorithm |
+ * | `pio2_hi` | `const float` | A constant of the algorithm |
+ * | `pio2_lo` | `const float` | A constant of the algorithm |
+ * | `pio4_hi` | `const float` | A constant of the algorithm |
+ * | `qS1` | `const float` | A constant of the algorithm |
+ * | `qS2` | `const float` | A constant of the algorithm |
+ * | `qS3` | `const float` | A constant of the algorithm |
+ * | `qS4` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `float` | A temporary of the computation |
+ * | `hx` | `int32_t` | The bits of x |
+ * | `iw` | `int32_t` | The bits of w |
+ * | `ix` | `int32_t` | The bits of x without the sign bit |
+ * | `p` | `float` | A temporary of the computation |
+ * | `q` | `float` | A temporary of the computation |
+ * | `r` | `float` | A temporary of the computation |
+ * | `s` | `float` | A temporary of the computation |
+ * | `t` | `float` | A temporary of the computation |
+ * | `w` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `t` to `0`.
+ * 2. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 3. Set `ix` to `hx&0x7fffffff`.
+ * 4. If `ix` is equal to `0x3f800000`:
+ *    1. Return `x*pio2_hi+x*pio2_lo`.
+ * 5. Otherwise, if `ix` is greater than `0x3f800000`:
+ *    1. Return `(x-x)/(x-x)`.
+ * 6. Otherwise, if `ix` is less than `0x3f000000`:
+ *    1. If `ix` is less than `0x32000000`:
+ *       1. If `huge+x` is greater than `one`:
+ *          1. Return `x`.
+ *    2. Set `t` to `x*x`.
+ *    3. Set `p` to `t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))))`.
+ *    4. Set `q` to `one+t*(qS1+t*(qS2+t*(qS3+t*qS4)))`.
+ *    5. Set `w` to `p/q`.
+ *    6. Return `x+x*w`.
+ * 7. Set `w` to `one-fabsf(x)`.
+ * 8. Set `t` to `w*(float)0.5`.
+ * 9. Set `p` to `t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))))`.
+ * 10. Set `q` to `one+t*(qS1+t*(qS2+t*(qS3+t*qS4)))`.
+ * 11. Call `__ieee754_sqrtf()` with the argument `t`, and store the result in
+ *     `s`.
+ * 12. If `ix` is greater than or equal to `0x3F79999A`:
+ *     1. Set `w` to `p/q`.
+ *     2. Set `t` to `pio2_hi-((float)2.0*(s+s*w)-pio2_lo)`.
+ * 13. Otherwise:
+ *     1. Set `w` to `s`.
+ *     2. Use the macro `GET_FLOAT_WORD()` with the arguments `iw` and `w`.
+ *     3. Use the macro `SET_FLOAT_WORD()` with the arguments `w` and
+ *        `iw&0xfffff000`.
+ *     4. Set `c` to `(t-w*w)/(s+w)`.
+ *     5. Set `r` to `p/q`.
+ *     6. Set `p` to `(float)2.0*s*r-(pio2_lo-(float)2.0*c)`.
+ *     7. Set `q` to `pio4_hi-(float)2.0*w`.
+ *     8. Set `t` to `pio4_hi-(p-q)`.
+ * 14. If `hx` is greater than `0`:
+ *     1. Return `t`.
+ * 15. Otherwise:
+ *     1. Return `-t`.
+ *
+ * @calls
+ * - `fabsf()`
+ * - `__ieee754_sqrtf()`
+ */
 float
 __ieee754_asinf(float x)
 {

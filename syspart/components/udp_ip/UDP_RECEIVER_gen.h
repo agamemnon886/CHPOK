@@ -26,6 +26,14 @@
  * guard isn't a reserved identifier; the parameters of the prototypes are
  * named; __<component>_init__() and __<component>_activity__() are
  * declared.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: Doxygen comments for the file,
+ * its types and their members (the descriptions are in the component's
+ * configuration: description and state_doc); the function declarations are
+ * hidden from Doxygen (\cond).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef UDP_RECEIVER_GEN_H
@@ -38,30 +46,52 @@
 
     #include <interfaces/udp_message_handler_gen.h>
 
-typedef struct UDP_RECEIVER_state {
+/**
+ * @typename `UDP_RECEIVER_state`
+ *
+ * @description
+ * The state of an instance of the UDP_RECEIVER component
+ * (state_struct in its configuration).
+ */
+typedef struct {
 }UDP_RECEIVER_state;
 
+/**
+ * @typename `UDP_RECEIVER`
+ *
+ * @description
+ * An instance of the UDP_RECEIVER component: its state and its
+ * ports.
+ * It checks the IPv4 and UDP headers of the packets it receives (portA) and
+ * passes their payload, with its destination address and port, on (portB).
+ */
 typedef struct {
-    UDP_RECEIVER_state state;
+    UDP_RECEIVER_state state; /**< The state of the instance. */
     struct {
             struct {
                 message_handler ops;
             } portA;
     } in;
+    /**< The in ports, each with the operations of its interface that the
+     * component implements: portA (message_handler). */
     struct {
             struct {
                 udp_message_handler *ops;
                 self_t *owner;
             } portB;
     } out;
+    /**< The out ports, each with the operations of the component it is
+     * connected to and that component (owner):
+     * portB (udp_message_handler). */
 } UDP_RECEIVER;
 
 
+/** \cond */
 
-      ret_t udp_receive(
+      ret_e udp_receive(
           UDP_RECEIVER *self, const char * arg1, size_t arg2);
 
-      ret_t
+      ret_e
       UDP_RECEIVER_call_portB_udp_message_handle(
           UDP_RECEIVER *self, const char * arg1, size_t arg2, uint32_t arg3, uint16_t arg4);
 
@@ -76,6 +106,7 @@ typedef struct {
  */
 void __UDP_RECEIVER_init__(UDP_RECEIVER *self);
 void __UDP_RECEIVER_activity__(UDP_RECEIVER *self);
+/** \endcond */
 
 
 #endif

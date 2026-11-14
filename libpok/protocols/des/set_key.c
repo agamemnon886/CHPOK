@@ -12,6 +12,17 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Tue Dec  8 15:53:28 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the macros NUM_WEAK_KEY and
+ * HPERM_OP are moved to des_locl.h.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* crypto/des/set_key.c */
@@ -72,6 +83,16 @@
  * [including the GNU Public Licence.]
  */
 
+/**
+ * @file
+ * DES key schedules of libpok's protocols (from OpenSSL, by Eric Young):
+ * parity, weak keys and the schedule.
+ */
+
+
+
+
+
 /* set_key.c v 1.4 eay 24/9/91
  * 1.4 Speed up by 400% :-)
  * 1.3 added register declarations.
@@ -110,6 +131,39 @@ static const unsigned char odd_parity[256]={
 224,224,227,227,229,229,230,230,233,233,234,234,236,236,239,239,
 241,241,242,242,244,244,247,247,248,248,251,251,253,253,254,254};
 
+/**
+ * @funcname `DES_set_odd_parity`
+ *
+ * @description
+ * Sets the parity bit of each byte of a key to odd parity.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `key` | `DES_cblock *` | [in,out] The key. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `odd_parity` | `const unsigned char[256]` | The byte of each value with odd parity |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `unsigned int` | The index of a byte |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `i` to `0`; then while `i` is less than `DES_KEY_SZ`, repeat (after
+ *    each pass: increment `i`):
+ *    1. Set `(*key)[i]` to `odd_parity[(*key)[i]]`.
+ *
+ * @calls
+ * None.
+ */
 void DES_set_odd_parity(DES_cblock *key)
 	{
 	unsigned int i;
@@ -118,6 +172,43 @@ void DES_set_odd_parity(DES_cblock *key)
 		(*key)[i]=odd_parity[(*key)[i]];
 	}
 
+/**
+ * @funcname `DES_check_key_parity`
+ *
+ * @description
+ * Tells whether each byte of a key has odd parity.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `key` | `const_DES_cblock *` | [in] The key. |
+ *
+ * @return 1 if it has, 0 otherwise.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `odd_parity` | `const unsigned char[256]` | The byte of each value with odd parity |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `unsigned int` | The index of a byte |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `i` to `0`; then while `i` is less than `DES_KEY_SZ`, repeat (after
+ *    each pass: increment `i`):
+ *    1. If `(*key)[i]` is not equal to `odd_parity[(*key)[i]]`:
+ *       1. Return `(0)`.
+ * 2. Return `(1)`.
+ *
+ * @calls
+ * None.
+ */
 int DES_check_key_parity(const_DES_cblock *key)
 	{
 	unsigned int i;
@@ -139,7 +230,6 @@ int DES_check_key_parity(const_DES_cblock *key)
  * Many thanks to smb@ulysses.att.com (Steven Bellovin) for the reference
  * (and actual cblock values).
  */
-#define NUM_WEAK_KEY	16
 static const DES_cblock weak_keys[NUM_WEAK_KEY]={
 	/* weak keys */
 	{0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01},
@@ -160,6 +250,43 @@ static const DES_cblock weak_keys[NUM_WEAK_KEY]={
 	{0xE0,0xFE,0xE0,0xFE,0xF1,0xFE,0xF1,0xFE},
 	{0xFE,0xE0,0xFE,0xE0,0xFE,0xF1,0xFE,0xF1}};
 
+/**
+ * @funcname `DES_is_weak_key`
+ *
+ * @description
+ * Tells whether a key is one of the weak or semi-weak keys.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `key` | `const_DES_cblock *` | [in] The key. |
+ *
+ * @return 1 if it is, 0 otherwise.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `weak_keys` | `const DES_cblock[16]` | The weak and semi-weak DES keys |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `int` | The index of a weak key |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `i` to `0`; then while `i` is less than `NUM_WEAK_KEY`, repeat (after
+ *    each pass: increment `i`):
+ *    1. If `memcmp(weak_keys[i],key,sizeof(DES_cblock))` is equal to `0`:
+ *       1. Return `(1)`.
+ * 2. Return `(0)`.
+ *
+ * @calls
+ * - `memcmp()`
+ */
 int DES_is_weak_key(const_DES_cblock *key)
 	{
 	int i;
@@ -181,9 +308,6 @@ int DES_is_weak_key(const_DES_cblock *key)
  * 	(b)^=(t),\
  * 	(a)=((a)^((t)<<(n))))
  */
-
-#define HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
-	(a)=(a)^(t)^(t>>(16-(n))))
 
 static const DES_LONG des_skb[8][64]={
 	{
@@ -332,6 +456,44 @@ static const DES_LONG des_skb[8][64]={
 	0x00002822L,0x04002822L,0x00042822L,0x04042822L,
 	}};
 
+/**
+ * @funcname `DES_set_key`
+ *
+ * @description
+ * Makes the key schedule of a key, checked if DES_check_key is set.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `key` | `const_DES_cblock *` | [in] The key. |
+ * | `schedule` | `DES_key_schedule *` | [out] Where the schedule is stored. |
+ *
+ * @return 0, or the error of DES_set_key_checked().
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `_shadow_DES_check_key` | `int` | Whether keys are checked (DES_check_key) |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `DES_check_key` is true:
+ *    1. Call `DES_set_key_checked()` with the arguments `key` and `schedule`,
+ *       and return its result.
+ * 2. Otherwise:
+ *    1. Call `DES_set_key_unchecked()` with the arguments `key` and `schedule`.
+ *    2. Return `0`.
+ *
+ * @calls
+ * - `DES_set_key_checked()`
+ * - `DES_set_key_unchecked()`
+ */
 int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
 	{
 	if (DES_check_key)
@@ -345,9 +507,43 @@ int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
 		}
 	}
 
-/* return 0 if key parity is odd (correct),
- * return -1 if key parity error,
- * return -2 if illegal weak key.
+/**
+ * @funcname `DES_set_key_checked`
+ *
+ * @description
+ * Makes the key schedule of a key after checking it.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `key` | `const_DES_cblock *` | [in] The key. |
+ * | `schedule` | `DES_key_schedule *` | [out] Where the schedule is stored. |
+ *
+ * @return 0 if the key parity is odd (correct), -1 for a key parity error, -2
+ *         for an illegal weak key.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `DES_check_key_parity(key)` is false:
+ *    1. Return `-1`.
+ * 2. If `DES_is_weak_key(key)` is true:
+ *    1. Return `-2`.
+ * 3. Call `DES_set_key_unchecked()` with the arguments `key` and `schedule`.
+ * 4. Return `0`.
+ *
+ * @calls
+ * - `DES_check_key_parity()`
+ * - `DES_is_weak_key()`
+ * - `DES_set_key_unchecked()`
  */
 int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
 	{
@@ -359,6 +555,84 @@ int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
 	return 0;
 	}
 
+/**
+ * @funcname `DES_set_key_unchecked`
+ *
+ * @description
+ * Makes the key schedule of a key (16 round keys), without checks.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `key` | `const_DES_cblock *` | [in] The key. |
+ * | `schedule` | `DES_key_schedule *` | [out] Where the schedule is stored. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `des_skb` | `const unsigned long[8][64]` | The tables of the key schedule |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `unsigned long` | The first half of the key |
+ * | `d` | `unsigned long` | Its second half |
+ * | `i` | `int` | The round |
+ * | `in` | `const unsigned char *` | The key, as bytes |
+ * | `k` | `unsigned long *` | The schedule, as words |
+ * | `s` | `unsigned long` | A temporary |
+ * | `shifts2` | `static int[16]` | Whether a round shifts the key halves by 2 (else by 1) |
+ * | `t` | `unsigned long` | A temporary |
+ * | `t2` | `unsigned long` | A temporary |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `k` to the address of `schedule->ks->deslong[0]`.
+ * 2. Set `in` to the address of `(*key)[0]`.
+ * 3. Use the macro `c2l()` with the arguments `in` and `c`.
+ * 4. Use the macro `c2l()` with the arguments `in` and `d`.
+ * 5. Use the macro `PERM_OP()` with the arguments `d`, `c`, `t`, `4` and
+ *    `0x0f0f0f0fL`.
+ * 6. Use the macro `HPERM_OP()` with the arguments `c`, `t`, `-2` and
+ *    `0xcccc0000L`.
+ * 7. Use the macro `HPERM_OP()` with the arguments `d`, `t`, `-2` and
+ *    `0xcccc0000L`.
+ * 8. Use the macro `PERM_OP()` with the arguments `d`, `c`, `t`, `1` and
+ *    `0x55555555L`.
+ * 9. Use the macro `PERM_OP()` with the arguments `c`, `d`, `t`, `8` and
+ *    `0x00ff00ffL`.
+ * 10. Use the macro `PERM_OP()` with the arguments `d`, `c`, `t`, `1` and
+ *     `0x55555555L`.
+ * 11. Set `d` to `(((d&0x000000ffL)<<16L)| (d&0x0000ff00L) |`
+ *     `((d&0x00ff0000L)>>16L)|((c&0xf0000000L)>>4L))`.
+ * 12. Keep only the bits `0x0fffffffL` of `c`.
+ * 13. Set `i` to `0`; then while `i` is less than `ITERATIONS`, repeat (after
+ *     each pass: increment `i`):
+ *     1. If `shifts2[i]` is true:
+ *        1. Set `c` to `((c>>2L)|(c<<26L))`.
+ *        2. Set `d` to `((d>>2L)|(d<<26L))`.
+ *     2. Otherwise:
+ *        1. Set `c` to `((c>>1L)|(c<<27L))`.
+ *        2. Set `d` to `((d>>1L)|(d<<27L))`.
+ *     3. Keep only the bits `0x0fffffffL` of `c`.
+ *     4. Keep only the bits `0x0fffffffL` of `d`.
+ *     5. Set `s` to `des_skb[0][ (c )&0x3f ]| des_skb[1][((c>> 6L)&0x03)|((c>>`
+ *        `7L)&0x3c)]| des_skb[2][((c>>13L)&0x0f)|((c>>14L)&0x30)]|`
+ *        `des_skb[3][((c>>20L)&0x01)|((c>>21L)&0x06) | ((c>>22L)&0x38)]`.
+ *     6. Set `t` to `des_skb[4][ (d )&0x3f ]| des_skb[5][((d>> 7L)&0x03)|((d>>`
+ *        `8L)&0x3c)]| des_skb[6][ (d>>15L)&0x3f ]|`
+ *        `des_skb[7][((d>>21L)&0x0f)|((d>>22L)&0x30)]`.
+ *     7. Set `t2` to `((t<<16L)|(s&0x0000ffffL))&0xffffffffL`.
+ *     8. Set `*(k++)` to `ROTATE(t2,30)&0xffffffffL`.
+ *     9. Set `t2` to `((s>>16L)|(t&0xffff0000L))`.
+ *     10. Set `*(k++)` to `ROTATE(t2,26)&0xffffffffL`.
+ *
+ * @calls
+ * None.
+ */
 void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
 	{
 	static int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
@@ -423,6 +697,36 @@ void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
 		}
 	}
 
+/**
+ * @funcname `DES_key_sched`
+ *
+ * @description
+ * Makes the key schedule of a key (the old name of DES_set_key()).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `key` | `const_DES_cblock *` | [in] The key. |
+ * | `schedule` | `DES_key_schedule *` | [out] Where the schedule is stored. |
+ *
+ * @return The result of DES_set_key().
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `(DES_set_key(key,schedule))`.
+ *
+ * @calls
+ * - `DES_set_key()`
+ */
 int DES_key_sched(const_DES_cblock *key, DES_key_schedule *schedule)
 	{
 	return(DES_set_key(key,schedule));

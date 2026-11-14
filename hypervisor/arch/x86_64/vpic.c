@@ -25,45 +25,61 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
- * arch/x86_64/.
+ * arch/x86_64/. Doxygen headers for the file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
+/**
+ * @file
  * Virtual 8259A PIC pair (master at 0x20, slave at 0xA0, cascaded on
  * IRQ 2), as far as JetOS and similar guests use it: initialization
- * (ICW1-ICW4), the mask (OCW1), non-specific and specific EOI (OCW2),
- * reading IRR or ISR (OCW3), and automatic EOI. Interrupts are
- * edge-triggered with fixed priorities (IRQ 0 highest). Rotation, special
- * mask mode and polling are not emulated.
+ * (ICW1-ICW4), the mask (OCW1), non-specific and specific EOI (OCW2), reading
+ * IRR or ISR (OCW3), and automatic EOI. Interrupts are edge-triggered with
+ * fixed priorities (IRQ 0 highest). Rotation, special mask mode and polling
+ * are not emulated.
  */
 
 #include <arch/internal.h>
 
-#define PIC_MASTER          0x20U
-#define PIC_SLAVE           0xA0U
-#define PIC_CASCADE_IRQ     2U
-#define PIC_IRQS            8U
-
-#define ICW1_INIT           0x10U
-#define ICW1_ICW4           0x01U
-#define ICW1_SINGLE         0x02U
-#define ICW4_AUTO_EOI       0x02U
-#define OCW3_SELECT         0x08U
-#define OCW3_MASK           0x18U
-#define OCW3_READ_REGISTER  0x02U
-#define OCW3_READ_ISR       0x01U
-#define OCW2_EOI            0x20U
-#define OCW2_SPECIFIC       0x40U
-#define OCW2_EOI_MASK       0xE0U
-#define OCW2_LEVEL          0x07U
-
-// Expected initialization words.
-#define STEP_NONE           0U
-#define STEP_ICW2           1U
-#define STEP_ICW3           2U
-#define STEP_ICW4           3U
-
-// Reset one chip: nothing requested or in service, all masked.
+/**
+ * @funcname `chip_reset`
+ *
+ * @description
+ * Resets one virtual PIC chip: nothing requested or in service, everything
+ * masked, not in initialization.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `chip` | `vpic_chip_t *` | [out] The chip. |
+ * | `vector_base` | `uint8_t` | [in] The vector of its IRQ 0. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `chip->irr` to `0U`.
+ * 2. Set `chip->isr` to `0U`.
+ * 3. Set `chip->imr` to `0xFFU`.
+ * 4. Set `chip->vector_base` to `vector_base`.
+ * 5. Set `chip->init_step` to `STEP_NONE`.
+ * 6. Set `chip->single` to `false`.
+ * 7. Set `chip->icw4_needed` to `false`.
+ * 8. Set `chip->read_isr` to `false`.
+ * 9. Set `chip->auto_eoi` to `false`.
+ *
+ * @calls
+ * None.
+ */
 static void chip_reset(vpic_chip_t *chip, uint8_t vector_base)
 {
     chip->irr = 0U;
@@ -77,7 +93,36 @@ static void chip_reset(vpic_chip_t *chip, uint8_t vector_base)
     chip->auto_eoi = false;
 }
 
-// Reset the virtual PIC pair.
+/**
+ * @funcname `vpic_reset`
+ *
+ * @description
+ * Resets the virtual PIC pair of a VM, as at power-on (on load and reset).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `vpic_t *` | [out] The virtual PIC pair. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `chip_reset()` with the arguments the address of `pic->chip[0]` and
+ *    `0x08U`.
+ * 2. Call `chip_reset()` with the arguments the address of `pic->chip[1]` and
+ *    `0x70U`.
+ *
+ * @calls
+ * - `chip_reset()`
+ */
 void vpic_reset(vpic_t *pic)
 {
     // The BIOS's vectors; guests program their own.
@@ -85,13 +130,78 @@ void vpic_reset(vpic_t *pic)
     chip_reset(&pic->chip[1], 0x70U);
 }
 
-// The chip that a port belongs to.
+/**
+ * @funcname `chip_of`
+ *
+ * @description
+ * Returns the chip that a PIC port belongs to.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `vpic_t *` | [in] The virtual PIC pair. |
+ * | `port` | `uint16_t` | [in] The port: 0x20-0x21 or 0xA0-0xA1. |
+ *
+ * @return The slave for 0xAx, the master otherwise.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return the address of `pic->chip[1]` if `(port & 0xF0U)` is equal to
+ *    `PIC_SLAVE`, otherwise the address of `pic->chip[0]`.
+ *
+ * @calls
+ * None.
+ */
 static vpic_chip_t *chip_of(vpic_t *pic, uint16_t port)
 {
     return ((port & 0xF0U) == PIC_SLAVE) ? &pic->chip[1] : &pic->chip[0];
 }
 
-// Lowest set bit (the highest priority), or PIC_IRQS if none.
+/**
+ * @funcname `first_bit`
+ *
+ * @description
+ * Returns the lowest set bit of an 8-bit register: the IRQ of highest
+ * priority.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `bits` | `uint8_t` | [in] The register. |
+ *
+ * @return The bit number, or 8 if no bit is set.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `n` | `uint32_t` | The bit being checked |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `n` to `0U`.
+ * 2. While `n` is less than `PIC_IRQS` and `(bits & (1U << n))` is equal to
+ *    `0U`:
+ *    1. Increment `n`.
+ * 3. Return `n`.
+ *
+ * @calls
+ * None.
+ */
 static uint32_t first_bit(uint8_t bits)
 {
     uint32_t n = 0U;
@@ -102,9 +212,58 @@ static uint32_t first_bit(uint8_t bits)
     return n;
 }
 
-/*
- * Write to a chip's command port: ICW1 (start of initialization), OCW3
- * (register to read) or OCW2 (end of interrupt).
+/**
+ * @funcname `pic_command`
+ *
+ * @description
+ * Handles a write to a chip's command port: ICW1 (start of
+ * initialization), OCW3 (register to read) or OCW2 (end of interrupt).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `chip` | `vpic_chip_t *` | [out] The chip. |
+ * | `value` | `uint8_t` | [in] The value written. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `n` | `uint32_t` | The in-service IRQ of highest priority |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `(value & ICW1_INIT)` is not equal to `0U`:
+ *    1. Set `chip->irr` to `0U`.
+ *    2. Set `chip->isr` to `0U`.
+ *    3. Set `chip->imr` to `0U`.
+ *    4. Set `chip->read_isr` to `false`.
+ *    5. Set `chip->auto_eoi` to `false`.
+ *    6. Set `chip->single` to `(value & ICW1_SINGLE) != 0U`.
+ *    7. Set `chip->icw4_needed` to `(value & ICW1_ICW4) != 0U`.
+ *    8. Set `chip->init_step` to `STEP_ICW2`.
+ * 2. Otherwise, if `(value & OCW3_MASK)` is equal to `OCW3_SELECT`:
+ *    1. If `(value & OCW3_READ_REGISTER)` is not equal to `0U`:
+ *       1. Set `chip->read_isr` to `(value & OCW3_READ_ISR) != 0U`.
+ * 3. Otherwise, if `(value & OCW2_EOI_MASK)` is equal to `OCW2_EOI`:
+ *    1. Call `first_bit()` with the argument `chip->isr`, and store the result
+ *       in `n`.
+ *    2. If `n` is less than `PIC_IRQS`:
+ *       1. Keep only the bits `(uint8_t) ~(1U << n)` of `chip->isr`.
+ * 4. Otherwise, if `(value & OCW2_EOI_MASK)` is equal to
+ *    `(OCW2_EOI | OCW2_SPECIFIC)`:
+ *    1. Keep only the bits `(uint8_t) ~(1U << (value & OCW2_LEVEL))` of
+ *       `chip->isr`.
+ * 5. Otherwise:
+ *    1. Do nothing.
+ *
+ * @calls
+ * - `first_bit()`
  */
 static void pic_command(vpic_chip_t *chip, uint8_t value)
 {
@@ -134,9 +293,52 @@ static void pic_command(vpic_chip_t *chip, uint8_t value)
     }
 }
 
-/*
- * Write to a chip's data port: the next initialization word (ICW2-ICW4),
- * otherwise the mask (OCW1).
+/**
+ * @funcname `pic_data`
+ *
+ * @description
+ * Handles a write to a chip's data port: the next initialization word
+ * (ICW2-ICW4) during initialization, otherwise the mask (OCW1).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `chip` | `vpic_chip_t *` | [in,out] The chip. |
+ * | `value` | `uint8_t` | [in] The value written. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `step` | `uint8_t` | The initialization word expected |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `step` to `chip->init_step`.
+ * 2. If `step` is equal to `STEP_ICW2`:
+ *    1. Set `chip->vector_base` to `(uint8_t) (value & 0xF8U)`.
+ *    2. If `chip->single` is false:
+ *       1. Set `chip->init_step` to `STEP_ICW3`.
+ *    3. Otherwise, if `chip->icw4_needed` is true:
+ *       1. Set `chip->init_step` to `STEP_ICW4`.
+ *    4. Otherwise:
+ *       1. Set `chip->init_step` to `STEP_NONE`.
+ * 3. Otherwise, if `step` is equal to `STEP_ICW3`:
+ *    1. Set `chip->init_step` to `STEP_ICW4` if `chip->icw4_needed` is true,
+ *       otherwise `STEP_NONE`.
+ * 4. Otherwise, if `step` is equal to `STEP_ICW4`:
+ *    1. Set `chip->auto_eoi` to `(value & ICW4_AUTO_EOI) != 0U`.
+ *    2. Set `chip->init_step` to `STEP_NONE`.
+ * 5. Otherwise:
+ *    1. Set `chip->imr` to `value`.
+ *
+ * @calls
+ * None.
  */
 static void pic_data(vpic_chip_t *chip, uint8_t value)
 {
@@ -163,7 +365,44 @@ static void pic_data(vpic_chip_t *chip, uint8_t value)
     }
 }
 
-// Write of the guest to a PIC port.
+/**
+ * @funcname `vpic_write`
+ *
+ * @description
+ * Handles a write of the guest to a PIC port.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `vpic_t *` | [in] The virtual PIC pair. |
+ * | `port` | `uint16_t` | [in] The port. |
+ * | `value` | `uint8_t` | [in] The value written. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `chip` | `vpic_chip_t *` | The chip of the port |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `chip_of()` with the arguments `pic` and `port`, and store the result
+ *    in `chip`.
+ * 2. If `(port & 1U)` is equal to `0U`:
+ *    1. Call `pic_command()` with the arguments `chip` and `value`.
+ * 3. Otherwise:
+ *    1. Call `pic_data()` with the arguments `chip` and `value`.
+ *
+ * @calls
+ * - `chip_of()`
+ * - `pic_command()`
+ * - `pic_data()`
+ */
 void vpic_write(vpic_t *pic, uint16_t port, uint8_t value)
 {
     vpic_chip_t *chip = chip_of(pic, port);
@@ -175,9 +414,47 @@ void vpic_write(vpic_t *pic, uint16_t port, uint8_t value)
     }
 }
 
-/*
- * Read of the guest from a PIC port: the mask, or IRR or ISR as selected by
- * OCW3.
+/**
+ * @funcname `vpic_read`
+ *
+ * @description
+ * Handles a read of the guest from a PIC port: the mask from the data port,
+ * the IRR or ISR (as selected by OCW3) from the command port.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `const vpic_t *` | [in] The virtual PIC pair. |
+ * | `port` | `uint16_t` | [in] The port. |
+ *
+ * @return The value read.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `chip` | `const vpic_chip_t *` | The chip of the port |
+ * | `value` | `uint8_t` | The value read |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `chip` to the address of `pic->chip[1]` if `(port & 0xF0U)` is equal
+ *    to `PIC_SLAVE`, otherwise the address of `pic->chip[0]`.
+ * 2. If `(port & 1U)` is not equal to `0U`:
+ *    1. Set `value` to `chip->imr`.
+ * 3. Otherwise, if `chip->read_isr` is true:
+ *    1. Set `value` to `chip->isr`.
+ * 4. Otherwise:
+ *    1. Set `value` to `chip->irr`.
+ * 5. Return `value`.
+ *
+ * @calls
+ * None.
  */
 uint8_t vpic_read(const vpic_t *pic, uint16_t port)
 {
@@ -195,7 +472,41 @@ uint8_t vpic_read(const vpic_t *pic, uint16_t port)
     return value;
 }
 
-// Request interrupt irq (0-15), edge-triggered.
+/**
+ * @funcname `vpic_raise`
+ *
+ * @description
+ * Requests an interrupt (edge-triggered): sets its bit in the request
+ * register of its chip.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `vpic_t *` | [in,out] The virtual PIC pair. |
+ * | `irq` | `uint32_t` | [in] The IRQ, 0-15. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `irq` is less than `PIC_IRQS`:
+ *    1. Set the bits `(uint8_t) (1U << irq)` in `pic->chip[0].irr`.
+ * 2. Otherwise, if `irq` is less than `(2U * PIC_IRQS)`:
+ *    1. Set the bits `(uint8_t) (1U << (irq - PIC_IRQS))` in
+ *       `pic->chip[1].irr`.
+ * 3. Otherwise:
+ *    1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 void vpic_raise(vpic_t *pic, uint32_t irq)
 {
     if (irq < PIC_IRQS) {
@@ -207,9 +518,47 @@ void vpic_raise(vpic_t *pic, uint32_t irq)
     }
 }
 
-/*
- * Highest-priority request of a chip that is unmasked and not blocked by
- * an interrupt in service at the same or a higher priority.
+/**
+ * @funcname `chip_request`
+ *
+ * @description
+ * Returns a chip's request of highest priority that is unmasked and not
+ * blocked by an interrupt in service at the same or a higher priority.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `chip` | `const vpic_chip_t *` | [in] The chip. |
+ * | `extra` | `uint8_t` | [in] Request bits to add (the slave's request on the master's IRQ 2). |
+ *
+ * @return The IRQ of the request, or 8 if there is none.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `unmasked` | `uint8_t` | The IRQs not masked |
+ * | `request` | `uint32_t` | The unmasked request of highest priority |
+ * | `in_service` | `uint32_t` | The in-service IRQ of highest priority |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `unmasked` to `(uint8_t) ~chip->imr`.
+ * 2. Call `first_bit()` with the argument
+ *    `(uint8_t) ((chip->irr | extra) & unmasked)`, and store the result in
+ *    `request`.
+ * 3. Call `first_bit()` with the argument `chip->isr`, and store the result in
+ *    `in_service`.
+ * 4. Return `request` if `request` is less than `in_service`, otherwise
+ *    `PIC_IRQS`.
+ *
+ * @calls
+ * - `first_bit()`
  */
 static uint32_t chip_request(const vpic_chip_t *chip, uint8_t extra)
 {
@@ -222,7 +571,41 @@ static uint32_t chip_request(const vpic_chip_t *chip, uint8_t extra)
     return (request < in_service) ? request : PIC_IRQS;
 }
 
-// IRQ 2 bit of the master: set while the slave has a request to deliver.
+/**
+ * @funcname `cascade_bit`
+ *
+ * @description
+ * Returns the IRQ 2 request bit of the master: set while the slave has a
+ * request to deliver.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `const vpic_t *` | [in] The virtual PIC pair. |
+ *
+ * @return The IRQ 2 bit, or 0.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `bit` | `uint8_t` | The IRQ 2 bit, or 0 |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `bit` to `0U`.
+ * 2. If `chip_request(&pic->chip[1], 0U)` is less than `PIC_IRQS`:
+ *    1. Set `bit` to `(uint8_t) (1U << PIC_CASCADE_IRQ)`.
+ * 3. Return `bit`.
+ *
+ * @calls
+ * - `chip_request()`
+ */
 static uint8_t cascade_bit(const vpic_t *pic)
 {
     uint8_t bit = 0U;
@@ -233,13 +616,75 @@ static uint8_t cascade_bit(const vpic_t *pic)
     return bit;
 }
 
-// Check whether the PIC has an interrupt to deliver.
+/**
+ * @funcname `vpic_pending`
+ *
+ * @description
+ * Tells whether the PIC pair has an interrupt to deliver to the vCPU.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `const vpic_t *` | [in] The virtual PIC pair. |
+ *
+ * @return true if an interrupt can be delivered.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `chip_request(&pic->chip[0], cascade_bit(pic)) < PIC_IRQS`.
+ *
+ * @calls
+ * - `chip_request()`
+ * - `cascade_bit()`
+ */
 bool vpic_pending(const vpic_t *pic)
 {
     return chip_request(&pic->chip[0], cascade_bit(pic)) < PIC_IRQS;
 }
 
-// Acknowledge the request n of a chip: it moves from IRR to ISR.
+/**
+ * @funcname `acknowledge`
+ *
+ * @description
+ * Acknowledges a request of a chip, as the CPU's interrupt acknowledge
+ * does: it moves from the IRR to the ISR (not with automatic EOI).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `chip` | `vpic_chip_t *` | [in,out] The chip. |
+ * | `n` | `uint32_t` | [in] The IRQ of the chip. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `bit` | `uint8_t` | The IRQ's bit |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `bit` to `(uint8_t) (1U << n)`.
+ * 2. Keep only the bits `(uint8_t) ~bit` of `chip->irr`.
+ * 3. If `chip->auto_eoi` is false:
+ *    1. Set the bits `bit` in `chip->isr`.
+ *
+ * @calls
+ * None.
+ */
 static void acknowledge(vpic_chip_t *chip, uint32_t n)
 {
     uint8_t bit = (uint8_t) (1U << n);
@@ -250,9 +695,59 @@ static void acknowledge(vpic_chip_t *chip, uint32_t n)
     }
 }
 
-/*
- * Take the interrupt to deliver next: acknowledge it and give its vector.
- * Returns false if there is none.
+/**
+ * @funcname `vpic_next`
+ *
+ * @description
+ * Takes the interrupt to deliver next: acknowledges it and gives its
+ * vector.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pic` | `vpic_t *` | [in] The virtual PIC pair. |
+ * | `vector` | `uint8_t *` | [out] Where the vector is stored. |
+ *
+ * @return false if there is no interrupt to deliver.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `master` | `vpic_chip_t *` | The master chip |
+ * | `slave` | `vpic_chip_t *` | The slave chip |
+ * | `n` | `uint32_t` | The master's request |
+ * | `found` | `bool` | Whether there is an interrupt |
+ * | `m` | `uint32_t` | The slave's request |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `master` to the address of `pic->chip[0]`.
+ * 2. Set `slave` to the address of `pic->chip[1]`.
+ * 3. Call `chip_request()` with the arguments `master` and `cascade_bit(pic)`,
+ *    and store the result in `n`.
+ * 4. Set `found` to `n < PIC_IRQS`.
+ * 5. If `found` is true:
+ *    1. If `n` is equal to `PIC_CASCADE_IRQ`:
+ *       1. Call `chip_request()` with the arguments `slave` and `0U`, and store
+ *          the result in `m`.
+ *       2. Call `acknowledge()` with the arguments `master` and `n`.
+ *       3. Call `acknowledge()` with the arguments `slave` and `m`.
+ *       4. Set `*vector` to `(uint8_t) (slave->vector_base + m)`.
+ *    2. Otherwise:
+ *       1. Call `acknowledge()` with the arguments `master` and `n`.
+ *       2. Set `*vector` to `(uint8_t) (master->vector_base + n)`.
+ * 6. Return `found`.
+ *
+ * @calls
+ * - `chip_request()`
+ * - `cascade_bit()`
+ * - `acknowledge()`
  */
 bool vpic_next(vpic_t *pic, uint8_t *vector)
 {

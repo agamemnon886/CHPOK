@@ -24,6 +24,10 @@
  * ja_addr_to_gdb_ro() take the address GDB uses as an integer and return
  * a kernel address valid in any space; the header includes <config.h>,
  * which defines POK_NEEDS_GDB.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef JET_ASP_UACCESS_H
@@ -40,6 +44,7 @@
  * 
  * If given area cannot be written by the user space, returns NULL.
  */
+/** \cond */
 void* JET_KUSER ja_user_to_kernel_space(void* JET_USER addr, size_t size,
     jet_space_id space_id);
 
@@ -61,6 +66,7 @@ const void* JET_KUSER ja_user_to_kernel_ro_space(const void* JET_USER addr,
  * Kernel doesn't perform r/w to given address.
  */
 pok_bool_t ja_check_access_exec(void* JET_USER addr, jet_space_id space_id);
+/** \endcond */
 
 #ifdef POK_NEEDS_GDB
 
@@ -71,6 +77,7 @@ pok_bool_t ja_check_access_exec(void* JET_USER addr, jet_space_id space_id);
  * 
  * If given area cannot be written, returns NULL.
  */
+/** \cond */
 void* ja_addr_to_gdb(uintptr_t addr, size_t size, jet_space_id space_id);
 
 /* 
@@ -82,6 +89,7 @@ void* ja_addr_to_gdb(uintptr_t addr, size_t size, jet_space_id space_id);
  */
 const void* ja_addr_to_gdb_ro(uintptr_t addr, size_t size,
     jet_space_id space_id);
+/** \endcond */
 
 #endif /* POK_NEEDS_GDB */
 

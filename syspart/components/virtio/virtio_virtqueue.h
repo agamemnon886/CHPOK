@@ -17,25 +17,47 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the types are typedefs without a
+ * tag, used by their typedef names, and are documented with their macros.
  */
 #ifndef POK_KERNEL_VIRTIO_VIRTQUEUE_H
 #define POK_KERNEL_VIRTIO_VIRTQUEUE_H
 
 #include "virtio_ring.h"
 
-struct virtio_virtqueue {
-    struct vring vring;
+/**
+ * @typename `virtio_virtqueue_t`
+ *
+ * @description
+ * A virtqueue of a device: its ring and the state of its descriptors.
+ */
+typedef struct {
+    vring_t vring; /**< The ring. */
 
-    // index of first free descriptor
+    /**
+     * Index of first free descriptor.
+     */
     uint16_t free_index;
 
-    // count of free descriptors
+    /**
+     * Count of free descriptors.
+     */
     uint16_t num_free;
 
-    // last seen used
+    /**
+     * Last seen used.
+     */
     uint16_t last_seen_used;
-};
+} virtio_virtqueue_t;
 
-void* virtio_virtqueue_setup(struct virtio_virtqueue *vq, uint16_t size, size_t alignment);
+/** \cond */
+void* virtio_virtqueue_setup(virtio_virtqueue_t *vq, uint16_t size,
+    size_t alignment);
+/** \endcond */
 
 #endif // POK_KERNEL_VIRTIO_VIRTQUEUE_H

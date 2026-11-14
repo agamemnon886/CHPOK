@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Sat Jan 31 15:19:57 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* w_log10f.c -- float version of w_log10.c.
@@ -29,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * log10f() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -40,6 +50,36 @@
 #include "math_private.h"
 
 
+/**
+ * @funcname `log10f`
+ *
+ * @description
+ * Computes the base 10 logarithm of x, in float (C standard): the wrapper of
+ * `__ieee754_log10f()`.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ieee754_log10f()` with the argument `x`, and return its result.
+ *
+ * @calls
+ * - `__ieee754_log10f()`
+ */
 float
 log10f(float x)		/* wrapper log10f */
 {

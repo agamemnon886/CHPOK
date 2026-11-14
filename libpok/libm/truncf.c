@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)s_floor.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * truncf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -43,6 +56,59 @@
 
 static const float huge = 1.0e30F;
 
+/**
+ * @funcname `truncf`
+ *
+ * @description
+ * Computes x rounded toward 0 to an integer, in float (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `huge` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `uint32_t` | A temporary of the computation |
+ * | `i0` | `int32_t` | The bits of x |
+ * | `jj0` | `int32_t` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `i0` and `x`.
+ * 2. Set `jj0` to `((i0>>23)&0xff)-0x7f`.
+ * 3. If `jj0` is less than `23`:
+ *    1. If `jj0` is less than `0`:
+ *       1. If `huge+x` is greater than `0.0F`:
+ *          1. Keep only the bits `0x80000000` of `i0`.
+ *    2. Otherwise:
+ *       1. Set `i` to `(0x007fffff)>>jj0`.
+ *       2. If `(i0&i)` is equal to `0`:
+ *          1. Return `x`.
+ *       3. If `huge+x` is greater than `0.0F`:
+ *          1. Keep only the bits `~i` of `i0`.
+ * 4. Otherwise:
+ *    1. If `jj0` is equal to `0x80`:
+ *       1. Return `x+x`.
+ *    2. Otherwise:
+ *       1. Return `x`.
+ * 5. Use the macro `SET_FLOAT_WORD()` with the arguments `x` and `i0`.
+ * 6. Return `x`.
+ *
+ * @calls
+ * None.
+ */
 float
 truncf(float x)
 {

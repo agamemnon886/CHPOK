@@ -1,6 +1,13 @@
 # Modified by Kirill Brazhnikov, 2026-10-31: state fields use the
 # fixed-width types from <stdint.h> (uint32_t, int32_t).
+#
+# Modified by Kirill Brazhnikov, 2026-11-14: description and state_doc give the
+# documentation of the components and of their state members.
 - name: ARINC_SENDER
+  description: >-
+    It reads the messages of an ARINC 653 port of the partition (queuing or
+    sampling) in its activity and sends them on (portA), with room before
+    each for the headers of the components below.
   additional_h_files: ['<arinc653/queueing.h>', '<arinc653/sampling.h>', '<port_info.h>']
   state_struct:
       port_name: NAME_TYPE
@@ -13,6 +20,25 @@
       #not inited
       port_id: APEX_INTEGER
       port_buffer: sys_port_data_t *
+  state_doc:
+      port_name: >-
+        The name of the ARINC 653 port.
+      port_direction: >-
+        The direction of the port (DESTINATION: the partition receives on
+        it).
+      overhead: >-
+        The room before a message for the headers (max_backstep).
+      port_max_message_size: >-
+        The maximum size of a message of the port.
+      is_queuing_port: >-
+        Non-zero for a queuing port, zero for a sampling port.
+      q_port_max_nb_messages: >-
+        The capacity of a queuing port, in messages.
+      port_id: >-
+        The identifier of the port (set by arinc_sender_init()).
+      port_buffer: >-
+        The buffer of a message, with its room for the headers (set by
+        arinc_sender_init()).
 
   init_func: arinc_sender_init
   activity: arinc_sender_activity
@@ -23,6 +49,9 @@
 
 
 - name: ARINC_RECEIVER
+  description: >-
+    It writes the messages it receives (portA) to an ARINC 653 port of the
+    partition (queuing or sampling).
   additional_h_files: ['<arinc653/queueing.h>', '<arinc653/sampling.h>', '<port_info.h>']
   state_struct:
       port_name: NAME_TYPE
@@ -32,6 +61,19 @@
       q_port_max_nb_messages: MESSAGE_RANGE_TYPE
       #not inited
       port_id: APEX_INTEGER
+  state_doc:
+      port_name: >-
+        The name of the ARINC 653 port.
+      port_direction: >-
+        The direction of the port (SOURCE: the partition sends on it).
+      port_max_message_size: >-
+        The maximum size of a message of the port.
+      is_queuing_port: >-
+        Non-zero for a queuing port, zero for a sampling port.
+      q_port_max_nb_messages: >-
+        The capacity of a queuing port, in messages.
+      port_id: >-
+        The identifier of the port (set by arinc_receiver_init()).
 
   init_func: arinc_receiver_init
 

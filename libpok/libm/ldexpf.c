@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* s_ldexp0f.c -- float version of s_ldexp0.c.
@@ -29,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * ldexpf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -36,6 +46,41 @@
 #include "math_private.h"
 #include <errno.h>
 
+/**
+ * @funcname `ldexpf`
+ *
+ * @description
+ * Returns value times 2 raised to the power exp0.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `value` | `float` | [in] The value. |
+ * | `exp0` | `int` | [in] The power of 2. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `finitef(value)` is false or `value` is equal to `(float)0.0`:
+ *    1. Return `value`.
+ * 2. Call `scalbnf()` with the arguments `value` and `exp0`, and store the
+ *    result in `value`.
+ * 3. Return `value`.
+ *
+ * @calls
+ * - `finitef()`
+ * - `scalbnf()`
+ */
 float
 ldexpf(float value, int exp0)
 {

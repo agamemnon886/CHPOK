@@ -18,10 +18,57 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: strcat() and
  * strncat() use index loops that don't modify the parameters.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * strcat() and strncat() of libpok.
  */
 
 #include <string.h>
 
+/**
+ * @funcname `strcat`
+ *
+ * @description
+ * Appends a string to another (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dest` | `char *` | [in,out] The string appended to. |
+ * | `src` | `const char *` | [in] The string appended. |
+ *
+ * @return dest.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `d` | `size_t` | The length of dest |
+ * | `i` | `size_t` | The index of the character of src |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `strlen()` with the argument `dest`, and store the result in `d`.
+ * 2. Set `i` to `0U`.
+ * 3. While `src[i]` is not equal to `'\0'`:
+ *    1. Set `dest[d + i]` to `src[i]`.
+ *    2. Increment `i`.
+ * 4. Set `dest[d + i]` to `'\0'`.
+ * 5. Return `dest`.
+ *
+ * @calls
+ * - `strlen()`
+ */
 char *strcat(char * dest, const char * src)
 {
     size_t d = strlen(dest);
@@ -37,6 +84,46 @@ char *strcat(char * dest, const char * src)
     return dest;
 }
 
+/**
+ * @funcname `strncat`
+ *
+ * @description
+ * Appends at most n characters of a string to another, and a NUL (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dest` | `char *` | [in,out] The string appended to. |
+ * | `src` | `const char *` | [in] The string appended. |
+ * | `n` | `size_t` | [in] The maximum number of characters. |
+ *
+ * @return dest.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `d` | `size_t` | The length of dest |
+ * | `i` | `size_t` | The index of the character of src |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `strlen()` with the argument `dest`, and store the result in `d`.
+ * 2. Set `i` to `0U`.
+ * 3. While `i` is less than `n` and `src[i]` is not equal to `'\0'`:
+ *    1. Set `dest[d + i]` to `src[i]`.
+ *    2. Increment `i`.
+ * 4. Set `dest[d + i]` to `'\0'`.
+ * 5. Return `dest`.
+ *
+ * @calls
+ * - `strlen()`
+ */
 char *strncat(char * dest, const char * src, size_t n)
 {
     size_t d = strlen(dest);

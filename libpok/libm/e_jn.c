@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_jn.c 5.1 93/09/24 */
@@ -26,6 +35,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_jn()` and `__ieee754_yn()` of libpok's math library (fdlibm, from
+ * Sun Microsystems).
+ */
 /*
  * __ieee754_jn(n, x), __ieee754_yn(n, x)
  * floating point Bessel's function of the 1st and 2nd kind
@@ -66,6 +80,171 @@ one   =  1.00000000000000000000e+00; /* 0x3FF00000, 0x00000000 */
 
 static const double zero  =  0.00000000000000000000e+00;
 
+/**
+ * @funcname `__ieee754_jn`
+ *
+ * @description
+ * Computes the Bessel function of the first kind of order n of x: the IEEE 754
+ * core of jn().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `n` | `int` | [in] The order. |
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `invsqrtpi` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `two` | `const double` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `a` | `double` | A temporary of the computation |
+ * | `b` | `double` | A temporary of the computation |
+ * | `di` | `double` | A temporary of the computation |
+ * | `h` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `i` | `int32_t` | A temporary of the computation |
+ * | `ix` | `int32_t` | A temporary of the computation |
+ * | `k` | `int32_t` | A temporary of the computation |
+ * | `lx` | `int32_t` | The low word of x |
+ * | `m` | `int32_t` | A temporary of the computation |
+ * | `q0` | `double` | A temporary of the computation |
+ * | `q1` | `double` | A temporary of the computation |
+ * | `sgn` | `int32_t` | A temporary of the computation |
+ * | `t` | `double` | A temporary of the computation |
+ * | `temp` | `double` | A temporary of the computation |
+ * | `tmp` | `double` | A temporary of the computation |
+ * | `v` | `double` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `temp` to `0`.
+ * 2. Use the macro `EXTRACT_WORDS()` with the arguments `hx`, `lx` and `x`.
+ * 3. Set `ix` to `0x7fffffff&hx`.
+ * 4. If `(ix|((uint32_t)(lx|-lx))>>31)` is greater than `0x7ff00000`:
+ *    1. Return `x+x`.
+ * 5. If `n` is less than `0`:
+ *    1. Set `n` to `-n`.
+ *    2. Set `x` to `-x`.
+ *    3. Toggle the bits `0x80000000` in `hx`.
+ * 6. If `n` is equal to `0`:
+ *    1. Return `(__ieee754_j0(x))`.
+ * 7. If `n` is equal to `1`:
+ *    1. Return `(__ieee754_j1(x))`.
+ * 8. Set `sgn` to `(n&1)&(hx>>31)`.
+ * 9. Call `fabs()` with the argument `x`, and store the result in `x`.
+ * 10. If `(ix|lx)` is equal to `0` or `ix` is greater than or equal to
+ *     `0x7ff00000`:
+ *     1. Set `b` to `zero`.
+ * 11. Otherwise, if `(double)n` is less than or equal to `x`:
+ *     1. If `ix` is greater than or equal to `0x52D00000`:
+ *        1. Depending on `n&3`:
+ *           1. Case `0`:
+ *              1. Set `temp` to `cos(x)+sin(x)`.
+ *              2. Leave the switch.
+ *           2. Case `1`:
+ *              1. Set `temp` to `-cos(x)+sin(x)`.
+ *              2. Leave the switch.
+ *           3. Case `2`:
+ *              1. Set `temp` to `-cos(x)-sin(x)`.
+ *              2. Leave the switch.
+ *           4. Case `3`:
+ *              1. Set `temp` to `cos(x)-sin(x)`.
+ *              2. Leave the switch.
+ *        2. Set `b` to `invsqrtpi*temp/sqrt(x)`.
+ *     2. Otherwise:
+ *        1. Call `__ieee754_j0()` with the argument `x`, and store the result
+ *           in `a`.
+ *        2. Call `__ieee754_j1()` with the argument `x`, and store the result
+ *           in `b`.
+ *        3. Set `i` to `1`; then while `i` is less than `n`, repeat (after each
+ *           pass: increment `i`):
+ *           1. Set `temp` to `b`.
+ *           2. Set `b` to `b*((double)(i+i)/x) - a`.
+ *           3. Set `a` to `temp`.
+ * 12. Otherwise:
+ *     1. If `ix` is less than `0x3e100000`:
+ *        1. If `n` is greater than `33`:
+ *           1. Set `b` to `zero`.
+ *        2. Otherwise:
+ *           1. Set `temp` to `x*0.5`.
+ *           2. Set `b` to `temp`.
+ *           3. Set `a` to `one`. Set `i` to `2`; then while `i` is less than or
+ *              equal to `n`, repeat (after each pass: increment `i`):
+ *              1. Multiply `a` by `(double)i`.
+ *              2. Multiply `b` by `temp`.
+ *           4. Set `b` to `b/a`.
+ *     2. Otherwise:
+ *        1. Set `w` to `(n+n)/(double)x`.
+ *        2. Set `h` to `2.0/(double)x`.
+ *        3. Set `q0` to `w`.
+ *        4. Set `z` to `w+h`.
+ *        5. Set `q1` to `w*z - 1.0`.
+ *        6. Set `k` to `1`.
+ *        7. While `q1` is less than `1.0e9`:
+ *           1. Add `1` to `k`.
+ *           2. Add `h` to `z`.
+ *           3. Set `tmp` to `z*q1 - q0`.
+ *           4. Set `q0` to `q1`.
+ *           5. Set `q1` to `tmp`.
+ *        8. Set `m` to `n+n`.
+ *        9. Set `t` to `zero`. Set `i` to `2*(n+k)`; then while `i` is greater
+ *           than or equal to `m`, repeat (after each pass: subtract `2` from
+ *           `i`):
+ *           1. Set `t` to `one/(i/x-t)`.
+ *        10. Set `a` to `t`.
+ *        11. Set `b` to `one`.
+ *        12. Set `tmp` to `n`.
+ *        13. Set `v` to `two/x`.
+ *        14. Set `tmp` to `tmp*__ieee754_log(fabs(v*tmp))`.
+ *        15. If `tmp` is less than `7.09782712893383973096e+02`:
+ *            1. Set `i` to `n-1`. Set `di` to `(double)(i+i)`; then while `i`
+ *               is greater than `0`, repeat (after each pass: decrement `i`):
+ *               1. Set `temp` to `b`.
+ *               2. Multiply `b` by `di`.
+ *               3. Set `b` to `b/x - a`.
+ *               4. Set `a` to `temp`.
+ *               5. Subtract `two` from `di`.
+ *        16. Otherwise:
+ *            1. Set `i` to `n-1`. Set `di` to `(double)(i+i)`; then while `i`
+ *               is greater than `0`, repeat (after each pass: decrement `i`):
+ *               1. Set `temp` to `b`.
+ *               2. Multiply `b` by `di`.
+ *               3. Set `b` to `b/x - a`.
+ *               4. Set `a` to `temp`.
+ *               5. Subtract `two` from `di`.
+ *               6. If `b` is greater than `1e100`:
+ *                  1. Divide `a` by `b`.
+ *                  2. Divide `t` by `b`.
+ *                  3. Set `b` to `one`.
+ *        17. Set `b` to `(t*__ieee754_j0(x)/b)`.
+ * 13. If `sgn` is equal to `1`:
+ *     1. Return `-b`.
+ * 14. Otherwise:
+ *     1. Return `b`.
+ *
+ * @calls
+ * - `__ieee754_j0()`
+ * - `__ieee754_j1()`
+ * - `fabs()`
+ * - `cos()`
+ * - `sin()`
+ * - `sqrt()`
+ * - `__ieee754_log()`
+ */
 double
 __ieee754_jn(int n, double x)
 {
@@ -223,6 +402,104 @@ __ieee754_jn(int n, double x)
 	if(sgn==1) return -b; else return b;
 }
 
+/**
+ * @funcname `__ieee754_yn`
+ *
+ * @description
+ * Computes the Bessel function of the second kind of order n of x: the IEEE 754
+ * core of yn().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `n` | `int` | [in] The order. |
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `invsqrtpi` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `zero` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `a` | `double` | A temporary of the computation |
+ * | `b` | `double` | A temporary of the computation |
+ * | `high` | `uint32_t` | The high word of b |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `i` | `int32_t` | A temporary of the computation |
+ * | `ix` | `int32_t` | A temporary of the computation |
+ * | `lx` | `int32_t` | The low word of x |
+ * | `sign` | `int32_t` | A temporary of the computation |
+ * | `temp` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `temp` to `0`.
+ * 2. Use the macro `EXTRACT_WORDS()` with the arguments `hx`, `lx` and `x`.
+ * 3. Set `ix` to `0x7fffffff&hx`.
+ * 4. If `(ix|((uint32_t)(lx|-lx))>>31)` is greater than `0x7ff00000`:
+ *    1. Return `x+x`.
+ * 5. If `(ix|lx)` is equal to `0`:
+ *    1. Return `-one/zero`.
+ * 6. If `hx` is less than `0`:
+ *    1. Return `zero/zero`.
+ * 7. Set `sign` to `1`.
+ * 8. If `n` is less than `0`:
+ *    1. Set `n` to `-n`.
+ *    2. Set `sign` to `1 - ((n&1)<<1)`.
+ * 9. If `n` is equal to `0`:
+ *    1. Return `(__ieee754_y0(x))`.
+ * 10. If `n` is equal to `1`:
+ *     1. Return `(sign*__ieee754_y1(x))`.
+ * 11. If `ix` is equal to `0x7ff00000`:
+ *     1. Return `zero`.
+ * 12. If `ix` is greater than or equal to `0x52D00000`:
+ *     1. Depending on `n&3`:
+ *        1. Case `0`:
+ *           1. Set `temp` to `sin(x)-cos(x)`.
+ *           2. Leave the switch.
+ *        2. Case `1`:
+ *           1. Set `temp` to `-sin(x)-cos(x)`.
+ *           2. Leave the switch.
+ *        3. Case `2`:
+ *           1. Set `temp` to `-sin(x)+cos(x)`.
+ *           2. Leave the switch.
+ *        4. Case `3`:
+ *           1. Set `temp` to `sin(x)+cos(x)`.
+ *           2. Leave the switch.
+ *     2. Set `b` to `invsqrtpi*temp/sqrt(x)`.
+ * 13. Otherwise:
+ *     1. Call `__ieee754_y0()` with the argument `x`, and store the result in
+ *        `a`.
+ *     2. Call `__ieee754_y1()` with the argument `x`, and store the result in
+ *        `b`.
+ *     3. Use the macro `GET_HIGH_WORD()` with the arguments `high` and `b`.
+ *     4. Set `i` to `1`; then while `i` is less than `n` and `high` is not
+ *        equal to `0xfff00000`, repeat (after each pass: increment `i`):
+ *        1. Set `temp` to `b`.
+ *        2. Set `b` to `((double)(i+i)/x)*b - a`.
+ *        3. Use the macro `GET_HIGH_WORD()` with the arguments `high` and `b`.
+ *        4. Set `a` to `temp`.
+ * 14. If `sign` is greater than `0`:
+ *     1. Return `b`.
+ * 15. Otherwise:
+ *     1. Return `-b`.
+ *
+ * @calls
+ * - `__ieee754_y0()`
+ * - `__ieee754_y1()`
+ * - `sin()`
+ * - `cos()`
+ * - `sqrt()`
+ */
 double
 __ieee754_yn(int n, double x)
 {

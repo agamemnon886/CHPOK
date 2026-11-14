@@ -19,6 +19,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t).
+ */
+
+/**
+ * @file
+ * clock() of libpok.
  */
 
 /*
@@ -28,6 +39,39 @@
 #include <time.h>
 #include <core/syscall.h>
 
+/**
+ * @funcname `clock`
+ *
+ * @description
+ * Returns the processor time (C standard): the system time, in nanoseconds.
+ *
+ * @return The time, or -1 if it isn't available.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ret` | `pok_ret_e` | The result of the syscall |
+ * | `t` | `pok_time_t` | The time |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `ret` to
+ *    `pok_syscall2(POK_SYSCALL_CLOCK_GETTIME, (uintptr_t)CLOCK_REALTIME,`
+ *    `(uintptr_t)&t)`.
+ * 2. If `ret` is not equal to `POK_ERRNO_OK`:
+ *    1. Return `-1`.
+ * 3. Otherwise:
+ *    1. Return `(clock_t)t`.
+ *
+ * @calls
+ * - `lja_do_syscall()`
+ */
 clock_t clock(void)
 {
     pok_time_t t;
@@ -36,7 +80,7 @@ clock_t clock(void)
      * MISRA C:2025 Rule 11.4 deviation: system call arguments are passed as
      * integers; the kernel converts the address back to a pointer.
      */
-    pok_ret_t ret = pok_syscall2(POK_SYSCALL_CLOCK_GETTIME,
+    pok_ret_e ret = pok_syscall2(POK_SYSCALL_CLOCK_GETTIME,
                                  (uintptr_t)CLOCK_REALTIME, (uintptr_t)&t);
     
     if(ret != POK_ERRNO_OK) {

@@ -16,6 +16,9 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -30,11 +33,13 @@
 #include <libc.h>
 #include <types.h>
 
+/** \cond */
 void pok_instrumentation_task_archi (const uint32_t id);
 
 void pok_instrumentation_partition_archi (const uint8_t id);
 
 void pok_instrumentation_running_task (const uint32_t id);
+/** \endcond */
 
 #endif /* POK_NEEDS_INSTRUMENTATION */
 

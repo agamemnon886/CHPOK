@@ -17,6 +17,10 @@
  * guard isn't a reserved identifier; U suffixes for unsigned constants;
  * no restrict qualifiers; deviations are documented where a guideline
  * can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 /*
@@ -32,16 +36,44 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-// Buffer size use by setbuf(). (Not, that function itself is not accessible).
+/**
+ * @macroname `BUFSIZ`
+ *
+ * @description
+ * Buffer size use by setbuf(). (Not, that function itself is not accessible).
+ */
 #define BUFSIZ 128U
 
-// Input/output is fully buffered.
+/**
+ * @macroname `_IOFBF`
+ *
+ * @description
+ * Input/output is fully buffered.
+ */
 #define _IOFBF 1
-// Input/output is line-buffered.
+
+/**
+ * @macroname `_IOLBF`
+ *
+ * @description
+ * Input/output is line-buffered.
+ */
 #define _IOLBF 2
-// Input/output is not buffered at all.
+
+/**
+ * @macroname `_IONBF`
+ *
+ * @description
+ * Input/output is not buffered at all.
+ */
 #define _IONBF 3
 
+/**
+ * @macroname `EOF`
+ *
+ * @description
+ * The end of a file, or an error (a negative int).
+ */
 #define EOF ((int)(-1))
 
 typedef struct stdio_stream FILE;
@@ -50,8 +82,15 @@ extern FILE* stderr;
 extern FILE* stdout;
 extern FILE* stdin;
 
+/**
+ * @typename `fpos_t`
+ *
+ * @description
+ * A position in a file.
+ */
 typedef size_t fpos_t;
 
+/** \cond */
 int printf(const char * format, ...)
     __attribute__ ((format(printf, 1, 2)));
 int vprintf(const char * format, va_list arg)
@@ -64,5 +103,6 @@ int vsnprintf(char * s, size_t n, const char * format, va_list arg)
 
 int putchar(int c);
 int puts(const char *s);
+/** \endcond */
 
 #endif /* __LIBJET_STDIO_H_ */

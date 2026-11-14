@@ -18,6 +18,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 /* Interface between arm64 arch code and the board. */
@@ -38,6 +42,7 @@
 #include <board/bsp.h>
 
 /* Initialize all board-specific stuff. Called with the MMU enabled. */
+/** \cond */
 void ja_bsp_init(void);
 
 /* Called when an IRQ occures (interrupts are disabled). */
@@ -45,5 +50,6 @@ void ja_bsp_process_irq(interrupt_frame* frame);
 
 /* Reset or power off the board. Never returns. */
 void ja_bsp_reset(void);
+/** \endcond */
 
 #endif /* JA_ARM64_BSP_BSP_H */

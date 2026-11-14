@@ -16,6 +16,8 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-11-07: o_threshold and u_threshold
  * are defined only where they are used (not with _IEEE_LIBM).
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -32,6 +34,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * exp() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -53,6 +59,36 @@ o_threshold=  7.09782712893383973096e+02,  /* 0x40862E42, 0xFEFA39EF */
 u_threshold= -7.45133219101941108420e+02;  /* 0xc0874910, 0xD52D3051 */
 #endif
 
+/**
+ * @funcname `exp`
+ *
+ * @description
+ * Computes e raised to the power x (C standard): the wrapper of
+ * `__ieee754_exp()`.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ieee754_exp()` with the argument `x`, and return its result.
+ *
+ * @calls
+ * - `__ieee754_exp()`
+ */
 double
 exp(double x)		/* wrapper exp */
 {

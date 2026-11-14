@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)s_copysign.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * copysign() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /*
  * copysign(double x, double y)
  * copysign(x,y) returns a value with the magnitude of x and
@@ -38,6 +51,43 @@
 #include <libm.h>
 #include "math_private.h"
 
+/**
+ * @funcname `copysign`
+ *
+ * @description
+ * Computes x with the sign of y (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `y` | `double` | [in] The second argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hx` | `uint32_t` | The high word of x |
+ * | `hy` | `uint32_t` | The high word of y |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 2. Use the macro `GET_HIGH_WORD()` with the arguments `hy` and `y`.
+ * 3. Use the macro `SET_HIGH_WORD()` with the arguments `x` and
+ *    `(hx&0x7fffffff)|(hy&0x80000000)`.
+ * 4. Return `x`.
+ *
+ * @calls
+ * None.
+ */
 double
 copysign(double x, double y)
 {

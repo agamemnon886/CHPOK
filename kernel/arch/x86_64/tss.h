@@ -18,6 +18,10 @@
  * kernel/arch/x86/tss.h to x86_64 (64-bit).
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file and
+ * its types (with their members).
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -27,18 +31,23 @@
 
 #include <types.h>
 
-/* 64-bit task state segment: only stack pointers are used. */
+/**
+ * @typename `tss_t`
+ *
+ * @description
+ * 64-bit task state segment: only stack pointers are used.
+ */
 typedef struct
 {
-   uint32_t reserved0;
-   uint64_t rsp0;
-   uint64_t rsp1;
-   uint64_t rsp2;
-   uint64_t reserved1;
-   uint64_t ist[7];
-   uint64_t reserved2;
-   uint16_t reserved3;
-   uint16_t iomap_base;
+   uint32_t reserved0; /**< Reserved. */
+   uint64_t rsp0; /**< The stack pointer for interrupts from user mode. */
+   uint64_t rsp1; /**< The stack pointer for ring 1 (not used). */
+   uint64_t rsp2; /**< The stack pointer for ring 2 (not used). */
+   uint64_t reserved1; /**< Reserved. */
+   uint64_t ist[7]; /**< The interrupt stack table (not used). */
+   uint64_t reserved2; /**< Reserved. */
+   uint16_t reserved3; /**< Reserved. */
+   uint16_t iomap_base; /**< The offset of the I/O permission bitmap. */
 } __attribute__((packed)) tss_t;
 
 #endif /* !POK_X86_64_TSS_H */

@@ -15,6 +15,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the structures and enums are used
+ * by their typedef names: msection_t, msection_wq_t.
  */
 
 #ifndef LIBJET_ARINC_EVENT_H
@@ -28,18 +31,27 @@
 #include <msection.h>
 #include <types.h>
 
-struct arinc_event
-{
-    EVENT_NAME_TYPE event_name;
+/**
+ * @typename `arinc_event_t`
+ *
+ * @description
+ * An event of the partition (CREATE_EVENT()), in the preallocated array
+ * arinc_events.
+ */
+typedef struct {
+    EVENT_NAME_TYPE event_name; /**< The name of the event. */
     
-    EVENT_STATE_TYPE event_state;
+    EVENT_STATE_TYPE event_state; /**< The state of the event (UP or DOWN). */
     
-    struct msection section;
-    struct msection_wq process_queue;
-};
+    /**
+     * Protects the event (a critical section of the partition's processes).
+     */
+    msection_t section;
+    msection_wq_t process_queue; /**< The processes waiting for the event. */
+} arinc_event_t;
 
 /* Preallocated array of buffers. */
-extern struct arinc_event* arinc_events;
+extern arinc_event_t* arinc_events;
 
 #endif /* POK_NEEDS_ARINC653_EVENT */
 

@@ -16,10 +16,13 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the struct types are used by their
+ * typedef names.
  */
 #include <pci_config.h>
 
-struct pci_dev_config pci_configs[] = {
+pci_dev_config_t pci_configs[] = {
     {
         .bus = 0,
         .dev = 1,

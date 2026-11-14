@@ -26,10 +26,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/vm.c
  * (the x86_64 part: nested paging and I/O permission map of a VM,
- * Multiboot loading); hv_arch_vm_init() is the per-VM set-up.
+ * Multiboot loading); hv_arch_vm_init() is the per-VM set-up. Doxygen headers
+ * for the file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
+/**
+ * @file
  * Virtual machines on x86_64: their nested page tables and I/O permission
  * map, loading the image as QEMU's Multiboot loader does (a.out kludge
  * addresses from the Multiboot header, checked by hvconfig.py), and the
@@ -38,30 +43,47 @@
 
 #include <arch/internal.h>
 
-// Multiboot information (offsets) and the data it points to.
-#define MBI_FLAGS           0U
-#define MBI_MEM_LOWER       4U
-#define MBI_MEM_UPPER       8U
-#define MBI_MMAP_LENGTH     44U
-#define MBI_MMAP_ADDR       48U
-#define MBI_LOADER_NAME     64U
-#define MBI_FLAG_MEM        ((uint32_t) 1U << 0)
-#define MBI_FLAG_MMAP       ((uint32_t) 1U << 6)
-#define MBI_FLAG_LOADER     ((uint32_t) 1U << 9)
-#define MBI_MMAP_OFFSET     0x100U
-#define MBI_NAME_OFFSET     0x200U
-#define MMAP_ENTRY_SIZE     24U
-#define MMAP_RAM            1U
-#define LOW_MEMORY_END      0x9FC00U
-#define HIGH_MEMORY_START   0x100000U
-
 /*
  * MISRA C:2025 Rule 11.4 deviation (this file): the guest RAM and the
  * IOPMs are used by host-physical address (identity-mapped), converted
  * to and from pointers.
  */
 
-// Nested page tables and I/O permission map of a VM (RAM already placed).
+/**
+ * @funcname `hv_arch_vm_init`
+ *
+ * @description
+ * Sets up the x86_64 part of a VM, once its RAM is placed: its nested page
+ * tables and its I/O permission map.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `vm` | `hv_vm_t *` | [in,out] The VM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `iopms` | `static uint8_t[HV_MAX_VMS][SVM_IOPM_SIZE]` | The I/O permission maps of the VMs |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `npt_build()` with the arguments `vm->index`, `vm->ram_base` and
+ *    `vm->config->memory_size`, and store the result in `vm->arch.npt_root`.
+ * 2. Set `vm->arch.iopm` to `iopms[vm->index]`.
+ * 3. Set `vm->arch.iopm_pa` to `(uint64_t) (uintptr_t) iopms[vm->index]`.
+ * 4. Call `io_init_iopm()` with the argument `vm`.
+ *
+ * @calls
+ * - `npt_build()`
+ * - `io_init_iopm()`
+ */
 void hv_arch_vm_init(hv_vm_t *vm)
 {
     static uint8_t iopms[HV_MAX_VMS][SVM_IOPM_SIZE] HV_ALIGNED(4096);
@@ -73,7 +95,40 @@ void hv_arch_vm_init(hv_vm_t *vm)
     io_init_iopm(vm);
 }
 
-// Clear size bytes (a multiple of 8) of guest RAM at a host-physical address.
+/**
+ * @funcname `zero_ram`
+ *
+ * @description
+ * Clears guest RAM at a host-physical address.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pa` | `uint64_t` | [in] The host-physical address. |
+ * | `size` | `uint64_t` | [in] The size, a multiple of 8. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `p` | `volatile uint64_t *` | The RAM |
+ * | `i` | `uint64_t` | The index of the 64-bit word |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `(volatile uint64_t *) (uintptr_t) pa`.
+ * 2. Set `i` to `0U`; then while `i` is less than `(size / 8U)`, repeat (after
+ *    each pass: increment `i`):
+ *    1. Set `p[i]` to `0U`.
+ *
+ * @calls
+ * None.
+ */
 static void zero_ram(uint64_t pa, uint64_t size)
 {
     volatile uint64_t *p = (volatile uint64_t *) (uintptr_t) pa;
@@ -83,7 +138,37 @@ static void zero_ram(uint64_t pa, uint64_t size)
     }
 }
 
-// Write a 32-bit value to guest RAM at a host-physical address.
+/**
+ * @funcname `put32`
+ *
+ * @description
+ * Writes a 32-bit value to guest RAM at a host-physical address.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pa` | `uint64_t` | [in] The host-physical address. |
+ * | `value` | `uint32_t` | [in] The value. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `p` | `volatile uint32_t *` | The word |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `(volatile uint32_t *) (uintptr_t) pa`.
+ * 2. Set `*p` to `value`.
+ *
+ * @calls
+ * None.
+ */
 static void put32(uint64_t pa, uint32_t value)
 {
     volatile uint32_t *p = (volatile uint32_t *) (uintptr_t) pa;
@@ -91,7 +176,41 @@ static void put32(uint64_t pa, uint32_t value)
     *p = value;
 }
 
-// Write one RAM entry of the Multiboot memory map.
+/**
+ * @funcname `put_mmap_entry`
+ *
+ * @description
+ * Writes one RAM entry of the Multiboot memory map.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pa` | `uint64_t` | [in] The host-physical address of the entry. |
+ * | `base` | `uint64_t` | [in] The guest-physical start of the RAM. |
+ * | `length` | `uint64_t` | [in] The length of the RAM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `put32()` with the arguments `pa` and `MMAP_ENTRY_SIZE - 4U`.
+ * 2. Call `put32()` with the arguments `pa + 4U` and `(uint32_t) base`.
+ * 3. Call `put32()` with the arguments `pa + 8U` and `(uint32_t) (base >> 32)`.
+ * 4. Call `put32()` with the arguments `pa + 12U` and `(uint32_t) length`.
+ * 5. Call `put32()` with the arguments `pa + 16U` and
+ *    `(uint32_t) (length >> 32)`.
+ * 6. Call `put32()` with the arguments `pa + 20U` and `MMAP_RAM`.
+ *
+ * @calls
+ * - `put32()`
+ */
 static void put_mmap_entry(uint64_t pa, uint64_t base, uint64_t length)
 {
     put32(pa, MMAP_ENTRY_SIZE - 4U);    // Size of the rest of the entry
@@ -102,7 +221,62 @@ static void put_mmap_entry(uint64_t pa, uint64_t base, uint64_t length)
     put32(pa + 20U, MMAP_RAM);
 }
 
-// Multiboot information at HV_GUEST_MBI: memory sizes, map, loader.
+/**
+ * @funcname `write_mbi`
+ *
+ * @description
+ * Writes the Multiboot information of a VM at HV_GUEST_MBI in its RAM: the
+ * memory sizes, the memory map and the boot loader's name.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `vm` | `const hv_vm_t *` | [in] The VM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `loader_name` | `static const char[17]` | The boot loader's name |
+ * | `mbi` | `uint64_t` | The host-physical address of the information |
+ * | `size` | `uint64_t` | The VM's RAM size |
+ * | `name` | `uint8_t *` | Where the boot loader's name goes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `mbi` to `vm->ram_base + HV_GUEST_MBI`.
+ * 2. Set `size` to `vm->config->memory_size`.
+ * 3. Set `name` to `(uint8_t *) (uintptr_t) (mbi + MBI_NAME_OFFSET)`.
+ * 4. Call `put32()` with the arguments `mbi + MBI_FLAGS` and
+ *    `MBI_FLAG_MEM | MBI_FLAG_MMAP | MBI_FLAG_LOADER`.
+ * 5. Call `put32()` with the arguments `mbi + MBI_MEM_LOWER` and
+ *    `LOW_MEMORY_END / 1024U`.
+ * 6. Call `put32()` with the arguments `mbi + MBI_MEM_UPPER` and
+ *    `(uint32_t) ((size - HIGH_MEMORY_START) / 1024U)`.
+ * 7. Call `put32()` with the arguments `mbi + MBI_MMAP_LENGTH` and
+ *    `2U * MMAP_ENTRY_SIZE`.
+ * 8. Call `put32()` with the arguments `mbi + MBI_MMAP_ADDR` and
+ *    `HV_GUEST_MBI + MBI_MMAP_OFFSET`.
+ * 9. Call `put32()` with the arguments `mbi + MBI_LOADER_NAME` and
+ *    `HV_GUEST_MBI + MBI_NAME_OFFSET`.
+ * 10. Call `put_mmap_entry()` with the arguments `mbi + MBI_MMAP_OFFSET`, `0U`
+ *     and `LOW_MEMORY_END`.
+ * 11. Call `put_mmap_entry()` with the arguments
+ *     `mbi + MBI_MMAP_OFFSET + MMAP_ENTRY_SIZE`, `HIGH_MEMORY_START` and
+ *     `size - HIGH_MEMORY_START`.
+ * 12. Call `hv_memcpy()` with the arguments `name`, `loader_name` and
+ *     `sizeof(loader_name)`.
+ *
+ * @calls
+ * - `put32()`
+ * - `put_mmap_entry()`
+ * - `hv_memcpy()`
+ */
 static void write_mbi(const hv_vm_t *vm)
 {
     static const char loader_name[] = "JetOS hypervisor";
@@ -125,9 +299,65 @@ static void write_mbi(const hv_vm_t *vm)
     hv_memcpy(name, loader_name, sizeof(loader_name));
 }
 
-/*
- * Load a VM (first start or reset): clear its RAM, copy its image, write the
- * Multiboot information and reset its devices.
+/**
+ * @funcname `vm_load`
+ *
+ * @description
+ * Loads a VM, at its first start and at each reset: clears its RAM, copies
+ * its image, writes the Multiboot information and resets its devices.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `vm` | `hv_vm_t *` | [in,out] The VM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `cfg` | `const hv_vm_config_t *` | The VM's configuration |
+ * | `image_size` | `uint64_t` | The size of the image |
+ * | `load` | `uint64_t` | The guest-physical load address |
+ * | `load_end` | `uint64_t` | The end of the loaded bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `cfg` to `vm->config`.
+ * 2. Set `image_size` to the value at `cfg->image_size`.
+ * 3. Set `load` to `cfg->load_addr`.
+ * 4. Set `load_end` to `load + image_size`.
+ * 5. If `load` is less than `HIGH_MEMORY_START` or `load_end` is greater than
+ *    `cfg->bss_end` or `cfg->bss_end` is greater than `cfg->memory_size` or
+ *    `cfg->entry` is less than `load` or `cfg->entry` is greater than or equal
+ *    to `load_end`:
+ *    1. Call `vm_print()` with the arguments `vm` and
+ *       `"image doesn't fit into the VM's RAM"`.
+ *    2. Call `hv_fatal()` with the argument `"bad VM image"`.
+ * 6. Call `zero_ram()` with the arguments `vm->ram_base` and
+ *    `cfg->memory_size`.
+ * 7. Call `hv_memcpy()` with the arguments
+ *    `(uint8_t *) (uintptr_t) (vm->ram_base + load)`, `cfg->image` and
+ *    `(size_t) image_size`.
+ * 8. Call `write_mbi()` with the argument `vm`.
+ * 9. Call `vpic_reset()` with the address of `vm->arch.pic`.
+ * 10. Call `vpit_reset()` with the address of `vm->arch.pit`.
+ * 11. Call `hv_memset()` with the arguments `vm->arch.io_logged`, `0U` and
+ *     `sizeof(vm->arch.io_logged)`.
+ *
+ * @calls
+ * - `vm_print()`
+ * - `hv_fatal()`
+ * - `zero_ram()`
+ * - `hv_memcpy()`
+ * - `write_mbi()`
+ * - `vpic_reset()`
+ * - `vpit_reset()`
+ * - `hv_memset()`
  */
 void vm_load(hv_vm_t *vm)
 {

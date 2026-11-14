@@ -65,6 +65,23 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
  * parameters are const (they are only read), so callers can pass string
  * literals.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the macros MAP_ERROR() and
+ * MAP_ERROR_DEFAULT() are moved to libpok/include/arinc653/arincutils.h,
+ * CHECK_PROCESS_ID() and MAP_STATUS() to libpok/include/arinc653/arincutils.h.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t).
+ */
+
+/**
+ * @file
+ * ARINC 653 process services: process IDs and status, creation, priority,
+ * suspension, start and stop, preemption locking, and the multicore
+ * services (ARINC 653P1-4) on JetOS's single core.
  */
 
 #include <config.h>
@@ -87,27 +104,51 @@
 
 pok_thread_id_t arinc_preemption_lock_holder = JET_THREAD_ID_NONE;
 
-/*
- * Each MAP_ERROR()/MAP_ERROR_DEFAULT() expands to a whole switch-clause ending
- * with break (MISRA C:2025 Rule 16.3); cppcheck's MISRA addon doesn't see the
- * break inside the macro and reports these switches by mistake.
+/**
+ * @funcname `GET_PROCESS_ID`
+ *
+ * @description
+ * Returns the ID of a process by name (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_NAME` | `const PROCESS_NAME_TYPE` | [in] The name. |
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE *` | [out] Where the ID is stored (the kernel thread ID plus 1). |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_CONFIG. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ * | `id` | `pok_thread_id_t` | The kernel thread ID |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `pok_thread_find()` with the arguments `PROCESS_NAME` and the address
+ *    of `id`, and store the result in `core_ret`.
+ * 2. If `core_ret` is equal to `POK_ERRNO_OK`:
+ *    1. Set `*PROCESS_ID` to `(PROCESS_ID_TYPE) id + 1`.
+ *    2. Set `*RETURN_CODE` to `NO_ERROR`.
+ * 3. Otherwise:
+ *    1. Set `*RETURN_CODE` to `INVALID_CONFIG`.
+ *
+ * @calls
+ * - `pok_thread_find()`
  */
-#define MAP_ERROR(from, to) case (from): *RETURN_CODE = (to); break
-#define MAP_ERROR_DEFAULT(to) default: *RETURN_CODE = (to); break
-
-#define CHECK_PROCESS_ID() \
-    if (PROCESS_ID == 0) { \
-        *RETURN_CODE = INVALID_PARAM; \
-        return; \
-    }
-
 void GET_PROCESS_ID(
     const PROCESS_NAME_TYPE PROCESS_NAME,
     PROCESS_ID_TYPE   *PROCESS_ID,
     RETURN_CODE_TYPE  *RETURN_CODE)
 {
     pok_thread_id_t id;
-    pok_ret_t core_ret;
+    pok_ret_e core_ret;
 
     core_ret = pok_thread_find(PROCESS_NAME, &id);
 
@@ -119,6 +160,43 @@ void GET_PROCESS_ID(
     }
 }
 
+/**
+ * @funcname `GET_MY_ID`
+ *
+ * @description
+ * Returns the ID of the current process (ARINC 653 service); the main process
+ * and the error handler have none.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE *` | [out] Where the ID is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_MODE. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `kshd.partition_mode` is not equal to `POK_PARTITION_MODE_NORMAL`:
+ *    1. Set `*RETURN_CODE` to `INVALID_MODE`.
+ * 2. Otherwise, if `kshd.current_thread_id` is equal to `kshd.error_thread_id`:
+ *    1. Set `*RETURN_CODE` to `INVALID_MODE`.
+ * 3. Otherwise:
+ *    1. Set `*PROCESS_ID` to `kshd.current_thread_id + 1U`.
+ *    2. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * None.
+ */
 void GET_MY_ID (PROCESS_ID_TYPE   *PROCESS_ID,
 		RETURN_CODE_TYPE  *RETURN_CODE )
 {
@@ -139,13 +217,94 @@ void GET_MY_ID (PROCESS_ID_TYPE   *PROCESS_ID,
     }
 }
 
+/**
+ * @funcname `GET_PROCESS_STATUS`
+ *
+ * @description
+ * Returns the status of a process (ARINC 653 service): its attributes, state,
+ * current priority and deadline time.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `PROCESS_STATUS` | `PROCESS_STATUS_TYPE *` | [out] Where the status is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_PARAM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ * | `status` | `pok_thread_status_t` | The kernel's status of the thread |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `pok_thread_get_status()` with the arguments `PROCESS_ID - 1`,
+ *    `PROCESS_STATUS->ATTRIBUTES.NAME`, the address of
+ *    `PROCESS_STATUS->ATTRIBUTES.ENTRY_POINT` and the address of `status`, and
+ *    store the result in `core_ret`.
+ * 2. Depending on `core_ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ * 3. If `core_ret` is not equal to `POK_ERRNO_OK`:
+ *    1. Return.
+ * 4. Set `PROCESS_STATUS->DEADLINE_TIME` to `status.deadline_time`.
+ * 5. Depending on `status.state`:
+ *    1. Case `MAP_STATUS(POK_STATE_STOPPED, DORMANT)`:
+ *       1. Use the macro `MAP_STATUS()` with the arguments `POK_STATE_STOPPED`
+ *          and `DORMANT`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_STATUS(POK_STATE_RUNNABLE, READY)`:
+ *       1. Use the macro `MAP_STATUS()` with the arguments `POK_STATE_RUNNABLE`
+ *          and `READY`.
+ *       2. Leave the switch.
+ *    3. Case `MAP_STATUS(POK_STATE_WAITING, WAITING)`:
+ *       1. Use the macro `MAP_STATUS()` with the arguments `POK_STATE_WAITING`
+ *          and `WAITING`.
+ *       2. Leave the switch.
+ *    4. Case `MAP_STATUS(POK_STATE_RUNNING, RUNNING)`:
+ *       1. Use the macro `MAP_STATUS()` with the arguments `POK_STATE_RUNNING`
+ *          and `RUNNING`.
+ *       2. Leave the switch.
+ *    5. Otherwise (default):
+ *       1. Check that `FALSE` holds (assert_os: stop otherwise).
+ *       2. Leave the switch.
+ * 6. Set `PROCESS_STATUS->ATTRIBUTES.BASE_PRIORITY` to
+ *    `status.attributes.priority`.
+ * 7. Set `PROCESS_STATUS->ATTRIBUTES.DEADLINE` to `SOFT` if
+ *    `status.attributes.deadline` is equal to `DEADLINE_SOFT`, otherwise
+ *    `HARD`.
+ * 8. Set `PROCESS_STATUS->CURRENT_PRIORITY` to `status.current_priority`.
+ * 9. Set `PROCESS_STATUS->ATTRIBUTES.PERIOD` to `status.attributes.period`.
+ * 10. Set `PROCESS_STATUS->ATTRIBUTES.TIME_CAPACITY` to
+ *     `status.attributes.time_capacity`.
+ * 11. Set `PROCESS_STATUS->ATTRIBUTES.STACK_SIZE` to
+ *     `status.attributes.stack_size`.
+ * 12. Set `PROCESS_STATUS->DEADLINE_TIME` to `status.deadline_time`.
+ *
+ * @calls
+ * - `pok_thread_get_status()`
+ * - `assertion_os_fail()`
+ */
 void GET_PROCESS_STATUS (
     PROCESS_ID_TYPE     PROCESS_ID,
     PROCESS_STATUS_TYPE *PROCESS_STATUS,
     RETURN_CODE_TYPE    *RETURN_CODE)
 {
     pok_thread_status_t status;
-    pok_ret_t           core_ret;
+    pok_ret_e           core_ret;
 
     core_ret = pok_thread_get_status(PROCESS_ID - 1,
         PROCESS_STATUS->ATTRIBUTES.NAME,
@@ -162,8 +321,6 @@ void GET_PROCESS_STATUS (
     }
 
     PROCESS_STATUS->DEADLINE_TIME = status.deadline_time;
-#define MAP_STATUS(from, to) \
-    case (from): PROCESS_STATUS->PROCESS_STATE = (to); break
     switch (status.state) {
         MAP_STATUS(POK_STATE_STOPPED, DORMANT);
         MAP_STATUS(POK_STATE_RUNNABLE, READY);
@@ -171,7 +328,6 @@ void GET_PROCESS_STATUS (
         MAP_STATUS(POK_STATE_RUNNING, RUNNING);
         default: assert_os(FALSE); break;   // the kernel has no other states
     }
-#undef MAP_STATUS
     PROCESS_STATUS->ATTRIBUTES.BASE_PRIORITY = status.attributes.priority;
     PROCESS_STATUS->ATTRIBUTES.DEADLINE =
         (status.attributes.deadline == DEADLINE_SOFT)
@@ -183,13 +339,103 @@ void GET_PROCESS_STATUS (
     PROCESS_STATUS->DEADLINE_TIME = status.deadline_time;
 }
 
+/**
+ * @funcname `CREATE_PROCESS`
+ *
+ * @description
+ * Creates a process (ARINC 653 service): a kernel thread with its attributes;
+ * the name must not be empty.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ATTRIBUTES` | `PROCESS_ATTRIBUTE_TYPE *` | [in] The attributes: name, entry point, stack size, base priority, period, time capacity and deadline. |
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE *` | [out] Where its ID is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, NO_ACTION (the name exists), INVALID_PARAM, INVALID_CONFIG or INVALID_MODE. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_attr` | `pok_thread_attr_t` | The kernel's attributes |
+ * | `core_process_id` | `pok_thread_id_t` | The kernel thread ID |
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `ATTRIBUTES->NAME[0]` is equal to `'\0'`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 2. If `ATTRIBUTES->BASE_PRIORITY` is less than `MIN_PRIORITY_VALUE` or
+ *    `ATTRIBUTES->BASE_PRIORITY` is greater than `MAX_PRIORITY_VALUE`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 3. Set `core_attr.priority` to `(uint8_t) ATTRIBUTES->BASE_PRIORITY`.
+ * 4. Set `core_attr.period` to `ATTRIBUTES->PERIOD`.
+ * 5. If `ATTRIBUTES->DEADLINE` is equal to `SOFT`:
+ *    1. Set `core_attr.deadline` to `DEADLINE_SOFT`.
+ * 6. Otherwise, if `ATTRIBUTES->DEADLINE` is equal to `HARD`:
+ *    1. Set `core_attr.deadline` to `DEADLINE_HARD`.
+ * 7. Otherwise:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 8. Set `core_attr.time_capacity` to `ATTRIBUTES->TIME_CAPACITY`.
+ * 9. Set `core_attr.stack_size` to `ATTRIBUTES->STACK_SIZE`.
+ * 10. Call `pok_thread_create()` with the arguments `ATTRIBUTES->NAME`,
+ *     `ATTRIBUTES->ENTRY_POINT`, the address of `core_attr` and the address of
+ *     `core_process_id`, and store the result in `core_ret`.
+ * 11. Depending on `core_ret`:
+ *     1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *        1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *           `NO_ERROR`.
+ *        2. Leave the switch.
+ *     2. Case `MAP_ERROR(POK_ERRNO_EXISTS, NO_ACTION)`:
+ *        1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_EXISTS`
+ *           and `NO_ACTION`.
+ *        2. Leave the switch.
+ *     3. Case `MAP_ERROR(POK_ERRNO_PARAM, INVALID_PARAM)`:
+ *        1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_PARAM`
+ *           and `INVALID_PARAM`.
+ *        2. Leave the switch.
+ *     4. Case `MAP_ERROR(POK_ERRNO_EINVAL, INVALID_CONFIG)`:
+ *        1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_EINVAL`
+ *           and `INVALID_CONFIG`.
+ *        2. Leave the switch.
+ *     5. Case `MAP_ERROR(POK_ERRNO_UNAVAILABLE, INVALID_CONFIG)`:
+ *        1. Use the macro `MAP_ERROR()` with the arguments
+ *           `POK_ERRNO_UNAVAILABLE` and `INVALID_CONFIG`.
+ *        2. Leave the switch.
+ *     6. Case `MAP_ERROR(POK_ERRNO_TOOMANY, INVALID_CONFIG)`:
+ *        1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_TOOMANY`
+ *           and `INVALID_CONFIG`.
+ *        2. Leave the switch.
+ *     7. Case `MAP_ERROR(POK_ERRNO_PARTITION_MODE, INVALID_MODE)`:
+ *        1. Use the macro `MAP_ERROR()` with the arguments
+ *           `POK_ERRNO_PARTITION_MODE` and `INVALID_MODE`.
+ *        2. Leave the switch.
+ *     8. Otherwise (default):
+ *        1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *           `INVALID_PARAM`.
+ *        2. Leave the switch.
+ * 12. If `core_ret` is not equal to `POK_ERRNO_OK`:
+ *     1. Return.
+ * 13. Set `*PROCESS_ID` to `(PROCESS_ID_TYPE) core_process_id + 1`.
+ *
+ * @calls
+ * - `pok_thread_create()`
+ */
 void CREATE_PROCESS (
     PROCESS_ATTRIBUTE_TYPE  *ATTRIBUTES,
     PROCESS_ID_TYPE         *PROCESS_ID,
     RETURN_CODE_TYPE        *RETURN_CODE)
 {
     pok_thread_attr_t core_attr;
-    pok_ret_t         core_ret;
+    pok_ret_e         core_ret;
     pok_thread_id_t   core_process_id;
 
     if (ATTRIBUTES->NAME[0] == '\0') {
@@ -236,12 +482,92 @@ void CREATE_PROCESS (
     *PROCESS_ID = (PROCESS_ID_TYPE) core_process_id + 1;
 }
 
+/**
+ * @funcname `STOP_SELF`
+ *
+ * @description
+ * Stops the current process (ARINC 653 service).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `pok_thread_stop()`.
+ *
+ * @calls
+ * - `pok_thread_stop()`
+ */
 void STOP_SELF (void)
 {
     (void) pok_thread_stop ();
 }
 
 
+/**
+ * @funcname `SET_PRIORITY`
+ *
+ * @description
+ * Sets the current priority of a process (ARINC 653 service); for the owner of
+ * a mutex, the priority it gets when it releases the mutex.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `priority` | `PRIORITY_TYPE` | [in] The priority. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, INVALID_MODE (a dormant process) or INVALID_PARAM. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `CHECK_PROCESS_ID()`.
+ * 2. Do nothing.
+ * 3. If `priority` is less than `MIN_PRIORITY_VALUE` or `priority` is greater
+ *    than `MAX_PRIORITY_VALUE`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 4. If `PROCESS_ID` is less than `1` or `PROCESS_ID` is greater than
+ *    `(PROCESS_ID_TYPE)kshd.max_n_threads`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 5. Call `arinc_mutex_set_priority()` with the arguments `PROCESS_ID - 1` and
+ *    `priority`, and store the result in `core_ret`.
+ * 6. Depending on `core_ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_UNAVAILABLE, INVALID_MODE)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments
+ *          `POK_ERRNO_UNAVAILABLE` and `INVALID_MODE`.
+ *       2. Leave the switch.
+ *    3. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `arinc_mutex_set_priority()`
+ */
 void SET_PRIORITY (
     PROCESS_ID_TYPE  PROCESS_ID,
     PRIORITY_TYPE    priority,
@@ -262,9 +588,9 @@ void SET_PRIORITY (
     }
 
 #ifdef POK_NEEDS_ARINC653_MUTEX
-    pok_ret_t core_ret = arinc_mutex_set_priority(PROCESS_ID - 1, priority);
+    pok_ret_e core_ret = arinc_mutex_set_priority(PROCESS_ID - 1, priority);
 #else
-    pok_ret_t core_ret = pok_thread_set_priority(PROCESS_ID - 1, priority);
+    pok_ret_e core_ret = pok_thread_set_priority(PROCESS_ID - 1, priority);
 #endif
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
@@ -273,11 +599,59 @@ void SET_PRIORITY (
     }
 }
 
+/**
+ * @funcname `SUSPEND_SELF`
+ *
+ * @description
+ * Suspends the current process up to a time-out (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `TIME_OUT` | `SYSTEM_TIME_TYPE` | [in] The time-out. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, TIMED_OUT, INVALID_MODE or INVALID_PARAM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `pok_thread_suspend()` with the address of `TIME_OUT`, and store the
+ *    result in `core_ret`.
+ * 2. Depending on `core_ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_TIMEOUT, TIMED_OUT)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_TIMEOUT`
+ *          and `TIMED_OUT`.
+ *       2. Leave the switch.
+ *    3. Case `MAP_ERROR(POK_ERRNO_MODE, INVALID_MODE)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_MODE` and
+ *          `INVALID_MODE`.
+ *       2. Leave the switch.
+ *    4. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `pok_thread_suspend()`
+ */
 void SUSPEND_SELF (
     SYSTEM_TIME_TYPE TIME_OUT,
     RETURN_CODE_TYPE *RETURN_CODE)
 {
-    pok_ret_t core_ret = pok_thread_suspend(&TIME_OUT);
+    pok_ret_e core_ret = pok_thread_suspend(&TIME_OUT);
 
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
@@ -287,13 +661,63 @@ void SUSPEND_SELF (
     }
 }
 
+/**
+ * @funcname `SUSPEND`
+ *
+ * @description
+ * Suspends another process (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, INVALID_MODE, NO_ACTION or INVALID_PARAM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `CHECK_PROCESS_ID()`.
+ * 2. Do nothing.
+ * 3. Call `pok_thread_suspend_target()` with the argument `PROCESS_ID - 1`, and
+ *    store the result in `core_ret`.
+ * 4. Depending on `core_ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_MODE, INVALID_MODE)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_MODE` and
+ *          `INVALID_MODE`.
+ *       2. Leave the switch.
+ *    3. Case `MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments
+ *          `POK_ERRNO_UNAVAILABLE` and `NO_ACTION`.
+ *       2. Leave the switch.
+ *    4. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `pok_thread_suspend_target()`
+ */
 void SUSPEND (
     PROCESS_ID_TYPE     PROCESS_ID,
     RETURN_CODE_TYPE    *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_suspend_target(PROCESS_ID - 1);
+    pok_ret_e core_ret = pok_thread_suspend_target(PROCESS_ID - 1);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_MODE, INVALID_MODE);
@@ -302,13 +726,63 @@ void SUSPEND (
     }
 }
 
+/**
+ * @funcname `RESUME`
+ *
+ * @description
+ * Resumes a suspended process (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, NO_ACTION, INVALID_MODE or INVALID_PARAM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `CHECK_PROCESS_ID()`.
+ * 2. Do nothing.
+ * 3. Call `pok_thread_resume()` with the argument `PROCESS_ID - 1`, and store
+ *    the result in `core_ret`.
+ * 4. Depending on `core_ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments
+ *          `POK_ERRNO_UNAVAILABLE` and `NO_ACTION`.
+ *       2. Leave the switch.
+ *    3. Case `MAP_ERROR(POK_ERRNO_MODE, INVALID_MODE)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_MODE` and
+ *          `INVALID_MODE`.
+ *       2. Leave the switch.
+ *    4. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `pok_thread_resume()`
+ */
 void RESUME (
     PROCESS_ID_TYPE     PROCESS_ID,
     RETURN_CODE_TYPE    *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_resume(PROCESS_ID - 1);
+    pok_ret_e core_ret = pok_thread_resume(PROCESS_ID - 1);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION);
@@ -317,6 +791,35 @@ void RESUME (
     }
 }
 
+/**
+ * @funcname `START`
+ *
+ * @description
+ * Starts a dormant process (ARINC 653 service): DELAYED_START with no delay.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored (see DELAYED_START()). |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `DELAYED_START()` with the arguments `PROCESS_ID`, `0` and
+ *    `RETURN_CODE`.
+ *
+ * @calls
+ * - `DELAYED_START()`
+ */
 void START (
     PROCESS_ID_TYPE     PROCESS_ID,
     RETURN_CODE_TYPE    *RETURN_CODE)
@@ -324,13 +827,59 @@ void START (
     DELAYED_START(PROCESS_ID, 0, RETURN_CODE);
 }
 
+/**
+ * @funcname `STOP`
+ *
+ * @description
+ * Stops another process (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, NO_ACTION or INVALID_PARAM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `CHECK_PROCESS_ID()`.
+ * 2. Do nothing.
+ * 3. Call `pok_thread_stop_target()` with the argument `PROCESS_ID - 1`, and
+ *    store the result in `core_ret`.
+ * 4. Depending on `core_ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments
+ *          `POK_ERRNO_UNAVAILABLE` and `NO_ACTION`.
+ *       2. Leave the switch.
+ *    3. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `pok_thread_stop_target()`
+ */
 void STOP(
     PROCESS_ID_TYPE     PROCESS_ID,
     RETURN_CODE_TYPE    *RETURN_CODE)
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_stop_target(PROCESS_ID - 1);
+    pok_ret_e core_ret = pok_thread_stop_target(PROCESS_ID - 1);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION);
@@ -338,6 +887,53 @@ void STOP(
     }
 }
 
+/**
+ * @funcname `DELAYED_START`
+ *
+ * @description
+ * Starts a dormant process after a delay (ARINC 653 service).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `DELAY_TIME` | `SYSTEM_TIME_TYPE` | [in] The delay. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, NO_ACTION or INVALID_PARAM. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `core_ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `CHECK_PROCESS_ID()`.
+ * 2. Do nothing.
+ * 3. Call `pok_thread_delayed_start()` with the arguments `PROCESS_ID - 1` and
+ *    the address of `DELAY_TIME`, and store the result in `core_ret`.
+ * 4. Depending on `core_ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments
+ *          `POK_ERRNO_UNAVAILABLE` and `NO_ACTION`.
+ *       2. Leave the switch.
+ *    3. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `pok_thread_delayed_start()`
+ */
 void DELAYED_START(
     PROCESS_ID_TYPE   PROCESS_ID,
     SYSTEM_TIME_TYPE  DELAY_TIME,
@@ -345,7 +941,7 @@ void DELAYED_START(
 {
     CHECK_PROCESS_ID();
 
-    pok_ret_t core_ret = pok_thread_delayed_start(PROCESS_ID - 1, &DELAY_TIME);
+    pok_ret_e core_ret = pok_thread_delayed_start(PROCESS_ID - 1, &DELAY_TIME);
     switch (core_ret) {
         MAP_ERROR(POK_ERRNO_OK, NO_ERROR);
         MAP_ERROR(POK_ERRNO_UNAVAILABLE, NO_ACTION);
@@ -353,12 +949,69 @@ void DELAYED_START(
     }
 }
 
+/**
+ * @funcname `LOCK_PREEMPTION`
+ *
+ * @description
+ * Increases the preemption lock level of the partition (ARINC 653 service); the
+ * current process holds the lock.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `LOCK_LEVEL` | `LOCK_LEVEL_TYPE *` | [in,out] Where the new lock level is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, NO_ACTION (not in NORMAL mode), INVALID_CONFIG (MAX_LOCK_LEVEL reached) or INVALID_PARAM. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_preemption_lock_holder` | `pok_thread_id_t` | The process that holds the preemption lock, or JET_THREAD_ID_NONE |
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `lock_level` | `int32_t` | The lock level |
+ * | `ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `lock_level` to `(int32_t)*LOCK_LEVEL`.
+ * 2. Call `pok_current_partition_inc_lock_level()` with the address of
+ *    `lock_level`, and store the result in `ret`.
+ * 3. Set `*LOCK_LEVEL` to `lock_level`.
+ * 4. If `ret` is equal to `POK_ERRNO_OK`:
+ *    1. Set `arinc_preemption_lock_holder` to `kshd.current_thread_id`.
+ * 5. Depending on `ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments
+ *          `POK_ERRNO_PARTITION_MODE` and `NO_ACTION`.
+ *       2. Leave the switch.
+ *    3. Case `MAP_ERROR(POK_ERRNO_EINVAL, INVALID_CONFIG)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_EINVAL`
+ *          and `INVALID_CONFIG`.
+ *       2. Leave the switch.
+ *    4. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `pok_current_partition_inc_lock_level()`
+ */
 void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL,
                       RETURN_CODE_TYPE *RETURN_CODE)
 {
     // LOCK_LEVEL_TYPE may be wider than int32_t (e.g. on arm64).
     int32_t lock_level = (int32_t)*LOCK_LEVEL;
-    pok_ret_t ret = pok_partition_inc_lock_level(&lock_level);
+    pok_ret_e ret = pok_partition_inc_lock_level(&lock_level);
     *LOCK_LEVEL = lock_level;
     if (ret == POK_ERRNO_OK) {
         arinc_preemption_lock_holder = kshd.current_thread_id;
@@ -371,12 +1024,68 @@ void LOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL,
     }
 }
 
+/**
+ * @funcname `UNLOCK_PREEMPTION`
+ *
+ * @description
+ * Decreases the preemption lock level of the partition (ARINC 653 service); at
+ * 0 no process holds the lock.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `LOCK_LEVEL` | `LOCK_LEVEL_TYPE *` | [in,out] Where the new lock level is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, NO_ACTION or INVALID_PARAM. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arinc_preemption_lock_holder` | `pok_thread_id_t` | The process that holds the preemption lock, or JET_THREAD_ID_NONE |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `lock_level` | `int32_t` | The lock level |
+ * | `ret` | `pok_ret_e` | The kernel's result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `lock_level` to `(int32_t)*LOCK_LEVEL`.
+ * 2. Call `pok_current_partition_dec_lock_level()` with the address of
+ *    `lock_level`, and store the result in `ret`.
+ * 3. Set `*LOCK_LEVEL` to `lock_level`.
+ * 4. If `ret` is equal to `POK_ERRNO_OK` and `lock_level` is equal to `0`:
+ *    1. Set `arinc_preemption_lock_holder` to `JET_THREAD_ID_NONE`.
+ * 5. Depending on `ret`:
+ *    1. Case `MAP_ERROR(POK_ERRNO_OK, NO_ERROR)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_OK` and
+ *          `NO_ERROR`.
+ *       2. Leave the switch.
+ *    2. Case `MAP_ERROR(POK_ERRNO_PARTITION_MODE, NO_ACTION)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments
+ *          `POK_ERRNO_PARTITION_MODE` and `NO_ACTION`.
+ *       2. Leave the switch.
+ *    3. Case `MAP_ERROR(POK_ERRNO_EINVAL, NO_ACTION)`:
+ *       1. Use the macro `MAP_ERROR()` with the arguments `POK_ERRNO_EINVAL`
+ *          and `NO_ACTION`.
+ *       2. Leave the switch.
+ *    4. Otherwise (default):
+ *       1. Use the macro `MAP_ERROR_DEFAULT()` with the argument
+ *          `INVALID_PARAM`.
+ *       2. Leave the switch.
+ *
+ * @calls
+ * - `pok_current_partition_dec_lock_level()`
+ */
 void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL,
                         RETURN_CODE_TYPE *RETURN_CODE)
 {
     // LOCK_LEVEL_TYPE may be wider than int32_t (e.g. on arm64).
     int32_t lock_level = (int32_t)*LOCK_LEVEL;
-    pok_ret_t ret = pok_partition_dec_lock_level(&lock_level);
+    pok_ret_e ret = pok_partition_dec_lock_level(&lock_level);
     *LOCK_LEVEL = lock_level;
     if ((ret == POK_ERRNO_OK) && (lock_level == 0)) {
         arinc_preemption_lock_holder = JET_THREAD_ID_NONE;
@@ -397,6 +1106,57 @@ void UNLOCK_PREEMPTION (LOCK_LEVEL_TYPE *LOCK_LEVEL,
  * affinity can't change anything and isn't stored.
  */
 
+/**
+ * @funcname `INITIALIZE_PROCESS_CORE_AFFINITY`
+ *
+ * @description
+ * Sets the core affinity of a created process (ARINC 653P1-4 multicore
+ * service), not in NORMAL mode. JetOS runs every partition on a single
+ * processor core, with partition-relative core ID 0: all processes run on it,
+ * so the affinity can't change anything and isn't stored.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_ID` | `PROCESS_ID_TYPE` | [in] The process. |
+ * | `PROCESSOR_CORE_ID` | `PROCESSOR_CORE_ID_TYPE` | [in] The core: 0 or CORE_AFFINITY_NO_PREFERENCE. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR, INVALID_PARAM, INVALID_CONFIG or INVALID_MODE. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `entry` | `void *` | Its entry (not used) |
+ * | `name` | `char[30]` | The thread's name (not used) |
+ * | `status` | `pok_thread_status_t` | Its status (not used) |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `PROCESS_ID` is less than `1` or `PROCESS_ID` is greater than
+ *    `(PROCESS_ID_TYPE)kshd.max_n_threads` or
+ *    `pok_thread_get_status(PROCESS_ID - 1, name, &entry, &status)` is not
+ *    equal to `POK_ERRNO_OK`:
+ *    1. Set `*RETURN_CODE` to `INVALID_PARAM`.
+ *    2. Return.
+ * 2. If `PROCESSOR_CORE_ID` is not equal to `CORE_AFFINITY_NO_PREFERENCE` and
+ *    `PROCESSOR_CORE_ID` is not equal to `0`:
+ *    1. Set `*RETURN_CODE` to `INVALID_CONFIG`.
+ *    2. Return.
+ * 3. If `kshd.partition_mode` is equal to `POK_PARTITION_MODE_NORMAL`:
+ *    1. Set `*RETURN_CODE` to `INVALID_MODE`.
+ *    2. Return.
+ * 4. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * - `pok_thread_get_status()`
+ */
 void INITIALIZE_PROCESS_CORE_AFFINITY (
     PROCESS_ID_TYPE        PROCESS_ID,
     PROCESSOR_CORE_ID_TYPE PROCESSOR_CORE_ID,
@@ -430,6 +1190,36 @@ void INITIALIZE_PROCESS_CORE_AFFINITY (
     *RETURN_CODE = NO_ERROR;
 }
 
+/**
+ * @funcname `GET_MY_PROCESSOR_CORE_ID`
+ *
+ * @description
+ * Returns the processor core of the current process (ARINC 653P1-4 multicore
+ * service): always 0.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESSOR_CORE_ID` | `PROCESSOR_CORE_ID_TYPE *` | [out] Where the core ID is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `*PROCESSOR_CORE_ID` to `0`.
+ * 2. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * None.
+ */
 void GET_MY_PROCESSOR_CORE_ID (
     PROCESSOR_CORE_ID_TYPE *PROCESSOR_CORE_ID,
     RETURN_CODE_TYPE       *RETURN_CODE)
@@ -438,12 +1228,52 @@ void GET_MY_PROCESSOR_CORE_ID (
     *RETURN_CODE = NO_ERROR;
 }
 
-/*
- * The process index is the position of the process in creation order:
- * 1 for the first process created by CREATE_PROCESS, up to the number of
- * processes in the configuration (Threads Count). Unlike PROCESS_ID_TYPE,
- * it can be used directly as an array index (minus one) for per-process
- * data.
+/**
+ * @funcname `GET_MY_INDEX`
+ *
+ * @description
+ * Returns the index of the current process (ARINC 653P1-4): its position in
+ * creation order, 1 for the first process created by CREATE_PROCESS, up to the
+ * number of processes in the configuration. Unlike PROCESS_ID_TYPE, it can be
+ * used directly as an array index (minus one); the main process and the error
+ * handler have none.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `PROCESS_INDEX` | `PROCESS_INDEX_TYPE *` | [out] Where the index is stored. |
+ * | `RETURN_CODE` | `RETURN_CODE_TYPE *` | [out] Where the result is stored: NO_ERROR or INVALID_MODE. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `current` | `pok_thread_id_t` | The current thread |
+ * | `index` | `PROCESS_INDEX_TYPE` | The index |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `current` to `kshd.current_thread_id`.
+ * 2. If `kshd.partition_mode` is not equal to `POK_PARTITION_MODE_NORMAL` or
+ *    `current` is equal to `kshd.error_thread_id`:
+ *    1. Set `*RETURN_CODE` to `INVALID_MODE`.
+ *    2. Return.
+ * 3. Set `index` to `current`.
+ * 4. If `kshd.error_thread_id` is not equal to `JET_THREAD_ID_NONE` and
+ *    `kshd.error_thread_id` is less than `current`:
+ *    1. Decrement `index`.
+ * 5. Set `*PROCESS_INDEX` to `index`.
+ * 6. Set `*RETURN_CODE` to `NO_ERROR`.
+ *
+ * @calls
+ * None.
  */
 void GET_MY_INDEX (
     PROCESS_INDEX_TYPE *PROCESS_INDEX,

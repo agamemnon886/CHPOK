@@ -18,11 +18,48 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * abort() of libpok.
  */
 
 #include <stdlib.h>
 #include <core/syscall.h>
 
+/**
+ * @funcname `abort`
+ *
+ * @description
+ * Aborts the process (C standard): raises an application error.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `abort_message` | `static const char[8]` | The message of the error |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `pok_error_raise_application_error()` with the arguments
+ *    `abort_message` and `sizeof(abort_message)`.
+ *
+ * @calls
+ * - `pok_error_raise_application_error()`
+ */
 void abort(void)
 {
     static const char abort_message[] = "Aborted";

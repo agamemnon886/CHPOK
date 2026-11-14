@@ -29,32 +29,51 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
  * arch/x86_64/; the vCPU assignment and hv_cpu_main() moved to
- * src/cpus.c, for both architectures.
+ * src/cpus.c, for both architectures. Doxygen headers for the file and its
+ * functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
- * Start-up of the hypervisor: the boot CPU checks its image, the CPU and
- * the configuration, measures the timers, sets up the VMs and starts the
+/**
+ * @file
+ * Start-up of the x86_64 hypervisor: the boot CPU checks its image, the CPU
+ * and the configuration, measures the timers, sets up the VMs and starts the
  * other CPUs; then every CPU runs its vCPU (or parks it).
  */
 
 #include <arch/internal.h>
 
-// Multiboot information block (fields used here).
-#define MBI_FLAGS           0U
-#define MBI_MEM_UPPER       8U
-#define MBI_FLAG_MEM        ((uint32_t) 1U << 0)
-#define MBI_UPPER_MEM_START 0x100000UL
-
-#define APIC_IDS            256U
-
 // Index + 1 of the CPU with each local APIC ID (0: none).
 static uint8_t cpu_of_apic_id[APIC_IDS];
 
-void hv_main(uint32_t mbi);
-void hv_ap_main(uint32_t index);
-
-// Halt this CPU for good, with interrupts disabled.
+/**
+ * @funcname `hv_halt_forever`
+ *
+ * @description
+ * Halts this CPU for good, with interrupts disabled (a stopped or parked
+ * vCPU, a fatal error).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `x86_cli()`.
+ * 2. While `true` is true:
+ *    1. Call `x86_hlt()`.
+ *
+ * @calls
+ * - `x86_cli()`
+ * - `x86_hlt()`
+ */
 void hv_halt_forever(void)
 {
     x86_cli();
@@ -63,15 +82,70 @@ void hv_halt_forever(void)
     }
 }
 
-// Hardware number of the calling CPU: its local APIC ID.
+/**
+ * @funcname `hv_arch_cpu_id`
+ *
+ * @description
+ * Returns the hardware number of the calling CPU: its local APIC ID.
+ *
+ * @return The local APIC ID.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_id()`, and return its result.
+ *
+ * @calls
+ * - `lapic_id()`
+ */
 uint32_t hv_arch_cpu_id(void)
 {
     return lapic_id();
 }
 
-/*
- * The CPU structure of the calling CPU (found by its local APIC ID; CPU 0
- * before the CPUs are known).
+/**
+ * @funcname `hv_this_cpu`
+ *
+ * @description
+ * Returns the CPU structure of the calling CPU, found by its local APIC ID
+ * (CPU 0 before the CPUs are known).
+ *
+ * @return The calling CPU's structure.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `cpu_of_apic_id` | `uint8_t[256]` | Index + 1 of the CPU with each local APIC ID (0: none) |
+ * | `hv_cpus` | `hv_cpu_t[HV_MAX_CPUS]` | The CPUs |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `id` | `uint32_t` | The local APIC ID |
+ * | `index` | `uint32_t` | The index of the CPU |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `lapic_id()`, and store the result in `id`.
+ * 2. Set `index` to `0U`.
+ * 3. If `id` is less than `APIC_IDS` and `cpu_of_apic_id[id]` is not equal to
+ *    `0U`:
+ *    1. Set `index` to `(uint32_t) cpu_of_apic_id[id] - 1U`.
+ * 4. Return the address of `hv_cpus[index]`.
+ *
+ * @calls
+ * - `lapic_id()`
  */
 hv_cpu_t *hv_this_cpu(void)
 {
@@ -84,7 +158,40 @@ hv_cpu_t *hv_this_cpu(void)
     return &hv_cpus[index];
 }
 
-// Read a 32-bit field of the Multiboot information.
+/**
+ * @funcname `read_mbi32`
+ *
+ * @description
+ * Reads a 32-bit field of the Multiboot information that the boot loader
+ * gives (identity-mapped).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `mbi` | `uint32_t` | [in] The physical address of the Multiboot information. |
+ * | `offset` | `uint32_t` | [in] The field's offset. |
+ *
+ * @return The field.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `p` | `const volatile uint32_t *` | The field |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `(const volatile uint32_t *) ((uintptr_t) mbi + offset)`.
+ * 2. Return the value at `p`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Rule 11.4 deviation (read_mbi32()): the boot loader passes
  * the physical address of the Multiboot information, identity-mapped, as
@@ -98,7 +205,43 @@ static uint32_t read_mbi32(uint32_t mbi, uint32_t offset)
     return *p;
 }
 
-// End of the RAM above 1 MiB, from the Multiboot information.
+/**
+ * @funcname `ram_end_of`
+ *
+ * @description
+ * Returns the end of the RAM above 1 MiB, from the Multiboot information;
+ * stops the hypervisor if the boot loader gave no memory size.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `mbi` | `uint32_t` | [in] The physical address of the Multiboot information (0: none). |
+ *
+ * @return The end of the RAM above 1 MiB.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `mbi` is equal to `0U` or `(read_mbi32(mbi, MBI_FLAGS) & MBI_FLAG_MEM)`
+ *    is equal to `0U`:
+ *    1. Call `hv_fatal()` with the argument
+ *       `"the boot loader gave no memory size"`.
+ * 2. Return
+ *    `MBI_UPPER_MEM_START + ((uint64_t) read_mbi32(mbi, MBI_MEM_UPPER) *`
+ *    `1024U)`.
+ *
+ * @calls
+ * - `read_mbi32()`
+ * - `hv_fatal()`
+ */
 static uint64_t ram_end_of(uint32_t mbi)
 {
     if ((mbi == 0U) || ((read_mbi32(mbi, MBI_FLAGS) & MBI_FLAG_MEM) == 0U)) {
@@ -109,7 +252,54 @@ static uint64_t ram_end_of(uint32_t mbi)
            + ((uint64_t) read_mbi32(mbi, MBI_MEM_UPPER) * 1024U);
 }
 
-// Physical CPUs: the boot CPU first, then the others of the MADT.
+/**
+ * @funcname `find_cpus`
+ *
+ * @description
+ * Lists the local APIC IDs of the physical CPUs: the boot CPU first, then
+ * the other enabled CPUs of the ACPI MADT.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `apic_ids` | `uint32_t[HV_MAX_CPUS]` | [out] Where the APIC IDs are stored. |
+ *
+ * @return The number of CPUs.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `madt_ids` | `uint32_t[HV_MAX_CPUS]` | The APIC IDs of the MADT |
+ * | `found` | `uint32_t` | The number of CPUs in the MADT |
+ * | `bsp` | `uint32_t` | The boot CPU's APIC ID |
+ * | `count` | `uint32_t` | The number of CPUs listed |
+ * | `i` | `uint32_t` | The index in madt_ids |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `acpi_find_cpus()` with the arguments `madt_ids` and `HV_MAX_CPUS`,
+ *    and store the result in `found`.
+ * 2. Call `lapic_id()`, and store the result in `bsp`.
+ * 3. Set `count` to `1U`.
+ * 4. Set `apic_ids[0]` to `bsp`.
+ * 5. Set `i` to `0U`; then while `i` is less than `found`, repeat (after each
+ *    pass: increment `i`):
+ *    1. If `madt_ids[i]` is not equal to `bsp` and `madt_ids[i]` is less than
+ *       `APIC_IDS`:
+ *       1. Set `apic_ids[count]` to `madt_ids[i]`.
+ *       2. Increment `count`.
+ * 6. Return `count`.
+ *
+ * @calls
+ * - `acpi_find_cpus()`
+ * - `lapic_id()`
+ */
 static uint32_t find_cpus(uint32_t apic_ids[HV_MAX_CPUS])
 {
     uint32_t madt_ids[HV_MAX_CPUS];
@@ -128,11 +318,107 @@ static uint32_t find_cpus(uint32_t apic_ids[HV_MAX_CPUS])
     return count;
 }
 
-/*
- * Start-up on the boot CPU (called by entry.S with the address of the
- * Multiboot information): checks the image, the CPU and the configuration,
- * measures the timers, sets up the VMs, starts the other CPUs, then runs
- * its own vCPU.
+/**
+ * @funcname `hv_main`
+ *
+ * @description
+ * Start-up on the boot CPU, called by entry.S with the address of the
+ * Multiboot information: checks the image, the CPU and the configuration,
+ * measures the timers, sets up the VMs, starts the other CPUs, then runs its
+ * own vCPU. Doesn't return.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `mbi` | `uint32_t` | [in] The physical address of the Multiboot information. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hv_console_port` | `const uint16_t` | The hypervisor console's port (generated configuration) |
+ * | `hv_nb_vms` | `const uint32_t` | The number of VMs |
+ * | `cpu_of_apic_id` | `uint8_t[256]` | Index + 1 of the CPU with each local APIC ID |
+ * | `hv_nb_cpus` | `uint32_t` | The number of CPUs used |
+ * | `hv_cpus` | `hv_cpu_t[HV_MAX_CPUS]` | The CPUs |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `apic_ids` | `uint32_t[HV_MAX_CPUS]` | The APIC IDs of the CPUs |
+ * | `needed` | `uint32_t` | The number of CPUs the VMs need |
+ * | `ram_end` | `uint64_t` | The end of the RAM |
+ * | `available` | `uint32_t` | The number of CPUs of the machine |
+ * | `i` | `uint32_t` | The index of a CPU |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `hv_cpus_needed()`, and store the result in `needed`.
+ * 2. Call `hv_console_init()` with the argument `hv_console_port`.
+ * 3. Call `hv_printf()` with the arguments
+ *    `"\n[hv] JetOS hypervisor: %%u VM(s), %%u CPU(s)\n"`, `hv_nb_vms` and
+ *    `needed`.
+ * 4. Call `hv_image_check()`.
+ * 5. Call `lapic_init_base()`.
+ * 6. Call `hv_idt_init()`.
+ * 7. Call `hv_idt_load()`.
+ * 8. Call `hv_legacy_pic_disable()`.
+ * 9. Call `lapic_init_cpu()`.
+ * 10. If `svm_supported()` is false:
+ *     1. Call `hv_fatal()` with the argument
+ *        `"AMD SVM with nested paging is needed "`
+ *        `"(QEMU: -cpu qemu64,+svm,+npt)"`.
+ * 11. Call `svm_init()`.
+ * 12. Call `hv_timing_init()`.
+ * 13. Call `hv_printf()` with the arguments
+ *     `"[hv] TSC %%lu kHz, local APIC timer %%lu kHz\n"`, `hv_tsc_hz() / 1000U`
+ *     and `hv_lapic_hz() / 1000U`.
+ * 14. Call `ram_end_of()` with the argument `mbi`, and store the result in
+ *     `ram_end`.
+ * 15. Call `find_cpus()` with the argument `apic_ids`, and store the result in
+ *     `available`.
+ * 16. Call `hv_printf()` with the arguments
+ *     `"[hv] %%lu MiB of RAM, %%u CPU(s)\n"`, `ram_end >> 20` and `available`.
+ * 17. If `needed` is equal to `0U` or `needed` is greater than `HV_MAX_CPUS`:
+ *     1. Call `hv_fatal()` with the argument
+ *        `"bad number of CPUs in the configuration"`.
+ * 18. If `available` is less than `needed`:
+ *     1. Call `hv_printf()` with the arguments
+ *        `"[hv] the VMs need %%u CPUs (QEMU: -smp %%u)\n"`, `needed` and
+ *        `needed`.
+ *     2. Call `hv_fatal()` with the argument `"not enough CPUs"`.
+ * 19. Call `hv_assign_cpus()` with the argument `apic_ids`.
+ * 20. Set `i` to `0U`; then while `i` is less than `hv_nb_cpus`, repeat (after
+ *     each pass: increment `i`):
+ *     1. Set `cpu_of_apic_id[apic_ids[i]]` to `(uint8_t) (i + 1U)`.
+ * 21. Call `hv_vms_init()` with the arguments `0U` and `ram_end`.
+ * 22. Call `hv_smp_start()` with the arguments `hv_nb_cpus` and `apic_ids`.
+ * 23. Call `hv_cpu_main()` with the address of `hv_cpus[0]`.
+ *
+ * @calls
+ * - `hv_cpus_needed()`
+ * - `hv_console_init()`
+ * - `hv_printf()`
+ * - `hv_image_check()`
+ * - `lapic_init_base()`
+ * - `hv_idt_init()`
+ * - `hv_idt_load()`
+ * - `hv_legacy_pic_disable()`
+ * - `lapic_init_cpu()`
+ * - `svm_supported()`
+ * - `hv_fatal()`
+ * - `svm_init()`
+ * - `hv_timing_init()`
+ * - `hv_tsc_hz()`
+ * - `hv_lapic_hz()`
+ * - `ram_end_of()`
+ * - `find_cpus()`
+ * - `hv_assign_cpus()`
+ * - `hv_vms_init()`
+ * - `hv_smp_start()`
+ * - `hv_cpu_main()`
  */
 void hv_main(uint32_t mbi)
 {
@@ -190,9 +476,46 @@ void hv_main(uint32_t mbi)
     hv_cpu_main(&hv_cpus[0]);
 }
 
-/*
- * Start-up of the other CPUs (called by entry.S): IDT and local APIC, then the
- * CPU runs its vCPU.
+/**
+ * @funcname `hv_ap_main`
+ *
+ * @description
+ * Start-up of the other CPUs, called by entry.S: loads the IDT, sets up the
+ * local APIC, tells the boot CPU that it runs, then runs its vCPU. Doesn't
+ * return.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `index` | `uint32_t` | [in] The index of the CPU. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hv_cpus` | `hv_cpu_t[HV_MAX_CPUS]` | The CPUs |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `cpu` | `hv_cpu_t *` | This CPU |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `cpu` to the address of `hv_cpus[index]`.
+ * 2. Call `hv_idt_load()`.
+ * 3. Call `lapic_init_cpu()`.
+ * 4. Call `x86_barrier()`.
+ * 5. Set `cpu->online` to `1U`.
+ * 6. Call `hv_cpu_main()` with the argument `cpu`.
+ *
+ * @calls
+ * - `hv_idt_load()`
+ * - `lapic_init_cpu()`
+ * - `x86_barrier()`
+ * - `hv_cpu_main()`
  */
 void hv_ap_main(uint32_t index)
 {

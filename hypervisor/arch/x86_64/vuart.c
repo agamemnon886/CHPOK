@@ -25,21 +25,77 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
- * arch/x86_64/.
+ * arch/x86_64/. Doxygen headers for the file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
+/**
+ * @file
  * Forwarding of a guest serial port to a host serial port at another
- * address: the access is repeated on the host port with the same offset
- * and size. The guests poll their UARTs, so no interrupts are routed.
- * Each host port belongs to one VM only (checked by hvconfig.py).
+ * address: the access is repeated on the host port with the same offset and
+ * size. The guests poll their UARTs, so no interrupts are routed. Each host
+ * port belongs to one VM only (checked by hvconfig.py).
  */
 
 #include <arch/internal.h>
 
-/*
- * Repeat an access of a guest to its serial port (offset, size, direction) on
- * the host port host_base.
+/**
+ * @funcname `vuart_access`
+ *
+ * @description
+ * Repeats an access of a guest to its serial port on the host port.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `host_base` | `uint16_t` | [in] The host port's I/O base address. |
+ * | `offset` | `uint16_t` | [in] The register offset, 0-7. |
+ * | `size` | `uint32_t` | [in] The access size: 1, 2 or 4 bytes. |
+ * | `is_in` | `bool` | [in] true for a read. |
+ * | `value` | `uint32_t *` | [out] The value written, or where the value read is stored. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `port` | `uint16_t` | The host port's register |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `port` to `(uint16_t) (host_base + offset)`.
+ * 2. If `is_in` is true:
+ *    1. If `size` is equal to `1U`:
+ *       1. Call `x86_inb()` with the argument `port`, and store the result in
+ *          `*value`.
+ *    2. Otherwise, if `size` is equal to `2U`:
+ *       1. Call `x86_inw()` with the argument `port`, and store the result in
+ *          `*value`.
+ *    3. Otherwise:
+ *       1. Call `x86_inl()` with the argument `port`, and store the result in
+ *          `*value`.
+ * 3. Otherwise:
+ *    1. If `size` is equal to `1U`:
+ *       1. Call `x86_outb()` with the arguments `port` and `(uint8_t) *value`.
+ *    2. Otherwise, if `size` is equal to `2U`:
+ *       1. Call `x86_outw()` with the arguments `port` and `(uint16_t) *value`.
+ *    3. Otherwise:
+ *       1. Call `x86_outl()` with the arguments `port` and the value at
+ *          `value`.
+ *
+ * @calls
+ * - `x86_inb()`
+ * - `x86_inw()`
+ * - `x86_inl()`
+ * - `x86_outb()`
+ * - `x86_outw()`
+ * - `x86_outl()`
  */
 void vuart_access(uint16_t host_base, uint16_t offset, uint32_t size,
                   bool is_in, uint32_t *value)

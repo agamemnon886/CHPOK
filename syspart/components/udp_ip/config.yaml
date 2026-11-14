@@ -1,4 +1,9 @@
+# Modified by Kirill Brazhnikov, 2026-11-14: description and state_doc give the
+# documentation of the components and of their state members.
 - name: UDP_IP_SENDER
+  description: >-
+    It adds the UDP and IPv4 headers to the payloads it is given (portA) and
+    sends the packets to a MAC address (portB).
   additional_h_files: ['"ip_addr.h"']
   state_struct:
       src_ip: uint32_t
@@ -6,6 +11,17 @@
       dst_ip: uint32_t
       dst_port: uint16_t
       dst_mac[6]: uint8_t
+  state_doc:
+      src_ip: >-
+        The source IPv4 address of the packets.
+      src_port: >-
+        Their source UDP port.
+      dst_ip: >-
+        Their destination IPv4 address.
+      dst_port: >-
+        Their destination UDP port.
+      dst_mac[6]: >-
+        The MAC address the packets are sent to.
 
   in_ports:
       - name: portA
@@ -18,6 +34,10 @@
         type: ethernet_packet_sender
 
 - name: UDP_RECEIVER
+  description: >-
+    It checks the IPv4 and UDP headers of the packets it receives (portA)
+    and passes their payload, with its destination address and port, on
+    (portB).
   additional_h_files: ['"state_structs.h"', '"ip_addr.h"']
   in_ports:
       - name: portA
@@ -29,10 +49,19 @@
         type: udp_message_handler
 
 - name: ROUTER
+  description: >-
+    It passes each UDP payload it receives (portA) to the port of portArray
+    that its destination address and port select.
   additional_h_files: ['"state_structs.h"', '"ip_addr.h"']
   state_struct:
-      map_ip_port_to_idx[10]: struct udp_ip_pair
+      map_ip_port_to_idx[10]: udp_ip_pair_t
       map_ip_port_to_idx_len: size_t
+  state_doc:
+      map_ip_port_to_idx[10]: >-
+        The destinations (IPv4 address and UDP port) and the index of their
+        port in portArray.
+      map_ip_port_to_idx_len: >-
+        The number of destinations in map_ip_port_to_idx.
   in_ports:
       - name: portA
         type: udp_message_handler

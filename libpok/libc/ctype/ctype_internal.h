@@ -16,6 +16,9 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: an include
  * guard is added; U suffixes for unsigned constants; the class bits are
  * unsigned.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the macro GET_CTYPE_CLASS is moved
+ * here from libpok/libc/ctype/ctype_internal.c.
  */
 
 
@@ -24,10 +27,13 @@
 
 /* Way for storing information about characters classification. */
 
-/* 
- * According to C99, only ints transformed into 'unsigned char' or EOF
- * should be classified.
- * 
+/**
+ * @macroname `CTYPE_TABLE_SIZE`
+ *
+ * @description
+ * According to C99, only ints transformed into 'unsigned char' or EOF should be
+ * classified.
+ *
  * 256(unsigned char) + 1(EOF) = 257(total).
  */
 #define CTYPE_TABLE_SIZE 257
@@ -80,14 +86,79 @@
  * number of bits may be reduced futher.
  */
 
+/**
+ * @name Character class bits
+ * The bits of the classification of a character (ctype_table_classification):
+ * the 12 classes of C99 packed into 8 bits, as explained in the comment above.
+ * @{
+ */
+
+/**
+ * @macroname `CTB_ALNUM`
+ *
+ * @description
+ * The class bit "alnum".
+ */
 #define CTB_ALNUM 1U
+
+/**
+ * @macroname `CTB_UPPER_OR_SPACE`
+ *
+ * @description
+ * The class bit "upper" with CTB_ALNUM, "space" without it.
+ */
 #define CTB_UPPER_OR_SPACE 2U
+
+/**
+ * @macroname `CTB_LOWER_OR_PUNCT`
+ *
+ * @description
+ * The class bit "lower" with CTB_ALNUM, "punct" without it.
+ */
 #define CTB_LOWER_OR_PUNCT 4U
+
+/**
+ * @macroname `CTB_ALPHA_OR_BLANK`
+ *
+ * @description
+ * The class bit "alpha" with CTB_ALNUM, "blank" without it.
+ */
 #define CTB_ALPHA_OR_BLANK 8U
+
+/**
+ * @macroname `CTB_DIGIT_OR_CNTRL`
+ *
+ * @description
+ * The class bit "digit" with CTB_ALNUM, "cntrl" without it.
+ */
 #define CTB_DIGIT_OR_CNTRL 16U
+
+/**
+ * @macroname `CTB_PRINT`
+ *
+ * @description
+ * The class bit "print".
+ */
 #define CTB_PRINT 32U
+
+/**
+ * @macroname `CTB_GRAPH`
+ *
+ * @description
+ * The class bit "graph".
+ */
 #define CTB_GRAPH 64U
+
+/**
+ * @macroname `CTB_XDIGIT`
+ *
+ * @description
+ * The class bit "xdigit".
+ */
 #define CTB_XDIGIT 128U
+
+/** @} */
+
 
 /* 
  * Pointer to the array of size CTYPE_TABLE_SIZE, which contains
@@ -106,5 +177,20 @@ extern int* ctype_table_lower;
  * of "toupper" conversion for the characters.
  */
 extern int* ctype_table_upper;
+
+/**
+ * @macroname `GET_CTYPE_CLASS`
+ *
+ * @description
+ * The class of a character (its bits in ctype_table_classification). The tables
+ * have an entry for EOF (-1) first, so they are indexed from their start plus
+ * one.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `c` | The character, or EOF. |
+ */
+#define GET_CTYPE_CLASS(c) ((ctype_table_classification + 1)[c])
 
 #endif /* LIBJET_CTYPE_INTERNAL_H */

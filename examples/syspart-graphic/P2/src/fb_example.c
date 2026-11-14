@@ -19,6 +19,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-07: the image size is converted
  * to the type of the loop counters explicitly.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the struct types are used by their
+ * typedef names.
  */
 
 #include <stdio.h>
@@ -40,7 +43,8 @@ struct gimp_image {
 extern const struct gimp_image gimp_image; //Image of airplane
 
 
-static void draw_image(struct uwrm_scm_direct_fb *fb, int32_t x_start, int32_t y_start)
+static void draw_image(uwrm_scm_direct_fb_t *fb, int32_t x_start,
+    int32_t y_start)
 {
     uint32_t *addr;
     for (int32_t y = 0; y < (int32_t) gimp_image.height; y++) {
@@ -56,7 +60,7 @@ void fb_example_run(void)
 {
     RETURN_CODE_TYPE ret;
 
-    struct uwrm_scm_direct_fb fb;
+    uwrm_scm_direct_fb_t fb;
     uwrm_scm_get_direct_fb(&fb);
 
     int32_t y = fb.height - 100;

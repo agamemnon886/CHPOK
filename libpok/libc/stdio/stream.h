@@ -23,6 +23,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; msection_t is used by its typedef name.
  */
 
 /* 
@@ -39,52 +43,95 @@
 #include <stdio.h>
 #include <msection.h>
 
-struct stdio_stream_ops;
+/*
+ * Writes bytes into the object under a stream: the stream, the bytes and
+ * their number. Returns the number of bytes actually written.
+ */
+/**
+ * @typename `stdio_write_bytes_fn_t`
+ *
+ * @description
+ * Writes bytes into the object under a stream (the write_bytes operation of
+ * stdio_stream_ops_t): its parameters are the stream, the bytes and their
+ * number; it returns the number of bytes actually written.
+ */
+typedef size_t (*stdio_write_bytes_fn_t)(FILE* stream,
+    const char* bytes, size_t size);
 
+/**
+ * @typename `stdio_stream_ops_t`
+ *
+ * @description
+ * The operations of a stream on the object under it (the console).
+ */
+typedef struct {
+    /**
+     * Write bytes into underline object.
+     *
+     * Return number of bytes which has been actually writen.
+     */
+    stdio_write_bytes_fn_t write_bytes;
+    // Reading streams are currently unsupported.
+} stdio_stream_ops_t;
+
+/**
+ * @typename `FILE`
+ *
+ * @description
+ * A stream of the C library (FILE): its buffer and the operations on the object
+ * under it.
+ */
 struct stdio_stream
 {
-    /* Pointer to the buffer used by the stream. May be NULL. */
+    /**
+     * Pointer to the buffer used by the stream. May be NULL.
+     */
     char* buffer;
-    /* Size of the buffer used by the stream. May be 0.*/
+    /**
+     * Size of the buffer used by the stream. May be 0.
+     */
     size_t buffer_size;
-    /* Mode of the buffer (_IOFBF, _IOLBF or _IONBF). */
+    /**
+     * Mode of the buffer (_IOFBF, _IOLBF or _IONBF).
+     */
     int buffer_mode;
-    /* Relation of the buffer with underline object. */
-    const struct stdio_stream_ops* s_ops;
-    /* Current position in the buffer. */
+    /**
+     * Relation of the buffer with underline object.
+     */
+    const stdio_stream_ops_t* s_ops;
+    /**
+     * Current position in the buffer.
+     */
     size_t buffer_pos;
-    /* 
+    /**
      * Number of bytes written into the stream.
-     * 
+     *
      * This counter may be reseted manually when needed.
      */
     size_t bytes_written;
-    /*
+    /**
      * Protects the stream from concurrent accesses by processes of the
      * partition. Statically initialized with STDIO_STREAM_LOCK_INIT.
      *
      * Use stdio_operation_* functions for write into the stream.
      */
-    struct msection lock;
+    msection_t lock;
 };
 
 /* Initializer of 'lock' field: free msection (see msection_init()). */
+
+/**
+ * @macroname `STDIO_STREAM_LOCK_INIT`
+ *
+ * @description
+ * The initializer of the lock of a stream: a free critical section (see
+ * msection_init()).
+ */
 #define STDIO_STREAM_LOCK_INIT \
     { .owner = JET_THREAD_ID_NONE, .msection_kernel_flags = 0U }
 
-struct stdio_stream_ops
-{
-    /* 
-     * Write bytes into underline object.
-     * 
-     * Return number of bytes which has been actually writen.
-     */
-    size_t (*write_bytes)(struct stdio_stream* stream,
-        const char* bytes, size_t size);
-    // Reading streams are currently unsupported.
-};
-
 /* Callback of type 'emit_character_t' for emit characters into stream.*/
+/** \cond */
 void stdio_stream_emit_character(char c, void* _stream);
 /* 
  * Complete operation for the stream.
@@ -92,7 +139,8 @@ void stdio_stream_emit_character(char c, void* _stream);
  * Buffer may be used by 'stdio_stream_emit_character' even in _IONBF mode;
  * this function flushes the buffer.
  */
-void stdio_stream_complete_operation(struct stdio_stream* stream);
+void stdio_stream_complete_operation(FILE* stream);
+/** \endcond */
 
 /*
  * One output operation into the stream (printf(), puts(), ...).
@@ -105,17 +153,32 @@ void stdio_stream_complete_operation(struct stdio_stream* stream);
  * ones) is performed without the lock: a process which faults while
  * owning the lock would block other processes printing.
  */
-struct stdio_operation
-{
-    struct stdio_stream* stream;
-    /* Number of collected characters, not written into the stream yet. */
+/**
+ * @typename `stdio_operation_t`
+ *
+ * @description
+ * One output operation into a stream (printf(), puts(), ...). Its characters
+ * are collected on the caller's stack and written into the stream under its
+ * lock, so outputs of concurrent operations do not mix or duplicate. The
+ * formatting (which reads the caller's arguments and may fault on wrong ones)
+ * is done without the lock: a process which faults while owning the lock would
+ * block the other processes printing.
+ */
+typedef struct {
+    FILE* stream; /**< The stream written. */
+    /**
+     * Number of collected characters, not written into the stream yet.
+     */
     size_t pos;
-    /* Number of characters emitted by the operation. */
+    /**
+     * Number of characters emitted by the operation.
+     */
     size_t bytes_written;
-    char buffer[BUFSIZ];
-};
+    char buffer[BUFSIZ]; /**< The characters collected. */
+} stdio_operation_t;
 
-void stdio_operation_begin(struct stdio_operation* op, struct stdio_stream* stream);
+/** \cond */
+void stdio_operation_begin(stdio_operation_t* op, FILE* stream);
 
 /* Callback of type 'emit_character_t' for emit characters into operation.*/
 void stdio_operation_emit_character(char c, void* _op);
@@ -126,6 +189,7 @@ void stdio_operation_emit_character(char c, void* _op);
  *
  * Return number of characters emitted by the operation.
  */
-size_t stdio_operation_end(struct stdio_operation* op);
+size_t stdio_operation_end(stdio_operation_t* op);
+/** \endcond */
 
 #endif /* __LIBJET_STDIO_STREAM_H_ */

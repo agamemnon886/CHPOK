@@ -20,6 +20,20 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns. ja_space_switch()'s parameter has the name of its definitions (Rule
  * 8.3).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; struct jet_space_layout is the typedef jet_space_layout_t, struct
+ * jet_fp_store is the typedef jet_fp_store_t; jet_kernel_shared_t is used
+ * by its typedef name; Doxygen comments for the file and its types (with their
+ * members).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef JET_ASP_SPACE_H
@@ -40,40 +54,52 @@
  */
 #include <arch/space.h>
 
-/* 
+/**
+ * @typename `jet_space_id`
+ *
+ * @description
  * Identificator for the (memory) space.
- * 
- * Value 0 corresponds to kernel space.
- * Non-zero values correspond to user spaces.
+ *
+ * Value 0 corresponds to kernel space. Non-zero values correspond to user
+ * spaces.
  */
 typedef uint8_t jet_space_id;
 
-/* Layout of the user space for load partition's code and data. */
-struct jet_space_layout
-{
+/**
+ * @typename `jet_space_layout_t`
+ *
+ * @description
+ * Layout of the user space for load partition's code and data.
+ */
+typedef struct {
     /* 
      * Currently whole space is treated as single chunk.
      * 
      * TODO: There should be division for execute-only, read-only and
      * other sections. But this requires arch support.
      */
+    /**
+     * Currently whole space is treated as single chunk: its address for the
+     * kernel.
+     */
     char* kernel_addr;
-    char* user_addr;
-    size_t size;
-};
+    char* user_addr; /**< Its address in the partition. */
+    size_t size; /**< Its size, in bytes. */
+} jet_space_layout_t;
 
 /* Fill layout for given user space. */
+/** \cond */
 void ja_space_layout_get(jet_space_id space_id,
-    struct jet_space_layout* space_layout);
+    jet_space_layout_t* space_layout);
 
 /* Return pointer to the heap for given space. */
 void* ja_space_get_heap(jet_space_id space_id);
 
 /* Return pointer to the kernel shared data for given space. */
-struct jet_kernel_shared_data* JET_KUSER ja_space_shared_data(
+jet_kernel_shared_t* JET_KUSER ja_space_shared_data(
     jet_space_id space_id);
 
-/**
+/*
  * Jump to the user space.
  * 
  * Kernel stack passed as 'sp' will be used in interrupts/syscalls.
@@ -84,7 +110,7 @@ void ja_user_space_jump(
     void (JET_USER * entry_user)(void),
     jet_ustack_t stack_user);
 
-/**
+/*
  * Switch to given space.
  */
 void   ja_space_switch (jet_space_id space_id);
@@ -101,7 +127,7 @@ jet_space_id ja_space_get_current (void);
  */
 void ja_ustack_init (jet_space_id space_id);
 
-/**
+/*
  * Allocates user stack for given space.
  * 
  * In case of insufficient memory returns 0.
@@ -110,6 +136,8 @@ void ja_ustack_init (jet_space_id space_id);
  */
 jet_ustack_t ja_ustack_alloc (jet_space_id space_id, size_t stack_size);
 
+/** \endcond */
+
 /*
  * Place for store floating point registers.
  * 
@@ -117,23 +145,30 @@ jet_ustack_t ja_ustack_alloc (jet_space_id space_id, size_t stack_size);
  * so floating point registers needs to be stored only when switching
  * to other user space thread.
  */
-struct jet_fp_store;
+/*
+ * The floating point registers of a thread, which each architecture
+ * defines (kernel/arch/<arch>/space.h); used by pointer.
+ */
+typedef struct jet_fp_store jet_fp_store_t;
 
 /* 
  * Allocate place for store floating point registers.
  * 
  * May be called only during OS init.
  */
-struct jet_fp_store* ja_alloc_fp_store(void);
+/** \cond */
+jet_fp_store_t* ja_alloc_fp_store(void);
 
 /* Save floating point registers into given place. */
-void ja_fp_save(struct jet_fp_store* fp_store);
+void ja_fp_save(jet_fp_store_t* fp_store);
 
 /* Restore floating point registers into given place. */
-void ja_fp_restore(struct jet_fp_store* fp_store);
+void ja_fp_restore(jet_fp_store_t* fp_store);
 
 /* Initialize floating point registers with zero. */
 void ja_fp_init(void);
+
+/** \endcond */
 
 
 #endif /* JET_ASP_SPACE_H */

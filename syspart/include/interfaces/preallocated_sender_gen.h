@@ -3,6 +3,11 @@
  *
  * Instead of modifying this file, modify the one it generated from (syspart/include/interfaces/network.yaml).
  */
+/*
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
+ */
+
 #ifndef INTERFACES_PREALLOCATED_SENDER_H
 #define INTERFACES_PREALLOCATED_SENDER_H
 
@@ -24,20 +29,60 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
  * guard isn't a reserved identifier; the parameters of the operations are
  * named.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: Doxygen comments for the file,
+ * its type and the type's members (the descriptions are in the interface's
+ * configuration: description).
  */
 
 
 #include <lib/common.h>
     #include <ret_type.h>
 
+/**
+ * @typename `preallocated_sender_send_fn_t`
+ *
+ * @description
+ * The function send of the preallocated_sender interface.
+ * Sends a payload: arg0 is the component, arg1 the payload, arg2 its size
+ * and arg3 the room before it for the headers (max_backstep). Returns EOK
+ * or an error.
+ */
+typedef ret_e (*preallocated_sender_send_fn_t)(
+    self_t * arg0,
+    char * arg1,
+    size_t arg2,
+    size_t arg3);
+
+/**
+ * @typename `preallocated_sender_flush_fn_t`
+ *
+ * @description
+ * The function flush of the preallocated_sender interface.
+ * Sends what the component (arg0) has queued. Returns EOK or an error.
+ */
+typedef ret_e (*preallocated_sender_flush_fn_t)(
+    self_t * arg0);
+
+/**
+ * @typename `preallocated_sender`
+ *
+ * @description
+ * The operations of a port of the preallocated_sender interface: those of
+ * the component that implements it.
+ * Sends a payload that has free room before it, where the components on the
+ * way down add their headers (the sender of a frame).
+ */
 typedef struct {
-    ret_t (*send)(
-        self_t * arg0,
-        char * arg1,
-        size_t arg2,
-        size_t arg3);
-    ret_t (*flush)(
-        self_t * arg0);
+    preallocated_sender_send_fn_t send;
+    /**< Sends a payload: arg0 is the component, arg1 the payload, arg2 its
+     * size and arg3 the room before it for the headers (max_backstep).
+     * Returns EOK or an error.
+     */
+    preallocated_sender_flush_fn_t flush;
+    /**< Sends what the component (arg0) has queued. Returns EOK or an
+     * error.
+     */
 } preallocated_sender;
 
 

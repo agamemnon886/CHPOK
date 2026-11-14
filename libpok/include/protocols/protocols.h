@@ -12,34 +12,18 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Thu Dec  3 10:21:25 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #ifndef __LIBPOK_PROTOCOLS_H__
 #define __LIBPOK_PROTOCOLS_H__
-
-/**
- * \file    libpok/protocols/protocols.h
- * \author  Julien Delange
- * \date    2009
- * \brief   Protocols to marshall/unmarshall data
- *
- * This file is a general-purpose file to include all
- * protocols in the same time. Protocols functions
- * provides features to encode and decode messages
- * before sending data through partitions. It is
- * especially useful when you want to encrypt data
- * over the network before sending or adapt application 
- * data to a particular protocol.
- *
- * For each protocol, we have:
- *   - One function to marshall data
- *   - One function to unmarshall data
- *   - One data type associated with the crypto protocol.
- *     This data type is used to store data when marshalling
- *     data and used as an input to unmarshall data.
- *
- * More documentation is available in the user manual.
- */
 
 /*
  * The DES crypto protocol

@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* s_logbf.c -- float version of s_logb.c.
@@ -29,12 +38,57 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * logbf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
 #include <libm.h>
 #include "math_private.h"
 
+/**
+ * @funcname `logbf`
+ *
+ * @description
+ * Computes the binary exponent of x, as a floating value, in float (C
+ * standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The bits of x |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `ix` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `ix`.
+ * 3. If `ix` is equal to `0`:
+ *    1. Return `(float)-1.0/fabsf(x)`.
+ * 4. If `ix` is greater than or equal to `0x7f800000`:
+ *    1. Return `x*x`.
+ * 5. If `(ix>>=23)` is equal to `0`:
+ *    1. Return `-126.0`.
+ * 6. Otherwise:
+ *    1. Return `(float) (ix-127)`.
+ *
+ * @calls
+ * - `fabsf()`
+ */
 float
 logbf(float x)
 {

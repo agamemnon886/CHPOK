@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)s_tanh.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * tanh() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -58,6 +71,65 @@
 
 static const double one=1.0, two=2.0, tiny = 1.0e-300;
 
+/**
+ * @funcname `tanh`
+ *
+ * @description
+ * Computes the hyperbolic tangent of x (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `tiny` | `const double` | A constant of the algorithm |
+ * | `two` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `jx` | `int32_t` | The high word of x |
+ * | `t` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `jx` and `x`.
+ * 2. Set `ix` to `jx&0x7fffffff`.
+ * 3. If `ix` is greater than or equal to `0x7ff00000`:
+ *    1. If `jx` is greater than or equal to `0`:
+ *       1. Return `one/x+one`.
+ *    2. Otherwise:
+ *       1. Return `one/x-one`.
+ * 4. If `ix` is less than `0x40360000`:
+ *    1. If `ix` is less than `0x3c800000`:
+ *       1. Return `x*(one+x)`.
+ *    2. If `ix` is greater than or equal to `0x3ff00000`:
+ *       1. Call `expm1()` with the argument `two*fabs(x)`, and store the result
+ *          in `t`.
+ *       2. Set `z` to `one - two/(t+two)`.
+ *    3. Otherwise:
+ *       1. Call `expm1()` with the argument `-two*fabs(x)`, and store the
+ *          result in `t`.
+ *       2. Set `z` to `-t/(t+two)`.
+ * 5. Otherwise:
+ *    1. Set `z` to `one - tiny`.
+ * 6. Return `z` if `jx` is greater than or equal to `0`, otherwise `-z`.
+ *
+ * @calls
+ * - `expm1()`
+ * - `fabs()`
+ */
 double
 tanh(double x)
 {

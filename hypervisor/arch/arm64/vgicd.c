@@ -23,83 +23,214 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file and
+ * its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and declarations
+ * are in arch/internal.h, documented there.
  */
 
-/*
- * The GICv2 distributor of a VM (guest-physical 0x08000000), emulated:
- * each access exits (mmio.c). The VM has one CPU and interrupts 0-31
- * (TYPER: ITLinesNumber 0, CPUNumber 0); of these only the virtual timer
- * (27) ever comes (gic.c).
+/**
+ * @file
+ * The GICv2 distributor of a VM (guest-physical 0x08000000), emulated: each
+ * access exits (mmio.c). The VM has one CPU and interrupts 0-31 (TYPER:
+ * ITLinesNumber 0, CPUNumber 0); of these only the virtual timer (27) ever
+ * comes (gic.c).
  *
- *   CTLR                       read/write (EnableGrp0)
- *   TYPER, IIDR                read only (IIDR: the host's)
- *   ISENABLER0, ICENABLER0     the PPIs' enables; SGIs are always enabled
- *   IPRIORITYR0-7              byte or word accesses (bits 7:3 kept)
- *   ITARGETSR0-7               read only: CPU 0
- *   ICFGR0                     read only: SGIs edge-triggered
- *   ICFGR1                     stored
- *   IGROUPR0, ISPENDR0, ICPENDR0, ISACTIVER0, ICACTIVER0, SGIR,
- *   CPENDSGIRn, SPENDSGIRn, the ID registers
- *                              read as 0, writes ignored
+ * - CTLR: read/write (EnableGrp0).
+ * - TYPER, IIDR: read only (IIDR: the host's).
+ * - ISENABLER0, ICENABLER0: the PPIs' enables; SGIs are always enabled.
+ * - IPRIORITYR0-7: byte or word accesses (bits 7:3 kept).
+ * - ITARGETSR0-7: read only, CPU 0.
+ * - ICFGR0: read only, SGIs edge-triggered. ICFGR1: stored.
+ * - IGROUPR0, ISPENDR0, ICPENDR0, ISACTIVER0, ICACTIVER0, SGIR, CPENDSGIRn,
+ *   SPENDSGIRn and the ID registers: read as 0, writes ignored.
  *
  * Any other register reads as 0 and ignores writes, and is reported.
  */
 
 #include <arch/internal.h>
 
-#define GICD_CTLR           0x000U
-#define GICD_TYPER          0x004U
-#define GICD_IIDR           0x008U
-#define GICD_IGROUPR0       0x080U
-#define GICD_ISENABLER0     0x100U
-#define GICD_ICENABLER0     0x180U
-#define GICD_ISPENDR0       0x200U
-#define GICD_ICPENDR0       0x280U
-#define GICD_ISACTIVER0     0x300U
-#define GICD_ICACTIVER0     0x380U
-#define GICD_IPRIORITYR0    0x400U
-#define GICD_IPRIORITYR_END 0x420U
-#define GICD_ITARGETSR0     0x800U
-#define GICD_ITARGETSR_END  0x820U
-#define GICD_ICFGR0         0xC00U
-#define GICD_ICFGR1         0xC04U
-#define GICD_SGIR           0xF00U
-#define GICD_SGI_PEND_FIRST 0xF10U      // CPENDSGIRn, SPENDSGIRn
-#define GICD_SGI_PEND_END   0xF30U
-#define GICD_ID_FIRST       0xFD0U
-#define GICD_ID_END         0x1000U
-
-#define SGIS                0x0000FFFFU // Always enabled
-#define PRIORITY_BITS       0xF8U
-#define ICFGR0_SGIS         0xAAAAAAAAU
-#define TARGETS_CPU0        0x01010101U
-
-// The distributor as at power-on: off, interrupts disabled, priority 0.
+/**
+ * @funcname `vgicd_reset`
+ *
+ * @description
+ * Resets the distributor of a VM as at power-on: off, interrupts disabled,
+ * priority 0.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `gicd` | `hv_vgicd_t *` | [out] The emulated distributor. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `hv_memset()` with the arguments `gicd`, `0U` and `sizeof(*gicd)`.
+ *
+ * @calls
+ * - `hv_memset()`
+ */
 void vgicd_reset(hv_vgicd_t *gicd)
 {
     hv_memset(gicd, 0U, sizeof(*gicd));
 }
 
-// Whether the guest lets the timer interrupt through.
+/**
+ * @funcname `vgicd_timer_enabled`
+ *
+ * @description
+ * Tells whether the guest lets the timer interrupt through: its distributor is
+ * on and interrupt 27 enabled.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `gicd` | `const hv_vgicd_t *` | [in] The emulated distributor. |
+ *
+ * @return true if the timer interrupt may come.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return
+ *    `gicd->enabled && ((gicd->enable & ((uint32_t) 1U << HV_IRQ_VTIMER)) !=`
+ *    `0U)`.
+ *
+ * @calls
+ * None.
+ */
 bool vgicd_timer_enabled(const hv_vgicd_t *gicd)
 {
     return gicd->enabled
            && ((gicd->enable & ((uint32_t) 1U << HV_IRQ_VTIMER)) != 0U);
 }
 
-// The guest's priority of the timer interrupt.
+/**
+ * @funcname `vgicd_timer_priority`
+ *
+ * @description
+ * Returns the guest's priority of the timer interrupt.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `gicd` | `const hv_vgicd_t *` | [in] The emulated distributor. |
+ *
+ * @return The priority of interrupt 27.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `gicd->priority[HV_IRQ_VTIMER]`.
+ *
+ * @calls
+ * None.
+ */
 uint8_t vgicd_timer_priority(const hv_vgicd_t *gicd)
 {
     return gicd->priority[HV_IRQ_VTIMER];
 }
 
-// Whether offset is in [first, end).
+/**
+ * @funcname `in`
+ *
+ * @description
+ * Tells whether an offset is in a range.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `offset` | `uint32_t` | [in] The offset. |
+ * | `first` | `uint32_t` | [in] The start of the range. |
+ * | `end` | `uint32_t` | [in] The end of the range (excluded). |
+ *
+ * @return true if first <= offset < end.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `(offset >= first) && (offset < end)`.
+ *
+ * @calls
+ * None.
+ */
 static bool in(uint32_t offset, uint32_t first, uint32_t end)
 {
     return (offset >= first) && (offset < end);
 }
 
-// A word of the priority registers (little-endian bytes).
+/**
+ * @funcname `priority_word`
+ *
+ * @description
+ * Returns a word of the priority registers: four priorities, little-endian.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `gicd` | `const hv_vgicd_t *` | [in] The emulated distributor. |
+ * | `first` | `uint32_t` | [in] The first interrupt of the word. |
+ *
+ * @return The word.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `value` | `uint32_t` | The word |
+ * | `i` | `uint32_t` | The byte of the word |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `value` to `0U`.
+ * 2. Set `i` to `0U`; then while `i` is less than `4U`, repeat (after each
+ *    pass: increment `i`):
+ *    1. Set the bits `(uint32_t) gicd->priority[first + i] << (8U * i)` in
+ *       `value`.
+ * 3. Return `value`.
+ *
+ * @calls
+ * None.
+ */
 static uint32_t priority_word(const hv_vgicd_t *gicd, uint32_t first)
 {
     uint32_t value = 0U;
@@ -110,7 +241,67 @@ static uint32_t priority_word(const hv_vgicd_t *gicd, uint32_t first)
     return value;
 }
 
-// Read a 32-bit register; returns false if it isn't emulated.
+/**
+ * @funcname `read_word`
+ *
+ * @description
+ * Reads a 32-bit register of the emulated distributor.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `gicd` | `const hv_vgicd_t *` | [in] The emulated distributor. |
+ * | `offset` | `uint32_t` | [in] The register offset. |
+ * | `value` | `uint32_t *` | [out] Where the value is stored. |
+ *
+ * @return false if the register isn't emulated (it reads as 0).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `known` | `bool` | Whether the register is emulated |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `known` to `true`.
+ * 2. If `offset` is equal to `GICD_CTLR`:
+ *    1. Set `*value` to `1U` if `gicd->enabled` is true, otherwise `0U`.
+ * 3. Otherwise, if `offset` is equal to `GICD_TYPER`:
+ *    1. Set `*value` to `0U`.
+ * 4. Otherwise, if `offset` is equal to `GICD_IIDR`:
+ *    1. Call `gic_host_iidr()`, and store the result in `*value`.
+ * 5. Otherwise, if `offset` is equal to `GICD_ISENABLER0` or `offset` is equal
+ *    to `GICD_ICENABLER0`:
+ *    1. Set `*value` to `gicd->enable | SGIS`.
+ * 6. Otherwise, if `in(offset, GICD_IPRIORITYR0, GICD_IPRIORITYR_END)` is true:
+ *    1. Call `priority_word()` with the arguments `gicd` and
+ *       `offset - GICD_IPRIORITYR0`, and store the result in `*value`.
+ * 7. Otherwise, if `in(offset, GICD_ITARGETSR0, GICD_ITARGETSR_END)` is true:
+ *    1. Set `*value` to `TARGETS_CPU0`.
+ * 8. Otherwise, if `offset` is equal to `GICD_ICFGR0`:
+ *    1. Set `*value` to `ICFGR0_SGIS`.
+ * 9. Otherwise, if `offset` is equal to `GICD_ICFGR1`:
+ *    1. Set `*value` to `gicd->config_ppi`.
+ * 10. Otherwise:
+ *     1. Set `*value` to `0U`.
+ *     2. Set `known` to
+ *        `(offset == GICD_IGROUPR0) || (offset == GICD_ISPENDR0) || (offset ==`
+ *        `GICD_ICPENDR0) || (offset == GICD_ISACTIVER0) || (offset ==`
+ *        `GICD_ICACTIVER0) || in(offset, GICD_SGI_PEND_FIRST,`
+ *        `GICD_SGI_PEND_END) || in(offset, GICD_ID_FIRST, GICD_ID_END)`.
+ * 11. Return `known`.
+ *
+ * @calls
+ * - `gic_host_iidr()`
+ * - `in()`
+ * - `priority_word()`
+ */
 static bool read_word(const hv_vgicd_t *gicd, uint32_t offset,
                       uint32_t *value)
 {
@@ -143,7 +334,62 @@ static bool read_word(const hv_vgicd_t *gicd, uint32_t offset,
     return known;
 }
 
-// Write a 32-bit register; returns false if it isn't emulated.
+/**
+ * @funcname `write_word`
+ *
+ * @description
+ * Writes a 32-bit register of the emulated distributor.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `gicd` | `hv_vgicd_t *` | [in,out] The emulated distributor. |
+ * | `offset` | `uint32_t` | [in] The register offset. |
+ * | `value` | `uint32_t` | [in] The value. |
+ *
+ * @return false if the register isn't emulated (the write is ignored).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `known` | `bool` | Whether the register is emulated |
+ * | `i` | `uint32_t` | The byte of a priority word |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `known` to `true`.
+ * 2. If `offset` is equal to `GICD_CTLR`:
+ *    1. Set `gicd->enabled` to `(value & 1U) != 0U`.
+ * 3. Otherwise, if `offset` is equal to `GICD_ISENABLER0`:
+ *    1. Set the bits `value & ~SGIS` in `gicd->enable`.
+ * 4. Otherwise, if `offset` is equal to `GICD_ICENABLER0`:
+ *    1. Keep only the bits `~(value & ~SGIS)` of `gicd->enable`.
+ * 5. Otherwise, if `in(offset, GICD_IPRIORITYR0, GICD_IPRIORITYR_END)` is true:
+ *    1. Set `i` to `0U`; then while `i` is less than `4U`, repeat (after each
+ *       pass: increment `i`):
+ *       1. Set `gicd->priority[(offset - GICD_IPRIORITYR0) + i]` to
+ *          `(uint8_t) ((value >> (8U * i)) & PRIORITY_BITS)`.
+ * 6. Otherwise, if `offset` is equal to `GICD_ICFGR1`:
+ *    1. Set `gicd->config_ppi` to `value`.
+ * 7. Otherwise:
+ *    1. Set `known` to
+ *       `(offset == GICD_TYPER) || (offset == GICD_IIDR) || in(offset,`
+ *       `GICD_ITARGETSR0, GICD_ITARGETSR_END) || (offset == GICD_ICFGR0) ||`
+ *       `(offset == GICD_IGROUPR0) || (offset == GICD_ISPENDR0) || (offset ==`
+ *       `GICD_ICPENDR0) || (offset == GICD_ISACTIVER0) || (offset ==`
+ *       `GICD_ICACTIVER0) || (offset == GICD_SGIR) || in(offset,`
+ *       `GICD_SGI_PEND_FIRST, GICD_SGI_PEND_END)`.
+ * 8. Return `known`.
+ *
+ * @calls
+ * - `in()`
+ */
 static bool write_word(hv_vgicd_t *gicd, uint32_t offset, uint32_t value)
 {
     bool known = true;
@@ -174,12 +420,79 @@ static bool write_word(hv_vgicd_t *gicd, uint32_t offset, uint32_t value)
     return known;
 }
 
-/*
- * An access of the guest to its distributor: size 4 bytes at offset, or 1
- * byte in the byte-accessible registers (IPRIORITYR, ITARGETSR,
- * CPENDSGIR, SPENDSGIR). value is read or written. Returns false if the
- * access isn't emulated (it reads as 0). The timer interrupt is given or
- * taken back if the access changed whether it may come.
+/**
+ * @funcname `vgicd_access`
+ *
+ * @description
+ * Performs an access of the guest to its distributor (an MMIO exit), and gives
+ * or takes back the timer interrupt if the access changed whether it may come.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `vm` | `hv_vm_t *` | [in,out] The VM. |
+ * | `offset` | `uint32_t` | [in] The offset in the distributor. |
+ * | `size` | `uint32_t` | [in] The access size: 4, or 1 in the byte-accessible registers (IPRIORITYR, ITARGETSR, CPENDSGIR, SPENDSGIR). |
+ * | `write` | `bool` | [in] true for a write. |
+ * | `value` | `uint64_t *` | [out] The value written, or where the value read is stored. |
+ *
+ * @return false if the access isn't emulated (a read gives 0).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `gicd` | `hv_vgicd_t *` | The emulated distributor |
+ * | `word_offset` | `uint32_t` | The offset of the register's word |
+ * | `shift` | `uint32_t` | The position of a byte in the word |
+ * | `word` | `uint32_t` | The register's word |
+ * | `bytes` | `bool` | Whether the register can be accessed by byte |
+ * | `known` | `bool` | Whether the access is emulated |
+ * | `read` | `uint32_t` | The value read |
+ * | `mask` | `uint32_t` | The bits of the byte written |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `gicd` to the address of `vm->arch.gicd`.
+ * 2. Set `word_offset` to `offset & ~3U`.
+ * 3. Set `shift` to `8U * (offset & 3U)`.
+ * 4. Set `word` to `0U`.
+ * 5. Set `bytes` to `in(word_offset, GICD_IPRIORITYR0, GICD_IPRIORITYR_END) ||`
+ *    `in(word_offset, GICD_ITARGETSR0, GICD_ITARGETSR_END) || in(word_offset,`
+ *    `GICD_SGI_PEND_FIRST, GICD_SGI_PEND_END)`.
+ * 6. If not ((`size` is equal to `4U` and `shift` is equal to `0U`)) and not
+ *    ((`size` is equal to `1U` and `bytes` is true)):
+ *    1. Set `*value` to `0U`.
+ *    2. Return `false`.
+ * 7. Call `read_word()` with the arguments `gicd`, `word_offset` and the
+ *    address of `word`, and store the result in `known`.
+ * 8. If `write` is false:
+ *    1. Set `read` to `word` if `size` is equal to `4U`, otherwise
+ *       `((word >> shift) & 0xFFU)`.
+ *    2. Set `*value` to `read`.
+ * 9. Otherwise, if `size` is equal to `4U`:
+ *    1. Call `write_word()` with the arguments `gicd`, `word_offset` and
+ *       `(uint32_t) *value`, and store the result in `known`.
+ * 10. Otherwise:
+ *     1. Set `mask` to `0xFFU << shift`.
+ *     2. Set `word` to
+ *        `(word & ~mask) | (((uint32_t) *value << shift) & mask)`.
+ *     3. Call `write_word()` with the arguments `gicd`, `word_offset` and
+ *        `word`, and store the result in `known`.
+ * 11. If `write` is true:
+ *     1. Call `gic_update()` with the argument `vm`.
+ * 12. Return `known`.
+ *
+ * @calls
+ * - `in()`
+ * - `read_word()`
+ * - `write_word()`
+ * - `gic_update()`
  */
 bool vgicd_access(hv_vm_t *vm, uint32_t offset, uint32_t size, bool write,
                   uint64_t *value)

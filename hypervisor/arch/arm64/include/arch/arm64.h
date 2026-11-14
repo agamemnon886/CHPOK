@@ -23,12 +23,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/*
- * AArch64 instructions used by the hypervisor: system registers,
- * barriers, cache and TLB maintenance, and the exclusive accesses of the
- * console lock.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file and
+ * its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented); the types and
+ * macros are documented; the types shared with x86_64 point to their
+ * documentation, and their member comments start with arm64:.
  */
 
 /*
@@ -46,76 +49,121 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/**
+ * @macroname `HV_READ_SYSREG`
+ *
+ * @description
+ * Evaluates to the value of a system register (a uint64_t).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `reg` | The name of the system register (as the MRS instruction takes it). |
+ */
 #define HV_READ_SYSREG(reg) ({                              \
     uint64_t sysreg_value;                                  \
     asm volatile ("mrs %0, " #reg : "=r" (sysreg_value));   \
     sysreg_value;                                           \
 })
 
+/**
+ * @macroname `HV_WRITE_SYSREG`
+ *
+ * @description
+ * Writes a value to a system register.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `reg` | The name of the system register (as the MSR instruction takes it). |
+ * | `value` | The value to write. |
+ */
 #define HV_WRITE_SYSREG(reg, value) do {                    \
     uint64_t sysreg_value = (uint64_t) (value);             \
     asm volatile ("msr " #reg ", %0" : : "r" (sysreg_value) \
                   : "memory");                              \
 } while (false)
 
-// Instruction synchronization barrier.
+/*
+ * Instruction synchronization barrier: the instructions after it see the
+ * effects of the system register writes before it.
+ */
 static inline void arm64_isb(void)
 {
     asm volatile ("isb" : : : "memory");
 }
 
-// Data synchronization barrier (inner shareable domain).
+/*
+ * Data synchronization barrier, inner shareable domain: the memory accesses and
+ * maintenance operations before it complete before any instruction after it.
+ */
 static inline void arm64_dsb_ish(void)
 {
     asm volatile ("dsb ish" : : : "memory");
 }
 
-// Data memory barrier (inner shareable domain).
+/*
+ * Data memory barrier, inner shareable domain: the memory accesses before it
+ * are seen before those after it.
+ */
 static inline void arm64_dmb_ish(void)
 {
     asm volatile ("dmb ish" : : : "memory");
 }
 
-// Mask all exceptions (D, A, I, F) at the current exception level.
+/*
+ * Masks all exceptions (D, A, I, F) at the current exception level.
+ */
 static inline void arm64_mask_all(void)
 {
     asm volatile ("msr daifset, #0xf" : : : "memory");
 }
 
-// Wait for an interrupt.
+/*
+ * Waits for an interrupt, with the CPU idle.
+ */
 static inline void arm64_wfi(void)
 {
     asm volatile ("wfi" : : : "memory");
 }
 
-// Spin-wait hint.
+/*
+ * Spin-wait hint.
+ */
 static inline void arm64_yield(void)
 {
     asm volatile ("yield" : : : "memory");
 }
 
-// Clean the data cache line at a virtual address to the point of coherency.
+/*
+ * Cleans the data cache line at a virtual address to the point of coherency (so
+ * that a guest running with its caches off sees the data).
+ */
 static inline void arm64_dc_cvac(uint64_t address)
 {
     asm volatile ("dc cvac, %0" : : "r" (address) : "memory");
 }
 
-// Invalidate all instruction caches to the point of unification.
+/*
+ * Invalidates all instruction caches of this CPU to the point of unification.
+ */
 static inline void arm64_ic_iallu(void)
 {
     asm volatile ("ic iallu" : : : "memory");
 }
 
 /*
- * Invalidate the stage 1 and stage 2 TLB entries of the current VMID (the
- * one in VTTBR_EL2) on this CPU.
+ * Invalidates the stage 1 and stage 2 TLB entries of the current VMID (the one
+ * in VTTBR_EL2) on this CPU.
  */
 static inline void arm64_tlbi_vmalls12e1(void)
 {
     asm volatile ("tlbi vmalls12e1" : : : "memory");
 }
 
-// Atomic exchange of a 32-bit word, with acquire semantics (spin locks).
+/*
+ * Atomically exchanges a 32-bit word, with acquire semantics (spin locks).
+ */
 static inline uint32_t arm64_xchg32(volatile uint32_t *word, uint32_t value)
 {
     uint32_t old;

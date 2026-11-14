@@ -16,6 +16,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the operands
  * are converted to double before the subtraction; deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * difftime() of libpok.
  */
 
 /*
@@ -24,6 +32,36 @@
  */
 #include <time.h>
 
+/**
+ * @funcname `difftime`
+ *
+ * @description
+ * Returns the difference of two calendar times, in seconds (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `time1` | `time_t` | [in] The later time. |
+ * | `time0` | `time_t` | [in] The earlier time. |
+ *
+ * @return time1 - time0.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `(double) time1 - (double) time0`.
+ *
+ * @calls
+ * None.
+ */
 double difftime(time_t time1, time_t time0)
 {
     return (double) time1 - (double) time0;

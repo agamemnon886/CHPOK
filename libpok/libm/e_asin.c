@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team
  *
  * Created by julien on Fri Jan 30 14:41:34 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_asin.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_asin()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /* __ieee754_asin(x)
  * Method :
  *	Since  asin(x) = x + x^3/6 + x^5*3/40 + x^7*15/336 + ...
@@ -81,6 +94,100 @@ qS2 =  2.02094576023350569471e+00, /* 0x40002AE5, 0x9C598AC8 */
 qS3 = -6.88283971605453293030e-01, /* 0xBFE6066C, 0x1B8D0159 */
 qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
 
+/**
+ * @funcname `__ieee754_asin`
+ *
+ * @description
+ * Computes the arc sine of x: the IEEE 754 core of asin().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `huge` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `pS0` | `const double` | A constant of the algorithm |
+ * | `pS1` | `const double` | A constant of the algorithm |
+ * | `pS2` | `const double` | A constant of the algorithm |
+ * | `pS3` | `const double` | A constant of the algorithm |
+ * | `pS4` | `const double` | A constant of the algorithm |
+ * | `pS5` | `const double` | A constant of the algorithm |
+ * | `pio2_hi` | `const double` | A constant of the algorithm |
+ * | `pio2_lo` | `const double` | A constant of the algorithm |
+ * | `pio4_hi` | `const double` | A constant of the algorithm |
+ * | `qS1` | `const double` | A constant of the algorithm |
+ * | `qS2` | `const double` | A constant of the algorithm |
+ * | `qS3` | `const double` | A constant of the algorithm |
+ * | `qS4` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `lx` | `uint32_t` | The low word of x |
+ * | `p` | `double` | A temporary of the computation |
+ * | `q` | `double` | A temporary of the computation |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `t` | `double` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `t` to `0`.
+ * 2. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 3. Set `ix` to `hx&0x7fffffff`.
+ * 4. If `ix` is greater than or equal to `0x3ff00000`:
+ *    1. Use the macro `GET_LOW_WORD()` with the arguments `lx` and `x`.
+ *    2. If `((ix-0x3ff00000)|lx)` is equal to `0`:
+ *       1. Return `x*pio2_hi+x*pio2_lo`.
+ *    3. Return `(x-x)/(x-x)`.
+ * 5. Otherwise, if `ix` is less than `0x3fe00000`:
+ *    1. If `ix` is less than `0x3e400000`:
+ *       1. If `huge+x` is greater than `one`:
+ *          1. Return `x`.
+ *    2. Set `t` to `x*x`.
+ *    3. Set `p` to `t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))))`.
+ *    4. Set `q` to `one+t*(qS1+t*(qS2+t*(qS3+t*qS4)))`.
+ *    5. Set `w` to `p/q`.
+ *    6. Return `x+x*w`.
+ * 6. Set `w` to `one-fabs(x)`.
+ * 7. Set `t` to `w*0.5`.
+ * 8. Set `p` to `t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))))`.
+ * 9. Set `q` to `one+t*(qS1+t*(qS2+t*(qS3+t*qS4)))`.
+ * 10. Call `__ieee754_sqrt()` with the argument `t`, and store the result in
+ *     `s`.
+ * 11. If `ix` is greater than or equal to `0x3FEF3333`:
+ *     1. Set `w` to `p/q`.
+ *     2. Set `t` to `pio2_hi-(2.0*(s+s*w)-pio2_lo)`.
+ * 12. Otherwise:
+ *     1. Set `w` to `s`.
+ *     2. Use the macro `SET_LOW_WORD()` with the arguments `w` and `0`.
+ *     3. Set `c` to `(t-w*w)/(s+w)`.
+ *     4. Set `r` to `p/q`.
+ *     5. Set `p` to `2.0*s*r-(pio2_lo-2.0*c)`.
+ *     6. Set `q` to `pio4_hi-2.0*w`.
+ *     7. Set `t` to `pio4_hi-(p-q)`.
+ * 13. If `hx` is greater than `0`:
+ *     1. Return `t`.
+ * 14. Otherwise:
+ *     1. Return `-t`.
+ *
+ * @calls
+ * - `fabs()`
+ * - `__ieee754_sqrt()`
+ */
 double
 __ieee754_asin(double x)
 {

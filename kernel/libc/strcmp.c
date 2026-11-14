@@ -16,8 +16,15 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: strcmp() and
  * strncmp() share one loop with a single exit and a size_t index.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+ */
+
+/**
+ * @file
+ * strcmp() and strncmp() of the kernel's C library.
  */
 
 #include <config.h>
@@ -26,9 +33,54 @@
 
 #include <libc.h>
 
-/*
- * Compare at most 'size' characters (SIZE_MAX: the whole strings); the
- * result is -1, 0 or 1.
+/**
+ * @funcname `compare`
+ *
+ * @description
+ * Compares two strings, up to a number of characters.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const char *` | [in] The first string. |
+ * | `s2` | `const char *` | [in] The second string. |
+ * | `size` | `size_t` | [in] The maximum number of characters. |
+ *
+ * @return 0 if they are equal, -1 if s1 comes first, 1 otherwise.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `done` | `bool` | Whether the comparison is over |
+ * | `i` | `size_t` | The index of the character |
+ * | `result` | `int` | The result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `i` to `0U`.
+ * 2. Set `result` to `0`.
+ * 3. Set `done` to `false`.
+ * 4. While `done` is false and `i` is less than `size`:
+ *    1. If `s1[i]` is equal to `'\0'` and `s2[i]` is equal to `'\0'`:
+ *       1. Set `done` to `true`.
+ *    2. Otherwise, if `s1[i]` is less than `s2[i]`:
+ *       1. Set `result` to `-1`.
+ *       2. Set `done` to `true`.
+ *    3. Otherwise, if `s1[i]` is greater than `s2[i]`:
+ *       1. Set `result` to `1`.
+ *       2. Set `done` to `true`.
+ *    4. Otherwise:
+ *       1. Increment `i`.
+ * 5. Return `result`.
+ *
+ * @calls
+ * None.
  */
 static int compare(const char *s1, const char *s2, size_t size)
 {
@@ -60,6 +112,37 @@ static int compare(const char *s1, const char *s2, size_t size)
    return result;
 }
 
+/**
+ * @funcname `strcmp`
+ *
+ * @description
+ * Compares two strings (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const char *` | [in] The first string. |
+ * | `s2` | `const char *` | [in] The second string. |
+ *
+ * @return 0 if they are equal, -1 if s1 comes first, 1 otherwise.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `compare()` with the arguments `s1`, `s2` and `SIZE_MAX`, and return
+ *    its result.
+ *
+ * @calls
+ * - `compare()`
+ */
 /*
  * MISRA C:2025 Dir 1.2 deviation: __attribute__((weak)) is a GNU extension;
  * it lets a board or a configuration provide its own implementation.
@@ -71,6 +154,38 @@ int strcmp (const char *s1,
    return compare(s1, s2, SIZE_MAX);
 }
 
+/**
+ * @funcname `strncmp`
+ *
+ * @description
+ * Compares two strings, up to a number of characters (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const char *` | [in] The first string. |
+ * | `s2` | `const char *` | [in] The second string. |
+ * | `size` | `size_t` | [in] The maximum number of characters. |
+ *
+ * @return 0 if they are equal, -1 if s1 comes first, 1 otherwise.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `compare()` with the arguments `s1`, `s2` and `size`, and return its
+ *    result.
+ *
+ * @calls
+ * - `compare()`
+ */
 __attribute__ ((weak))
 int strncmp (const char *s1,
              const char *s2,

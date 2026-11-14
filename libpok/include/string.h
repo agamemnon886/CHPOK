@@ -17,6 +17,10 @@
  * guard isn't a reserved identifier; no restrict qualifiers; strtok() is
  * declared; deviations are documented where a guideline can't be
  * followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 /*
@@ -30,6 +34,7 @@
 
 #include <stddef.h>
 
+/** \cond */
 void *memcpy(void * dest, const void * src, size_t n);
 
 void *memmove(void* dest, const void* src, size_t n);
@@ -65,5 +70,6 @@ size_t strlen(const char *s);
 
 /* POSIX */
 int	strncasecmp(const char *s1, const char *s2, size_t n);
+/** \endcond */
 
 #endif /* LIBJET_STRING_H */

@@ -26,13 +26,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: for both architectures: the
  * lock uses the hv_arch_*() functions and the CPU's hardware number
- * (hv_arch_cpu_id()) instead of x86_64 instructions and the APIC ID.
+ * (hv_arch_cpu_id()) instead of x86_64 instructions and the APIC ID. Doxygen
+ * headers for the file and its functions.
  */
 
-/*
- * The hypervisor's console: a serial port shared by all physical CPUs.
- * A message is written under a lock, which the CPU holding it may take
- * again (so that a fault while printing can still be reported).
+/**
+ * @file
+ * The hypervisor's console: a serial port shared by all physical CPUs. A
+ * message is written under a lock, which the CPU holding it may take again
+ * (so that a fault while printing can still be reported).
  */
 
 #include <hv/hv.h>
@@ -43,9 +45,37 @@ static volatile uint32_t console_locked = 0U;
 static volatile uint32_t console_owner = 0U;    // CPU ID + 1, or 0
 static uint32_t console_depth = 0U;
 
-/*
- * Use the serial port at port (or none, HV_PORT_NONE) as the hypervisor
- * console.
+/**
+ * @funcname `hv_console_init`
+ *
+ * @description
+ * Uses a serial port as the hypervisor console, and initializes it. Called
+ * once at boot.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `port` | `uint16_t` | [in] The serial port, or HV_PORT_NONE for no console. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `console_port` | `uint16_t` | The console's serial port |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `console_port` to `port`.
+ * 2. If `port` is not equal to `HV_PORT_NONE`:
+ *    1. Call `uart_init()` with the argument `port`.
+ *
+ * @calls
+ * - `uart_init()`
  */
 void hv_console_init(uint16_t port)
 {
@@ -55,10 +85,44 @@ void hv_console_init(uint16_t port)
     }
 }
 
-/*
- * Take the console lock. The CPU that holds it may take it again (so that a
- * fault while printing can be reported); each call needs an
+/**
+ * @funcname `hv_console_lock`
+ *
+ * @description
+ * Takes the console lock. The CPU that holds it may take it again (so that
+ * a fault while printing can be reported); each call needs an
  * hv_console_unlock().
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `console_locked` | `volatile uint32_t` | The lock word: 1 if taken |
+ * | `console_owner` | `volatile uint32_t` | The holder's CPU ID + 1, or 0 |
+ * | `console_depth` | `uint32_t` | How many times the holder took the lock |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `me` | `uint32_t` | This CPU's ID + 1 |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `me` to `hv_arch_cpu_id() + 1U`.
+ * 2. If `console_owner` is equal to `me`:
+ *    1. Increment `console_depth`.
+ * 3. Otherwise:
+ *    1. While `hv_arch_xchg32(&console_locked, 1U)` is not equal to `0U`:
+ *       1. Call `hv_arch_relax()`.
+ *    2. Set `console_owner` to `me`.
+ *    3. Set `console_depth` to `1U`.
+ *
+ * @calls
+ * - `hv_arch_cpu_id()`
+ * - `hv_arch_xchg32()`
+ * - `hv_arch_relax()`
  */
 void hv_console_lock(void)
 {
@@ -77,7 +141,37 @@ void hv_console_lock(void)
     }
 }
 
-// Release the console lock taken by hv_console_lock().
+/**
+ * @funcname `hv_console_unlock`
+ *
+ * @description
+ * Releases the console lock taken by hv_console_lock(): the lock is free
+ * when the holder has released it as many times as it took it.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `console_locked` | `volatile uint32_t` | The lock word: 1 if taken |
+ * | `console_owner` | `volatile uint32_t` | The holder's CPU ID + 1, or 0 |
+ * | `console_depth` | `uint32_t` | How many times the holder took the lock |
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Decrement `console_depth`.
+ * 2. If `console_depth` is equal to `0U`:
+ *    1. Set `console_owner` to `0U`.
+ *    2. Call `hv_arch_barrier()`.
+ *    3. Set `console_locked` to `0U`.
+ *
+ * @calls
+ * - `hv_arch_barrier()`
+ */
 void hv_console_unlock(void)
 {
     console_depth--;
@@ -89,9 +183,43 @@ void hv_console_unlock(void)
     }
 }
 
-/*
- * Write length characters to the console, with CR before each LF. The caller
- * holds the console lock.
+/**
+ * @funcname `hv_console_write`
+ *
+ * @description
+ * Writes characters to the console, with a carriage return before each line
+ * feed. The caller holds the console lock.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s` | `const char *` | [in] The characters. |
+ * | `length` | `size_t` | [in] The number of characters. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `console_port` | `uint16_t` | The console's serial port |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `size_t` | The index of the character |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `console_port` is not equal to `HV_PORT_NONE`:
+ *    1. Set `i` to `0U`; then while `i` is less than `length`, repeat (after
+ *       each pass: increment `i`):
+ *       1. If `s[i]` is equal to `'\n'`:
+ *          1. Call `uart_putc()` with the arguments `console_port` and `'\r'`.
+ *       2. Call `uart_putc()` with the arguments `console_port` and `s[i]`.
+ *
+ * @calls
+ * - `uart_putc()`
  */
 void hv_console_write(const char *s, size_t length)
 {
@@ -105,7 +233,39 @@ void hv_console_write(const char *s, size_t length)
     }
 }
 
-// Report a fatal error of the hypervisor on this CPU and halt the CPU.
+/**
+ * @funcname `hv_fatal`
+ *
+ * @description
+ * Reports a fatal error of the hypervisor on this CPU and halts the CPU.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `message` | `const char *` | [in] What went wrong. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `hv_arch_irq_disable()`.
+ * 2. Call `hv_printf()` with the arguments
+ *    `"[hv] fatal error on CPU %%u: %%s\n"`, `hv_arch_cpu_id()` and `message`.
+ * 3. Call `hv_halt_forever()`.
+ *
+ * @calls
+ * - `hv_arch_irq_disable()`
+ * - `hv_printf()`
+ * - `hv_arch_cpu_id()`
+ * - `hv_halt_forever()`
+ */
 void hv_fatal(const char *message)
 {
     hv_arch_irq_disable();

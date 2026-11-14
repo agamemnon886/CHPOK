@@ -28,6 +28,23 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: partition_gdb is declared only
  * in <core/sched.h> (MISRA C:2025 Rule 8.5); the GDB callbacks, built on
  * x86_64 now, make operator precedence explicit (Rule 12.1).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the structures and enums are used
+ * by their typedef names: jet_partition_event_t, jet_partition_event_type_t,
+ * pok_part_sched_ops_t.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * jet_partition_event_type_e (was jet_partition_event_type_t).
+ */
+
+/**
+ * @file
+ * Common partition functions: the events queue of a partition, iteration
+ * over all partitions, and the scheduler operations of kernel-only
+ * partitions (one kernel thread).
  */
 
 #include <config.h>
@@ -44,6 +61,40 @@
  * in a ring, addressed by the start of the ring plus an index.
  */
 
+/**
+ * @funcname `pok_partition_init`
+ *
+ * @description
+ * Initializes the common part of a partition: allocates its ring of events, if
+ * it can receive events.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | [in,out] The partition. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `part->partition_event_max` is not equal to `0U`:
+ *    1. Call `ja_mem_alloc_aligned()` with the arguments
+ *       `sizeof(*part->partition_events) * (part->partition_event_max + 1U)`
+ *       and `__alignof__(*part->partition_events)`, and store the result in
+ *       `part->partition_events`.
+ * 2. Otherwise:
+ *    1. Set `part->partition_events` to `NULL`.
+ *
+ * @calls
+ * - `ja_mem_alloc_aligned()`
+ */
 void pok_partition_init(pok_partition_t* part)
 {
    if(part->partition_event_max != 0U)
@@ -64,6 +115,46 @@ void pok_partition_init(pok_partition_t* part)
    }
 }
 
+/**
+ * @funcname `for_each_partition`
+ *
+ * @description
+ * Calls a function for every partition: the monitor and GDB partitions (if
+ * configured) and the ARINC 653 partitions.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `f` | `void (*)(pok_partition_t* part)` | [in] The function. |
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `partition_gdb` | `pok_partition_t` | The GDB server partition |
+ * | `partition_monitor` | `pok_partition_t` | The monitor partition |
+ * | `pok_partitions_arinc` | `pok_partition_arinc_t[]` | The ARINC 653 partitions (generated) |
+ * | `pok_partitions_arinc_n` | `const uint8_t` | Their number |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `i` | `uint32_t` | The index of an ARINC 653 partition |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call the function `f` with the address of `partition_monitor`.
+ * 2. Call the function `f` with the address of `partition_gdb`.
+ * 3. Set `i` to `0U`; then while `i` is less than `pok_partitions_arinc_n`,
+ *    repeat (after each pass: increment `i`):
+ *    1. Call the function `f` with the address of
+ *       `pok_partitions_arinc[i].base_part`.
+ *
+ * @calls
+ * - `f()` (indirect)
+ */
 void for_each_partition(void (*f)(pok_partition_t* part))
 {
 #ifdef POK_NEEDS_MONITOR
@@ -81,13 +172,56 @@ void for_each_partition(void (*f)(pok_partition_t* part))
    }
 }
 
-/* 
- * Add event to partition's queue and notify it if needed.
- * 
- * Should be called with global preemption disabled.
+/**
+ * @funcname `pok_partition_add_event`
+ *
+ * @description
+ * Adds an event to a partition's ring and marks the partition as having events
+ * if the ring was empty. Called with global preemption disabled.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | [in,out] The partition. |
+ * | `event_type` | `jet_partition_event_type_e` | [in] The type of the event. |
+ * | `handler_id` | `uint16_t` | [in] The object the event is for (e.g. a port). |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `partition_event` | `jet_partition_event_t *` | The ring element written |
+ * | `set_event` | `pok_bool_t` | Whether the ring was empty |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `set_event` to
+ *    `(part->partition_event_end == part->partition_event_begin)`.
+ * 2. Check that `part->partition_event_max != 0U` holds (assert: stop
+ *    otherwise).
+ * 3. Set `partition_event` to
+ *    `part->partition_events + part->partition_event_end`.
+ * 4. Set `partition_event->handler_id` to `handler_id`.
+ * 5. Set `partition_event->event_type` to `event_type`.
+ * 6. Increment `part->partition_event_end`.
+ * 7. If `part->partition_event_end` is greater than
+ *    `part->partition_event_max`:
+ *    1. Set `part->partition_event_end` to `0`.
+ * 8. Check that `part->partition_event_end != part->partition_event_begin`
+ *    holds (assert: stop otherwise).
+ * 9. If `set_event` is true:
+ *    1. Set `part->is_event` to `TRUE`.
+ *
+ * @calls
+ * - `pok_assertion_fail()`
  */
 void pok_partition_add_event(pok_partition_t* part,
-    enum jet_partition_event_type event_type,
+    jet_partition_event_type_e event_type,
     uint16_t handler_id)
 {
    // Whether it is needed to set is_event flag for partition.
@@ -99,7 +233,7 @@ void pok_partition_add_event(pok_partition_t* part,
     */
    assert(part->partition_event_max != 0U);
 
-   struct jet_partition_event* partition_event = part->partition_events
+   jet_partition_event_t* partition_event = part->partition_events
       + part->partition_event_end;
 
    partition_event->handler_id = handler_id;
@@ -122,14 +256,53 @@ void pok_partition_add_event(pok_partition_t* part,
 }
 
 
-/* 
- * Consume event from current partition's queue.
- * 
- * Return TRUE on success, FALSE if the queue is empty.
- * 
- * Should be called with local preemption disabled.
+/**
+ * @funcname `pok_partition_get_event`
+ *
+ * @description
+ * Takes the next event from the current partition's ring. Called with local
+ * preemption disabled.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `event` | `jet_partition_event_t *` | [out] Where the event is stored. |
+ *
+ * @return TRUE if an event was taken, FALSE if the ring is empty.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `current_partition` | `pok_partition_t *` | The running partition |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | The current partition |
+ * | `partition_event_begin` | `uint16_t` | The ring's start |
+ * | `partition_event_end` | `uint16_t` | The ring's end (read once) |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `part` to `current_partition`.
+ * 2. Set `partition_event_begin` to `part->partition_event_begin`.
+ * 3. Set `partition_event_end` to `ACCESS_ONCE(part->partition_event_end)`.
+ * 4. If `partition_event_end` is equal to `partition_event_begin`:
+ *    1. Return `FALSE`.
+ * 5. Set `*event` to
+ *    `ACCESS_ONCE(part->partition_events[partition_event_begin])`.
+ * 6. Use the macro `ACCESS_ONCE()` with the argument
+ *    `part->partition_event_begin) = (partition_event_begin ==`
+ *    `part->partition_event_max) ? 0U: (partition_event_begin + 1U`.
+ * 7. Return `TRUE`.
+ *
+ * @calls
+ * None.
  */
-pok_bool_t pok_partition_get_event(struct jet_partition_event* event)
+pok_bool_t pok_partition_get_event(jet_partition_event_t* event)
 {
    pok_partition_t* part = current_partition;
 
@@ -149,6 +322,34 @@ pok_bool_t pok_partition_get_event(struct jet_partition_event* event)
    return TRUE;
 }
 
+/**
+ * @funcname `pok_partition_set_timer`
+ *
+ * @description
+ * Sets the time at which a partition wants its timer event.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | [out] The partition. |
+ * | `timer_new` | `pok_time_t` | [in] The time, or 0 for none. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `part->timer` to `timer_new`.
+ *
+ * @calls
+ * None.
+ */
 void pok_partition_set_timer(pok_partition_t* part,
     pok_time_t timer_new)
 {
@@ -156,6 +357,28 @@ void pok_partition_set_timer(pok_partition_t* part,
 }
 
 
+/**
+ * @funcname `kernel_thread_on_event`
+ *
+ * @description
+ * The on_event operation of kernel-only partitions: never called.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `unreachable()`.
+ *
+ * @calls
+ * - `pok_assertion_fail()`
+ */
 static void kernel_thread_on_event(void)
 {
     //Shouldn't be call
@@ -164,18 +387,112 @@ static void kernel_thread_on_event(void)
 
 #ifdef POK_NEEDS_GDB
 
+/**
+ * @funcname `kernel_thread_get_number_of_threads`
+ *
+ * @description
+ * The GDB operation of kernel-only partitions: the number of threads.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | [in] The partition (not used). |
+ *
+ * @return 1: the kernel thread.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Mark `part` as not used.
+ * 2. Return `1`.
+ *
+ * @calls
+ * None.
+ */
 static int32_t kernel_thread_get_number_of_threads(pok_partition_t* part)
 {
    (void)part;
    return 1;
 }
 
+/**
+ * @funcname `kernel_thread_get_current_thread_index`
+ *
+ * @description
+ * The GDB operation of kernel-only partitions: the index of the current thread.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | [in] The partition (not used). |
+ *
+ * @return 0: the kernel thread.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Mark `part` as not used.
+ * 2. Return `0`.
+ *
+ * @calls
+ * None.
+ */
 static int32_t kernel_thread_get_current_thread_index(pok_partition_t* part)
 {
    (void)part;
    return 0;
 }
 
+/**
+ * @funcname `kernel_thread_get_thread_at_index`
+ *
+ * @description
+ * The GDB operation of kernel-only partitions: whether there is a thread at an
+ * index.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | [in] The partition (not used). |
+ * | `index` | `int32_t` | [in] The index. |
+ * | `private` | `void **` | [in] The thread's private data (not used). |
+ *
+ * @return 0 for index 0, 1 (no thread) otherwise.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Mark `part` as not used.
+ * 2. Mark `private` as not used.
+ * 3. Return `0` if `index` is equal to `0`, otherwise `1`.
+ *
+ * @calls
+ * None.
+ */
 static int32_t kernel_thread_get_thread_at_index(pok_partition_t* part,
      int32_t index, void** private)
 {
@@ -184,6 +501,44 @@ static int32_t kernel_thread_get_thread_at_index(pok_partition_t* part,
    return (index == 0) ? 0 : 1;
 }
 
+/**
+ * @funcname `kernel_thread_get_thread_info`
+ *
+ * @description
+ * The GDB operation of kernel-only partitions: the description of the thread.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `part` | `pok_partition_t *` | [in] The partition (not used). |
+ * | `index` | `int32_t` | [in] The index (not used). |
+ * | `private` | `void *` | [in] The thread's private data (not used). |
+ * | `print_cb` | `print_cb_t` | [in] The function that prints the description. |
+ * | `cb_data` | `void *` | [in] The data passed to print_cb. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `kernel_thread_name` | `static const char *` | The description: "kernel_thread" |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Mark `part` as not used.
+ * 2. Mark `private` as not used.
+ * 3. Mark `index` as not used.
+ * 4. Call the function `print_cb` with the arguments `kernel_thread_name`,
+ *    `strlen(kernel_thread_name)` and `cb_data`.
+ *
+ * @calls
+ * - `print_cb()` (indirect)
+ * - `strlen()`
+ */
 static void kernel_thread_get_thread_info(pok_partition_t* part,
    int32_t index, void* private,
    print_cb_t print_cb, void* cb_data)
@@ -199,7 +554,7 @@ static void kernel_thread_get_thread_info(pok_partition_t* part,
 
 #endif /* POK_NEEDS_GDB */
 
-const struct pok_partition_sched_operations partition_sched_ops_kernel =
+const pok_part_sched_ops_t partition_sched_ops_kernel =
 {
    .on_event = &kernel_thread_on_event,
 #ifdef POK_NEEDS_GDB

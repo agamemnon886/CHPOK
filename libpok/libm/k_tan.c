@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Sat Jan 31 20:12:07 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: Doxygen comments for its macros.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)k_tan.c 5.1 93/09/24 */
@@ -26,6 +33,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__kernel_tan()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -84,11 +95,145 @@ static const double xxx[] = {
 /* pio4 */	 7.85398163397448278999e-01,	/* 3FE921FB, 54442D18 */
 /* pio4lo */	 3.06161699786838301793e-17	/* 3C81A626, 33145C07 */
 };
+/**
+ * @name Constants of __kernel_tan()
+ * The elements of the array xxx of k_tan.c: the coefficients of the polynomial
+ * and three constants.
+ * @{
+ */
+
+/**
+ * @macroname `one`
+ *
+ * @description
+ * 1.0 (xxx[13]).
+ */
 #define	one	xxx[13]
+
+/**
+ * @macroname `pio4`
+ *
+ * @description
+ * pi/4 (xxx[14]).
+ */
 #define	pio4	xxx[14]
+
+/**
+ * @macroname `pio4lo`
+ *
+ * @description
+ * The low part of pi/4 (xxx[15]).
+ */
 #define	pio4lo	xxx[15]
+
+/**
+ * @macroname `T`
+ *
+ * @description
+ * The coefficients of the polynomial (xxx, T[0] to T[12]).
+ */
 #define	T	xxx
 
+/** @} */
+
+/**
+ * @funcname `__kernel_tan`
+ *
+ * @description
+ * The kernel tangent of x + y on [-pi/4, pi/4] (y is the tail of x), or -1/tan
+ * if iy is -1.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `y` | `double` | [in] The tail of x. |
+ * | `iy` | `int` | [in] 1 for the tangent, -1 for -1/tangent (or 0 if y is 0). |
+ *
+ * @return The tangent, or -1/tangent.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `xxx` | `const double[16]` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `a` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `low` | `uint32_t` | The low word of x |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `t` | `double` | A temporary of the computation |
+ * | `v` | `double` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx & 0x7fffffff`.
+ * 3. If `ix` is less than `0x3e300000`:
+ *    1. If `(int) x` is equal to `0`:
+ *       1. Use the macro `GET_LOW_WORD()` with the arguments `low` and `x`.
+ *       2. If `((ix | low) | (iy + 1))` is equal to `0`:
+ *          1. Return `one / fabs(x)`.
+ *       3. Otherwise:
+ *          1. If `iy` is equal to `1`:
+ *             1. Return `x`.
+ *          2. Otherwise:
+ *             1. Set `z` to `w = x + y`.
+ *             2. Use the macro `SET_LOW_WORD()` with the arguments `z` and
+ *                `0`.
+ *             3. Set `v` to `y - (z - x)`.
+ *             4. Set `t` to `a = -one / w`.
+ *             5. Use the macro `SET_LOW_WORD()` with the arguments `t` and
+ *                `0`.
+ *             6. Set `s` to `one + t * z`.
+ *             7. Return `t + a * (s + t * v)`.
+ * 4. If `ix` is greater than or equal to `0x3FE59428`:
+ *    1. If `hx` is less than `0`:
+ *       1. Set `x` to `-x`.
+ *       2. Set `y` to `-y`.
+ *    2. Set `z` to `pio4 - x`.
+ *    3. Set `w` to `pio4lo - y`.
+ *    4. Set `x` to `z + w`.
+ *    5. Set `y` to `0.0`.
+ * 5. Set `z` to `x * x`.
+ * 6. Set `w` to `z * z`.
+ * 7. Set `r` to
+ *    `T[1] + w * (T[3] + w * (T[5] + w * (T[7] + w * (T[9] + w * T[11]))))`.
+ * 8. Set `v` to
+ *    `z * (T[2] + w * (T[4] + w * (T[6] + w * (T[8] + w * (T[10] + w *`
+ *    `T[12])))))`.
+ * 9. Set `s` to `z * x`.
+ * 10. Set `r` to `y + z * (s * (r + v) + y)`.
+ * 11. Add `T[0] * s` to `r`.
+ * 12. Set `w` to `x + r`.
+ * 13. If `ix` is greater than or equal to `0x3FE59428`:
+ *     1. Set `v` to `(double) iy`.
+ *     2. Return
+ *        `(double) (1 - ((hx >> 30) & 2)) * (v - 2.0 * (x - (w * w / (w + v) -`
+ *        `r)))`.
+ * 14. If `iy` is equal to `1`:
+ *     1. Return `w`.
+ * 15. Otherwise:
+ *     1. Set `z` to `w`.
+ *     2. Use the macro `SET_LOW_WORD()` with the arguments `z` and `0`.
+ *     3. Set `v` to `r - (z - x)`.
+ *     4. Set `t` to `a = -1.0 / w`.
+ *     5. Use the macro `SET_LOW_WORD()` with the arguments `t` and `0`.
+ *     6. Set `s` to `1.0 + t * z`.
+ *     7. Return `t + a * (s + t * v)`.
+ *
+ * @calls
+ * - `fabs()`
+ */
 double
 __kernel_tan(double x, double y, int iy)
 {

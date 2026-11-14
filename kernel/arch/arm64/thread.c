@@ -22,6 +22,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct jet_context is used as the
+ * typedef jet_context_t (declared in asp/cswitch.h); the declaration of
+ * ja_kernel_thread() is moved to thread.h.
+ */
+
+/**
+ * @file
+ * Kernel thread contexts on arm64.
  */
 
 #include <asp/arch.h>
@@ -37,18 +49,56 @@
  * statement expression, see sysreg.h.
  */
 
-/* This function starts kernel thread and is defined in cswitch.S.*/
-void ja_kernel_thread(void);
 
+/**
+ * @funcname `ja_context_init`
+ *
+ * @description
+ * Creates the context of a new kernel thread at the top of its stack: it starts
+ * in ja_kernel_thread(), which calls the entry, with the current interrupt mask
+ * (the same guess as on x86).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `sp` | `jet_stack_t` | [in] The stack. |
+ * | `entry` | `void (*)(void)` | [in] The thread's entry. |
+ *
+ * @return The context.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ctx` | `jet_context_t *` | The context |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `ctx` to `(jet_context_t*)(sp - sizeof(*ctx))`.
+ * 2. Call `memset()` with the arguments `ctx`, `0` and `sizeof (*ctx)`.
+ * 3. Set `ctx->daif` to `read_sysreg(daif)`.
+ * 4. Set `ctx->fp` to `0`.
+ * 5. Set `ctx->x19_x28[0]` to `(uint64_t)entry`.
+ * 6. Set `ctx->lr` to `(uint64_t)ja_kernel_thread`.
+ * 7. Return `ctx`.
+ *
+ * @calls
+ * - `memset()`
+ */
 /*
  * MISRA C:2025 Rule 11.1 and Rule 11.4 deviation: the initial context is
  * built on the new thread's stack, which is given as an address, and the
  * entry point is stored as an integer in the register slot that the
  * context switch code jumps to.
  */
-struct jet_context* ja_context_init (jet_stack_t sp, void (*entry)(void))
+jet_context_t* ja_context_init (jet_stack_t sp, void (*entry)(void))
 {
-    struct jet_context* ctx = (struct jet_context*)(sp - sizeof(*ctx));
+    jet_context_t* ctx = (jet_context_t*)(sp - sizeof(*ctx));
 
     (void) memset (ctx, 0, sizeof (*ctx));
     /*

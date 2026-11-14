@@ -17,6 +17,17 @@
  * guard isn't a reserved identifier; U suffixes for unsigned constants;
  * deviations are documented where a guideline can't be followed;
  * ip_hdr_payload() doesn't do arithmetic on a void pointer.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: the function declarations are
+ * hidden from Doxygen (\cond), which would otherwise document the functions a
+ * second time, in the section of this header.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
 
 #ifndef POK_NET_IP_H
@@ -24,29 +35,57 @@
 
 #include <types.h>
 
+/**
+ * @macroname `IPPROTO_ICMP`
+ *
+ * @description
+ * The protocol number of ICMP.
+ */
 #define IPPROTO_ICMP 1
+
+/**
+ * @macroname `IPPROTO_UDP`
+ *
+ * @description
+ * The protocol number of UDP.
+ */
 #define IPPROTO_UDP 17U
 
-struct ip_hdr {
+/**
+ * @typename `ip_hdr_t`
+ *
+ * @description
+ * An IPv4 header, followed by its options.
+ */
+typedef struct {
+    /**
+     * The version (4) and the header length in 32-bit words.
+     */
     uint8_t version_len;
-    uint8_t dscp; 
-    uint16_t length;
-    uint16_t id; 
-    uint16_t offset; 
+    uint8_t dscp;  /**< The type of service. */
+    uint16_t length; /**< The total length (network order). */
+    uint16_t id;  /**< The identification. */
+    uint16_t offset;  /**< The flags and the fragment offset. */
 
-    uint8_t ttl;
-    uint8_t proto;
-    uint16_t checksum;
+    uint8_t ttl; /**< The time to live. */
+    uint8_t proto; /**< The protocol of the payload (IPPROTO_*). */
+    uint16_t checksum; /**< The header checksum. */
 
-    uint32_t src, dst;
+    uint32_t src; /**< The source address. */
+    uint32_t dst; /**< The destination address. */
     
     /* MISRA C:2025 Rule 18.7 deviation: the options follow the fixed header. */
-    char options[];
-} __attribute__((packed)); 
+    char options[]; /**< The options. */
+} __attribute__((packed)) ip_hdr_t; 
 
-uint16_t ip_hdr_checksum(const struct ip_hdr *ip_hdr);
+/** \cond */
+uint16_t ip_hdr_checksum(const ip_hdr_t *ip_hdr);
+/** \endcond */
 
-static inline void* ip_hdr_payload(struct ip_hdr *ip_hdr)
+/*
+ * Returns the payload of an IPv4 packet (after its header and options).
+ */
+static inline void* ip_hdr_payload(ip_hdr_t *ip_hdr)
 {
     char *p = (char *) ip_hdr;
     return &p[(ip_hdr->version_len & 0xfU) * 4U];

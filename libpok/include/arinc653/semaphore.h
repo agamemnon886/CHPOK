@@ -17,6 +17,9 @@
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: name
  * parameters are const (they are only read), so callers can pass string
  * literals.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -28,71 +31,98 @@
 #define APEX_SEMAPHORE
 
 #ifndef POK_NEEDS_ARINC653_PROCESS
+
+/* Documented in libpok/include/config.h. */
 #define POK_NEEDS_ARINC653_PROCESS 1
 #endif
 
 #include <arinc653/types.h>
 #include <arinc653/process.h>
 
-// must be at least MAX_NAME_LENGTH of ARINC653
+/**
+ * @macroname `POK_SEM_MAX_NAME_LENGTH`
+ *
+ * @description
+ * The size of the name of a semaphore in pok_arinc653_semaphore_layer_t; it
+ * must be at least the MAX_NAME_LENGTH of ARINC 653.
+ */
 #define POK_SEM_MAX_NAME_LENGTH 30
 
+/**
+ * @typename `pok_arinc653_semaphore_layer_t`
+ *
+ * @description
+ * A semaphore of the partition as the kernel knows it: its kernel identifier
+ * and name.
+ */
 typedef struct
 {
-   pok_bool_t        ready;
-   pok_sem_id_t      core_id;
+   pok_bool_t        ready; /**< Whether the semaphore is created. */
+   pok_sem_id_t      core_id; /**< The kernel's identifier of the semaphore. */
+   /**
+    * The name of the semaphore.
+    */
    char              name[POK_SEM_MAX_NAME_LENGTH];
 } pok_arinc653_semaphore_layer_t;
 
 extern pok_arinc653_semaphore_layer_t pok_arinc653_semaphores_layers[];
 
-/*----------------------------------------------------------------------*/
-/* */
-/* SEMAPHORE constant definitions */
-/* */
-/*----------------------------------------------------------------------*/
-/* implementation dependent */
-/* these values are given as example */
-/*------------------------------*/
-/* max nb of semaphores */
-/*------------------------------*/
+/**
+ * @macroname `MAX_NUMBER_OF_SEMAPHORES`
+ *
+ * @description
+ * The maximum number of semaphores of a partition (implementation dependent).
+ */
 #define MAX_NUMBER_OF_SEMAPHORES 63
-/*------------------------------*/
-/* max semaphore value */
-/*------------------------------*/
+
+/**
+ * @macroname `MAX_SEMAPHORE_VALUE`
+ *
+ * @description
+ * The maximum value of a semaphore.
+ */
 #define MAX_SEMAPHORE_VALUE 32767
-/*----------------------------------------------------------------------*/
-/* */
-/* SEMAPHORE type definitions */
-/* */
-/*----------------------------------------------------------------------*/
-/*------------------------------*/
-/* semaphore ident type */
-/*------------------------------*/
+
+/**
+ * @typename `SEMAPHORE_ID_TYPE`
+ *
+ * @description
+ * The identifier of a semaphore.
+ */
 typedef APEX_INTEGER SEMAPHORE_ID_TYPE;
-/*------------------------------*/
-/* semaphore value type */
-/*------------------------------*/
+
+/**
+ * @typename `SEMAPHORE_VALUE_TYPE`
+ *
+ * @description
+ * The value of a semaphore.
+ */
 typedef APEX_INTEGER SEMAPHORE_VALUE_TYPE;
-/*------------------------------*/
-/* semaphore name type */
-/*------------------------------*/
+
+/**
+ * @typename `SEMAPHORE_NAME_TYPE`
+ *
+ * @description
+ * The name of a semaphore.
+ */
 typedef NAME_TYPE SEMAPHORE_NAME_TYPE;
-/*------------------------------*/
-/* semaphore status type */
-/*------------------------------*/
+
+/**
+ * @typename `SEMAPHORE_STATUS_TYPE`
+ *
+ * @description
+ * The status of a semaphore (GET_SEMAPHORE_STATUS()).
+ */
 typedef
 struct {
-   SEMAPHORE_VALUE_TYPE CURRENT_VALUE;
-   SEMAPHORE_VALUE_TYPE MAXIMUM_VALUE;
+   SEMAPHORE_VALUE_TYPE CURRENT_VALUE; /**< The current value. */
+   SEMAPHORE_VALUE_TYPE MAXIMUM_VALUE; /**< The maximum value. */
+   /**
+    * The number of processes waiting.
+    */
    WAITING_RANGE_TYPE WAITING_PROCESSES;
 } SEMAPHORE_STATUS_TYPE;
-/*----------------------------------------------------------------------*/
-/* */
-/* semaphore management services */
-/* */
-/*----------------------------------------------------------------------*/
-/*----------------------------------------------------------------------*/
+/** \cond */
 extern void CREATE_SEMAPHORE (
       /*IN */ const SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
       /*IN */ SEMAPHORE_VALUE_TYPE CURRENT_VALUE,
@@ -100,25 +130,21 @@ extern void CREATE_SEMAPHORE (
       /*IN */ QUEUING_DISCIPLINE_TYPE QUEUING_DISCIPLINE,
       /*OUT*/ SEMAPHORE_ID_TYPE *SEMAPHORE_ID,
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
-/*----------------------------------------------------------------------*/
 extern void WAIT_SEMAPHORE (
       /*IN */ SEMAPHORE_ID_TYPE SEMAPHORE_ID,
       /*IN */ SYSTEM_TIME_TYPE TIME_OUT,
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
-/*----------------------------------------------------------------------*/
 extern void SIGNAL_SEMAPHORE (
       /*IN */ SEMAPHORE_ID_TYPE SEMAPHORE_ID,
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
-/*----------------------------------------------------------------------*/
 extern void GET_SEMAPHORE_ID (
       /*IN */ const SEMAPHORE_NAME_TYPE SEMAPHORE_NAME,
       /*OUT*/ SEMAPHORE_ID_TYPE *SEMAPHORE_ID,
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
-/*----------------------------------------------------------------------*/
 extern void GET_SEMAPHORE_STATUS (
       /*IN */ SEMAPHORE_ID_TYPE SEMAPHORE_ID,
       /*OUT*/ SEMAPHORE_STATUS_TYPE *SEMAPHORE_STATUS,
       /*OUT*/ RETURN_CODE_TYPE *RETURN_CODE );
-/*----------------------------------------------------------------------*/
+/** \endcond */
 #endif
 #endif

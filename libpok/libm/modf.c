@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)s_modf.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * modf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /*
  * modf(double x, double *iptr)
  * return fraction part of x, and return x's integral part in *iptr.
@@ -44,6 +57,81 @@
 
 static const double one = 1.0;
 
+/**
+ * @funcname `modf`
+ *
+ * @description
+ * Splits x into its integer and fractional parts, both with the sign of x.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `iptr` | `double *` | [out] Where the integer part is stored. |
+ *
+ * @return The fractional part.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `high` | `uint32_t` | The high word of x |
+ * | `i` | `uint32_t` | A temporary of the computation |
+ * | `i0` | `int32_t` | The high word of x |
+ * | `i1` | `int32_t` | The low word of x |
+ * | `jj0` | `int32_t` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `EXTRACT_WORDS()` with the arguments `i0`, `i1` and `x`.
+ * 2. Set `jj0` to `(((uint32_t)i0>>20)&0x7ff)-0x3ff`.
+ * 3. If `jj0` is less than `20`:
+ *    1. If `jj0` is less than `0`:
+ *       1. Use the macro `INSERT_WORDS()` with the arguments `*iptr`,
+ *          `i0&0x80000000` and `0`.
+ *       2. Return `x`.
+ *    2. Otherwise:
+ *       1. Set `i` to `(0x000fffff)>>jj0`.
+ *       2. If `((i0&i)|i1)` is equal to `0`:
+ *          1. Set `*iptr` to `x`.
+ *          2. Use the macro `GET_HIGH_WORD()` with the arguments `high` and
+ *             `x`.
+ *          3. Use the macro `INSERT_WORDS()` with the arguments `x`,
+ *             `high&0x80000000` and `0`.
+ *          4. Return `x`.
+ *       3. Otherwise:
+ *          1. Use the macro `INSERT_WORDS()` with the arguments `*iptr`,
+ *             `i0&(~i)` and `0`.
+ *          2. Return `x - *iptr`.
+ * 4. Otherwise, if `jj0` is greater than `51`:
+ *    1. Set `*iptr` to `x*one`.
+ *    2. Use the macro `GET_HIGH_WORD()` with the arguments `high` and `x`.
+ *    3. Use the macro `INSERT_WORDS()` with the arguments `x`,
+ *       `high&0x80000000` and `0`.
+ *    4. Return `x`.
+ * 5. Otherwise:
+ *    1. Set `i` to `((uint32_t)(0xffffffff))>>(jj0-20)`.
+ *    2. If `(i1&i)` is equal to `0`:
+ *       1. Set `*iptr` to `x`.
+ *       2. Use the macro `GET_HIGH_WORD()` with the arguments `high` and `x`.
+ *       3. Use the macro `INSERT_WORDS()` with the arguments `x`,
+ *          `high&0x80000000` and `0`.
+ *       4. Return `x`.
+ *    3. Otherwise:
+ *       1. Use the macro `INSERT_WORDS()` with the arguments `*iptr`, `i0` and
+ *          `i1&(~i)`.
+ *       2. Return `x - *iptr`.
+ *
+ * @calls
+ * None.
+ */
 double
 modf(double x, double *iptr)
 {

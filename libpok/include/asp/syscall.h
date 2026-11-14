@@ -15,6 +15,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
  */
 
 #ifndef LIBJET_ASP_SYSCALL_H
@@ -34,32 +41,34 @@
  * If arch defines macro 'LIBJET_ARCH_DECLARE_SYSCALL', it should provide
  * definitions with same usage.
  */
-pok_ret_t lja_syscall0  (pok_syscall_id_t syscall_id);
+/** \cond */
+pok_ret_e lja_syscall0  (pok_syscall_id_e syscall_id);
 
-pok_ret_t lja_syscall1  (pok_syscall_id_t syscall_id,
+pok_ret_e lja_syscall1  (pok_syscall_id_e syscall_id,
         uint32_t arg1);
 
-pok_ret_t lja_syscall2  (pok_syscall_id_t syscall_id,
+pok_ret_e lja_syscall2  (pok_syscall_id_e syscall_id,
         uint32_t         arg1,
         uint32_t         arg2);
 
-pok_ret_t lja_syscall3 (pok_syscall_id_t  syscall_id,
+pok_ret_e lja_syscall3 (pok_syscall_id_e  syscall_id,
         uint32_t          arg1,
         uint32_t          arg2,
         uint32_t          arg3);
 
-pok_ret_t lja_syscall4 (pok_syscall_id_t  syscall_id,
+pok_ret_e lja_syscall4 (pok_syscall_id_e  syscall_id,
         uint32_t          arg1,
         uint32_t          arg2,
         uint32_t          arg3,
         uint32_t          arg4);
 
-pok_ret_t lja_syscall5 (pok_syscall_id_t  syscall_id,
+pok_ret_e lja_syscall5 (pok_syscall_id_e  syscall_id,
         uint32_t arg1,
         uint32_t arg2,
         uint32_t arg3,
         uint32_t arg4,
         uint32_t arg5);
+/** \endcond */
 
 #endif /* LIBJET_ARCH_DECLARE_SYSCALL */
 

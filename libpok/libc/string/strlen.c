@@ -18,10 +18,52 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: an index loop
  * that doesn't modify the parameter.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * strlen() of libpok.
  */
 
 #include <string.h>
 
+/**
+ * @funcname `strlen`
+ *
+ * @description
+ * Returns the length of a string (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s` | `const char *` | [in] The string. |
+ *
+ * @return The number of characters before the NUL.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `len` | `size_t` | The length |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `len` to `0U`.
+ * 2. While `s[len]` is not equal to `'\0'`:
+ *    1. Increment `len`.
+ * 3. Return `len`.
+ *
+ * @calls
+ * None.
+ */
 size_t strlen(const char *s)
 {
     size_t len = 0U;

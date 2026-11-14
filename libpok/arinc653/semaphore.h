@@ -15,6 +15,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the structures and enums are used
+ * by their typedef names: msection_t, msection_wq_t.
  */
 
 #ifndef LIBJET_ARINC_SEMAPHORE_H
@@ -28,21 +31,42 @@
 #include <msection.h>
 #include <types.h>
 
-struct arinc_semaphore
-{
-    SEMAPHORE_NAME_TYPE semaphore_name;
+/**
+ * @typename `arinc_semaphore_t`
+ *
+ * @description
+ * A semaphore of the partition (CREATE_SEMAPHORE()), in the preallocated array
+ * arinc_semaphores.
+ */
+typedef struct {
+    SEMAPHORE_NAME_TYPE semaphore_name; /**< The name of the semaphore. */
     
+    /**
+     * The current value of the semaphore.
+     */
     SEMAPHORE_VALUE_TYPE current_value;
+    /**
+     * The maximum value of the semaphore.
+     */
     SEMAPHORE_VALUE_TYPE maximum_value;
 
+    /**
+     * The order of the waiting processes (FIFO or PRIORITY).
+     */
     QUEUING_DISCIPLINE_TYPE discipline;
     
-    struct msection section;
-    struct msection_wq process_queue;
-};
+    /**
+     * Protects the semaphore (a critical section of the partition's processes).
+     */
+    msection_t section;
+    /**
+     * The processes waiting for the semaphore.
+     */
+    msection_wq_t process_queue;
+} arinc_semaphore_t;
 
 /* Preallocated array of semaphores. */
-extern struct arinc_semaphore* arinc_semaphores;
+extern arinc_semaphore_t* arinc_semaphores;
 
 #endif /* POK_NEEDS_ARINC653_SEMAPHORE */
 

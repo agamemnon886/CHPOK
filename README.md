@@ -13,7 +13,9 @@ JetOS supports x86_64 and arm64 (AArch64).
 
 Examples are built with `make`, which runs the build in a Docker container
 (see `misc/docker/Dockerfile`), so only `make` and Docker are needed, on
-Linux or macOS.
+Linux or macOS. The image also has Doxygen and LaTeX for the function
+documentation (`make docs`, see "Function documentation"): its first build
+downloads TeX and compiles Doxygen, which takes several minutes.
 
 On macOS with [Colima](https://github.com/abiosoft/colima) as the Docker
 runtime, start it and build the Docker build image first:
@@ -519,6 +521,423 @@ libpok's C library (`tests/libc`). They are built like the examples and run in Q
     make BSP=arm64-qemu hv-test  # the hypervisor tests on arm64
 
 See `tests/README` for what each test covers and how to add one.
+
+## Function documentation
+
+Every C function in `boards`, `hypervisor`, `kernel`, `libpok` (with the
+third-party `libm` and `protocols`), `syspart` and the C templates of
+`misc` has a Doxygen header right before its definition, except the
+`static inline` functions defined in headers, which have a plain comment
+and aren't documented. `make docs` turns
+the headers into one document per component, with Doxygen and LaTeX in
+the build image (`misc/docker/Dockerfile`, which builds Doxygen 1.18 from
+its source release):
+
+| Document | Contents |
+|----------|----------|
+| `docs/boards.pdf` | the board support packages (`boards`) |
+| `docs/kernel.pdf` | the kernel (`kernel`) |
+| `docs/libpok.pdf` | the library of the partitions (`libpok`) |
+| `docs/syspart.pdf` | the drivers and network components (`syspart`) |
+| `docs/hypervisor.pdf` | the hypervisor (`hypervisor`) |
+
+The functions generated from the C templates of `misc` are in the
+document of the directory that holds the generated file.
+
+    make docs                    # build the five documents
+    make docs-<name>             # build docs/<name>.pdf only
+                                 # (e.g. make docs-kernel)
+    make clean-docs              # remove build/docs and the PDFs
+                                 # (make clean does it too)
+
+With `NATIVE=1`, the host's `doxygen` and `pdflatex` are used: Doxygen
+1.18 or later is needed (older versions put a table before its heading).
+Doxygen reads the headers as they are, in its own syntax (Markdown tables
+and lists). Each document has its configuration,
+`misc/docs/Doxyfile.<name>` (its name, its input and its output
+directory), which includes the settings they share,
+`misc/docs/Doxyfile.common` (the aliases and the LaTeX style). For each
+document, `make docs` shows Doxygen's progress (`QUIET = NO` in the
+Doxyfile), the start of each pdflatex pass, the warnings about the
+headers (`build/docs/<name>/warnings.log`: a change should leave none) and
+a summary: the time of each step, the files read and documented, the
+functions, types and macros, the warnings, the pages and overfull lines,
+and the size of the PDF. The whole output is in
+`build/docs/<name>/doxygen.log` and `build/docs/<name>/latex.log`. At the
+end, `make docs` lists the five documents with their pages, functions,
+types, macros and warnings.
+
+A document has these chapters:
+- "File Index": the C files of the component.
+- "Data Structures": every type, each in a section of the chapter: the
+  structs and unions, then the typedefs, then the enums. The section of a
+  struct or union is titled by the type's name without "struct" (a type
+  defined by its tag, such as `struct jet_context` with the typedef
+  `jet_context_t` elsewhere, is titled by its tag) and has its
+  description and the table of its fields (Name, Type, Description).
+  Doxygen writes that table only for a "simple" struct, whose every field
+  (type, name and parameters) fits in 60 characters; for the others it
+  writes the list of the fields and a section for each (a function
+  pointer field gets a typedef, so that it fits).
+- "Macro Definitions": the summary of the macros (with the groups of
+  constants), then every macro, each in a section of the chapter.
+- "Functions": each C file's description, the summary of its functions
+  (with links to their sections), and its functions.
+
+Header files aren't documented as files: they have no `@file` comment, so
+that Doxygen doesn't document them (nor their `static inline` functions);
+their types and macros are in "Data Structures" and "Macro Definitions".
+
+The types and macros are gathered by two Doxygen groups
+(`misc/docs/groups.dox`), which the aliases `typename` and `macroname`
+add them to (`\ingroup`): no header names the group. The layout file
+`misc/docs/DoxygenLayout.xml` leaves the types out of the summary of their
+group (the macros and their groups of constants stay in it). The chapters
+are arranged by the LaTeX style (`EXTRA_PACKAGES` in
+`misc/docs/Doxyfile.common`), not by Doxygen, whose own chapters are
+"Topic Index", "Topic Documentation" (with the groups) and "File
+Documentation": the style leaves out the topic index, makes each group a
+chapter whose types or macros are its sections (without Doxygen's
+"Detailed Description", "Typedef Documentation", ... headings), renames
+"File Documentation" "Functions", drops the "struct " of the titles and
+puts the columns of the table of the fields in the order Name, Type,
+Description. Doxygen writes the `static` and `inline` of a function as
+labels after its definition (`[static]`).
+
+The style never breaks a word or a name across lines (no hyphenation,
+nor Doxygen's breaks inside names): a line breaks only at a space, or
+before the `[` of an array size. A table's columns are sized from its
+contents: the name column is as wide as its longest name, the type column
+as its types if they fit, and the description takes the rest, ragged
+right. A table whose longest name, type word and description word don't
+fit side by side is set in a smaller font (`\small`, else
+`\footnotesize`). The index is in one column. A code span or string
+literal in a header is wrapped only at its spaces, as one span (Doxygen
+joins its lines with a space): splitting it into two spans inside a word
+shows the word in two parts.
+
+Each field of a header is a heading at the left margin ("Description:",
+"Parameters:", ..., "Call Graph:"), with its contents on the next lines,
+indented; a blank line separates the fields, and an empty field (High
+and Low Level Requirements, until they are given) shows "None.". The
+name field (`@funcname`, `@typename`, `@macroname`) isn't shown: the name
+is the title of the section.
+
+A header has these fields, in this order:
+
+    /**
+     * @funcname `pok_clock_gettime`
+     *
+     * @description
+     * Stores the current time of a clock at a partition address (the
+     * clock_gettime syscall). Only CLOCK_REALTIME is supported; it is the
+     * system time.
+     *
+     * @params
+     * | Name | Type | Description |
+     * |------|------|-------------|
+     * | `clk_id` | `clockid_t` | [in] The clock. |
+     * | `val` | `pok_time_t * JET_USER` | [out] Partition address of the result. |
+     *
+     * @return POK_ERRNO_OK, POK_ERRNO_EFAULT (val is not a partition
+     *         address) or POK_ERRNO_EINVAL (another clock).
+     *
+     * @globals
+     * None.
+     *
+     * @locals
+     * | Name | Type | Description |
+     * |------|------|-------------|
+     * | `k_val` | `pok_time_t *` | Kernel address of val, or NULL |
+     *
+     * @hlr
+     *
+     * @llr
+     *
+     * @design
+     * 1. Set `k_val` to `jet_user_to_kernel_typed(val)`.
+     * 2. If `k_val` is NULL:
+     *    1. Return `POK_ERRNO_EFAULT`.
+     * 3. Depending on `clk_id`:
+     *    1. Case `CLOCK_REALTIME`:
+     *       1. Set `*k_val` to `jet_system_time()`.
+     *       2. Leave the switch.
+     *    2. Otherwise (default):
+     *       1. Set `*k_val` to `-1`.
+     *       2. Return `POK_ERRNO_EINVAL`.
+     * 4. Return `POK_ERRNO_OK`.
+     *
+     * @calls
+     * - `jet_user_to_kernel()`
+     * - `ja_system_time()`
+     */
+
+The fields:
+- `@funcname`: the name, in code font.
+- `@description`: what the function does and when it is used.
+- `@params`: a table with a row for each parameter, in order (a variadic
+  function has a last row `` `...` | `...` ``), left out if there is
+  none. The type is written as in the definition, with spaces around the
+  stars (`const char *`). The description starts with the direction:
+  `[in]` (a value, or a pointer that the function only reads through),
+  `[out]` (a pointer that it writes through before reading, if it reads
+  at all), `[in,out]` (a pointer that it reads and writes through). A
+  pointer that is only stored, compared or passed on is `[in]` unless what
+  it is passed to writes through it.
+- `@return`, unless the function returns `void`.
+- `@globals`: the file-scope and `extern` objects the function reads or
+  writes (also through macros). `@locals`: the objects declared in its
+  body (`static` ones too, with `static` in the type, but not temporaries
+  declared inside a macro). Each is a table of the names, types and
+  descriptions, or `None.`.
+- `@hlr` and `@llr` (high and low level requirements) are empty for now.
+- `@design`: every statement of the code, in words and in its order (see
+  below). The statements inside an `if`, a loop or a `switch` are the
+  nested items of its item; the PDF numbers them 4.1., 4.2.1., ...
+- `@calls`: the functions the body calls, including through macros, one
+  `` - `name()` `` per line, in the order of their first call. A call
+  through a function pointer is written `` - `expression()` (indirect) ``.
+  Not `__builtin_*` functions; `None.` if there is none.
+
+The design describes each statement with these phrases (code in code font,
+`x`, `v` and `f` standing for the code):
+- assignments: "Set `x` to `v`.", "Add `v` to `x`.", "Subtract `v` from
+  `x`.", "Multiply `x` by `v`.", "Divide `x` by `v`.", "Set `x` to the
+  remainder of its division by `v`.", "Set the bits `v` in `x`.", "Keep
+  only the bits `v` of `x`.", "Toggle the bits `v` in `x`.", "Shift `x`
+  left by `v` bits.", "Shift `x` right by `v` bits.", "Increment `x`.",
+  "Decrement `x`.";
+- declarations have no step: the `@locals` table describes the local
+  variables; the initialization of a non-static local variable is a "Set
+  `x` to `v`." step, a static one's initial value is not a step;
+- calls: "Call `f()`.", "Call `f()` with the argument `a`." or "with the
+  arguments `a`, `b` and `c`.", followed by ", and store the result in
+  `x`." or ", and return its result." when it does; "Call the function
+  `p->f` ..." through a pointer; "Evaluate `e`." for another expression;
+  "Use the macro `M`." and "Check that `c` holds (`assert_os`: stop
+  otherwise)." for macros;
+- "Return `v`.", "Return.", "Mark `x` as not used.", "Do nothing.",
+  "Execute the assembly code ...", "Go to the label `L`.", "Label `L`:";
+- conditions: "If ...:", "Otherwise, if ...:", "Otherwise:", where a
+  condition is "`a` is equal to `b`" (is not equal to, is greater than,
+  is less than, is greater than or equal to, is less than or equal to),
+  "`p` is NULL" (is not NULL), "`c` is true" (is false), "`M(x)` holds"
+  for a macro, joined with "and", "or" and "not (...)";
+- loops: "While ...:", "Repeat the following while ... (at least once):",
+  "Set `i` to `0U`; then while `i` is less than `n`, repeat (after each
+  pass: increment `i`):", "Repeat forever:", "Leave the loop.", "Go on
+  with the next pass of the loop.";
+- `switch`: "Depending on `x`:", "Case `A`:", "Case `A`, and otherwise
+  (default):", "Otherwise (default):", "Leave the switch.".
+
+A string literal stays in one code span (a literal longer than a line may
+continue in a second span on the next line).
+
+Doxygen reads the text of a header, so some characters are escaped:
+- `%` before a letter, `_` or `'` is written `%%` (Doxygen drops a `%`
+  there), in code (`` `"%%u CPUs\n"` `` shows `"%u CPUs\n"`) and in
+  text, but not between double quotes in text, where Doxygen leaves the
+  text as it is (`formats such as "%c"`).
+- `#` before a word, in text outside code and double quotes, is written
+  `\#` (`\#VMEXIT`).
+- A name that starts with `__` is in code font (Markdown would make
+  `__x__` bold).
+- Code that contains `\"` is written as `<tt>`, where Doxygen reads
+  commands: `\`, `@`, `#` and `%` are escaped with `\`, `"` is `&quot;`,
+  and `<`, `>`, `&` are `&lt;`, `&gt;`, `&amp;`.
+- In a table cell, `|` is written `\|`; code with a `|` in a cell is
+  written as `<tt>` (with `\|`).
+
+Other rules:
+- A table row is one line (Markdown), so it may be longer than 80
+  columns; every other line of a header is at most 80 columns.
+- A header has no `/*` or `//` in it (MISRA Rule 3.1).
+- A C file has a `/** @file ... */` comment: Doxygen documents a C
+  function only if its file is documented. A header has none (its types
+  and macros are documented through the groups). Other comments are plain
+  comments (`/*`), so that the PDF has only the C files, their functions,
+  and the types and macros.
+- Doxygen reads every C file and header of a document's directory
+  (`INPUT` in its `misc/docs/Doxyfile.<name>`).
+- In a header, the function declarations (prototypes) are hidden from
+  Doxygen between `/** \cond */` and `/** \endcond */`, one pair around
+  each run of declarations: a function is documented at its definition
+  only. Doxygen would document each declared function a second time, in
+  the header's section, and would merge the documentation of every
+  definition of a function defined more than once (one per architecture)
+  into each of them. A function that appears in a header's section
+  without being defined there, or with two `Description:` fields, is the
+  sign of a declaration that isn't hidden.
+- Generated files get their headers from their templates: the syspart
+  components take the directions of their arguments from `args_dir` in
+  the interfaces' YAML files (`syspart/include/interfaces`). The syscall
+  functions of `syscall_map_arinc.h` are `static inline` functions of a
+  header: they have a plain comment.
+
+### Code layout
+
+The C code of `boards`, `hypervisor`, `kernel`, `libpok` (with `libm` and
+`protocols`) and `syspart` is laid out so that each kind of definition has
+one place:
+
+- A C file holds `#include` lines, variable definitions (global and
+  `static`), function definitions and `MISRA C:2025` deviation comments:
+  no macros and no types. The exceptions are what a header shared by
+  other files can't hold: the declarations of the file's `static`
+  functions, and macros whose names would clash in the other files
+  (`libpok/libm/k_tan.c`'s `one` and `T`).
+- A header holds extern function prototypes (between `/** \cond */` and
+  `/** \endcond */`), `extern` variable declarations, `static inline`
+  functions (with a plain comment, not a Doxygen header), typedefs and
+  macros.
+- The macros and types that only one C file uses are in an existing
+  header of its module: the one that declares its functions, or the
+  module's private header (such as `kernel/core/thread_internal.h`); no
+  header is created for them. Those that several files use are in their
+  shared header.
+- A macro that a function defined and undefined for its own use has a
+  name of its own in that header (no `#undef`).
+- Structures are typedefs, without a tag: `typedef struct { ... } x_t;`,
+  used as `x_t` (never `struct x`). The same goes for unions, and for
+  named enums, whose typedef names end with `_e` instead
+  (`typedef enum { ... } x_e;`). A function pointer field of a struct has
+  a typedef of its own (`typedef void (*x_fn_t)(void);`). The tag stays
+  only where it is needed:
+  - a struct that refers to itself
+    (`typedef struct delayed_event { struct delayed_event *next_event;
+    ... } delayed_event_t;`);
+  - a type that the rest of the code uses by pointer while its definition
+    is elsewhere (one per architecture): a shared header declares
+    `typedef struct jet_context jet_context_t;` and each architecture
+    defines `struct jet_context { ... };`;
+  - the structures that POSIX defines with a tag (`struct tm`,
+    `struct timespec`).
+
+### Types
+
+Every type defined at file scope (struct, union, enum and typedef) in
+`boards`, `hypervisor`, `kernel`, `libpok` and `syspart` has a header too,
+right before its definition, and each of its members (fields and
+enumerators) has a comment, from which Doxygen makes the table of the
+fields (Name, Type, Description) or of the enumerators:
+
+    /**
+     * @typename `delayed_event_t`
+     *
+     * @description
+     * Event which should occure at a specific time point. It is in a queue
+     * of delayed events (delayed_event_queue_t) while it waits for its
+     * time.
+     */
+    typedef struct delayed_event {
+        struct delayed_event* next_event; /**< The next event in the queue. */
+        /** NULL if event is not in the event queue (else the address of the
+         * pointer to this event: the previous event's next_event or the
+         * queue's first_event). */
+        struct delayed_event** pprev_event;
+        pok_time_t timepoint; /**< The time when the event happens. */
+        ...
+    } delayed_event_t;
+
+- `@typename` is the name of the type: the typedef's name (of a struct,
+  union or enum, or of any other type: a scalar, a pointer, a function
+  pointer), or `struct <tag>` for a structure that keeps its tag without
+  a typedef (POSIX). Doxygen documents a typedef of a struct as the
+  struct, under the typedef's name.
+- `@description` says what the type represents and where it is used (a
+  plain comment that described it goes there); for a function pointer
+  type, it also describes the parameters and the return value. Doxygen
+  shows the definition of a typedef itself.
+- Every field and enumerator has a comment: `/**< ... */` after it, or
+  `/** ... */` before it when the comment doesn't fit after it in 80
+  columns. A member without one is left out of the PDF. A plain comment
+  that described a member becomes its comment.
+- A member whose type is an anonymous struct or union
+  (`struct { ... } name;`) has its comment after it (`} name; /**< ...
+  */`): a comment before it would document the anonymous type. Doxygen
+  doesn't show the members of an anonymous type, so the member's comment
+  describes them, and they keep plain comments.
+- The escapes of the function headers apply to the comments too
+  (`@name` would be read as a command: a name is written in code, as
+  `` `name` ``; `<word>` would be read as an HTML tag: it is written in
+  code too).
+- A type defined under the same name for each architecture (in
+  `arch/x86_64` and `arch/arm64`) has one header, at its x86_64
+  definition, which describes both definitions; the member comments of
+  both start with `x86_64:` or `arm64:`. Doxygen keeps one type per name:
+  it shows such a type once, with the fields of both.
+- A type that the code uses by pointer while each architecture defines
+  it (`typedef struct jet_context jet_context_t;` in a shared header,
+  `struct jet_context { ... };` in each architecture) is titled by its
+  tag (`struct jet_context`) in the document; its header names the
+  typedef.
+- The types of the generated syspart headers get their headers from the
+  templates `component.h.tpl` and `interfaces.h.tpl`, with descriptions
+  from the YAML configurations: `description` of a component and
+  `state_doc` (member: description) for the members of its `state_struct`
+  (`syspart/components/*/config.yaml`), and `description` of an interface
+  and of each of its functions (`syspart/include/interfaces/*.yaml`).
+
+### Macros
+
+Every macro defined in a header has a header too, except the include
+guards:
+
+    /**
+     * @macroname `ARRAY_SIZE`
+     *
+     * @description
+     * Return number of elements in the array: a size_t constant expression.
+     *
+     * @params
+     * | Name | Description |
+     * |------|-------------|
+     * | `arr` | The array. |
+     */
+    #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+- `@description` says what the macro stands for; for a function-like
+  macro, what it evaluates to (or does).
+- A function-like macro has `@params`, a table of its parameters in order
+  (Name, Description).
+- A list of related constants (error codes, bits, register fields) is a
+  group: a comment with `@name`, the group's title and its description
+  opens it, and `/** @} */` closes it; each constant in it has its own
+  header. Doxygen shows the group, with its description, in the summary
+  of the file's section:
+
+      /**
+       * @name Error bits of a thread
+       * The bits of pok_thread_error_bits_t: the sources of the errors
+       * signalled for a thread.
+       * @{
+       */
+
+      /**
+       * @macroname `POK_THREAD_ERROR_BIT_SYNC`
+       *
+       * @description
+       * Synchronous error has been generated for thread.
+       */
+      #define POK_THREAD_ERROR_BIT_SYNC 1U
+      ...
+
+      /** @} */
+
+- A macro defined differently for each configuration (in the branches of
+  an `#if`) has a header in each branch; the document shows the one of
+  the configuration that Doxygen reads (all `POK_NEEDS_*` macros defined,
+  `PREDEFINED` in `misc/docs/Doxyfile.common`).
+- A macro defined in the same way for each architecture (the same name and
+  value in `arch/x86_64` and `arch/arm64`) has one header, at its x86_64
+  definition, which says so; the arm64 one has a plain comment pointing to
+  it (Doxygen would merge their documentation). A macro that several files
+  use is defined once, in their shared header.
+
+The tables are long tables that start at the indentation of their section
+and may continue on the next page, with their header row repeated; their
+LaTeX style, with the rest of the documents', is in
+`misc/docs/Doxyfile.common` (`EXTRA_PACKAGES`).
 
 ## MISRA C:2025
 

@@ -18,6 +18,12 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file and
+ * its types.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 /* Stack for the (kernel) thread. */
@@ -33,6 +39,17 @@
  *
  * So, whenever %rbp register points to the beginning of the stack,
  * it is treated as the last stack frame.
+ */
+/**
+ * @typename `jet_stack_t`
+ *
+ * @description
+ * The address of a kernel stack. Any stack returned by pok_stack_alloc() is
+ * 16-byte aligned (as required by the ABI) and ends a frame chain: on x86_64 it
+ * has two zeroed words *above* it, so that %%rbp pointing to its beginning is
+ * treated as the last stack frame; on arm64
+ * (kernel/arch/arm64/include/arch/stack.h, the same type) it has a zeroed frame
+ * record (fp, lr) above it.
  */
 typedef uintptr_t jet_stack_t;
 

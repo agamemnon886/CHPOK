@@ -18,6 +18,17 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: thread_wait_common() adds the
  * duration with pok_time_add(), which cannot overflow.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: the function declarations are
+ * hidden from Doxygen (\cond), which would otherwise document the functions a
+ * second time, in the section of this header.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
 
 #ifndef POK_THREAD_INTERNAL_H
@@ -51,6 +62,7 @@
  * 
  * Should be executed with local preemption disabled.
  */
+/** \cond */
 pok_bool_t thread_create(pok_thread_t* t);
 
 
@@ -91,18 +103,13 @@ void thread_wait(pok_thread_t* t);
  * Should be called with local preemption disabled.
  */
 void thread_wait_timed(pok_thread_t *thread, pok_time_t time);
+/** \endcond */
 
 
-/* 
- * Turn thread to wait for given duration, or, if duration is
- * infinite, forever.
- * 
- * Convinience function, used when implements ports and intra-partition
- * communication mechanisms.
- * 
- * Should be called with local preemption disabled.
- * 
- * NOTE: duration shouldn't be 0.
+/*
+ * Makes a thread wait for a duration, or forever if the duration is infinite
+ * (used by ports and the intra-partition communication). The duration mustn't
+ * be 0. Called with local preemption disabled.
  */
 static inline void thread_wait_common(pok_thread_t* t, pok_time_t duration)
 {
@@ -137,6 +144,7 @@ static inline void thread_wait_common(pok_thread_t* t, pok_time_t duration)
  * 
  * May be used as callback.
  */
+/** \cond */
 void thread_wake_up(pok_thread_t* t);
 
 /* 
@@ -199,4 +207,5 @@ void thread_start(pok_thread_t* t);
  * Called with local preemption disabled.
  */
 void thread_yield(pok_thread_t *t);
+/** \endcond */
 #endif /* POK_THREAD_INTERNAL_H */

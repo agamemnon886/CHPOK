@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_acos.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_acos()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 
 /* __ieee754_acos(x)
  * Method :
@@ -72,6 +85,100 @@ qS2 =  2.02094576023350569471e+00, /* 0x40002AE5, 0x9C598AC8 */
 qS3 = -6.88283971605453293030e-01, /* 0xBFE6066C, 0x1B8D0159 */
 qS4 =  7.70381505559019352791e-02; /* 0x3FB3B8C5, 0xB12E9282 */
 
+/**
+ * @funcname `__ieee754_acos`
+ *
+ * @description
+ * Computes the arc cosine of x: the IEEE 754 core of acos().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `pS0` | `const double` | A constant of the algorithm |
+ * | `pS1` | `const double` | A constant of the algorithm |
+ * | `pS2` | `const double` | A constant of the algorithm |
+ * | `pS3` | `const double` | A constant of the algorithm |
+ * | `pS4` | `const double` | A constant of the algorithm |
+ * | `pS5` | `const double` | A constant of the algorithm |
+ * | `pi` | `const double` | A constant of the algorithm |
+ * | `pio2_hi` | `const double` | A constant of the algorithm |
+ * | `pio2_lo` | `const double` | A constant of the algorithm |
+ * | `qS1` | `const double` | A constant of the algorithm |
+ * | `qS2` | `const double` | A constant of the algorithm |
+ * | `qS3` | `const double` | A constant of the algorithm |
+ * | `qS4` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `double` | A temporary of the computation |
+ * | `df` | `double` | A temporary of the computation |
+ * | `hx` | `int32_t` | The high word of x |
+ * | `ix` | `int32_t` | The high word of x without the sign bit |
+ * | `lx` | `uint32_t` | The low word of x |
+ * | `p` | `double` | A temporary of the computation |
+ * | `q` | `double` | A temporary of the computation |
+ * | `r` | `double` | A temporary of the computation |
+ * | `s` | `double` | A temporary of the computation |
+ * | `w` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx&0x7fffffff`.
+ * 3. If `ix` is greater than or equal to `0x3ff00000`:
+ *    1. Use the macro `GET_LOW_WORD()` with the arguments `lx` and `x`.
+ *    2. If `((ix-0x3ff00000)|lx)` is equal to `0`:
+ *       1. If `hx` is greater than `0`:
+ *          1. Return `0.0`.
+ *       2. Otherwise:
+ *          1. Return `pi+2.0*pio2_lo`.
+ *    3. Return `(x-x)/(x-x)`.
+ * 4. If `ix` is less than `0x3fe00000`:
+ *    1. If `ix` is less than or equal to `0x3c600000`:
+ *       1. Return `pio2_hi+pio2_lo`.
+ *    2. Set `z` to `x*x`.
+ *    3. Set `p` to `z*(pS0+z*(pS1+z*(pS2+z*(pS3+z*(pS4+z*pS5)))))`.
+ *    4. Set `q` to `one+z*(qS1+z*(qS2+z*(qS3+z*qS4)))`.
+ *    5. Set `r` to `p/q`.
+ *    6. Return `pio2_hi - (x - (pio2_lo-x*r))`.
+ * 5. Otherwise, if `hx` is less than `0`:
+ *    1. Set `z` to `(one+x)*0.5`.
+ *    2. Set `p` to `z*(pS0+z*(pS1+z*(pS2+z*(pS3+z*(pS4+z*pS5)))))`.
+ *    3. Set `q` to `one+z*(qS1+z*(qS2+z*(qS3+z*qS4)))`.
+ *    4. Call `__ieee754_sqrt()` with the argument `z`, and store the result in
+ *       `s`.
+ *    5. Set `r` to `p/q`.
+ *    6. Set `w` to `r*s-pio2_lo`.
+ *    7. Return `pi - 2.0*(s+w)`.
+ * 6. Otherwise:
+ *    1. Set `z` to `(one-x)*0.5`.
+ *    2. Call `__ieee754_sqrt()` with the argument `z`, and store the result in
+ *       `s`.
+ *    3. Set `df` to `s`.
+ *    4. Use the macro `SET_LOW_WORD()` with the arguments `df` and `0`.
+ *    5. Set `c` to `(z-df*df)/(s+df)`.
+ *    6. Set `p` to `z*(pS0+z*(pS1+z*(pS2+z*(pS3+z*(pS4+z*pS5)))))`.
+ *    7. Set `q` to `one+z*(qS1+z*(qS2+z*(qS3+z*qS4)))`.
+ *    8. Set `r` to `p/q`.
+ *    9. Set `w` to `r*s+c`.
+ *    10. Return `2.0*(df+w)`.
+ *
+ * @calls
+ * - `__ieee754_sqrt()`
+ */
 double
 __ieee754_acos(double x)
 {

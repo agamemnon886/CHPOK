@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* s_atanf.c -- float version of s_atan.c.
@@ -29,6 +38,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * atanf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -68,6 +81,87 @@ static const float
 one   = 1.0,
 huge   = 1.0e30;
 
+/**
+ * @funcname `atanf`
+ *
+ * @description
+ * Computes the arc tangent of x, in float (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `aT` | `const float[11]` | A constant of the algorithm |
+ * | `atanhi` | `const float[4]` | A constant of the algorithm |
+ * | `atanlo` | `const float[4]` | A constant of the algorithm |
+ * | `huge` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hx` | `int32_t` | The bits of x |
+ * | `id` | `int32_t` | A temporary of the computation |
+ * | `ix` | `int32_t` | The bits of x without the sign bit |
+ * | `s1` | `float` | A temporary of the computation |
+ * | `s2` | `float` | A temporary of the computation |
+ * | `w` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx&0x7fffffff`.
+ * 3. If `ix` is greater than or equal to `0x50800000`:
+ *    1. If `ix` is greater than `0x7f800000`:
+ *       1. Return `x+x`.
+ *    2. If `hx` is greater than `0`:
+ *       1. Return `atanhi[3]+atanlo[3]`.
+ *    3. Otherwise:
+ *       1. Return `-atanhi[3]-atanlo[3]`.
+ * 4. If `ix` is less than `0x3ee00000`:
+ *    1. If `ix` is less than `0x31000000`:
+ *       1. If `huge+x` is greater than `one`:
+ *          1. Return `x`.
+ *    2. Set `id` to `-1`.
+ * 5. Otherwise:
+ *    1. Call `fabsf()` with the argument `x`, and store the result in `x`.
+ *    2. If `ix` is less than `0x3f980000`:
+ *       1. If `ix` is less than `0x3f300000`:
+ *          1. Set `id` to `0`.
+ *          2. Set `x` to `((float)2.0*x-one)/((float)2.0+x)`.
+ *       2. Otherwise:
+ *          1. Set `id` to `1`.
+ *          2. Set `x` to `(x-one)/(x+one)`.
+ *    3. Otherwise:
+ *       1. If `ix` is less than `0x401c0000`:
+ *          1. Set `id` to `2`.
+ *          2. Set `x` to `(x-(float)1.5)/(one+(float)1.5*x)`.
+ *       2. Otherwise:
+ *          1. Set `id` to `3`.
+ *          2. Set `x` to `-(float)1.0/x`.
+ * 6. Set `z` to `x*x`.
+ * 7. Set `w` to `z*z`.
+ * 8. Set `s1` to `z*(aT[0]+w*(aT[2]+w*(aT[4]+w*(aT[6]+w*(aT[8]+w*aT[10])))))`.
+ * 9. Set `s2` to `w*(aT[1]+w*(aT[3]+w*(aT[5]+w*(aT[7]+w*aT[9]))))`.
+ * 10. If `id` is less than `0`:
+ *     1. Return `x - x*(s1+s2)`.
+ * 11. Otherwise:
+ *     1. Set `z` to `atanhi[id] - ((x*(s1+s2) - atanlo[id]) - x)`.
+ *     2. Return `-z` if `hx` is less than `0`, otherwise `z`.
+ *
+ * @calls
+ * - `fabsf()`
+ */
 float
 atanf(float x)
 {

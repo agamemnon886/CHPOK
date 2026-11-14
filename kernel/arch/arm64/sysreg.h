@@ -29,9 +29,16 @@
  * suffixes for unsigned constants; the macros use no reserved
  * identifiers; deviations are documented where a guideline can't be
  * followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for its macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
-
-/* Access to AArch64 system registers. */
 
 #ifndef JET_ARM64_SYSREG_H
 #define JET_ARM64_SYSREG_H
@@ -39,6 +46,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/**
+ * @macroname `read_sysreg`
+ *
+ * @description
+ * Reads a system register: its value (uint64_t).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `reg` | The name of the register (e.g. daif). |
+ */
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this header): system registers
  * are reached with GNU inline assembly, isolated in these macros and in
@@ -52,17 +70,38 @@
     sysreg_val;                                             \
 })
 
+/**
+ * @macroname `write_sysreg`
+ *
+ * @description
+ * Writes a system register.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `reg` | The name of the register. |
+ * | `val` | The value written. |
+ */
 #define write_sysreg(reg, val) do {                         \
     uint64_t sysreg_val = (uint64_t)(val);                  \
     asm volatile("msr " #reg ", %0" : : "r" (sysreg_val));  \
 } while(false)
 
+/*
+ * Instruction synchronization barrier (isb): later instructions see the effects
+ * of system register writes before it.
+ */
 static inline void isb(void)
 {
     asm volatile("isb" ::: "memory");
 }
 
-/* DAIF.I: IRQs are masked. */
+/**
+ * @macroname `DAIF_I`
+ *
+ * @description
+ * DAIF.I: IRQs are masked.
+ */
 #define DAIF_I (1U << 7)
 
 #endif /* JET_ARM64_SYSREG_H */

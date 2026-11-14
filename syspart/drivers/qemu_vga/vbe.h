@@ -17,12 +17,28 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros of vga.c are here; the
+ * macros are documented.
  */
 
 #ifndef VBE_H
 #define VBE_H
 
+/**
+ * @macroname `VBE_DISPI_IOPORT_INDEX`
+ *
+ * @description
+ * The I/O port of the index of the Bochs VBE registers.
+ */
 #define VBE_DISPI_IOPORT_INDEX 0x01CE
+
+/**
+ * @macroname `VBE_DISPI_IOPORT_DATA`
+ *
+ * @description
+ * The I/O port of the data of the Bochs VBE registers.
+ */
 #define VBE_DISPI_IOPORT_DATA 0x01CF
 
 enum {
@@ -46,4 +62,46 @@ enum {
     VBE_DISPI_BPP_24 = 0x18,
     VBE_DISPI_BPP_32 = 0x20,
 };
+
+/**
+ * @macroname `VGA_PAS`
+ *
+ * @description
+ * The palette address source bit of the VGA attribute controller: 1 enables the
+ * display.
+ */
+#define VGA_PAS 0x20
+
+/**
+ * @macroname `SCREEN_WIDTH`
+ *
+ * @description
+ * The width of the screen, in pixels.
+ */
+#define SCREEN_WIDTH 800
+
+/**
+ * @macroname `SCREEN_HEIGHT`
+ *
+ * @description
+ * The height of the screen, in pixels.
+ */
+#define SCREEN_HEIGHT 600
+
+/**
+ * @macroname `SCREEN_BPP`
+ *
+ * @description
+ * The bits per pixel of the screen (32).
+ */
+#define SCREEN_BPP VBE_DISPI_BPP_32
+
+/**
+ * @macroname `DEFAULT_FB_DESCRIPTOR`
+ *
+ * @description
+ * The descriptor of the framebuffer that vga.c gives to its user.
+ */
+#define DEFAULT_FB_DESCRIPTOR 1
+
 #endif //VBE_H

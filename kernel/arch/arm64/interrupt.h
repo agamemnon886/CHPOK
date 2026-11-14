@@ -29,6 +29,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-05: the hooks of the GDB server
  * (gdb.c) for the exception handlers and the scheduler.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; the exception classes of exceptions.c and gdb.c (EC_*) are
+ * defined here, with Doxygen headers; Doxygen comments for the file and its
+ * macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef POK_ARM64_INTERRUPT_H
@@ -40,7 +49,161 @@
 #include <arch/stack.h>
 #include <arch/interrupt_frame.h>
 
+/**
+ * @name Exception classes
+ * Exception classes (ESR_EL1.EC): the reasons of a synchronous exception that
+ * the kernel handles.
+ * @{
+ */
+
+/**
+ * @macroname `EC_UNKNOWN`
+ *
+ * @description
+ * An unknown reason (e.g. an undefined instruction).
+ */
+#define EC_UNKNOWN          0x00
+
+/**
+ * @macroname `EC_ILLEGAL_STATE`
+ *
+ * @description
+ * An illegal execution state.
+ */
+#define EC_ILLEGAL_STATE    0x0e
+
+/**
+ * @macroname `EC_SVC64`
+ *
+ * @description
+ * An SVC instruction in AArch64 state (a syscall).
+ */
+#define EC_SVC64            0x15U
+
+/**
+ * @macroname `EC_IABORT_LOWER`
+ *
+ * @description
+ * An instruction abort from a lower exception level (EL0: a partition).
+ */
+#define EC_IABORT_LOWER     0x20
+
+/**
+ * @macroname `EC_IABORT_CUR`
+ *
+ * @description
+ * An instruction abort at the current exception level (EL1: the kernel).
+ */
+#define EC_IABORT_CUR       0x21
+
+/**
+ * @macroname `EC_PC_ALIGN`
+ *
+ * @description
+ * A misaligned PC.
+ */
+#define EC_PC_ALIGN         0x22
+
+/**
+ * @macroname `EC_DABORT_LOWER`
+ *
+ * @description
+ * A data abort from a lower exception level (EL0: a partition).
+ */
+#define EC_DABORT_LOWER     0x24
+
+/**
+ * @macroname `EC_DABORT_CUR`
+ *
+ * @description
+ * A data abort at the current exception level (EL1: the kernel).
+ */
+#define EC_DABORT_CUR       0x25
+
+/**
+ * @macroname `EC_SP_ALIGN`
+ *
+ * @description
+ * A misaligned SP.
+ */
+#define EC_SP_ALIGN         0x26
+
+/**
+ * @macroname `EC_FP64`
+ *
+ * @description
+ * A trapped floating point exception (AArch64).
+ */
+#define EC_FP64             0x2c
+
+/**
+ * @macroname `EC_BRK64`
+ *
+ * @description
+ * A BRK instruction in AArch64 state (a breakpoint).
+ */
+#define EC_BRK64            0x3c
+
+/** @} */
+
+/**
+ * @name Debug exception classes
+ * Exception classes (ESR_EL1.EC) of debug exceptions.
+ * @{
+ */
+
+/**
+ * @macroname `EC_BREAKPOINT_LOWER`
+ *
+ * @description
+ * A hardware breakpoint from EL0 (a partition).
+ */
+#define EC_BREAKPOINT_LOWER 0x30U
+
+/**
+ * @macroname `EC_BREAKPOINT_CUR`
+ *
+ * @description
+ * A hardware breakpoint at EL1 (the kernel).
+ */
+#define EC_BREAKPOINT_CUR   0x31U
+
+/**
+ * @macroname `EC_STEP_LOWER`
+ *
+ * @description
+ * A software step from EL0.
+ */
+#define EC_STEP_LOWER       0x32U
+
+/**
+ * @macroname `EC_STEP_CUR`
+ *
+ * @description
+ * A software step at EL1.
+ */
+#define EC_STEP_CUR         0x33U
+
+/**
+ * @macroname `EC_WATCHPOINT_LOWER`
+ *
+ * @description
+ * A watchpoint from EL0.
+ */
+#define EC_WATCHPOINT_LOWER 0x34U
+
+/**
+ * @macroname `EC_WATCHPOINT_CUR`
+ *
+ * @description
+ * A watchpoint at EL1.
+ */
+#define EC_WATCHPOINT_CUR   0x35U
+
+/** @} */
+
 /* Exception handlers called from vectors.S. */
+/** \cond */
 void ja_exception_sync_user(interrupt_frame* frame);
 void ja_exception_sync_kernel(interrupt_frame* frame);
 void ja_exception_irq_kernel(interrupt_frame* frame);
@@ -49,6 +212,7 @@ void ja_exception_unexpected(interrupt_frame* frame, int32_t kind);
 
 /* Handle 'svc' from user space. */
 void process_syscall(interrupt_frame* frame);
+/** \endcond */
 
 #ifdef POK_NEEDS_GDB
 /*
@@ -69,6 +233,7 @@ void process_syscall(interrupt_frame* frame);
  *  - ja_gdb_exception_leave() last: debug exceptions are masked, and a
  *    requested single step starts with the return.
  */
+/** \cond */
 void ja_gdb_init(void);
 void ja_gdb_exception_enter(interrupt_frame* frame);
 void ja_gdb_exception_unmask(void);
@@ -95,6 +260,7 @@ pok_bool_t ja_gdb_trap(interrupt_frame* frame, uint32_t ec,
  * the partition in space 'space_id' (the one which is loaded).
  */
 void ja_gdb_hw_program(jet_space_id space_id);
+/** \endcond */
 #endif /* POK_NEEDS_GDB */
 
 #endif /* !POK_ARM64_INTERRUPT_H */

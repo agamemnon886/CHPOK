@@ -19,8 +19,16 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: essentially
  * Boolean conditions; U suffixes for unsigned constants; deviations are
  * documented where a guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+ */
+
+/**
+ * @file
+ * Architecture helpers of libpok on x86_64: the idle loop and the
+ * alignment of objects.
  */
 
 
@@ -29,6 +37,29 @@
 #include <arch.h>
 #include <asp/alloc.h>
 
+/**
+ * @funcname `pok_arch_idle`
+ *
+ * @description
+ * Loops forever (old POK interface).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. While `true` is true:
+ *    1. Execute the assembly code `nop`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (pok_arch_idle()): privileged
  * instructions are written as GNU inline assembly, each isolated in a small
@@ -44,6 +75,44 @@ void pok_arch_idle (void)
 
 #endif
 
+/**
+ * @funcname `libja_mem_get_alignment`
+ *
+ * @description
+ * Returns the alignment for an object of a size: 1, 2, 4, 8 or 16 bytes.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `obj_size` | `size_t` | [in] The size. |
+ *
+ * @return The alignment.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `obj_size` is less than or equal to `1U`:
+ *    1. Return `1`.
+ * 2. Otherwise, if `obj_size` is less than `4U`:
+ *    1. Return `2`.
+ * 3. Otherwise, if `obj_size` is less than `8U`:
+ *    1. Return `4`.
+ * 4. Otherwise, if `obj_size` is less than `16U`:
+ *    1. Return `8`.
+ * 5. Otherwise:
+ *    1. Return `16`.
+ *
+ * @calls
+ * None.
+ */
 size_t libja_mem_get_alignment(size_t obj_size)
 {
    if(obj_size <= 1U) {

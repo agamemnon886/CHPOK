@@ -31,6 +31,6 @@
 #include <time.h>
 #include "time_internal.h"
 
-extern struct locale_time locale_time_c;
+extern locale_time_t locale_time_c;
 
 #endif /* LIBJET_TIME_LOCALE_C_H */

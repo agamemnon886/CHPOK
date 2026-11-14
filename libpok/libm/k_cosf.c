@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Sat Jan 31 20:12:07 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* k_cosf.c -- float version of k_cos.c
@@ -29,6 +38,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__kernel_cosf()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -44,6 +57,68 @@ C4  = -2.7557314297e-07, /* 0xb493f27c */
 C5  =  2.0875723372e-09, /* 0x310f74f6 */
 C6  = -1.1359647598e-11; /* 0xad47d74e */
 
+/**
+ * @funcname `__kernel_cosf`
+ *
+ * @description
+ * The kernel cosine of x + y on [-pi/4, pi/4] (y is the tail of x).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ * | `y` | `float` | [in] The tail of x. |
+ *
+ * @return The cosine.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `C1` | `const float` | A constant of the algorithm |
+ * | `C2` | `const float` | A constant of the algorithm |
+ * | `C3` | `const float` | A constant of the algorithm |
+ * | `C4` | `const float` | A constant of the algorithm |
+ * | `C5` | `const float` | A constant of the algorithm |
+ * | `C6` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `a` | `float` | A temporary of the computation |
+ * | `hz` | `float` | A temporary of the computation |
+ * | `ix` | `int32_t` | The bits of x |
+ * | `qx` | `float` | A temporary of the computation |
+ * | `r` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `ix` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `ix`.
+ * 3. If `ix` is less than `0x32000000`:
+ *    1. If `((int)x)` is equal to `0`:
+ *       1. Return `one`.
+ * 4. Set `z` to `x*x`.
+ * 5. Set `r` to `z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))))`.
+ * 6. If `ix` is less than `0x3e99999a`:
+ *    1. Return `one - ((float)0.5*z - (z*r - x*y))`.
+ * 7. Otherwise:
+ *    1. If `ix` is greater than `0x3f480000`:
+ *       1. Set `qx` to `(float)0.28125`.
+ *    2. Otherwise:
+ *       1. Use the macro `SET_FLOAT_WORD()` with the arguments `qx` and
+ *          `ix-0x01000000`.
+ *    3. Set `hz` to `(float)0.5*z-qx`.
+ *    4. Set `a` to `one-qx`.
+ *    5. Return `a - (hz - (z*r-x*y))`.
+ *
+ * @calls
+ * None.
+ */
 float
 __kernel_cosf(float x, float y)
 {

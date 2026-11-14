@@ -35,6 +35,18 @@
  * documented where a guideline can't be followed. In the kernel, the
  * syscall implementations are no longer declared again next to their
  * wrappers (Rule 8.5).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions (the function headers are in
+ * misc/templates/syscall_declarations_*.tpl).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the structures and enums are used
+ * by their typedef names: msection_t, msection_wq_t; the comment naming the
+ * removed alias pok_thread_status (libpok) is removed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_partition_mode_e (was pok_partition_mode_t); the Doxygen comment of the
+ * file is removed (header files are not documented).
  */
 
 /*
@@ -54,7 +66,15 @@
 #include <uapi/memblock_types.h>
 #include <uapi/msection.h>
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_CREATE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_CREATE:
+ * calls pok_thread_create()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_CREATE(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_create(
         (const char* JET_USER)args->arg1,
@@ -64,7 +84,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_CREATE(const pok_
 }
 
 #ifdef POK_NEEDS_THREAD_SLEEP
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_SLEEP(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_SLEEP:
+ * calls pok_thread_sleep()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_SLEEP(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_sleep(
         (const pok_time_t* JET_USER)args->arg1);
@@ -72,27 +100,59 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_SLEEP(const pok_s
 #endif
 
 #ifdef POK_NEEDS_THREAD_SLEEP_UNTIL
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_SLEEP_UNTIL(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_SLEEP_UNTIL:
+ * calls pok_thread_sleep_until()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_SLEEP_UNTIL(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_sleep_until(
         (const pok_time_t* JET_USER)args->arg1);
 }
 #endif
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_PERIOD(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_PERIOD:
+ * calls pok_sched_end_period()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_PERIOD(
+    const pok_syscall_args_t* args)
 {
     (void) args;
     return pok_sched_end_period();
 }
 
 #if defined (POK_NEEDS_THREAD_SUSPEND) || defined (POK_NEEDS_ERROR_HANDLING)
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_SUSPEND(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_SUSPEND:
+ * calls pok_thread_suspend()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_SUSPEND(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_suspend(
         (const pok_time_t* JET_USER)args->arg1);
 }
 #endif
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_STATUS(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_STATUS:
+ * calls pok_thread_get_status()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_STATUS(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_get_status(
         (pok_thread_id_t)args->arg1,
@@ -101,57 +161,129 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_STATUS(const pok_
         (pok_thread_status_t* JET_USER)args->arg4);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_DELAYED_START(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_DELAYED_START:
+ * calls pok_thread_delayed_start()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_DELAYED_START(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_delayed_start(
         (pok_thread_id_t)args->arg1,
         (const pok_time_t* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_SET_PRIORITY(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_SET_PRIORITY:
+ * calls pok_thread_set_priority()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_SET_PRIORITY(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_set_priority(
         (pok_thread_id_t)args->arg1,
         (uint32_t)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_RESUME(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_RESUME:
+ * calls pok_thread_resume()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_RESUME(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_resume(
         (pok_thread_id_t)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_SUSPEND_TARGET(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_SUSPEND_TARGET:
+ * calls pok_thread_suspend_target()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_SUSPEND_TARGET(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_suspend_target(
         (pok_thread_id_t)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_YIELD(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_YIELD:
+ * calls pok_thread_yield()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_YIELD(
+    const pok_syscall_args_t* args)
 {
     (void) args;
     return pok_thread_yield();
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_REPLENISH(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_REPLENISH:
+ * calls pok_sched_replenish()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_REPLENISH(
+    const pok_syscall_args_t* args)
 {
     return pok_sched_replenish(
         (const pok_time_t* JET_USER)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_STOP(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_STOP:
+ * calls pok_thread_stop_target()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_STOP(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_stop_target(
         (pok_thread_id_t)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_STOPSELF(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_STOPSELF:
+ * calls pok_thread_stop()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_STOPSELF(
+    const pok_syscall_args_t* args)
 {
     (void) args;
     return pok_thread_stop();
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_FIND(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_THREAD_FIND:
+ * calls pok_thread_find()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_THREAD_FIND(
+    const pok_syscall_args_t* args)
 {
     return pok_thread_find(
         (const char* JET_USER)args->arg1,
@@ -159,69 +291,149 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_THREAD_FIND(const pok_sy
 }
 
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_RESCHED(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_RESCHED:
+ * calls jet_resched()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_RESCHED(
+    const pok_syscall_args_t* args)
 {
     (void) args;
     return jet_resched();
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MSECTION_ENTER_HELPER(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MSECTION_ENTER_HELPER:
+ * calls jet_msection_enter_helper()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MSECTION_ENTER_HELPER(
+    const pok_syscall_args_t* args)
 {
     return jet_msection_enter_helper(
-        (struct msection* JET_USER)args->arg1);
+        (msection_t* JET_USER)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MSECTION_WAIT(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MSECTION_WAIT:
+ * calls jet_msection_wait()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MSECTION_WAIT(
+    const pok_syscall_args_t* args)
 {
     return jet_msection_wait(
-        (struct msection* JET_USER)args->arg1,
+        (msection_t* JET_USER)args->arg1,
         (const pok_time_t* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MSECTION_NOTIFY(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MSECTION_NOTIFY:
+ * calls jet_msection_notify()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MSECTION_NOTIFY(
+    const pok_syscall_args_t* args)
 {
     return jet_msection_notify(
-        (struct msection* JET_USER)args->arg1,
+        (msection_t* JET_USER)args->arg1,
         (pok_thread_id_t)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MSECTION_WQ_NOTIFY(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MSECTION_WQ_NOTIFY:
+ * calls jet_msection_wq_notify()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MSECTION_WQ_NOTIFY(
+    const pok_syscall_args_t* args)
 {
     return jet_msection_wq_notify(
-        (struct msection* JET_USER)args->arg1,
-        (struct msection_wq* JET_USER)args->arg2,
+        (msection_t* JET_USER)args->arg1,
+        (msection_wq_t* JET_USER)args->arg2,
         (pok_bool_t)args->arg3);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MSECTION_WQ_SIZE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MSECTION_WQ_SIZE:
+ * calls jet_msection_wq_size()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MSECTION_WQ_SIZE(
+    const pok_syscall_args_t* args)
 {
     return jet_msection_wq_size(
-        (struct msection* JET_USER)args->arg1,
-        (struct msection_wq* JET_USER)args->arg2,
+        (msection_t* JET_USER)args->arg1,
+        (msection_wq_t* JET_USER)args->arg2,
         (size_t* JET_USER)args->arg3);
 }
 
 
 #ifdef POK_NEEDS_PARTITIONS
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_PARTITION_SET_MODE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_PARTITION_SET_MODE:
+ * calls pok_partition_set_mode_current()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_PARTITION_SET_MODE(
+    const pok_syscall_args_t* args)
 {
     return pok_partition_set_mode_current(
-        (pok_partition_mode_t)args->arg1);
+        (pok_partition_mode_e)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_PARTITION_GET_STATUS(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_PARTITION_GET_STATUS:
+ * calls pok_current_partition_get_status()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_PARTITION_GET_STATUS(
+    const pok_syscall_args_t* args)
 {
     return pok_current_partition_get_status(
         (pok_partition_status_t* JET_USER)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_PARTITION_INC_LOCK_LEVEL(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_PARTITION_INC_LOCK_LEVEL:
+ * calls pok_current_partition_inc_lock_level()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_PARTITION_INC_LOCK_LEVEL(
+    const pok_syscall_args_t* args)
 {
     return pok_current_partition_inc_lock_level(
         (int32_t* JET_USER)args->arg1);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_PARTITION_DEC_LOCK_LEVEL(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_PARTITION_DEC_LOCK_LEVEL:
+ * calls pok_current_partition_dec_lock_level()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_PARTITION_DEC_LOCK_LEVEL(
+    const pok_syscall_args_t* args)
 {
     return pok_current_partition_dec_lock_level(
         (int32_t* JET_USER)args->arg1);
@@ -230,35 +442,75 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_PARTITION_DEC_LOCK_LEVEL
 
 
 #ifdef POK_NEEDS_ERROR_HANDLING
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_HANDLER_CREATE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_ERROR_HANDLER_CREATE:
+ * calls pok_error_thread_create()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_ERROR_HANDLER_CREATE(
+    const pok_syscall_args_t* args)
 {
     return pok_error_thread_create(
         (uint32_t)args->arg1,
         (void* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_HANDLER_CONFIGURE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_ERROR_HANDLER_CONFIGURE:
+ * calls pok_error_thread_configure()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_ERROR_HANDLER_CONFIGURE(
+    const pok_syscall_args_t* args)
 {
     return pok_error_thread_configure(
         (uint32_t)args->arg1,
         (int32_t)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR:
+ * calls pok_error_raise_application_error()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_ERROR_RAISE_APPLICATION_ERROR(
+    const pok_syscall_args_t* args)
 {
     return pok_error_raise_application_error(
         (const char* JET_USER)args->arg1,
         (size_t)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_GET(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_ERROR_GET:
+ * calls pok_error_get()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_ERROR_GET(
+    const pok_syscall_args_t* args)
 {
     return pok_error_get(
         (pok_error_status_t* JET_USER)args->arg1,
         (void* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE:
+ * calls pok_error_report_application_message()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_ERROR_REPORT_APPLICATION_MESSAGE(
+    const pok_syscall_args_t* args)
 {
     return pok_error_report_application_message(
         (const char* JET_USER)args->arg1,
@@ -266,7 +518,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_REPORT_APPLICATION
 }
 #endif
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_RAISE_OS_ERROR(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_ERROR_RAISE_OS_ERROR:
+ * calls pok_error_raise_os_error()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_ERROR_RAISE_OS_ERROR(
+    const pok_syscall_args_t* args)
 {
     return pok_error_raise_os_error(
         (const char* JET_USER)args->arg1,
@@ -276,7 +536,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_ERROR_RAISE_OS_ERROR(con
 
    /* Middleware syscalls */
 #ifdef POK_NEEDS_PORTS_SAMPLING
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_CREATE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_SAMPLING_CREATE:
+ * calls pok_port_sampling_create()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_CREATE(
+    const pok_syscall_args_t* args)
 {
     return pok_port_sampling_create(
         (const char* JET_USER)args->arg1,
@@ -286,7 +554,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_CREA
         (pok_port_id_t* JET_USER)args->arg5);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_WRITE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_SAMPLING_WRITE:
+ * calls pok_port_sampling_write()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_WRITE(
+    const pok_syscall_args_t* args)
 {
     return pok_port_sampling_write(
         (pok_port_id_t)args->arg1,
@@ -294,7 +570,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_WRIT
         (pok_port_size_t)args->arg3);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_READ(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_SAMPLING_READ:
+ * calls pok_port_sampling_read()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_READ(
+    const pok_syscall_args_t* args)
 {
     return pok_port_sampling_read(
         (pok_port_id_t)args->arg1,
@@ -303,21 +587,45 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_READ
         (pok_bool_t* JET_USER)args->arg4);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_ID(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_SAMPLING_ID:
+ * calls pok_port_sampling_id()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_ID(
+    const pok_syscall_args_t* args)
 {
     return pok_port_sampling_id(
         (const char* JET_USER)args->arg1,
         (pok_port_id_t* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_STATUS(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_SAMPLING_STATUS:
+ * calls pok_port_sampling_status()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_STATUS(
+    const pok_syscall_args_t* args)
 {
     return pok_port_sampling_status(
         (pok_port_id_t)args->arg1,
         (pok_port_sampling_status_t* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_CHECK(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_SAMPLING_CHECK:
+ * calls pok_port_sampling_check()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_CHECK(
+    const pok_syscall_args_t* args)
 {
     return pok_port_sampling_check(
         (pok_port_id_t)args->arg1);
@@ -325,7 +633,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_SAMPLING_CHEC
 #endif /* POK_NEEDS_PORTS_SAMPLING */
 
 #ifdef POK_NEEDS_PORTS_QUEUEING
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_CREATE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_QUEUEING_CREATE:
+ * calls pok_port_queuing_create_packed()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_CREATE(
+    const pok_syscall_args_t* args)
 {
     return pok_port_queuing_create_packed(
         (const char* JET_USER)args->arg1,
@@ -333,7 +649,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_CREA
         (pok_port_id_t* JET_USER)args->arg3);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_SEND(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_QUEUEING_SEND:
+ * calls pok_port_queuing_send()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_SEND(
+    const pok_syscall_args_t* args)
 {
     return pok_port_queuing_send(
         (pok_port_id_t)args->arg1,
@@ -342,7 +666,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_SEND
         (const pok_time_t* JET_USER)args->arg4);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_RECEIVE(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_QUEUEING_RECEIVE:
+ * calls pok_port_queuing_receive()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_RECEIVE(
+    const pok_syscall_args_t* args)
 {
     return pok_port_queuing_receive(
         (pok_port_id_t)args->arg1,
@@ -351,21 +683,45 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_RECE
         (pok_port_size_t* JET_USER)args->arg4);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_ID(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_QUEUEING_ID:
+ * calls pok_port_queuing_id()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_ID(
+    const pok_syscall_args_t* args)
 {
     return pok_port_queuing_id(
         (const char* JET_USER)args->arg1,
         (pok_port_id_t* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_STATUS(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_QUEUEING_STATUS:
+ * calls pok_port_queuing_status()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_STATUS(
+    const pok_syscall_args_t* args)
 {
     return pok_port_queuing_status(
         (pok_port_id_t)args->arg1,
         (pok_port_queuing_status_t* JET_USER)args->arg2);
 }
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_CLEAR(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MIDDLEWARE_QUEUEING_CLEAR:
+ * calls pok_port_queuing_clear()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_CLEAR(
+    const pok_syscall_args_t* args)
 {
     return pok_port_queuing_clear(
         (pok_port_id_t)args->arg1);
@@ -374,7 +730,15 @@ static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MIDDLEWARE_QUEUEING_CLEA
 #endif /* POK_NEEDS_PORTS_QUEUEING */
 
 
-static inline pok_ret_t pok_syscall_wrapper_POK_SYSCALL_MEMORY_BLOCK_GET_STATUS(const pok_syscall_args_t* args)
+/*
+ * The kernel's wrapper of the syscall
+ * POK_SYSCALL_MEMORY_BLOCK_GET_STATUS:
+ * calls pok_memory_block_get_status()
+ * with the arguments of the syscall, converted to their types (generated
+ * from syscall_map_arinc.h.in).
+ */
+static inline pok_ret_e pok_syscall_wrapper_POK_SYSCALL_MEMORY_BLOCK_GET_STATUS(
+    const pok_syscall_args_t* args)
 {
     return pok_memory_block_get_status(
         (const char* JET_USER)args->arg1,

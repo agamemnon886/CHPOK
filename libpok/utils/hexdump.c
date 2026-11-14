@@ -21,11 +21,77 @@
  * all if/else bodies; discarded printf() results are cast to void; the
  * printed values have the types of their formats; a negative length is
  * rejected like 0 (the last line printed the uninitialized buffer).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * hexdump(): prints memory in hex and ASCII, 16 bytes per line.
  */
 
 #include <debug.h>
 #include <stdio.h>
 
+/**
+ * @funcname `hexdump`
+ *
+ * @description
+ * Prints memory in hex and ASCII, 16 bytes per line with their offset
+ * (non-printable characters as dots).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `addr` | `const void *` | [in] The memory. |
+ * | `len` | `int32_t` | [in] Its length. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `buff` | `char[17]` | The ASCII of the line |
+ * | `i` | `int32_t` | The index of the byte |
+ * | `pc` | `const uint8_t *` | The memory, as bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `pc` to `(const uint8_t*)addr`.
+ * 2. If `len` is less than or equal to `0`:
+ *    1. Call `printf()` with the argument `"Len is zero\n"`.
+ *    2. Return.
+ * 3. Set `i` to `0`; then while `i` is less than `len`, repeat (after each
+ *    pass: increment `i`):
+ *    1. If `(i % 16)` is equal to `0`:
+ *       1. If `i` is not equal to `0`:
+ *          1. Call `printf()` with the arguments `" %%s\n"` and `buff`.
+ *       2. Call `printf()` with the arguments `" %04x "` and
+ *          `(unsigned int) i`.
+ *    2. Call `printf()` with the arguments `" %02x"` and
+ *       `(unsigned int) pc[i]`.
+ *    3. If `pc[i]` is less than `0x20U` or `pc[i]` is greater than `0x7eU`:
+ *       1. Set `buff[i % 16]` to `'.'`.
+ *    4. Otherwise:
+ *       1. Set `buff[i % 16]` to `(char) pc[i]`.
+ *    5. Set `buff[(i % 16) + 1]` to `'\0'`.
+ * 4. While `(i % 16)` is not equal to `0`:
+ *    1. Call `printf()` with the argument `" "`.
+ *    2. Increment `i`.
+ * 5. Call `printf()` with the arguments `" %%s\n"` and `buff`.
+ *
+ * @calls
+ * - `printf()`
+ */
 void hexdump (const void *addr, int32_t len)
 {
     int32_t i;

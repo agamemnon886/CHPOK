@@ -26,7 +26,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: if the health monitor ignores
  * the heap exhaustion error, the partition goes IDLE instead of getting
- * NULL, which its callers don't check.
+ * NULL, which its callers don't check. Doxygen headers for the file and its
+ * functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * The partition's heap: allocation at initialization (not in NORMAL mode),
+ * never freed.
  */
 
 #include <smalloc.h>
@@ -48,6 +59,42 @@
  * the heap by adding sizes to addresses.
  */
 
+/**
+ * @funcname `heap_exhausted`
+ *
+ * @description
+ * Reports that the partition heap is exhausted: as an application error, as if
+ * the health monitor ignores the error, the heap is still exhausted and the
+ * callers don't expect NULL, so the partition goes IDLE.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `msg` | `static const char[40]` | The message of the error |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `printf()` with the argument
+ *    `"ERROR: Failed to allocate memory from the heap.\n"`.
+ * 2. Call `printf()` with the argument
+ *    `"NOTE: Probably, you need to configure more heap for the partition.\n"`.
+ * 3. Call `pok_error_raise_application_error()` with the arguments `msg` and
+ *    `sizeof(msg) - 1U`.
+ * 4. Repeat forever:
+ *    1. Call `pok_partition_set_mode_current()` with the argument
+ *       `POK_PARTITION_MODE_IDLE`.
+ *
+ * @calls
+ * - `printf()`
+ * - `pok_error_raise_application_error()`
+ * - `pok_partition_set_mode_current()`
+ */
 /*
  * The partition heap is exhausted. Reported as an application error, as
  * abort() used to do (MISRA C:2025 Rule 21.8: no abort()). Doesn't return:
@@ -68,6 +115,55 @@ static _Noreturn void heap_exhausted(void)
     }
 }
 
+/**
+ * @funcname `smalloc_aligned`
+ *
+ * @description
+ * Allocates memory of a size and alignment from the partition heap (not in
+ * NORMAL mode); an exhausted heap doesn't return.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `size` | `size_t` | [in] The size. |
+ * | `alignment` | `size_t` | [in] The alignment. |
+ *
+ * @return The memory, or NULL for size 0.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `heap_current` | `char *` | The end of the partition's heap used so far |
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `obj_end` | `char *` | Its end |
+ * | `obj_start` | `char *` | The start of the memory |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Check that `kshd.partition_mode != POK_PARTITION_MODE_NORMAL` holds
+ *    (assert_os: stop otherwise).
+ * 2. If `size` is equal to `0U`:
+ *    1. Return `NULL`.
+ * 3. Call `ALIGN_PTR()` with the arguments `heap_current` and `alignment`, and
+ *    store the result in `obj_start`.
+ * 4. Set `obj_end` to `obj_start + size`.
+ * 5. If `obj_end` is greater than `kshd.heap_end`:
+ *    1. Call `heap_exhausted()`.
+ * 6. Set `heap_current` to `obj_end`.
+ * 7. Return `obj_start`.
+ *
+ * @calls
+ * - `assertion_os_fail()`
+ * - `ALIGN_PTR()`
+ * - `heap_exhausted()`
+ */
 void* smalloc_aligned(size_t size, size_t alignment)
 {
     assert_os(kshd.partition_mode != POK_PARTITION_MODE_NORMAL);
@@ -89,11 +185,100 @@ void* smalloc_aligned(size_t size, size_t alignment)
     return obj_start;
 }
 
+/**
+ * @funcname `smalloc`
+ *
+ * @description
+ * Allocates memory of a size from the partition heap, with the alignment for
+ * its size.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `size` | `size_t` | [in] The size. |
+ *
+ * @return The memory, or NULL for size 0.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `smalloc_aligned()` with the arguments `size` and
+ *    `libja_mem_get_alignment(size)`, and return its result.
+ *
+ * @calls
+ * - `smalloc_aligned()`
+ * - `libja_mem_get_alignment()`
+ */
 void* smalloc(size_t size)
 {
     return smalloc_aligned(size, libja_mem_get_alignment(size));
 }
 
+/**
+ * @funcname `scalloc`
+ *
+ * @description
+ * Allocates an array from the partition heap, with the alignment of its
+ * elements.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `nmemb` | `size_t` | [in] The number of elements. |
+ * | `size` | `size_t` | [in] The size of an element. |
+ *
+ * @return The memory, or NULL for 0 elements or size 0.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `heap_current` | `char *` | The end of the partition's heap used so far |
+ * | `kshd` | `jet_kernel_shared_t` | The data that the kernel shares with the partition (current thread, threads, partition mode) |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `alignment` | `size_t` | The alignment of an element |
+ * | `mem_end` | `char *` | Its end |
+ * | `mem_start` | `char *` | The start of the memory |
+ * | `stride` | `size_t` | The distance between elements |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `size` is equal to `0U` or `nmemb` is equal to `0U`:
+ *    1. Return `NULL`.
+ * 2. If `nmemb` is equal to `1U`:
+ *    1. Call `smalloc()` with the argument `size`, and return its result.
+ * 3. Call `libja_mem_get_alignment()` with the argument `size`, and store the
+ *    result in `alignment`.
+ * 4. Call `ALIGN()` with the arguments `size` and `alignment`, and store the
+ *    result in `stride`.
+ * 5. Call `ALIGN_PTR()` with the arguments `heap_current` and `alignment`, and
+ *    store the result in `mem_start`.
+ * 6. Set `mem_end` to `mem_start + (stride * (nmemb - 1U)) + size`.
+ * 7. If `mem_end` is greater than `kshd.heap_end`:
+ *    1. Call `heap_exhausted()`.
+ * 8. Set `heap_current` to `mem_end`.
+ * 9. Return `mem_start`.
+ *
+ * @calls
+ * - `smalloc()`
+ * - `libja_mem_get_alignment()`
+ * - `ALIGN()`
+ * - `ALIGN_PTR()`
+ * - `heap_exhausted()`
+ */
 void* scalloc(size_t nmemb, size_t size)
 {
     if((size == 0U) || (nmemb == 0U)) {

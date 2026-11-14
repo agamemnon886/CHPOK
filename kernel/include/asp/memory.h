@@ -1,5 +1,9 @@
 /* Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 #ifndef POK_MEM_H
 #define POK_MEM_H
@@ -11,6 +15,7 @@
  * 
  * Return 0 if memory cannot be accessed by the user.
  */
+/** \cond */
 uintptr_t pok_virt_to_phys(uintptr_t virt);
 /* 
  * Return user space address for given physical address.
@@ -18,5 +23,6 @@ uintptr_t pok_virt_to_phys(uintptr_t virt);
  * Return 0 if memory cannot be accessed by the user.
  */
 uintptr_t pok_phys_to_virt(uintptr_t phys);
+/** \endcond */
 
 #endif

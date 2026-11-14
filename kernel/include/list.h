@@ -1,4 +1,5 @@
-/* Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
+/*
+ * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
  *
@@ -6,7 +7,24 @@
  * guard isn't a reserved identifier; essentially Boolean conditions;
  * deviations are documented where a guideline can't be followed;
  * list_empty() returns bool; macro parameters are parenthesized.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct list_head is the typedef
+ * list_head_t; Doxygen comments for its types and its macros; the unused macros
+ * LIST_HEAD, LIST_HEAD_INIT, list_for_each_entry, list_next_entry,
+ * list_last_entry and list_prev_entry are removed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
+
 #ifndef POK_LIST_H
 #define POK_LIST_H
 
@@ -19,46 +37,49 @@
 #include <stdbool.h>
 
 /**
+ * @typename `list_head_t`
+ *
+ * @description
  * One element in the list or head of the list.
- * 
+ *
  * If plays role of list's element, then
- *    @next field points to the next element of the list or,
+ *    `next` field points to the next element of the list or,
  *        if given element is the last element, to the head of the list,
- *    @prev field points to the previous element of the list or,
+ *    `prev` field points to the previous element of the list or,
  *        if given element is the first element, to the head of the list.
- * 
+ *
  * If plays role of list's head,
- *   @next field points to the first element in the list or,
+ *   `next` field points to the first element in the list or,
  *        if list is empty, to the head itself.
- *   @prev field points to the last element in the list or,
+ *   `prev` field points to the last element in the list or,
  *        if list is empty, to the head itself.
  */
-struct list_head {
+typedef struct list_head {
+    /**
+     * The next element, or the first one of a head (see above).
+     */
     struct list_head* next;
+    /**
+     * The previous element, or the last one of a head (see above).
+     */
     struct list_head* prev;
-};
+} list_head_t;
 
-#define LIST_HEAD_INIT(name) { &(name), &(name) }
-  
-/* 'name' is a declarator, not an expression (MISRA C:2025 Rule 20.7). */
-#define LIST_HEAD(name) \
-    struct list_head name = LIST_HEAD_INIT(name)
-
-static inline void INIT_LIST_HEAD(struct list_head *list)
+/*
+ * Initializes a list head (or an element), empty: it points to itself.
+ */
+static inline void INIT_LIST_HEAD(list_head_t *list)
 {
     list->next = list;
     list->prev = list;
 }
 
-/**
- * Insert a new entry between two known consecutive entries.
- *
- * This is only for internal list manipulation where we know
- * the prev/next entries already!
+/*
+ * Inserts an element between two consecutive elements.
  */
-static inline void __list_add(struct list_head *new,
-                              struct list_head *prev,
-                              struct list_head *next)
+static inline void __list_add(list_head_t *new,
+                              list_head_t *prev,
+                              list_head_t *next)
 {
     next->prev = new;
     new->next = next;
@@ -66,147 +87,109 @@ static inline void __list_add(struct list_head *new,
     prev->next = new;
 }
 
-/**
- * list_add - add a new entry
- * @new: new entry to be added
- * @head: list head to add it after
- *
- * Insert a new entry after the specified head.
- * This is good for implementing stacks.
+/*
+ * Inserts an element right after a head (at the start of the list).
  */
-static inline void list_add(struct list_head *new, struct list_head *head)
+static inline void list_add(list_head_t *new, list_head_t *head)
 {
     __list_add(new, head, head->next);
 }
 
-/**
- * list_add_tail - add a new entry
- * @new: new entry to be added
- * @head: list head to add it before
- *
- * Insert a new entry before the specified head.
- * This is useful for implementing queues.
+/*
+ * Inserts an element right before a head (at the end of the list).
  */
-static inline void list_add_tail(struct list_head *new, struct list_head *head)
+static inline void list_add_tail(list_head_t *new, list_head_t *head)
 {
     __list_add(new, head->prev, head);
 }
 
 /*
- * Delete a list entry by making the prev/next entries
- * point to each other.
- *
- * This is only for internal list manipulation where we know
- * the prev/next entries already!
+ * Links two elements to each other, removing what was between them.
  */
-static inline void __list_del(struct list_head * prev, struct list_head * next)
+static inline void __list_del(list_head_t * prev, list_head_t * next)
 {
     next->prev = prev;
     prev->next = next;
 }
 
-/**
- * list_del - deletes entry from list.
- * @entry: the element to delete from the list.
- * Note: list_empty() on entry does not return true after this, the entry is
- * in an undefined state.
+/*
+ * Removes an element from its list (the element itself isn't changed).
  */
-static inline void __list_del_entry(struct list_head *entry)
+static inline void __list_del_entry(list_head_t *entry)
 {
     __list_del(entry->prev, entry->next);
 }
 
-/**
- * list_del_init - deletes entry from list and reinitialize it.
- * @entry: the element to delete from the list.
- * 
- * After this operation `list_empty(entry)` is true.
+/*
+ * Removes an element from its list and makes it empty (not in a list).
  */
-static inline void list_del_init(struct list_head *entry)
+static inline void list_del_init(list_head_t *entry)
 {
     __list_del_entry(entry);
     INIT_LIST_HEAD(entry);
 }
 
-/**
- * list_empty - tests whether a list is empty
- * @head: the list to test.
+/*
+ * Tells whether a list is empty (or an element isn't in a list).
  */
-static inline bool list_empty(const struct list_head *head)
+static inline bool list_empty(const list_head_t *head)
 {
     return head->next == head;
 }
 
 /**
- * list_entry - get the struct for this entry
- * @ptr:        the &struct list_head pointer.
- * @type:       the type of the struct this is embedded in.
- * @member:     the name of the list_head within the struct.
+ * @macroname `list_entry`
+ *
+ * @description
+ * Get the struct for this entry: the element of type type whose list_head_t
+ * member is at ptr (container_of()).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `ptr` | The list_head_t pointer. |
+ * | `type` | The type of the struct this is embedded in. |
+ * | `member` | The name of the list_head within the struct. |
  */
 /*
  * MISRA C:2025 Rule 11.3 deviation: see container_of(); list elements are
- * struct list_head members of the 'type' objects.
+ * list_head_t members of the 'type' objects.
  */
  #define list_entry(ptr, type, member) \
          container_of(ptr, type, member)
 
 /**
- * list_first_entry - get the first element from a list
- * @ptr:        the list head to take the element from.
- * @type:       the type of the struct this is embedded in.
- * @member:     the name of the list_head within the struct.
+ * @macroname `list_first_entry`
  *
- * Note, that list is expected to be not empty.
+ * @description
+ * Get the first element from a list. Note, that list is expected to be not
+ * empty.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `ptr` | The list head to take the element from. |
+ * | `type` | The type of the struct this is embedded in. |
+ * | `member` | The name of the list_head within the struct. |
  */
 #define list_first_entry(ptr, type, member) \
         list_entry((ptr)->next, type, member)
 
 /**
- * list_last_entry - get the last element from a list
- * @ptr:        the list head to take the element from.
- * @type:       the type of the struct this is embedded in.
- * @member:     the name of the list_head within the struct.
+ * @macroname `list_for_each`
  *
- * Note, that list is expected to be not empty.
- */
-#define list_last_entry(ptr, type, member) \
-        list_entry((ptr)->prev, type, member)
-
-/**
- * list_next_entry - get the next element in list
- * @pos:        the type * to cursor
- * @member:     the name of the list_head within the struct.
- */
-#define list_next_entry(pos, member) \
-        list_entry((pos)->member.next, typeof(*(pos)), member)
-
-/**
- * list_prev_entry - get the prev element in list
- * @pos:        the type * to cursor
- * @member:     the name of the list_head within the struct.
- */
-#define list_prev_entry(pos, member) \
-        list_entry((pos)->member.prev, typeof(*(pos)), member)
-
-/**
- * list_for_each        -       iterate over a list
- * @pos:        the &struct list_head to use as a loop cursor.
- * @head:       the head for your list.
+ * @description
+ * Iterate over a list: a for statement whose body runs for each element (pos is
+ * its list_head_t).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `pos` | The list_head_t pointer to use as a loop cursor. |
+ * | `head` | The head for your list. |
  */
 #define list_for_each(pos, head) \
         for ((pos) = (head)->next; (pos) != (head); (pos) = (pos)->next)
-
-/**
- * list_for_each_entry  -       iterate over list of given type
- * @pos:        the type * to use as a loop cursor.
- * @head:       the head for your list.
- * @member:     the name of the list_head within the struct.
- */
-/* 'member' is a member name, not an expression (MISRA C:2025 Rule 20.7). */
-#define list_for_each_entry(pos, head, member)                          \
-        for ((pos) = list_first_entry(head, typeof(*(pos)), member);    \
-             &(pos)->member != (head);                                  \
-             (pos) = list_next_entry(pos, member))
 
 /*
  * There are more macros in Linux kernel sources `include/linux/list.h`.

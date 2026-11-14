@@ -20,6 +20,18 @@
  * results are cast to void; the character is converted to char
  * explicitly; deviations are documented where a guideline can't be
  * followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * putchar() of libpok.
  */
 
 /*
@@ -29,9 +41,49 @@
 #include <stdio.h>
 #include "stream.h"
 
+/**
+ * @funcname `putchar`
+ *
+ * @description
+ * Writes a character to stdout (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `int` | [in] The character. |
+ *
+ * @return c.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `stdout` | `FILE *` | The standard output stream |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `op` | `stdio_operation_t` | The output operation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `stdio_operation_begin()` with the arguments the address of `op` and
+ *    `stdout`.
+ * 2. Call `stdio_operation_emit_character()` with the arguments `(char) c` and
+ *    the address of `op`.
+ * 3. Call `stdio_operation_end()` with the address of `op`.
+ * 4. Return `c`.
+ *
+ * @calls
+ * - `stdio_operation_begin()`
+ * - `stdio_operation_emit_character()`
+ * - `stdio_operation_end()`
+ */
 int putchar(int c)
 {
-    struct stdio_operation op;
+    stdio_operation_t op;
 
     stdio_operation_begin(&op, stdout);
     // The character is written as unsigned char converted to char.

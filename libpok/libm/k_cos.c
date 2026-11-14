@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Sat Jan 31 20:12:07 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)k_cos.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__kernel_cos()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -76,6 +89,68 @@ C4  = -2.75573143513906633035e-07, /* 0xBE927E4F, 0x809C52AD */
 C5  =  2.08757232129817482790e-09, /* 0x3E21EE9E, 0xBDB4B1C4 */
 C6  = -1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
 
+/**
+ * @funcname `__kernel_cos`
+ *
+ * @description
+ * The kernel cosine of x + y on [-pi/4, pi/4] (y is the tail of x).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `y` | `double` | [in] The tail of x. |
+ *
+ * @return The cosine.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `C1` | `const double` | A constant of the algorithm |
+ * | `C2` | `const double` | A constant of the algorithm |
+ * | `C3` | `const double` | A constant of the algorithm |
+ * | `C4` | `const double` | A constant of the algorithm |
+ * | `C5` | `const double` | A constant of the algorithm |
+ * | `C6` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `a` | `double` | A temporary of the computation |
+ * | `hz` | `double` | A temporary of the computation |
+ * | `ix` | `int32_t` | The high word of x |
+ * | `qx` | `double` | A temporary of the computation |
+ * | `r` | `double` | A temporary of the computation |
+ * | `z` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_HIGH_WORD()` with the arguments `ix` and `x`.
+ * 2. Keep only the bits `0x7fffffff` of `ix`.
+ * 3. If `ix` is less than `0x3e400000`:
+ *    1. If `((int)x)` is equal to `0`:
+ *       1. Return `one`.
+ * 4. Set `z` to `x*x`.
+ * 5. Set `r` to `z*(C1+z*(C2+z*(C3+z*(C4+z*(C5+z*C6)))))`.
+ * 6. If `ix` is less than `0x3FD33333`:
+ *    1. Return `one - (0.5*z - (z*r - x*y))`.
+ * 7. Otherwise:
+ *    1. If `ix` is greater than `0x3fe90000`:
+ *       1. Set `qx` to `0.28125`.
+ *    2. Otherwise:
+ *       1. Use the macro `INSERT_WORDS()` with the arguments `qx`,
+ *          `ix-0x00200000` and `0`.
+ *    3. Set `hz` to `0.5*z-qx`.
+ *    4. Set `a` to `one-qx`.
+ *    5. Return `a - (hz - (z*r-x*y))`.
+ *
+ * @calls
+ * None.
+ */
 double
 __kernel_cos(double x, double y)
 {

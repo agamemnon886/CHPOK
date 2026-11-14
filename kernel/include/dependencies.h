@@ -16,6 +16,10 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file and
+ * its macros.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -27,12 +31,30 @@
 
 #ifdef POK_NEEDS_ERROR_HANDLING
    #ifndef POK_NEEDS_SCHED_STOP_SELF
+
+/**
+ * @macroname `POK_NEEDS_SCHED_STOP_SELF`
+ *
+ * @description
+ * The scheduler can stop the current thread itself: needed by error handling
+ * (POK_NEEDS_ERROR_HANDLING) and by thread suspension
+ * (POK_NEEDS_THREAD_SUSPEND).
+ */
       #define POK_NEEDS_SCHED_STOP_SELF 1
    #endif
 #endif
 
 #ifdef POK_NEEDS_THREAD_SUSPEND
    #ifndef POK_NEEDS_SCHED_STOP_SELF
+
+/**
+ * @macroname `POK_NEEDS_SCHED_STOP_SELF`
+ *
+ * @description
+ * The scheduler can stop the current thread itself: needed by error handling
+ * (POK_NEEDS_ERROR_HANDLING) and by thread suspension
+ * (POK_NEEDS_THREAD_SUSPEND).
+ */
       #define POK_NEEDS_SCHED_STOP_SELF 1
    #endif
 #endif

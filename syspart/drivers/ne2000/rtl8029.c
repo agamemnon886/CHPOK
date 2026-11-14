@@ -19,15 +19,25 @@
  * Modified by Kirill Brazhnikov, 2026-10-31: built-in integer types (int,
  * unsigned, short, long, ...) are replaced with the fixed-width types
  * from <stdint.h>.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros are in rtl8029.h; the
+ * struct types are used by their typedef names.
+ */
+
+/**
+ * @file
+ * The NE2000 (RTL8029) network driver of the old POK network interface
+ * (SYS_NEEDS_DRIVER_NE2000): remote DMA to the card's memory, polling for
+ * received packets, and the PCI probe. Page 0 is always assumed to be
+ * selected, except during initialization and polling.
  */
 
 #include "syspart_config.h"
 
 #ifdef SYS_NEEDS_DRIVER_NE2000
-
-#define DRV_NAME "ne2000-net"
-#define DEV_NAME_PREFIX DRV_NAME
-#define DEV_NAME_MAXLEN 20
 
 #include "rtl8029.h"
 //#include <middleware/port.h>
@@ -43,21 +53,62 @@
 
 #include <mem.h>
 
-//TODO
-# define outb_inverse(a,b) outb((b), (a))
-
-/*
- * We *always* assume page 0 to be selected.
- * Two exceptions: initialization and polling.
- * Therefore, each time we need to switch to page 1,
- * the card is switched to page 0 again when we're done...
+/**
+ * @funcname `ne2000_write`
+ *
+ * @description
+ * Writes bytes into the card's memory by remote DMA.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dev` | `const ne2000_dev_t *` | [in] The card. |
+ * | `buf` | `const void *` | [in] The bytes. |
+ * | `count` | `uint16_t` | [in] Their number. |
+ * | `offset` | `uint16_t` | [in] The address in the card's memory. |
+ *
+ * @return count.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `p` | `const char *` | The byte written |
+ * | `ret` | `int32_t` | The number of bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `NULL`.
+ * 2. Set `ret` to `count`.
+ * 3. Execute the assembly code
+ *    `outb_inverse((inb(dev->addr + NE2000_CR) & ~(NE2000_CR_RD0 |`
+ *    `NE2000_CR_RD1)) | NE2000_CR_RD2, dev->addr)`.
+ * 4. Execute the assembly code
+ *    `outb_inverse(offset, dev->addr + NE2000_RSAR0)`.
+ * 5. Execute the assembly code
+ *    `outb_inverse(offset >> 8, dev->addr + NE2000_RSAR1)`.
+ * 6. Execute the assembly code `outb_inverse(count, dev->addr + NE2000_RBCR0)`.
+ * 7. Execute the assembly code
+ *    `outb_inverse(count >> 8, dev->addr + NE2000_RBCR1)`.
+ * 8. Execute the assembly code
+ *    `outb_inverse((inb(dev->addr + NE2000_CR) & ~(NE2000_CR_RD0 |`
+ *    `NE2000_CR_RD2)) | NE2000_CR_RD1, dev->addr)`.
+ * 9. Set `p` to `buf`; then while `count` is greater than `0`, repeat (after
+ *    each pass: decrement `count`. Increment `p`):
+ *    1. Execute the assembly code
+ *       `outb_inverse(*p, dev->addr + NE2000_DMA_PORT)`.
+ * 10. Return `(ret)`.
+ *
+ * @calls
+ * None.
  */
-#define NE2000_SELECT_PAGE(dev, page)                                   \
-    outb_inverse((inb((dev)->addr + NE2000_CR) &                          \
-                ~(NE2000_CR_PS0 | NE2000_CR_PS1)) | ((page) << 6), (dev)->addr)
-
 static int32_t ne2000_write(
-        const s_ne2000_dev *dev,
+        const ne2000_dev_t *dev,
         const void         *buf,
         uint16_t           count,
         uint16_t           offset)
@@ -88,12 +139,63 @@ static int32_t ne2000_write(
     return (ret);
 }
 
+/**
+ * @funcname `ne2000_read_header`
+ *
+ * @description
+ * Reads the header of a received packet from the card's memory by remote DMA.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dev` | `const ne2000_dev_t *` | [in] The card. |
+ * | `hdr` | `ne2000_header_t *` | [out] Where the header is stored. |
+ * | `offset` | `uint16_t` | [in] The address in the card's memory. |
+ *
+ * @return The size of the header.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `count` | `int32_t` | The size of the header |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `count` to `sizeof(ne2000_header_t)`.
+ * 2. Execute the assembly code
+ *    `outb_inverse((inb((dev)->addr + NE2000_CR) & ~(NE2000_CR_RD0 |`
+ *    `NE2000_CR_RD1)) | NE2000_CR_RD2, (dev)->addr)`.
+ * 3. Execute the assembly code
+ *    `outb_inverse(offset, dev->addr + NE2000_RSAR0)`.
+ * 4. Execute the assembly code
+ *    `outb_inverse(offset >> 8, dev->addr + NE2000_RSAR1)`.
+ * 5. Execute the assembly code `outb_inverse(count, dev->addr + NE2000_RBCR0)`.
+ * 6. Execute the assembly code
+ *    `outb_inverse(count >> 8, dev->addr + NE2000_RBCR1)`.
+ * 7. Execute the assembly code
+ *    `outb_inverse((inb((dev)->addr + NE2000_CR) & ~(NE2000_CR_RD1 |`
+ *    `NE2000_CR_RD2)) | NE2000_CR_RD0, (dev)->addr)`.
+ * 8. Set `hdr->status` to `inb(dev->addr + NE2000_DMA_PORT)`.
+ * 9. Set `hdr->next` to `inb(dev->addr + NE2000_DMA_PORT)`.
+ * 10. Set `hdr->size` to `inb(dev->addr + NE2000_DMA_PORT)`.
+ * 11. Set the bits `inb(dev->addr + NE2000_DMA_PORT) << 8` in `hdr->size`.
+ * 12. Return `count`.
+ *
+ * @calls
+ * None.
+ */
 static int32_t ne2000_read_header(
-        const s_ne2000_dev *dev,
-        s_ne2000_header    *hdr,
+        const ne2000_dev_t *dev,
+        ne2000_header_t    *hdr,
         uint16_t            offset)
 {
-    int32_t count = sizeof(s_ne2000_header);
+    int32_t count = sizeof(ne2000_header_t);
     // Sets RD2 (abort/complete remote DMA)
     outb_inverse((inb((dev)->addr + NE2000_CR) & ~(NE2000_CR_RD0 | NE2000_CR_RD1)) |
             NE2000_CR_RD2, (dev)->addr);
@@ -116,8 +218,61 @@ static int32_t ne2000_read_header(
 
     return count;
 }
+/**
+ * @funcname `ne2000_read`
+ *
+ * @description
+ * Reads bytes from the card's memory by remote DMA.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dev` | `const ne2000_dev_t *` | [in] The card. |
+ * | `buf` | `void *` | [out] Where the bytes are stored. |
+ * | `count` | `uint16_t` | [in] Their number. |
+ * | `offset` | `uint16_t` | [in] The address in the card's memory. |
+ *
+ * @return count.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `p` | `char *` | The byte read |
+ * | `ret` | `int32_t` | The number of bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `NULL`.
+ * 2. Set `ret` to `count`.
+ * 3. Execute the assembly code
+ *    `outb_inverse((inb((dev)->addr + NE2000_CR) & ~(NE2000_CR_RD0 |`
+ *    `NE2000_CR_RD1)) | NE2000_CR_RD2, (dev)->addr)`.
+ * 4. Execute the assembly code
+ *    `outb_inverse(offset, dev->addr + NE2000_RSAR0)`.
+ * 5. Execute the assembly code
+ *    `outb_inverse(offset >> 8, dev->addr + NE2000_RSAR1)`.
+ * 6. Execute the assembly code `outb_inverse(count, dev->addr + NE2000_RBCR0)`.
+ * 7. Execute the assembly code
+ *    `outb_inverse(count >> 8, dev->addr + NE2000_RBCR1)`.
+ * 8. Execute the assembly code
+ *    `outb_inverse((inb((dev)->addr + NE2000_CR) & ~(NE2000_CR_RD1 |`
+ *    `NE2000_CR_RD2)) | NE2000_CR_RD0, (dev)->addr)`.
+ * 9. Set `p` to `buf`; then while `count` is greater than `0`, repeat (after
+ *    each pass: decrement `count`. Increment `p`):
+ *    1. Set `*p` to `inb(dev->addr + NE2000_DMA_PORT)`.
+ * 10. Return `ret`.
+ *
+ * @calls
+ * None.
+ */
 static int32_t ne2000_read(
-        const s_ne2000_dev *dev,
+        const ne2000_dev_t *dev,
         void               *buf,
         uint16_t            count,
         uint16_t            offset)
@@ -150,19 +305,106 @@ static int32_t ne2000_read(
 
 
 /**
- *  @brief Polls rtl8029 device.
+ * @funcname `rtl8029_polling`
  *
- *  Watches for events, typically for receiving queued packets.
+ * @description
+ * Polls the card: watches for events, typically for receiving queued packets,
+ * which go to the callback; then clears the interrupt flags.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `netdev` | `pok_netdevice_t *` | [in] The network device. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `drv_info` | `ne2000_dev_t *` | The card |
+ * | `end` | `uint8_t` | The current page of the ring |
+ * | `ip_hdr` | `const ip_hdr_t *` | Its IP header (for packets padded to the minimum size) |
+ * | `ne2000_hdr` | `ne2000_header_t` | The header of the received packet |
+ * | `offset` | `uint16_t` | The DMA offset |
+ * | `packet_len` | `uint32_t` | The length of the packet |
+ * | `recv_packet` | `pok_packet_t` | The received packet |
+ * | `start` | `uint8_t` | The first page of the packet in the ring |
+ * | `state` | `uint8_t` | The interrupt status |
+ * | `tmp` | `uint32_t` | The boundary page |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `NE2000_SELECT_PAGE(drv_info, 0)`.
+ * 2. If `(state = inb(drv_info->addr + NE2000_ISR))` is equal to `0`:
+ *    1. Go to the label `POLL_END`.
+ * 3. If `!state & NE2000_ISR_PRX` is true:
+ *    1. Go to the label `POLL_END`.
+ * 4. If `(inb(drv_info->addr + NE2000_RSR) & NE2000_RSR_PRX)` is equal to `0`:
+ *    1. Go to the label `POLL_END`.
+ * 5. Set `tmp` to `inb(drv_info->addr + NE2000_BNRY)`.
+ * 6. Set `start` to `tmp + 1`.
+ * 7. Execute the assembly code `NE2000_SELECT_PAGE(drv_info, 1)`.
+ * 8. Set `end` to `inb(drv_info->addr + NE2000_CURR)`.
+ * 9. Execute the assembly code `NE2000_SELECT_PAGE(drv_info, 0)`.
+ * 10. If `(end % NE2000_MEMSZ)` is equal to `(start % NE2000_MEMSZ)`:
+ *     1. Go to the label `POLL_END`.
+ * 11. Set `offset` to `start << 8`.
+ * 12. Add `ne2000_read_header(drv_info, &ne2000_hdr, offset)` to `offset`.
+ * 13. Call `ne2000_read()` with the arguments `drv_info`, the address of
+ *     `recv_packet`, `ne2000_hdr.size - sizeof(ne2000_header_t)` and `offset`.
+ * 14. Set `packet_len` to `ne2000_hdr.size - sizeof(ne2000_header_t)`.
+ * 15. If `ne2000_hdr.size` is equal to `NE2000_ETH_DATA_MINLEN`:
+ *     1. Set `ip_hdr` to
+ *        `(const ip_hdr_t *) (sizeof(ether_hdr_t) + (const char`
+ *        `*)&recv_packet)`.
+ *     2. Set `packet_len` to
+ *        `ntoh16(ip_hdr->length) + sizeof(ether_hdr_t)`.
+ * 16. Execute the assembly code
+ *     `outb_inverse(ne2000_hdr.next > NE2000_MEMSZ ? NE2000_RXBUF - 1 :`
+ *     `ne2000_hdr.next - 1, drv_info->addr + NE2000_BNRY)`.
+ * 17. Call the function `drv_info->packet_received_callback` with the arguments
+ *     `(const char *)&recv_packet` and `packet_len`.
+ * 18. Execute the assembly code
+ *     `outb_inverse(NE2000_ISR_PRX, drv_info->addr + NE2000_ISR)`.
+ * 19. Label `POLL_END`:
+ * 20. If `state & NE2000_ISR_PTX` is true:
+ *     1. Execute the assembly code
+ *        `outb_inverse(NE2000_ISR_PTX, drv_info->addr + NE2000_ISR)`.
+ * 21. If `state & NE2000_ISR_RXE` is true:
+ *     1. Execute the assembly code
+ *        `outb_inverse(NE2000_ISR_RXE, drv_info->addr + NE2000_ISR)`.
+ * 22. If `state & NE2000_ISR_TXE` is true:
+ *     1. Execute the assembly code
+ *        `outb_inverse(NE2000_ISR_TXE, drv_info->addr + NE2000_ISR)`.
+ * 23. If `state & NE2000_ISR_OVW` is true:
+ *     1. Execute the assembly code
+ *        `outb_inverse(NE2000_ISR_OVW, drv_info->addr + NE2000_ISR)`.
+ * 24. If `state & NE2000_ISR_CNT` is true:
+ *     1. Execute the assembly code
+ *        `outb_inverse(NE2000_ISR_CNT, drv_info->addr + NE2000_ISR)`.
+ * 25. If `state & NE2000_ISR_RST` is true:
+ *     1. Execute the assembly code
+ *        `outb_inverse(NE2000_ISR_RST, drv_info->addr + NE2000_ISR)`.
+ *
+ * @calls
+ * - `ne2000_read_header()`
+ * - `ne2000_read()`
+ * - `ntoh16()`
+ * - `drv_info->packet_received_callback()` (indirect)
  */
 void rtl8029_polling(pok_netdevice_t * netdev)
 {
     uint8_t state; // ISR state
-    s_ne2000_header  ne2000_hdr;     // ne2000 packet header
+    ne2000_header_t  ne2000_hdr;     // ne2000 packet header
     uint16_t         offset;         // dma offset
     uint8_t          start, end;     // pointers for the ring buffer
     pok_packet_t     recv_packet;
 
-    s_ne2000_dev *drv_info = netdev->info;
+    ne2000_dev_t *drv_info = netdev->info;
 
     NE2000_SELECT_PAGE(drv_info, 0);
 
@@ -197,15 +439,15 @@ void rtl8029_polling(pok_netdevice_t * netdev)
     offset += ne2000_read_header(drv_info, &ne2000_hdr, offset);
 
     ne2000_read(drv_info, &recv_packet,
-            ne2000_hdr.size - sizeof(s_ne2000_header), offset);
-    uint32_t packet_len = ne2000_hdr.size - sizeof(s_ne2000_header);
+            ne2000_hdr.size - sizeof(ne2000_header_t), offset);
+    uint32_t packet_len = ne2000_hdr.size - sizeof(ne2000_header_t);
 
     if (ne2000_hdr.size == NE2000_ETH_DATA_MINLEN) {
         // NIC add trailing zeros to packets shorter than 64 bytes. They should be ignored
-        const struct ip_hdr *ip_hdr = (const struct ip_hdr *)
-            (sizeof(struct ether_hdr) + (const char *)&recv_packet);
+        const ip_hdr_t *ip_hdr = (const ip_hdr_t *)
+            (sizeof(ether_hdr_t) + (const char *)&recv_packet);
 
-        packet_len = ntoh16(ip_hdr->length) + sizeof(struct ether_hdr);
+        packet_len = ntoh16(ip_hdr->length) + sizeof(ether_hdr_t);
     }
 
     // update the BNRY register... almost forgot that
@@ -229,12 +471,89 @@ POLL_END:
 
 
 /**
- *  @brief Initializes rtl8029 device.
+ * @funcname `rtl8029_init`
  *
- *  Seeks and registers PCI interface, set configuration and fills the
- *  dev structure.
+ * @description
+ * Initializes the card: its registers (receive ring, no interrupts: POK uses
+ * polling) and its MAC address, read from its PROM (each byte is there twice).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pci_dev` | `pci_dev_t *` | [in] The PCI device. |
+ * | `drv_info` | `ne2000_dev_t *` | [in,out] The card. |
+ *
+ * @return TRUE.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `buf` | `uint8_t[12]` | The PROM bytes |
+ * | `i` | `uint8_t` | The index of a byte of the MAC address |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `drv_info->addr` to `pci_dev`.
+ * 2. Set `i` to `0`.
+ * 3. Execute the assembly code `NE2000_SELECT_PAGE(drv_info, 0)`.
+ * 4. Execute the assembly code
+ *    `outb_inverse(NE2000_CR_STP, drv_info->addr + NE2000_CR)`.
+ * 5. Execute the assembly code
+ *    `outb_inverse(0x00, drv_info->addr + NE2000_TCR)`.
+ * 6. Execute the assembly code
+ *    `outb_inverse(NE2000_RCR_AB|NE2000_RCR_AR, drv_info->addr + NE2000_RCR)`.
+ * 7. Execute the assembly code
+ *    `outb_inverse(NE2000_DCR_LS | NE2000_DCR_FT1, drv_info->addr +`
+ *    `NE2000_DCR)`.
+ * 8. Execute the assembly code
+ *    `outb_inverse(NE2000_RXBUF, drv_info->addr + NE2000_PSTART)`.
+ * 9. Execute the assembly code
+ *    `outb_inverse(NE2000_MEMSZ, drv_info->addr + NE2000_PSTOP)`.
+ * 10. Execute the assembly code
+ *     `outb_inverse(NE2000_RXBUF, drv_info->addr + NE2000_BNRY)`.
+ * 11. Execute the assembly code
+ *     `outb_inverse(0, drv_info->addr + NE2000_RBCR0)`.
+ * 12. Execute the assembly code
+ *     `outb_inverse(0, drv_info->addr + NE2000_RBCR1)`.
+ * 13. Execute the assembly code `NE2000_SELECT_PAGE(drv_info, 1)`.
+ * 14. Execute the assembly code
+ *     `outb_inverse(NE2000_RXBUF + 1, drv_info->addr + NE2000_CURR)`.
+ * 15. Call `ne2000_read()` with the arguments `drv_info`, `buf`, `6 * 2` and
+ *     `0`.
+ * 16. Set `i` to `0`; then while `i` is less than `6`, repeat (after each pass:
+ *     increment `i`):
+ *     1. Set `drv_info->mac[i]` to `buf[i * 2]`.
+ * 17. Execute the assembly code
+ *     `outb_inverse(drv_info->mac[0], drv_info->addr + NE2000_PAR0)`.
+ * 18. Execute the assembly code
+ *     `outb_inverse(drv_info->mac[1], drv_info->addr + NE2000_PAR1)`.
+ * 19. Execute the assembly code
+ *     `outb_inverse(drv_info->mac[2], drv_info->addr + NE2000_PAR2)`.
+ * 20. Execute the assembly code
+ *     `outb_inverse(drv_info->mac[3], drv_info->addr + NE2000_PAR3)`.
+ * 21. Execute the assembly code
+ *     `outb_inverse(drv_info->mac[4], drv_info->addr + NE2000_PAR4)`.
+ * 22. Execute the assembly code
+ *     `outb_inverse(drv_info->mac[5], drv_info->addr + NE2000_PAR5)`.
+ * 23. Execute the assembly code `NE2000_SELECT_PAGE(drv_info, 0)`.
+ * 24. Execute the assembly code
+ *     `outb_inverse(NE2000_CR_STA, drv_info->addr + NE2000_CR)`.
+ * 25. Execute the assembly code
+ *     `outb_inverse(0xFF, drv_info->addr + NE2000_ISR)`.
+ * 26. Execute the assembly code
+ *     `outb_inverse(0x00, drv_info->addr + NE2000_IMR)`.
+ * 27. Return `TRUE`.
+ *
+ * @calls
+ * - `ne2000_read()`
  */
-static int32_t rtl8029_init (struct pci_dev *pci_dev, s_ne2000_dev *drv_info)
+static int32_t rtl8029_init (pci_dev_t *pci_dev, ne2000_dev_t *drv_info)
 {
     // dev.pci.vendorid = 0x10ec;
     // dev.pci.deviceid = 0x8029;
@@ -313,6 +632,67 @@ static int32_t rtl8029_init (struct pci_dev *pci_dev, s_ne2000_dev *drv_info)
     return TRUE;
 }
 
+/**
+ * @funcname `send_frame_gather`
+ *
+ * @description
+ * Sends a frame (one buffer only: real gathering isn't supported) by writing it
+ * into the card's memory and starting the transmission; the callback is called
+ * at once.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `netdev` | `pok_netdevice_t *` | [in] The network device. |
+ * | `sg_list` | `const pok_network_sg_list_t *` | [in] The buffers. |
+ * | `sg_list_len` | `size_t` | [in] Their number (1). |
+ * | `callback` | `pok_network_buffer_callback_t` | [in] Called when the buffer can be reused. |
+ * | `callback_arg` | `void *` | [in] Its argument. |
+ *
+ * @return TRUE, or FALSE for more than one buffer.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `buf` | `char *` | The frame |
+ * | `buf_len` | `size_t` | Its length |
+ * | `drv_info` | `ne2000_dev_t *` | The card |
+ * | `state` | `uint8_t` | The interrupt status |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `sg_list_len` is not equal to `1`:
+ *    1. Call `printf()` with the argument
+ *       `"In ne2000 driver real gathering is not supported yet"`.
+ *    2. Return `FALSE`.
+ * 2. Call `ne2000_write()` with the arguments `drv_info`, `buf`, `buf_len` and
+ *    `NE2000_TXBUF * 256`.
+ * 3. Repeat the following while `(state & NE2000_ISR_RDC)` is not equal to
+ *    `NE2000_ISR_RDC` (at least once):
+ *    1. Set `state` to `inb(drv_info->addr + NE2000_ISR)`.
+ * 4. Execute the assembly code
+ *    `outb_inverse(NE2000_TXBUF, drv_info->addr + NE2000_TPSR)`.
+ * 5. Execute the assembly code
+ *    `outb_inverse(buf_len, drv_info->addr + NE2000_TBCR0)`.
+ * 6. Execute the assembly code
+ *    `outb_inverse(buf_len >> 8, drv_info->addr + NE2000_TBCR1)`.
+ * 7. Execute the assembly code
+ *    `outb_inverse(inb(drv_info->addr + NE2000_CR) | NE2000_CR_TXP,`
+ *    `drv_info->addr + NE2000_CR)`.
+ * 8. Execute the assembly code
+ *    `outb_inverse(NE2000_ISR_RDC, drv_info->addr + NE2000_ISR)`.
+ * 9. Return `TRUE`.
+ *
+ * @calls
+ * - `printf()`
+ * - `ne2000_write()`
+ */
 static pok_bool_t send_frame_gather(
         pok_netdevice_t *netdev,
         const pok_network_sg_list_t *sg_list,
@@ -325,7 +705,7 @@ static pok_bool_t send_frame_gather(
         return FALSE;
     }
 
-    s_ne2000_dev *drv_info = netdev->info;
+    ne2000_dev_t *drv_info = netdev->info;
 
     char *buf = sg_list[0].buffer;
     size_t buf_len = sg_list[0].size;
@@ -360,15 +740,78 @@ static pok_bool_t send_frame_gather(
 }
 
 
+/**
+ * @funcname `set_packet_received_callback`
+ *
+ * @description
+ * Sets the function called for each received packet.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `netdev` | `pok_netdevice_t *` | [in] The network device. |
+ * | `f` | `void (*)(const char *, size_t)` | [in] The function. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `drv_info` | `ne2000_dev_t *` | The card |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `drv_info->packet_received_callback` to `f`.
+ *
+ * @calls
+ * None.
+ */
 static void set_packet_received_callback(
         pok_netdevice_t *netdev,
         void (*f)(const char *, size_t))
 {
-    s_ne2000_dev *drv_info = netdev->info;
+    ne2000_dev_t *drv_info = netdev->info;
     drv_info->packet_received_callback = f;
 }
 
 
+/**
+ * @funcname `send_frame`
+ *
+ * @description
+ * Sends a frame from one buffer.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `netdev` | `pok_netdevice_t *` | [in] The network device. |
+ * | `buffer` | `char *` | [in] The frame. |
+ * | `size` | `size_t` | [in] Its size. |
+ * | `callback` | `pok_network_buffer_callback_t` | [in] Called when the buffer can be reused. |
+ * | `callback_arg` | `void *` | [in] Its argument. |
+ *
+ * @return The result of send_frame_gather().
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 static pok_bool_t send_frame(
         pok_netdevice_t *netdev,
         char *buffer,
@@ -380,16 +823,98 @@ static pok_bool_t send_frame(
     return send_frame_gather(netdev, sg_list, 1, callback, callback_arg);
 }
 
+/**
+ * @funcname `reclaim_send_buffers`
+ *
+ * @description
+ * Reclaims the sent buffers: nothing to do (the callback was called when
+ * sending).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `netdev` | `pok_netdevice_t *` | [in] The network device (not used). |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 static void reclaim_send_buffers(pok_netdevice_t *netdev)
 {
     (void) netdev;
 }
 
+/**
+ * @funcname `reclaim_receive_buffers`
+ *
+ * @description
+ * Handles the received packets: polls the card.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `netdev` | `pok_netdevice_t *` | [in] The network device. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 static void reclaim_receive_buffers(pok_netdevice_t *netdev)
 {
     rtl8029_polling(netdev);
 }
 
+/**
+ * @funcname `flush_send`
+ *
+ * @description
+ * Flushes the sent frames: nothing to do.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `netdev` | `pok_netdevice_t *` | [in] The network device (not used). |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 static void flush_send(pok_netdevice_t *netdev)
 {
 }
@@ -403,10 +928,54 @@ static const pok_network_driver_ops_t driver_ops = {
     .flush_send = flush_send,
 };
 
-static pok_bool_t probe_device(struct pci_dev *pci_dev)
+/**
+ * @funcname `probe_device`
+ *
+ * @description
+ * Probes a card found on PCI: initializes it and registers it as a network
+ * device named `ne2000-net<n>`.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `pci_dev` | `pci_dev_t *` | [in] The PCI device. |
+ *
+ * @return TRUE.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dev_count` | `static int32_t` | The number of cards registered |
+ * | `drv_info` | `ne2000_dev_t *` | The card |
+ * | `name` | `char *` | The name of the network device |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `smalloc()` with the argument `sizeof(*drv_info)`, and store the
+ *    result in `drv_info`.
+ * 2. Call `rtl8029_init()` with the arguments `pci_dev` and `drv_info`.
+ * 3. Call `smalloc()` with the argument `DEV_NAME_MAXLEN`, and store the result
+ *    in `name`.
+ * 4. Call `snprintf()` with the arguments `name`, `30`, `DEV_NAME_PREFIX"%%d"`
+ *    and `dev_count`.
+ * 5. Add `1` to `dev_count`.
+ * 6. Return `TRUE`.
+ *
+ * @calls
+ * - `smalloc()`
+ * - `rtl8029_init()`
+ * - `snprintf()`
+ */
+static pok_bool_t probe_device(pci_dev_t *pci_dev)
 {
     static int32_t dev_count = 0;
-    s_ne2000_dev *drv_info =  smalloc(sizeof(*drv_info));
+    ne2000_dev_t *drv_info =  smalloc(sizeof(*drv_info));
     rtl8029_init(pci_dev, drv_info);
 
     /* Register netdevice */
@@ -434,6 +1003,28 @@ struct pci_driver ne2000_pci_driver = {
     .id_table = ne2000_pci_tbl
 };
 
+/**
+ * @funcname `ne2000_net_init`
+ *
+ * @description
+ * Registers the NE2000 PCI driver.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
 void ne2000_net_init()
 {
     register_pci_driver(&ne2000_pci_driver);

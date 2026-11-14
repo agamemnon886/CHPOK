@@ -15,6 +15,12 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct jet_iostream is the typedef
+ * jet_iostream_t; Doxygen comments for the file and its types.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef JET_ASP_CONS_H
@@ -22,45 +28,48 @@
 
 #include <types.h>
 
-/*
+/**
+ * @typename `jet_iostream_t`
+ *
+ * @description
  * I/O stream.
  */
-struct jet_iostream
-{
-    /*
+typedef struct {
+    /**
      * Write given string of given length into stream.
-     * 
+     *
      * Return number of characters which has been written.
-     * 
+     *
      * Never return 0.
-     * 
+     *
      * TODO: Is returning error should be supported?
-     * 
+     *
      * NULL means that writing is not supported.
      */
     size_t (*write)(const char* s, size_t length);
 
-    /*
+    /**
      * Read from the stream into given string.
-     * 
+     *
      * At most 'length' characters will be read.
-     * 
-     * Return number of characters which has been read.
-     * Return 0 if there is no available characters in the stream.
-     * 
+     *
+     * Return number of characters which has been read. Return 0 if there is no
+     * available characters in the stream.
+     *
      * TODO: Is returning error should be supported?
-     * 
+     *
      * NULL means that reading is not supported.
      */
     size_t (*read)(char* s, size_t length);
     
-    /* If not NULL, this function should be called before use
-     * .write and .read methods.
-     * 
+    /**
+     * If not NULL, this function should be called before use .write and .read
+     * methods.
+     *
      * NOTE: This function may be called many times.
      */
     void (*init)(void);
-};
+} jet_iostream_t;
 
 /* 
  * Default streams provided by arch.
@@ -69,12 +78,12 @@ struct jet_iostream
  */
 
 /* Default arch stream for reading. */
-extern struct jet_iostream* ja_stream_default_read;
+extern jet_iostream_t* ja_stream_default_read;
 /* Default arch stream for writting. */
-extern struct jet_iostream* ja_stream_default_write;
+extern jet_iostream_t* ja_stream_default_write;
 /* Default additional arch stream for reading. */
-extern struct jet_iostream* ja_stream_default_read_debug;
+extern jet_iostream_t* ja_stream_default_read_debug;
 /* Default additional arch stream for writting. */
-extern struct jet_iostream* ja_stream_default_write_debug;
+extern jet_iostream_t* ja_stream_default_write_debug;
 
 #endif /* JET_ASP_CONS_H */

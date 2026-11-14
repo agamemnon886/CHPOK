@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)e_fmod.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_fmod()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /*
  * __ieee754_fmod(x,y)
  * Return x mod y in exact arithmetic
@@ -39,6 +52,154 @@
 
 static const double one = 1.0, Zero[] = {0.0, -0.0,};
 
+/**
+ * @funcname `__ieee754_fmod`
+ *
+ * @description
+ * Computes the remainder of x/y with the sign of x: the IEEE 754 core of
+ * fmod().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ * | `y` | `double` | [in] The second argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `Zero` | `const double[2]` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `hx` | `int32_t` | The high word of x |
+ * | `hy` | `int32_t` | The high word of y |
+ * | `hz` | `int32_t` | A temporary of the computation |
+ * | `i` | `int32_t` | A temporary of the computation |
+ * | `ix` | `int32_t` | A temporary of the computation |
+ * | `iy` | `int32_t` | A temporary of the computation |
+ * | `lx` | `uint32_t` | The low word of x |
+ * | `ly` | `uint32_t` | The low word of y |
+ * | `lz` | `uint32_t` | A temporary of the computation |
+ * | `n` | `int32_t` | A temporary of the computation |
+ * | `sx` | `int32_t` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `EXTRACT_WORDS()` with the arguments `hx`, `lx` and `x`.
+ * 2. Use the macro `EXTRACT_WORDS()` with the arguments `hy`, `ly` and `y`.
+ * 3. Set `sx` to `hx&0x80000000`.
+ * 4. Toggle the bits `sx` in `hx`.
+ * 5. Keep only the bits `0x7fffffff` of `hy`.
+ * 6. If `(hy|ly)` is equal to `0` or `hx` is greater than or equal to
+ *    `0x7ff00000` or `(hy|((ly|-ly)>>31))` is greater than `0x7ff00000`:
+ *    1. Return `(x*y)/(x*y)`.
+ * 7. If `hx` is less than or equal to `hy`:
+ *    1. If `hx` is less than `hy` or `lx` is less than `ly`:
+ *       1. Return `x`.
+ *    2. If `lx` is equal to `ly`:
+ *       1. Return `Zero[(uint32_t)sx>>31]`.
+ * 8. If `hx` is less than `0x00100000`:
+ *    1. If `hx` is equal to `0`:
+ *       1. Set `ix` to `-1043`. Set `i` to `lx`; then while `i` is greater
+ *          than `0`, repeat (after each pass: shift `i` left by `1` bits):
+ *          1. Subtract `1` from `ix`.
+ *    2. Otherwise:
+ *       1. Set `ix` to `-1022`. Set `i` to `(hx<<11)`; then while `i` is
+ *          greater than `0`, repeat (after each pass: shift `i` left by `1`
+ *          bits):
+ *          1. Subtract `1` from `ix`.
+ * 9. Otherwise:
+ *    1. Set `ix` to `(hx>>20)-1023`.
+ * 10. If `hy` is less than `0x00100000`:
+ *     1. If `hy` is equal to `0`:
+ *        1. Set `iy` to `-1043`. Set `i` to `ly`; then while `i` is greater
+ *           than `0`, repeat (after each pass: shift `i` left by `1` bits):
+ *           1. Subtract `1` from `iy`.
+ *     2. Otherwise:
+ *        1. Set `iy` to `-1022`. Set `i` to `(hy<<11)`; then while `i` is
+ *           greater than `0`, repeat (after each pass: shift `i` left by `1`
+ *           bits):
+ *           1. Subtract `1` from `iy`.
+ * 11. Otherwise:
+ *     1. Set `iy` to `(hy>>20)-1023`.
+ * 12. If `ix` is greater than or equal to `-1022`:
+ *     1. Set `hx` to `0x00100000|(0x000fffff&hx)`.
+ * 13. Otherwise:
+ *     1. Set `n` to `-1022-ix`.
+ *     2. If `n` is less than or equal to `31`:
+ *        1. Set `hx` to `(hx<<n)|(lx>>(32-n))`.
+ *        2. Shift `lx` left by `n` bits.
+ *     3. Otherwise:
+ *        1. Set `hx` to `lx<<(n-32)`.
+ *        2. Set `lx` to `0`.
+ * 14. If `iy` is greater than or equal to `-1022`:
+ *     1. Set `hy` to `0x00100000|(0x000fffff&hy)`.
+ * 15. Otherwise:
+ *     1. Set `n` to `-1022-iy`.
+ *     2. If `n` is less than or equal to `31`:
+ *        1. Set `hy` to `(hy<<n)|(ly>>(32-n))`.
+ *        2. Shift `ly` left by `n` bits.
+ *     3. Otherwise:
+ *        1. Set `hy` to `ly<<(n-32)`.
+ *        2. Set `ly` to `0`.
+ * 16. Set `n` to `ix - iy`.
+ * 17. While `n--` is true:
+ *     1. Set `hz` to `hx-hy`.
+ *     2. Set `lz` to `lx-ly`.
+ *     3. If `lx` is less than `ly`:
+ *        1. Subtract `1` from `hz`.
+ *     4. If `hz` is less than `0`:
+ *        1. Set `hx` to `hx+hx+(lx>>31)`.
+ *        2. Set `lx` to `lx+lx`.
+ *     5. Otherwise:
+ *        1. If `(hz|lz)` is equal to `0`:
+ *           1. Return `Zero[(uint32_t)sx>>31]`.
+ *        2. Set `hx` to `hz+hz+(lz>>31)`.
+ *        3. Set `lx` to `lz+lz`.
+ * 18. Set `hz` to `hx-hy`.
+ * 19. Set `lz` to `lx-ly`.
+ * 20. If `lx` is less than `ly`:
+ *     1. Subtract `1` from `hz`.
+ * 21. If `hz` is greater than or equal to `0`:
+ *     1. Set `hx` to `hz`.
+ *     2. Set `lx` to `lz`.
+ * 22. If `(hx|lx)` is equal to `0`:
+ *     1. Return `Zero[(uint32_t)sx>>31]`.
+ * 23. While `hx` is less than `0x00100000`:
+ *     1. Set `hx` to `hx+hx+(lx>>31)`.
+ *     2. Set `lx` to `lx+lx`.
+ *     3. Subtract `1` from `iy`.
+ * 24. If `iy` is greater than or equal to `-1022`:
+ *     1. Set `hx` to `((hx-0x00100000)|((iy+1023)<<20))`.
+ *     2. Use the macro `INSERT_WORDS()` with the arguments `x`, `hx|sx` and
+ *        `lx`.
+ * 25. Otherwise:
+ *     1. Set `n` to `-1022 - iy`.
+ *     2. If `n` is less than or equal to `20`:
+ *        1. Set `lx` to `(lx>>n)|((uint32_t)hx<<(32-n))`.
+ *        2. Shift `hx` right by `n` bits.
+ *     3. Otherwise, if `n` is less than or equal to `31`:
+ *        1. Set `lx` to `(hx<<(32-n))|(lx>>n)`.
+ *        2. Set `hx` to `sx`.
+ *     4. Otherwise:
+ *        1. Set `lx` to `hx>>(n-32)`.
+ *        2. Set `hx` to `sx`.
+ *     5. Use the macro `INSERT_WORDS()` with the arguments `x`, `hx|sx` and
+ *        `lx`.
+ *     6. Multiply `x` by `one`.
+ * 26. Return `x`.
+ *
+ * @calls
+ * None.
+ */
 double
 __ieee754_fmod(double x, double y)
 {

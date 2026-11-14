@@ -32,6 +32,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-05: the GDB server is initialized
  * (debug exceptions are enabled in the kernel).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * The architecture's initialization and CPU control on arm64: the IRQ
+ * mask, waiting for interrupts and resetting the CPU.
  */
 
 #include <errno.h>
@@ -43,7 +52,37 @@
 #include "sysreg.h"
 #include "interrupt.h"
 
-/* Called from entry.S with the MMU off. */
+/**
+ * @funcname `pok_arch_init`
+ *
+ * @description
+ * Initializes the architecture at boot (from entry.S, with the MMU off): the
+ * consoles (they work with the MMU off, so configuration errors can be
+ * reported), the MMU (until then all memory is device memory), the board and
+ * the GDB server's debug setup.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `jet_console_init_all()`.
+ * 2. Call `ja_space_init()`.
+ * 3. Call `ja_bsp_init()`.
+ * 4. Call `ja_gdb_init()`.
+ *
+ * @calls
+ * - `jet_console_init_all()`
+ * - `ja_space_init()`
+ * - `ja_bsp_init()`
+ * - `ja_gdb_init()`
+ */
 void pok_arch_init (void)
 {
   // Console works with the MMU off, so configuration errors can be reported.
@@ -56,6 +95,28 @@ void pok_arch_init (void)
 #endif /* POK_NEEDS_GDB */
 }
 
+/**
+ * @funcname `ja_preempt_disable`
+ *
+ * @description
+ * Masks IRQs (DAIF.I).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `msr daifset, #2`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this file): privileged
  * instructions are written as GNU inline assembly, each isolated in a small
@@ -66,16 +127,85 @@ void ja_preempt_disable(void)
   asm volatile ("msr daifset, #2" ::: "memory");
 }
 
+/**
+ * @funcname `ja_preempt_enable`
+ *
+ * @description
+ * Unmasks IRQs (DAIF.I).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Execute the assembly code `msr daifclr, #2`.
+ *
+ * @calls
+ * None.
+ */
 void ja_preempt_enable(void)
 {
   asm volatile ("msr daifclr, #2" ::: "memory");
 }
 
+/**
+ * @funcname `ja_preempt_enabled`
+ *
+ * @description
+ * Tells whether IRQs are unmasked.
+ *
+ * @return TRUE if they are.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `((read_sysreg(daif) & DAIF_I) == 0U)`.
+ *
+ * @calls
+ * None.
+ */
 pok_bool_t ja_preempt_enabled(void)
 {
   return ((read_sysreg(daif) & DAIF_I) == 0U);
 }
 
+/**
+ * @funcname `ja_inf_loop`
+ *
+ * @description
+ * Waits for interrupts forever (wfi in a loop).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. While `true` is true:
+ *    1. Execute the assembly code `wfi`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Dir 1.2 deviation: _Noreturn is a C11 keyword, accepted by GCC
  * in gnu99 mode; it tells the compiler and the reader that the function
@@ -89,6 +219,28 @@ _Noreturn void ja_inf_loop(void)
    }
 }
 
+/**
+ * @funcname `ja_cpu_reset`
+ *
+ * @description
+ * Resets the CPU (through the board: PSCI).
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `ja_bsp_reset()`.
+ *
+ * @calls
+ * - `ja_bsp_reset()`
+ */
 void ja_cpu_reset(void)
 {
     ja_bsp_reset();

@@ -26,12 +26,23 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct jet_interrupt_context is
+ * defined here without a typedef: its typedef, interrupt_frame, is declared in
+ * asp/cswitch.h (included here), which the rest of the kernel uses by pointer;
+ * Doxygen comments for the file and the members of its types; the types and
+ * macros defined in the same way for x86_64 are documented with their x86_64
+ * definitions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef JA_ARM64_INTERRUPT_FRAME
 #define JA_ARM64_INTERRUPT_FRAME
 
 #include <stdint.h>
+#include <asp/cswitch.h>
 
 /*
  * Registers saved on exception entry (see vectors.S).
@@ -39,13 +50,16 @@
  * Layout is used by assembler code: keep INTERRUPT_FRAME_* in
  * vectors.S in sync. Size is a multiple of 16, so the stack stays
  * aligned.
+ *
+ * Documented with its x86_64 definition:
+ * kernel/arch/x86_64/include/arch/interrupt_frame.h.
  */
-typedef struct jet_interrupt_context
+struct jet_interrupt_context
 {
-  uint64_t x[31];   /* x0 - x30 */
-  uint64_t sp_el0;  /* user stack pointer */
-  uint64_t elr;     /* return address */
-  uint64_t spsr;    /* saved processor state */
-} interrupt_frame;
+  uint64_t x[31]; /**< arm64: x0 - x30. */
+  uint64_t sp_el0; /**< arm64: user stack pointer. */
+  uint64_t elr; /**< arm64: return address. */
+  uint64_t spsr; /**< arm64: saved processor state. */
+};
 
 #endif /* JA_ARM64_INTERRUPT_FRAME */

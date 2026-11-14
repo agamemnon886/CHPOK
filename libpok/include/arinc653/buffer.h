@@ -18,6 +18,9 @@
  * parameters and the message parameter of the send or write service are
  * const (they are only read), so callers can pass string literals and
  * const data.
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -25,7 +28,6 @@
 #include <config.h>
 
 #ifdef POK_NEEDS_ARINC653_BUFFER
-
 
 /*----------------------------------------------------------------*/ 
 /*                                                                */ 
@@ -37,27 +39,64 @@
 #define APEX_BUFFER 
 
 #ifndef POK_NEEDS_ARINC653_PROCESS
+
+/* Documented in libpok/include/config.h. */
 #define POK_NEEDS_ARINC653_PROCESS
 #endif
 
 #include <arinc653/types.h>
 #include <arinc653/process.h>
  
+/**
+ * @macroname `MAX_NUMBER_OF_BUFFERS`
+ *
+ * @description
+ * The maximum number of buffers of a partition
+ * (SYSTEM_LIMIT_NUMBER_OF_BUFFERS).
+ */
 #define  MAX_NUMBER_OF_BUFFERS    SYSTEM_LIMIT_NUMBER_OF_BUFFERS 
  
+/**
+ * @typename `BUFFER_NAME_TYPE`
+ *
+ * @description
+ * The name of a buffer.
+ */
 typedef  NAME_TYPE       BUFFER_NAME_TYPE; 
  
+/**
+ * @typename `BUFFER_ID_TYPE`
+ *
+ * @description
+ * The identifier of a buffer.
+ */
 typedef  APEX_INTEGER    BUFFER_ID_TYPE; 
  
+/**
+ * @typename `BUFFER_STATUS_TYPE`
+ *
+ * @description
+ * The status of a buffer (GET_BUFFER_STATUS()).
+ */
 typedef struct { 
+   /**
+    * The number of messages in the buffer.
+    */
    MESSAGE_RANGE_TYPE  NB_MESSAGE; 
+   /**
+    * The capacity of the buffer, in messages.
+    */
    MESSAGE_RANGE_TYPE  MAX_NB_MESSAGE; 
-   MESSAGE_SIZE_TYPE   MAX_MESSAGE_SIZE;
+   MESSAGE_SIZE_TYPE   MAX_MESSAGE_SIZE; /**< The maximum size of a message. */
+   /**
+    * The number of processes waiting.
+    */
    WAITING_RANGE_TYPE  WAITING_PROCESSES;
 } BUFFER_STATUS_TYPE; 
  
  
  
+/** \cond */
 extern void CREATE_BUFFER ( 
        /*in */ const BUFFER_NAME_TYPE         BUFFER_NAME, 
        /*in */ MESSAGE_SIZE_TYPE        MAX_MESSAGE_SIZE, 
@@ -89,6 +128,7 @@ extern void GET_BUFFER_STATUS (
        /*in */ BUFFER_ID_TYPE           BUFFER_ID, 
        /*out*/ BUFFER_STATUS_TYPE       *BUFFER_STATUS, 
        /*out*/ RETURN_CODE_TYPE         *RETURN_CODE ); 
+/** \endcond */
  
 #endif 
 #endif

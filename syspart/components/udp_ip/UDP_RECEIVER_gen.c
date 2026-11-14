@@ -28,6 +28,21 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-07: the activity function of a
  * component without an activity discards its unused parameter.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions (the format of the function documentation, see
+ * README.md).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: in @design, each string
+ * literal of the "WRONG CONFIG" message is a code span of its own; the
+ * parameters' directions come from the interface (args_dir).
+ */
+
+/**
+ * @file
+ * The glue code of the component UDP_RECEIVER: the wrappers of its
+ * in ports, the calls of its out ports, and its init and activity
+ * functions (generated from misc/templates/component.c.tpl).
  */
 
 #include <lib/common.h>
@@ -35,7 +50,45 @@
 
 
 
-    static ret_t wrapper_udp_receive(
+
+
+
+/**
+ * @funcname `wrapper_udp_receive`
+ *
+ * @description
+ * The handle operation of the in port portA: calls
+ * udp_receive() of the component.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `arg0` | `self_t *` | [in] The component. |
+ * | `arg1` | `const char *` | [in] Argument 1 of handle. |
+ * | `arg2` | `size_t` | [in] Argument 2 of handle. |
+ *
+ * @return The result of udp_receive().
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `udp_receive()` with the arguments
+ *    `(UDP_RECEIVER*) arg0`,
+ *    `arg1` and
+ *    `arg2`, and return its result.
+ *
+ * @calls
+ * - `udp_receive()`
+ */
+    static ret_e wrapper_udp_receive(
         self_t *arg0, const char * arg1, size_t arg2)
     {
         return udp_receive((UDP_RECEIVER*) arg0, arg1, arg2);
@@ -43,7 +96,52 @@
 
 
 
-      ret_t UDP_RECEIVER_call_portB_udp_message_handle(UDP_RECEIVER *self, const char * arg1, size_t arg2, uint32_t arg3, uint16_t arg4)
+/**
+ * @funcname `UDP_RECEIVER_call_portB_udp_message_handle`
+ *
+ * @description
+ * Calls the udp_message_handle operation of the component linked to the out
+ * port portB; a port that
+ * isn't linked is reported (a configuration error).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `self` | `UDP_RECEIVER *` | [in] The component. |
+ * | `arg1` | `const char *` | [in] Argument 1 of udp_message_handle. |
+ * | `arg2` | `size_t` | [in] Argument 2 of udp_message_handle. |
+ * | `arg3` | `uint32_t` | [in] Argument 3 of udp_message_handle. |
+ * | `arg4` | `uint16_t` | [in] Argument 4 of udp_message_handle. |
+ *
+ * @return The result of the operation.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. If `self->out.portB.ops` is NULL:
+ *    1. Call `printf()` with the argument
+ *       `"WRONG CONFIG: out port portB of component "`
+ *       `"UDP_RECEIVER was not initialized\n"`.
+ * 2. Call the function `self->out.portB.ops->udp_message_handle` with the arguments
+ *    `self->out.portB.owner`,
+ *    `arg1`,
+ *    `arg2`,
+ *    `arg3` and
+ *    `arg4`, and return its result.
+ *
+ * @calls
+ * - `printf()`
+ * - `self->out.portB.ops->udp_message_handle()` (indirect)
+ */
+      ret_e UDP_RECEIVER_call_portB_udp_message_handle(UDP_RECEIVER *self, const char * arg1, size_t arg2, uint32_t arg3, uint16_t arg4)
       {
          if (self->out.portB.ops == NULL) {
              (void) printf("WRONG CONFIG: out port portB of component "
@@ -54,12 +152,68 @@
       }
 
 
+/**
+ * @funcname `__UDP_RECEIVER_init__`
+ *
+ * @description
+ * Initializes the component (from the glue code at partition start): the
+ * operations of its in ports.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `self` | `UDP_RECEIVER *` | [out] The component. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `self->in.portA.ops.handle` to `wrapper_udp_receive`.
+ *
+ * @calls
+ * None.
+ */
 void __UDP_RECEIVER_init__(UDP_RECEIVER *self)
 {
             self->in.portA.ops.handle = wrapper_udp_receive;
 
 }
 
+/**
+ * @funcname `__UDP_RECEIVER_activity__`
+ *
+ * @description
+ * One step of the component's activity (called in the loop of the glue
+ * code): the component has none.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `self` | `UDP_RECEIVER *` | [in] The component. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Mark `self` as not used.
+ *
+ * @calls
+ * None.
+ */
 void __UDP_RECEIVER_activity__(UDP_RECEIVER *self)
 {
         (void) self; // the component has no activity

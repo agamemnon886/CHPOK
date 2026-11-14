@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 13:44:27 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros of
+ * libpok/libm/k_standard.c are moved here.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /*
@@ -38,16 +47,60 @@
 
 #include <types.h>
 
+/**
+ * @macroname `_IEEE_LIBM`
+ *
+ * @description
+ * The library follows IEEE 754 only (no SVID or POSIX error handling).
+ */
 #define _IEEE_LIBM 1
 
+/**
+ * @macroname `_LIB_VERSION`
+ *
+ * @description
+ * The error handling of the library: _POSIX_.
+ */
 #define _LIB_VERSION   1
+
+/**
+ * @macroname `_POSIX_`
+ *
+ * @description
+ * The POSIX error handling (_LIB_VERSION).
+ */
 #define _POSIX_        1
+
+/**
+ * @macroname `_SVID_`
+ *
+ * @description
+ * The SVID error handling (_LIB_VERSION).
+ */
 #define _SVID_         2
+
+/**
+ * @macroname `_IEEE_`
+ *
+ * @description
+ * The IEEE 754 error handling (_LIB_VERSION).
+ */
 #define _IEEE_         3
 
 extern int signgam;
 
-#define __P(protos)     protos          /* full-blown ANSI C */
+/**
+ * @macroname `__P`
+ *
+ * @description
+ * The prototype `protos` as it is (a full-blown ANSI C compiler).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `protos` | The parameter list of a prototype. |
+ */
+#define __P(protos)     protos
 
 
 /* The original fdlibm code used statements like:
@@ -85,19 +138,41 @@ typedef union
 */
 #if (BYTE_ORDER == LITTLE_ENDIAN) && \
     !(defined(__arm__) && !defined(__VFP_FP__))
+
+/**
+ * @typename `ieee_double_shape_type`
+ *
+ * @description
+ * A double and its two 32-bit words (on a little endian machine), to get or set
+ * its bits without non-ANSI pointer casts.
+ */
 typedef union
 {
-  double value;
+  double value; /**< The double. */
   struct
   {
     uint32_t lsw;
     uint32_t msw;
   } parts;
+  /**<
+   * Its words: lsw, the less significant, and msw, the more significant.
+   */
 } ieee_double_shape_type;
 #endif
 
-/* Get two 32 bit ints from a double.  */
-
+/**
+ * @macroname `EXTRACT_WORDS`
+ *
+ * @description
+ * Gets the two 32-bit words of a double.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `ix0` | Receives the more significant word. |
+ * | `ix1` | Receives the less significant word. |
+ * | `d` | The double. |
+ */
 #define EXTRACT_WORDS(ix0,ix1,d)				\
 do {								\
   ieee_double_shape_type ew_u;					\
@@ -106,8 +181,18 @@ do {								\
   (ix1) = ew_u.parts.lsw;					\
 } while (/*CONSTCOND*/0)
 
-/* Get the more significant 32 bit int from a double.  */
-
+/**
+ * @macroname `GET_HIGH_WORD`
+ *
+ * @description
+ * Gets the more significant 32-bit word of a double.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `i` | Receives the word. |
+ * | `d` | The double. |
+ */
 #define GET_HIGH_WORD(i,d)					\
 do {								\
   ieee_double_shape_type gh_u;					\
@@ -115,8 +200,18 @@ do {								\
   (i) = gh_u.parts.msw;						\
 } while (/*CONSTCOND*/0)
 
-/* Get the less significant 32 bit int from a double.  */
-
+/**
+ * @macroname `GET_LOW_WORD`
+ *
+ * @description
+ * Gets the less significant 32-bit word of a double.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `i` | Receives the word. |
+ * | `d` | The double. |
+ */
 #define GET_LOW_WORD(i,d)					\
 do {								\
   ieee_double_shape_type gl_u;					\
@@ -124,8 +219,19 @@ do {								\
   (i) = gl_u.parts.lsw;						\
 } while (/*CONSTCOND*/0)
 
-/* Set a double from two 32 bit ints.  */
-
+/**
+ * @macroname `INSERT_WORDS`
+ *
+ * @description
+ * Sets a double from two 32-bit words.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `d` | Receives the double. |
+ * | `ix0` | The more significant word. |
+ * | `ix1` | The less significant word. |
+ */
 #define INSERT_WORDS(d,ix0,ix1)					\
 do {								\
   ieee_double_shape_type iw_u;					\
@@ -134,8 +240,18 @@ do {								\
   (d) = iw_u.value;						\
 } while (/*CONSTCOND*/0)
 
-/* Set the more significant 32 bits of a double from an int.  */
-
+/**
+ * @macroname `SET_HIGH_WORD`
+ *
+ * @description
+ * Sets the more significant 32-bit word of a double.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `d` | The double changed. |
+ * | `v` | The word. |
+ */
 #define SET_HIGH_WORD(d,v)					\
 do {								\
   ieee_double_shape_type sh_u;					\
@@ -144,8 +260,18 @@ do {								\
   (d) = sh_u.value;						\
 } while (/*CONSTCOND*/0)
 
-/* Set the less significant 32 bits of a double from an int.  */
-
+/**
+ * @macroname `SET_LOW_WORD`
+ *
+ * @description
+ * Sets the less significant 32-bit word of a double.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `d` | The double changed. |
+ * | `v` | The word. |
+ */
 #define SET_LOW_WORD(d,v)					\
 do {								\
   ieee_double_shape_type sl_u;					\
@@ -154,17 +280,30 @@ do {								\
   (d) = sl_u.value;						\
 } while (/*CONSTCOND*/0)
 
-/* A union which permits us to convert between a float and a 32 bit
-   int.  */
-
+/**
+ * @typename `ieee_float_shape_type`
+ *
+ * @description
+ * A float and its 32-bit word, to get or set its bits.
+ */
 typedef union
 {
-  float value;
-  uint32_t word;
+  float value; /**< The float. */
+  uint32_t word; /**< Its bits. */
 } ieee_float_shape_type;
 
-/* Get a 32 bit int from a float.  */
-
+/**
+ * @macroname `GET_FLOAT_WORD`
+ *
+ * @description
+ * Gets the 32-bit word of a float.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `i` | Receives the word. |
+ * | `d` | The float. |
+ */
 #define GET_FLOAT_WORD(i,d)					\
 do {								\
   ieee_float_shape_type gf_u;					\
@@ -172,8 +311,18 @@ do {								\
   (i) = gf_u.word;						\
 } while (/*CONSTCOND*/0)
 
-/* Set a float from a 32 bit int.  */
-
+/**
+ * @macroname `SET_FLOAT_WORD`
+ *
+ * @description
+ * Sets a float from a 32-bit word.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `d` | Receives the float. |
+ * | `i` | The word. |
+ */
 #define SET_FLOAT_WORD(d,i)					\
 do {								\
   ieee_float_shape_type sf_u;					\
@@ -182,6 +331,7 @@ do {								\
 } while (/*CONSTCOND*/0)
 
 /* ieee style elementary functions */
+/** \cond */
 extern double __ieee754_sqrt __P((double));
 extern double __ieee754_acos __P((double));
 extern double __ieee754_acosh __P((double));
@@ -254,7 +404,71 @@ extern float __kernel_sinf __P((float,float,int));
 extern float __kernel_cosf __P((float,float));
 extern float __kernel_tanf __P((float,float,int));
 extern int   __kernel_rem_pio2f __P((float*,float*,int,int,int,const int*));
+/** \endcond */
 
+#ifndef _USE_WRITE
+#ifdef POK_NEEDS_LIBC_STDIO
+#include <libc/stdio.h>
+
+/**
+ * @macroname `WRITE2`
+ *
+ * @description
+ * Writes a message of libm to the console: with printf(), which ignores its
+ * length (POK_NEEDS_LIBC_STDIO, without _USE_WRITE).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `u` | The message. |
+ * | `v` | Its length. |
+ */
+#define	WRITE2(u,v)	printf (u)
+#else
+
+/**
+ * @macroname `WRITE2`
+ *
+ * @description
+ * Writes a message of libm: does nothing (without POK_NEEDS_LIBC_STDIO and
+ * _USE_WRITE).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `u` | The message. |
+ * | `v` | Its length. |
+ */
+#define	WRITE2(u,v)
+#endif /* POK_NEEDS_STDIO */
+#else	/* !defined(_USE_WRITE) */
+#include <unistd.h>			/* write */
+/**
+ * @macroname `WRITE2`
+ *
+ * @description
+ * Writes a message of libm to the standard error output with write()
+ * (_USE_WRITE).
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `u` | The message. |
+ * | `v` | Its length. |
+ */
+#define	WRITE2(u,v)	write(2, u, v)
+#undef fflush
+#endif	/* !defined(_USE_WRITE) */
+
+/**
+ * @macroname `POK_ERRNO_HUGE_VAL`
+ *
+ * @description
+ * The result of __kernel_standard() for a value too large: an infinity, its
+ * local variable inf, which it sets. This is the only routine that uses
+ * POK_ERRNO_HUGE_VAL.
+ */
+#define POK_ERRNO_HUGE_VAL inf
 
 #endif /* _MATH_PRIVATE_H_ */
 

@@ -25,33 +25,51 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
- * arch/x86_64/.
+ * arch/x86_64/. Doxygen headers for the file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
- * Nested page tables of the VMs: guest-physical [0, size) is mapped to
- * the VM's host RAM with 2 MiB pages (one PML4, PDPT and page directory
- * per VM, so at most 1 GiB). Everything else is unmapped: an access to it
- * is a nested page fault, which stops the VM.
+/**
+ * @file
+ * Nested page tables of the VMs: guest-physical [0, size) is mapped to the
+ * VM's host RAM with 2 MiB pages (one PML4, PDPT and page directory per VM,
+ * so at most 1 GiB). Everything else is unmapped: an access to it is a
+ * nested page fault, which stops the VM.
  */
 
 #include <arch/internal.h>
 
-#define NPT_ENTRIES     512U
-#define NPT_PRESENT     0x001UL
-#define NPT_WRITABLE    0x002UL
-#define NPT_USER        0x004UL     // Nested walks are user accesses
-#define NPT_LARGE       0x080UL
-#define NPT_TABLE       (NPT_PRESENT | NPT_WRITABLE | NPT_USER)
-#define NPT_PAGE        (NPT_TABLE | NPT_LARGE)
-
-typedef struct {
-    uint64_t pml4[NPT_ENTRIES];
-    uint64_t pdpt[NPT_ENTRIES];
-    uint64_t pd[NPT_ENTRIES];
-} npt_tables_t;
-
-// Physical address of a page table (identity-mapped).
+/**
+ * @funcname `npt_pa`
+ *
+ * @description
+ * Returns the physical address of a page table (identity-mapped).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `table` | `const uint64_t *` | [in] The page table. |
+ *
+ * @return Its physical address.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Return `(uint64_t) (uintptr_t) table`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Rule 11.4 deviation: the table entries hold the physical
  * addresses (identity-mapped) of the next-level tables.
@@ -61,7 +79,52 @@ static uint64_t npt_pa(const uint64_t *table)
     return (uint64_t) (uintptr_t) table;
 }
 
-// Build the tables of VM vm_index; returns the physical PML4 address.
+/**
+ * @funcname `npt_build`
+ *
+ * @description
+ * Builds the nested page tables of a VM: guest-physical [0, size) maps to
+ * the VM's host RAM with 2 MiB pages, the rest is absent.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `vm_index` | `uint32_t` | [in] The index of the VM. |
+ * | `ram_base` | `uint64_t` | [in] The host-physical start of the VM's RAM. |
+ * | `size` | `uint64_t` | [in] The VM's RAM size. |
+ *
+ * @return The physical address of the PML4.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `npt` | `static npt_tables_t[HV_MAX_VMS]` | The tables of the VMs |
+ * | `t` | `npt_tables_t *` | The tables of this VM |
+ * | `pages` | `uint64_t` | The number of 2 MiB pages |
+ * | `i` | `uint64_t` | The index of the page |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `t` to the address of `npt[vm_index]`.
+ * 2. Set `pages` to `size / HV_LARGE_PAGE_SIZE`.
+ * 3. Call `hv_memset()` with the arguments `t`, `0U` and `sizeof(*t)`.
+ * 4. Set `t->pml4[0]` to `npt_pa(t->pdpt) | NPT_TABLE`.
+ * 5. Set `t->pdpt[0]` to `npt_pa(t->pd) | NPT_TABLE`.
+ * 6. Set `i` to `0U`; then while `i` is less than `pages` and `i` is less than
+ *    `NPT_ENTRIES`, repeat (after each pass: increment `i`):
+ *    1. Set `t->pd[i]` to `(ram_base + (i * HV_LARGE_PAGE_SIZE)) | NPT_PAGE`.
+ * 7. Call `npt_pa()` with the argument `t->pml4`, and return its result.
+ *
+ * @calls
+ * - `hv_memset()`
+ * - `npt_pa()`
+ */
 uint64_t npt_build(uint32_t vm_index, uint64_t ram_base, uint64_t size)
 {
     static npt_tables_t npt[HV_MAX_VMS] HV_ALIGNED(4096);

@@ -15,6 +15,14 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 /*
@@ -28,12 +36,13 @@
 #ifndef JET_ASP_ENTRIES_H
 #define JET_ASP_ENTRIES_H
 
-/**
+/*
  * Starts the kernel.
  *
  * This function should be called after everything is ready for
  * start OS.
  */
+/** \cond */
 void jet_boot(void);
 
 /* 
@@ -47,6 +56,7 @@ void jet_console_init_all(void);
 
 /* Should be called on timer tick with interrupts disabled. */
 void jet_on_tick(void);
+/** \endcond */
 
 
 #endif /* JET_ASP_ENTRIES_H */

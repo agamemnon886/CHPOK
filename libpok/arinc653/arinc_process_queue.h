@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; msection_wq_t is used by its typedef name.
  */
 
 #ifndef LIBJET_ARINC_PROCESS_QUEUE_H
@@ -29,11 +33,13 @@
  */
 
 /* Add current process to the end of the waitqueue. */
-void arinc_process_queue_add(struct msection_wq* wq);
+/** \cond */
+void arinc_process_queue_add(msection_wq_t* wq);
 
 /* Add current process to the waitqueue according to discipline. */
-void arinc_process_queue_add_common(struct msection_wq* wq,
+void arinc_process_queue_add_common(msection_wq_t* wq,
     QUEUING_DISCIPLINE_TYPE discipline);
+/** \endcond */
 
 
 #endif /* LIBJET_ARINC_PROCESS_QUEUE_H */

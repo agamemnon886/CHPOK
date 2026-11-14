@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* e_j1f.c -- float version of e_j1.c.
@@ -29,6 +38,11 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_j1f()`, `__ieee754_y1f()`, ponef() and qonef() of libpok's math
+ * library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -56,6 +70,97 @@ s05  =  1.2354227016e-11; /* 0x2d59567e */
 
 static const float zero    = 0.0;
 
+/**
+ * @funcname `__ieee754_j1f`
+ *
+ * @description
+ * Computes the Bessel function of the first kind of order 1 of x, in float: the
+ * IEEE 754 core of j1f().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `huge` | `const float` | A constant of the algorithm |
+ * | `invsqrtpi` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `r00` | `const float` | A constant of the algorithm |
+ * | `r01` | `const float` | A constant of the algorithm |
+ * | `r02` | `const float` | A constant of the algorithm |
+ * | `r03` | `const float` | A constant of the algorithm |
+ * | `s01` | `const float` | A constant of the algorithm |
+ * | `s02` | `const float` | A constant of the algorithm |
+ * | `s03` | `const float` | A constant of the algorithm |
+ * | `s04` | `const float` | A constant of the algorithm |
+ * | `s05` | `const float` | A constant of the algorithm |
+ * | `zero` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `float` | A temporary of the computation |
+ * | `cc` | `float` | A temporary of the computation |
+ * | `hx` | `int32_t` | The bits of x |
+ * | `ix` | `int32_t` | The bits of x without the sign bit |
+ * | `r` | `float` | A temporary of the computation |
+ * | `s` | `float` | A temporary of the computation |
+ * | `ss` | `float` | A temporary of the computation |
+ * | `u` | `float` | A temporary of the computation |
+ * | `v` | `float` | A temporary of the computation |
+ * | `y` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `hx&0x7fffffff`.
+ * 3. If `ix` is greater than or equal to `0x7f800000`:
+ *    1. Return `one/x`.
+ * 4. Call `fabsf()` with the argument `x`, and store the result in `y`.
+ * 5. If `ix` is greater than or equal to `0x40000000`:
+ *    1. Call `sinf()` with the argument `y`, and store the result in `s`.
+ *    2. Call `cosf()` with the argument `y`, and store the result in `c`.
+ *    3. Set `ss` to `-s-c`.
+ *    4. Set `cc` to `s-c`.
+ *    5. If `ix` is less than `0x7f000000`:
+ *       1. Call `cosf()` with the argument `y+y`, and store the result in `z`.
+ *       2. If `(s*c)` is greater than `zero`:
+ *          1. Set `cc` to `z/ss`.
+ *       3. Otherwise:
+ *          1. Set `ss` to `z/cc`.
+ *    6. Call `ponef()` with the argument `y`, and store the result in `u`.
+ *    7. Call `qonef()` with the argument `y`, and store the result in `v`.
+ *    8. Set `z` to `invsqrtpi*(u*cc-v*ss)/sqrtf(y)`.
+ *    9. If `hx` is less than `0`:
+ *       1. Return `-z`.
+ *    10. Otherwise:
+ *        1. Return `z`.
+ * 6. If `ix` is less than `0x32000000`:
+ *    1. If `huge+x` is greater than `one`:
+ *       1. Return `(float)0.5*x`.
+ * 7. Set `z` to `x*x`.
+ * 8. Set `r` to `z*(r00+z*(r01+z*(r02+z*r03)))`.
+ * 9. Set `s` to `one+z*(s01+z*(s02+z*(s03+z*(s04+z*s05))))`.
+ * 10. Multiply `r` by `x`.
+ * 11. Return `(x*(float)0.5+r/s)`.
+ *
+ * @calls
+ * - `fabsf()`
+ * - `sinf()`
+ * - `cosf()`
+ * - `ponef()`
+ * - `qonef()`
+ * - `sqrtf()`
+ */
 float
 __ieee754_j1f(float x)
 {
@@ -116,6 +221,90 @@ static const float V0[5] = {
   1.6655924903e-11, /* 0x2d9281cf */
 };
 
+/**
+ * @funcname `__ieee754_y1f`
+ *
+ * @description
+ * Computes the Bessel function of the second kind of order 1 of x, in float:
+ * the IEEE 754 core of y1f().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `U0` | `const float[5]` | A constant of the algorithm |
+ * | `V0` | `const float[5]` | A constant of the algorithm |
+ * | `invsqrtpi` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `tpi` | `const float` | A constant of the algorithm |
+ * | `zero` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `float` | A temporary of the computation |
+ * | `cc` | `float` | A temporary of the computation |
+ * | `hx` | `int32_t` | The bits of x |
+ * | `ix` | `int32_t` | A temporary of the computation |
+ * | `s` | `float` | A temporary of the computation |
+ * | `ss` | `float` | A temporary of the computation |
+ * | `u` | `float` | A temporary of the computation |
+ * | `v` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 2. Set `ix` to `0x7fffffff&hx`.
+ * 3. If `ix` is greater than or equal to `0x7f800000`:
+ *    1. Return `one/(x+x*x)`.
+ * 4. If `ix` is equal to `0`:
+ *    1. Return `-one/zero`.
+ * 5. If `hx` is less than `0`:
+ *    1. Return `zero/zero`.
+ * 6. If `ix` is greater than or equal to `0x40000000`:
+ *    1. Call `sinf()` with the argument `x`, and store the result in `s`.
+ *    2. Call `cosf()` with the argument `x`, and store the result in `c`.
+ *    3. Set `ss` to `-s-c`.
+ *    4. Set `cc` to `s-c`.
+ *    5. If `ix` is less than `0x7f000000`:
+ *       1. Call `cosf()` with the argument `x+x`, and store the result in `z`.
+ *       2. If `(s*c)` is greater than `zero`:
+ *          1. Set `cc` to `z/ss`.
+ *       3. Otherwise:
+ *          1. Set `ss` to `z/cc`.
+ *    6. If `ix` is greater than `0x48000000`:
+ *       1. Set `z` to `(invsqrtpi*ss)/sqrtf(x)`.
+ *    7. Otherwise:
+ *       1. Call `ponef()` with the argument `x`, and store the result in `u`.
+ *       2. Call `qonef()` with the argument `x`, and store the result in `v`.
+ *       3. Set `z` to `invsqrtpi*(u*ss+v*cc)/sqrtf(x)`.
+ *    8. Return `z`.
+ * 7. If `ix` is less than or equal to `0x24800000`:
+ *    1. Return `(-tpi/x)`.
+ * 8. Set `z` to `x*x`.
+ * 9. Set `u` to `U0[0]+z*(U0[1]+z*(U0[2]+z*(U0[3]+z*U0[4])))`.
+ * 10. Set `v` to `one+z*(V0[0]+z*(V0[1]+z*(V0[2]+z*(V0[3]+z*V0[4]))))`.
+ * 11. Return `(x*(u/v) + tpi*(__ieee754_j1f(x)*__ieee754_logf(x)-one/x))`.
+ *
+ * @calls
+ * - `sinf()`
+ * - `cosf()`
+ * - `sqrtf()`
+ * - `ponef()`
+ * - `qonef()`
+ * - `__ieee754_j1f()`
+ * - `__ieee754_logf()`
+ */
 float
 __ieee754_y1f(float x)
 {
@@ -239,6 +428,70 @@ static const float ps2[5] = {
   8.3646392822e+00, /* 0x4105d590 */
 };
 
+/**
+ * @funcname `ponef`
+ *
+ * @description
+ * The asymptotic expansion P1(x) of j1() and y1() for large x.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return P1(x).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `pr2` | `const float[6]` | A constant of the algorithm |
+ * | `pr3` | `const float[6]` | A constant of the algorithm |
+ * | `pr5` | `const float[6]` | A constant of the algorithm |
+ * | `pr8` | `const float[6]` | A constant of the algorithm |
+ * | `ps2` | `const float[5]` | A constant of the algorithm |
+ * | `ps3` | `const float[5]` | A constant of the algorithm |
+ * | `ps5` | `const float[5]` | A constant of the algorithm |
+ * | `ps8` | `const float[5]` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The bits of x |
+ * | `p` | `const float *` | A constant of the algorithm |
+ * | `q` | `const float *` | A constant of the algorithm |
+ * | `r` | `float` | A temporary of the computation |
+ * | `s` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `q = 0`.
+ * 2. Use the macro `GET_FLOAT_WORD()` with the arguments `ix` and `x`.
+ * 3. Keep only the bits `0x7fffffff` of `ix`.
+ * 4. If `ix` is greater than or equal to `0x41000000`:
+ *    1. Set `p` to `pr8`.
+ *    2. Set `q` to `ps8`.
+ * 5. Otherwise, if `ix` is greater than or equal to `0x40f71c58`:
+ *    1. Set `p` to `pr5`.
+ *    2. Set `q` to `ps5`.
+ * 6. Otherwise, if `ix` is greater than or equal to `0x4036db68`:
+ *    1. Set `p` to `pr3`.
+ *    2. Set `q` to `ps3`.
+ * 7. Otherwise, if `ix` is greater than or equal to `0x40000000`:
+ *    1. Set `p` to `pr2`.
+ *    2. Set `q` to `ps2`.
+ * 8. Set `z` to `one/(x*x)`.
+ * 9. Set `r` to `p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))))`.
+ * 10. Set `s` to `one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))))`.
+ * 11. Return `one+ r/s`.
+ *
+ * @calls
+ * None.
+ */
 static float
 ponef(float x)
 {
@@ -338,6 +591,70 @@ static const float qs2[6] = {
  -4.9594988823e+00, /* 0xc09eb437 */
 };
 
+/**
+ * @funcname `qonef`
+ *
+ * @description
+ * The asymptotic expansion Q1(x) of j1() and y1() for large x.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return Q1(x).
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `qr2` | `const float[6]` | A constant of the algorithm |
+ * | `qr3` | `const float[6]` | A constant of the algorithm |
+ * | `qr5` | `const float[6]` | A constant of the algorithm |
+ * | `qr8` | `const float[6]` | A constant of the algorithm |
+ * | `qs2` | `const float[6]` | A constant of the algorithm |
+ * | `qs3` | `const float[6]` | A constant of the algorithm |
+ * | `qs5` | `const float[6]` | A constant of the algorithm |
+ * | `qs8` | `const float[6]` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ix` | `int32_t` | The bits of x |
+ * | `p` | `const float *` | A constant of the algorithm |
+ * | `q` | `const float *` | A constant of the algorithm |
+ * | `r` | `float` | A temporary of the computation |
+ * | `s` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `p` to `q = 0`.
+ * 2. Use the macro `GET_FLOAT_WORD()` with the arguments `ix` and `x`.
+ * 3. Keep only the bits `0x7fffffff` of `ix`.
+ * 4. If `ix` is greater than or equal to `0x41000000`:
+ *    1. Set `p` to `qr8`.
+ *    2. Set `q` to `qs8`.
+ * 5. Otherwise, if `ix` is greater than or equal to `0x409173eb`:
+ *    1. Set `p` to `qr5`.
+ *    2. Set `q` to `qs5`.
+ * 6. Otherwise, if `ix` is greater than or equal to `0x4036d917`:
+ *    1. Set `p` to `qr3`.
+ *    2. Set `q` to `qs3`.
+ * 7. Otherwise, if `ix` is greater than or equal to `0x40000000`:
+ *    1. Set `p` to `qr2`.
+ *    2. Set `q` to `qs2`.
+ * 8. Set `z` to `one/(x*x)`.
+ * 9. Set `r` to `p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))))`.
+ * 10. Set `s` to `one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*(q[4]+z*q[5])))))`.
+ * 11. Return `((float).375 + r/s)/x`.
+ *
+ * @calls
+ * None.
+ */
 static float
 qonef(float x)
 {

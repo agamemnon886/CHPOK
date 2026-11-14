@@ -30,7 +30,8 @@
 # Usage:
 #   make / make all      # build all examples
 #   make <name>          # build examples/<name> only (e.g. make memblocks)
-#   make clean           # clean all examples and hypervisor builds
+#   make clean           # clean all builds: examples, tests, benchmarks,
+#                        # hypervisor and documentation
 #   make clean-<name>    # clean examples/<name> only
 #   make list            # list available example names
 #   make benchmarks      # build all benchmarks under benchmark/
@@ -46,6 +47,12 @@
 #                        # hypervisor target)
 #   make hv-test         # run the hypervisor tests (tests/hypervisor)
 #   make clean-hv        # clean the hypervisor builds
+#   make docs            # build the documentation of the C functions, one
+#                        # PDF per component: docs/boards.pdf, kernel.pdf,
+#                        # libpok.pdf, syspart.pdf, hypervisor.pdf
+#                        # (misc/docs, in Docker)
+#   make docs-<name>     # build docs/<name>.pdf only (e.g. make docs-kernel)
+#   make clean-docs      # remove the documentation build and the PDFs
 #   make help            # show this help
 #
 # Variables:
@@ -85,7 +92,23 @@
 # Modified by Kirill Brazhnikov, 2026-11-08: the hypervisor is built for
 # BSP too (x86_64-qemu or arm64-qemu), with its images, into build/<BSP>/
 # next to the configuration; the usage and make help show
-# make BSP=arm64-qemu run-hv.
+# make BSP=arm64-qemu run-hv. The docs and clean-docs targets build and
+# remove the function documentation.
+#
+# Modified by Kirill Brazhnikov, 2026-11-10: make clean also cleans the
+# tests, the benchmarks and the documentation, and removes every Python
+# __pycache__ directory.
+#
+# Modified by Kirill Brazhnikov, 2026-11-11: the documentation is built in
+# the build image (misc/docker/Dockerfile); make docs shows the progress of
+# Doxygen and pdflatex, the warnings and a summary.
+#
+# Modified by Kirill Brazhnikov, 2026-11-12: make docs builds one document
+# per component, docs/<name>.pdf (misc/docs/Doxyfile.<name>), instead of
+# jetos_functions.pdf; make docs-<name> builds one of them.
+#
+# Modified by Kirill Brazhnikov, 2026-11-13: make docs also counts the types
+# and macros, which may be none.
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -155,7 +178,8 @@ help:
 	@echo "Usage:"
 	@echo "  make / make all      Build all examples"
 	@echo "  make <name>          Build one example (e.g. make memblocks)"
-	@echo "  make clean           Clean all examples and hypervisor builds"
+	@echo "  make clean           Clean all builds (examples, tests,"
+	@echo "                       benchmarks, hypervisor, docs)"
 	@echo "  make clean-<name>    Clean one example"
 	@echo "  make list            List available example names"
 	@echo "  make benchmarks      Build all benchmarks (benchmark/)"
@@ -172,6 +196,11 @@ help:
 	@echo "                       The same on arm64 (any hv target)"
 	@echo "  make hv-test         Run the hypervisor tests"
 	@echo "  make clean-hv        Clean the hypervisor builds"
+	@echo "  make docs            Build the function docs: docs/boards.pdf,"
+	@echo "                       kernel.pdf, libpok.pdf, syspart.pdf and"
+	@echo "                       hypervisor.pdf"
+	@echo "  make docs-<name>     Build one of them (e.g. make docs-kernel)"
+	@echo "  make clean-docs      Remove the documentation build and PDFs"
 	@echo "  make help            Show this help"
 	@echo ""
 	@echo "Variables:"
@@ -330,16 +359,120 @@ clean-hv:
 docker-image:
 	$(DOCKER) build -t $(DOCKER_IMAGE) $(DOCKER_DIR)
 
+# The function documentation (README.md, "Function documentation"), one
+# document per component (DOCS): docs/<name>.pdf, configured by
+# misc/docs/Doxyfile.<name>. Doxygen (1.18 or later) turns the header of
+# every C function into LaTeX, which pdflatex makes into the PDF. Both run
+# in the build image, or with NATIVE=1 on the host (doxygen and pdflatex
+# needed). make docs builds the documents one after the other, and
+# make docs-<name> one of them. For each, make shows Doxygen's progress
+# (QUIET = NO in the Doxyfile), the start of each pdflatex pass (pdflatex
+# itself runs in batch mode, silently), the warnings about the headers
+# (build/docs/<name>/warnings.log) and a summary. The whole output is in
+# build/docs/<name>/doxygen.log and latex.log.
+DOCS := boards kernel libpok syspart hypervisor
+DOCS_DIR := docs
+DOCS_OUT := build/docs
+DOCS_TARGETS := $(addprefix docs-,$(DOCS))
+DOCS_SHOW_LATEX = | tee $$out/latex.log \
+	| grep --line-buffered -E "^(pdflatex|makeindex) |^Rerunning" \
+	| while read -r line; do \
+		echo "  $$(date +%H:%M:%S) $${line%% ||*}"; \
+	done
+# The commands that build the document $d (a shell variable).
+DOCS_BUILD = out=$(DOCS_OUT)/$$d && pdf=$(DOCS_DIR)/$$d.pdf && \
+	rm -rf $$out && mkdir -p $$out $(DOCS_DIR) && \
+	tex=$$out/latex && t0=$$(date +%s) && \
+	echo "==== $$pdf" && \
+	echo "== Doxygen $$(doxygen -v): misc/docs/Doxyfile.$$d -> $$out" && \
+	{ doxygen misc/docs/Doxyfile.$$d 2>&1; \
+	  echo $$? > $$out/doxygen.rc; } | tee $$out/doxygen.log; \
+	t1=$$(date +%s); \
+	if [ "$$(cat $$out/doxygen.rc)" != 0 ]; then \
+		tail -20 $$out/doxygen.log; \
+		echo "Doxygen failed: see $$out/doxygen.log"; exit 1; \
+	fi; \
+	if [ -s $$out/warnings.log ]; then \
+		echo "== Doxygen warnings ($$out/warnings.log):"; \
+		cat $$out/warnings.log; \
+	fi; \
+	echo "== pdflatex $$tex/refman.tex (several passes, in batch mode)"; \
+	{ make -C $$tex 2>&1; echo $$? > $$out/latex.rc; } \
+		$(DOCS_SHOW_LATEX); \
+	t2=$$(date +%s); \
+	if [ "$$(cat $$out/latex.rc)" != 0 ]; then \
+		tail -20 $$out/latex.log; \
+		grep -A3 "^!" $$tex/refman.log | head -20; \
+		echo "pdflatex failed: see $$tex/refman.log"; exit 1; \
+	fi; \
+	cp $$tex/refman.pdf $$pdf && \
+	funcs=$$(cat $$tex/*_8[ch].tex | \
+		grep -c "doxysubsubsection{.texorpdfstring{[^}]*()}" || true) && \
+	types=$$(cat $$tex/*_8[ch].tex $$(ls $$tex/group__*.tex 2>/dev/null) \
+		| grep -c "jetostype" || true) && \
+	macros=$$(cat $$tex/*_8[ch].tex $$(ls $$tex/group__*.tex 2>/dev/null) \
+		| grep -c "jetosmacro" || true) && \
+	warns=$$(wc -l < $$out/warnings.log) && \
+	pages=$$(sed -n \
+		"s/^Output written on refman.pdf (\([0-9]*\) pages.*/\1/p" \
+		$$tex/refman.log) && \
+	echo "== $$pdf built" && \
+	echo "  Doxygen:    $$((t1 - t0)) s;" \
+		"$$(grep -c "^Parsing file" $$out/doxygen.log) files read" && \
+	echo "  Documented: $$(ls $$tex/*_8[ch].tex | wc -l) files," \
+		"$$funcs functions, $$types types, $$macros macros" && \
+	echo "  Warnings:   $$warns about the headers," \
+		"$$(grep -c "warning:" $$out/doxygen.log) about the" \
+		"configuration ($$out/doxygen.log)" && \
+	echo "  pdflatex:   $$((t2 - t1)) s;" \
+		"$$(grep -c "^pdflatex " $$out/latex.log) passes;" \
+		"$$(grep -c "^Overfull" $$tex/refman.log) overfull lines" && \
+	echo "  PDF:        $$pages pages, $$(du -h $$pdf | cut -f1)" && \
+	printf "  %-20s %5s pages, %4s functions, %4s types, %4s macros," \
+		$$pdf $$pages $$funcs $$types $$macros \
+		> $$out/summary.txt && \
+	printf " %s warnings\n" $$warns >> $$out/summary.txt
+
+ifdef NATIVE
+DOCS_RUN = cd "$(POK_PATH)" &&
+DOCS_DOCKER_IMAGE :=
+else
+DOCS_RUN = $(DOCKER) run --rm \
+	--user $(shell id -u):$(shell id -g) \
+	-v "$(POK_PATH):$(POK_PATH)" -w "$(POK_PATH)" \
+	$(DOCKER_IMAGE)
+DOCS_DOCKER_IMAGE := docker-image
+endif
+
+.PHONY: docs clean-docs $(DOCS_TARGETS)
+
+docs: $(DOCS_DOCKER_IMAGE)
+	@$(DOCS_RUN) sh -c 'for d in $(DOCS); do { $(DOCS_BUILD); } || exit 1; \
+		done; echo "==== Documents"; \
+		for d in $(DOCS); do cat $(DOCS_OUT)/$$d/summary.txt; done'
+
+$(DOCS_TARGETS): docs-%: $(DOCS_DOCKER_IMAGE)
+	@$(DOCS_RUN) sh -c 'd=$*; $(DOCS_BUILD)'
+
+clean-docs:
+	rm -rf $(DOCS_OUT)
+	rm -f $(addprefix $(DOCS_DIR)/,$(addsuffix .pdf,$(DOCS)))
+	rmdir $(DOCS_DIR) 2>/dev/null || true
+
 # Remove build artifacts directly instead of running `scons -c`: scons
 # has to locate the compiler before it can compute what to clean, and
 # cleaning should work without a toolchain or Docker. Everything removed
 # here is untracked and covered by .gitignore.
 
-# Besides every example and the hypervisor builds, also removes what the
-# examples share: the kernel/libpok objects under build/ and the
-# scons/Python state that the build scatters across the source tree.
-clean: $(addprefix clean-,$(EXAMPLES)) clean-hv
-	rm -rf build misc/__pycache__
+# Besides every example, test, benchmark, the hypervisor builds and the
+# documentation, also removes what the examples share: the kernel/libpok
+# objects under build/ and the scons/Python state that the builds and
+# scripts scatter across the source tree.
+clean: $(addprefix clean-,$(EXAMPLES)) clean-tests clean-benchmarks \
+		clean-hv clean-docs
+	rm -rf build
+	find . -path ./.git -prune -o -type d -name __pycache__ -prune \
+		-exec rm -rf {} +
 	find boards kernel libpok syspart misc -name '.sconsign*' -delete
 	find kernel libpok syspart -name '*.o' -delete
 

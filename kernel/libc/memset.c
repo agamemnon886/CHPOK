@@ -18,8 +18,16 @@
  * int value, as in the C standard; the loop doesn't modify the parameter.
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+ */
+
+/**
+ * @file
+ * memset() of the kernel's C library (weak: an architecture may have its
+ * own).
  */
 
 
@@ -31,6 +39,44 @@
  * unsigned char.
  */
 
+/**
+ * @funcname `memset`
+ *
+ * @description
+ * Sets a block of memory to a byte value (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dest` | `void *` | [out] The memory. |
+ * | `val` | `int` | [in] The value (converted to unsigned char). |
+ * | `count` | `size_t` | [in] The number of bytes. |
+ *
+ * @return dest.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `d` | `unsigned char *` | The memory, as bytes |
+ * | `i` | `size_t` | The index of the byte |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `d` to `(unsigned char *) dest`.
+ * 2. Set `i` to `0U`; then while `i` is less than `count`, repeat (after each
+ *    pass: increment `i`):
+ *    1. Set `d[i]` to `(unsigned char) val`.
+ * 3. Return `dest`.
+ *
+ * @calls
+ * None.
+ */
 __attribute__ ((weak))
 void* memset (void *dest, int val, size_t count)
 {

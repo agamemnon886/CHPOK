@@ -20,16 +20,18 @@
  * are renamed JET_USER/JET_KUSER.
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
 
 /**
- * \file kernel/arch/x86_64/syscalls.c
- * \brief This file implement system-calls for x86_64 platform
- * \author Julian Pidancet
- * \author Julien Delange
- * \author Laurent Lec
+ * @file
+ * System calls on x86_64: the syscall interrupt's handler (written by
+ * Julian Pidancet, Julien Delange and Laurent Lec for POK).
  */
 
 #include <core/debug.h>
@@ -43,12 +45,59 @@
  * which is converted to the type of the object the user passed.
  */
 
+/**
+ * @funcname `process_syscall`
+ *
+ * @description
+ * The syscall interrupt (from ja_interrupt_handler()): the ID is in RAX, the
+ * user address of the arguments in RBX; the result goes back into RAX.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `frame` | `interrupt_frame *` | [in,out] The interrupt frame. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `syscall_args` | `pok_syscall_args_t *` | The arguments, at their kernel address |
+ * | `syscall_args_user` | `pok_syscall_args_t *` | The arguments, at their user address |
+ * | `syscall_id` | `pok_syscall_id_e` | The syscall ID |
+ * | `syscall_info` | `pok_syscall_info_t` | Information about the caller (not used) |
+ * | `syscall_ret` | `pok_ret_e` | The result |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `syscall_info.partition` to `0`.
+ * 2. Set `syscall_info.base_addr` to `0`.
+ * 3. Set `syscall_info.thread` to `0`.
+ * 4. Set `syscall_id` to `(pok_syscall_id_e) frame->rax`.
+ * 5. Set `syscall_args_user` to `(void*)frame->rbx`.
+ * 6. Set `syscall_args` to `jet_user_to_kernel_typed(syscall_args_user)`.
+ * 7. If `syscall_args` is NULL:
+ *    1. Set `syscall_ret` to `POK_ERRNO_EINVAL`.
+ * 8. Otherwise:
+ *    1. Call `pok_core_syscall()` with the arguments `syscall_id`,
+ *       `syscall_args` and the address of `syscall_info`, and store the result
+ *       in `syscall_ret`.
+ * 9. Set `frame->rax` to `(uint64_t)(int64_t)syscall_ret`.
+ *
+ * @calls
+ * - `jet_user_to_kernel()`
+ * - `pok_core_syscall()`
+ */
 void process_syscall(interrupt_frame* frame)
 {
    pok_syscall_info_t   syscall_info;
-   pok_ret_t            syscall_ret;
+   pok_ret_e            syscall_ret;
    pok_syscall_args_t*  syscall_args;
-   pok_syscall_id_t     syscall_id;
+   pok_syscall_id_e     syscall_id;
 
    /*
     * Give informations about syscalls: which partition, thread
@@ -61,7 +110,7 @@ void process_syscall(interrupt_frame* frame)
    /*
     * Get the syscall id in the rax register
     */
-   syscall_id = (pok_syscall_id_t) frame->rax;
+   syscall_id = (pok_syscall_id_e) frame->rax;
 
    // Address of the array of args is passed through rbx register.
    /* MISRA C:2025 Rule 11.6 deviation: the user-space address of the arguments

@@ -27,15 +27,23 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; deviations are documented where a
  * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented); the Doxygen headers of the static
+ * inline functions are plain comments (they are not documented).
  */
-
-/* Memory-mapped device registers (arm64 has no I/O ports). */
 
 #ifndef JET_ARM64_IOPORTS_H
 #define JET_ARM64_IOPORTS_H
 
 #include <stdint.h>
 
+/*
+ * Reads a 32-bit device register (a barrier orders later reads after it).
+ */
 /*
  * MISRA C:2025 Rule 11.4 deviation (the functions below): a device register
  * is accessed at its physical address, which is converted to a pointer to
@@ -49,12 +57,18 @@ static inline uint32_t ja_mmio_read32(uintptr_t addr)
     return val;
 }
 
+/*
+ * Writes a 32-bit device register (a barrier orders earlier writes before it).
+ */
 static inline void ja_mmio_write32(uintptr_t addr, uint32_t val)
 {
     asm volatile("dmb oshst" ::: "memory");
     *(volatile uint32_t*)addr = val;
 }
 
+/*
+ * Writes an 8-bit device register (a barrier orders earlier writes before it).
+ */
 static inline void ja_mmio_write8(uintptr_t addr, uint8_t val)
 {
     asm volatile("dmb oshst" ::: "memory");

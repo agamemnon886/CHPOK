@@ -15,6 +15,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; declares pok_partition_start().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the declaration of main() of
+ * libpok/core/main.c is moved here.
  */
 
 #ifndef LIBJET_ARINC_INIT_H
@@ -27,6 +34,7 @@
  * 
  * Called by libjet when it is initialized.
  */
+/** \cond */
 void libjet_arinc_init(void);
 
 /*
@@ -34,5 +42,10 @@ void libjet_arinc_init(void);
  * initializes libjet and calls main().
  */
 int32_t pok_partition_start(void);
+/** \endcond */
+
+/** \cond */
+int main(void);
+/** \endcond */
 
 #endif /* LIBJET_ARINC_INIT_H */

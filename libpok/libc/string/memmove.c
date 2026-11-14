@@ -22,6 +22,15 @@
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
  * Long lines are wrapped at 80 columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * memmove() of libpok (GCC requires it even for a freestanding
+ * environment).
  */
 
 #include <string.h>
@@ -33,7 +42,59 @@
  * unsigned char.
  */
 
-/* GCC requires this function even for freestanding environment. */
+/**
+ * @funcname `memmove`
+ *
+ * @description
+ * Copies a block of memory that may overlap the destination (C standard): from
+ * the beginning if the destination starts before the source or the areas don't
+ * overlap, from the end otherwise.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `dest` | `void *` | [out] The destination. |
+ * | `src` | `const void *` | [in] The source. |
+ * | `n` | `size_t` | [in] The number of bytes. |
+ *
+ * @return dest.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `d` | `unsigned char *` | The destination, as bytes |
+ * | `d_addr` | `uintptr_t` | The address of the destination |
+ * | `i` | `size_t` | The index of the byte |
+ * | `s` | `const unsigned char *` | The source, as bytes |
+ * | `s_addr` | `uintptr_t` | The address of the source |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `d` to `(unsigned char *) dest`.
+ * 2. Set `s` to `(const unsigned char *) src`.
+ * 3. Set `d_addr` to `(uintptr_t) dest`.
+ * 4. Set `s_addr` to `(uintptr_t) src`.
+ * 5. If `d_addr` is less than or equal to `s_addr` or `d_addr` is greater than
+ *    or equal to `(s_addr + n)`:
+ *    1. Set `i` to `0U`; then while `i` is less than `n`, repeat (after each
+ *       pass: increment `i`):
+ *       1. Set `d[i]` to `s[i]`.
+ * 6. Otherwise:
+ *    1. Set `i` to `n`.
+ *    2. While `i` is greater than `0U`:
+ *       1. Decrement `i`.
+ *       2. Set `d[i]` to `s[i]`.
+ * 7. Return `dest`.
+ *
+ * @calls
+ * None.
+ */
 void *memmove(void* dest, const void* src, size_t n)
 {
     unsigned char *d = (unsigned char *) dest;

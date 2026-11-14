@@ -18,6 +18,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; msection_wq_t is used by its typedef name.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t).
  */
 
 #ifndef LIBJET_ARINC_MUTEX_H
@@ -31,24 +38,45 @@
 #include <msection.h>
 #include <types.h>
 
-struct arinc_mutex
-{
-    MUTEX_NAME_TYPE mutex_name;
+/**
+ * @typename `arinc_mutex_t`
+ *
+ * @description
+ * A mutex of the partition (CREATE_MUTEX()), in the preallocated array
+ * arinc_mutexes.
+ */
+typedef struct {
+    MUTEX_NAME_TYPE mutex_name; /**< The name of the mutex. */
 
-    PRIORITY_TYPE priority;              /* priority ceiling */
+    PRIORITY_TYPE priority; /**< Priority ceiling. */
+    /**
+     * The order of the waiting processes (FIFO or PRIORITY).
+     */
     QUEUING_DISCIPLINE_TYPE discipline;
 
-    pok_thread_id_t owner;               /* JET_THREAD_ID_NONE if available */
+    pok_thread_id_t owner; /**< JET_THREAD_ID_NONE if available. */
+    /**
+     * How many times the owner has locked the mutex (0: available).
+     */
     LOCK_COUNT_TYPE lock_count;
-    PRIORITY_TYPE retained_priority;     /* owner's priority before acquiring */
+    PRIORITY_TYPE retained_priority; /**< Owner's priority before acquiring. */
 
-    struct msection_wq process_queue;
-};
+    msection_wq_t process_queue; /**< The processes waiting for the mutex. */
+} arinc_mutex_t;
+
+/**
+ * @macroname `MAIN_THREAD_ID`
+ *
+ * @description
+ * The ID of the kernel thread of the main process.
+ */
+#define MAIN_THREAD_ID  0U
 
 /* Preallocated array of mutexes. */
-extern struct arinc_mutex* arinc_mutexes;
+extern arinc_mutex_t* arinc_mutexes;
 
 /* Initializes the mutex subsystem; called once at partition start. */
+/** \cond */
 void arinc_mutex_init(void);
 
 /*
@@ -58,7 +86,9 @@ void arinc_mutex_init(void);
  * new priority applies when the mutex is released. Otherwise this is
  * pok_thread_set_priority(). Returns the kernel's error code.
  */
-pok_ret_t arinc_mutex_set_priority(pok_thread_id_t thread, PRIORITY_TYPE priority);
+pok_ret_e arinc_mutex_set_priority(pok_thread_id_t thread,
+    PRIORITY_TYPE priority);
+/** \endcond */
 
 #endif /* POK_NEEDS_ARINC653_MUTEX */
 

@@ -18,6 +18,21 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: increments and
  * assignments are separate statements.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: the function declarations are
+ * hidden from Doxygen (\cond), which would otherwise document the functions a
+ * second time, in the section of this header.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the structures and enums are used
+ * by their typedef names: msection_t, msection_wq_t.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t); the Doxygen comment of the file is removed (header
+ * files are not documented); the Doxygen headers of the static inline functions
+ * are plain comments (they are not documented).
  */
 
 #ifndef LIBJET_MSECTION_H
@@ -26,7 +41,8 @@
 #include <uapi/msection.h>
 
 /* Initialize mscection object. */
-void msection_init(struct msection* section);
+/** \cond */
+void msection_init(msection_t* section);
 
 /* 
  * Enter into given msection.
@@ -34,7 +50,7 @@ void msection_init(struct msection* section);
  * On error (incorrect state, incorrect parameter) partition is terminated
  * (but can be restarted).
  */
-void msection_enter(struct msection* section);
+void msection_enter(msection_t* section);
 
 /*
  * Leave given msection.
@@ -42,7 +58,7 @@ void msection_enter(struct msection* section);
  * On error (incorrect state, incorrect parameter) partition is terminated
  * (but can be restarted).
  */
-void msection_leave(struct msection* section);
+void msection_leave(msection_t* section);
 
 /*
  * Atomically leave msection and wait.
@@ -60,7 +76,7 @@ void msection_leave(struct msection* section);
  * 
  *     POK_ERRNO_MODE: Waiting is not allowed in given mode.
  */
-pok_ret_t msection_wait(struct msection* section, pok_time_t timeout);
+pok_ret_e msection_wait(msection_t* section, pok_time_t timeout);
 
 
 /*
@@ -76,11 +92,14 @@ pok_ret_t msection_wait(struct msection* section, pok_time_t timeout);
  * 
  *     POK_ERRNO_UNAVAILABLE: thread_id is invalid.
  */
-pok_ret_t msection_notify(struct msection* section, pok_thread_id_t thread_id);
+pok_ret_e msection_notify(msection_t* section, pok_thread_id_t thread_id);
+/** \endcond */
 
 
-/* Initialize waitqueue. */
-static inline void msection_wq_init(struct msection_wq* wq)
+/*
+ * Initializes a wait queue: empty.
+ */
+static inline void msection_wq_init(msection_wq_t* wq)
 {
     wq->last = JET_THREAD_ID_NONE;
     wq->first = JET_THREAD_ID_NONE;
@@ -92,7 +111,8 @@ static inline void msection_wq_init(struct msection_wq* wq)
  * If 'next' is not JET_THREAD_ID_NONE, add before given thread.
  * Otherwise add to the end of the queue.
  */
-void msection_wq_add(struct msection_wq* wq, pok_thread_id_t next);
+/** \cond */
+void msection_wq_add(msection_wq_t* wq, pok_thread_id_t next);
 
 /* 
  * Add current thread into the msection wait queue.
@@ -100,13 +120,13 @@ void msection_wq_add(struct msection_wq* wq, pok_thread_id_t next);
  * If 'prev' is not JET_THREAD_ID_NONE, add after given thread.
  * Otherwise add to the beginning of the queue.
  */
-void msection_wq_add_after(struct msection_wq* wq, pok_thread_id_t prev);
+void msection_wq_add_after(msection_wq_t* wq, pok_thread_id_t prev);
 
 
 /* 
  * Remove thread from the msection wait queue, if it has been added before.
  */
-void msection_wq_del(struct msection_wq* wq, pok_thread_id_t thread);
+void msection_wq_del(msection_wq_t* wq, pok_thread_id_t thread);
 
 
 /* 
@@ -127,8 +147,8 @@ void msection_wq_del(struct msection_wq* wq, pok_thread_id_t thread);
  *     POK_ERRNO_OK - at least on thread has been notified.
  *     POK_ERRNO_EMPTY - there is no waiting threads in the waitqueue.
  */
-pok_ret_t msection_wq_notify(struct msection* section,
-    struct msection_wq* wq,
+pok_ret_e msection_wq_notify(msection_t* section,
+    msection_wq_t* wq,
     pok_bool_t is_all);
 
 /*
@@ -137,7 +157,8 @@ pok_ret_t msection_wq_notify(struct msection* section,
  * Every thread in the queue which hasn't waited at the function's call
  * is removed from the queue.
  */
-size_t msection_wq_size(struct msection* section,
-   struct msection_wq* wq);
+size_t msection_wq_size(msection_t* section,
+   msection_wq_t* wq);
+/** \endcond */
 
 #endif /* LIBJET_MSECTION_H */

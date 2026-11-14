@@ -29,23 +29,66 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
+ */
+
+/**
+ * @file
+ * Syscalls of libpok on arm64.
  */
 
 #include <arch/syscall.h>
 #include <types.h>
 
-/*
- * Syscall convention (see kernel/arch/arm64/syscalls.c):
+/**
+ * @funcname `lja_do_syscall`
  *
- *   svc #0, x0 - syscall id, x1 - address of the arguments.
- *   Result is returned in x0, other registers are preserved.
+ * @description
+ * Performs a syscall. The convention (see kernel/arch/arm64/syscalls.c) is svc
+ * \#0 with the syscall ID in x0 and the address of the arguments in x1; the
+ * result is returned in x0, other registers are preserved.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `syscall_id` | `pok_syscall_id_e` | [in] The syscall ID. |
+ * | `args` | `pok_syscall_args_t *` | [in] The arguments. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x0` | `uint64_t` | Register x0: the ID, then the result |
+ * | `x1` | `uint64_t` | Register x1: the address of the arguments |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `x0` to `(uint64_t)syscall_id`.
+ * 2. Set `x1` to `(uint64_t)(uintptr_t)args`.
+ * 3. Execute the assembly code `svc #0`.
+ * 4. Return `(pok_ret_e)x0`.
+ *
+ * @calls
+ * None.
  */
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation: the system call instruction
  * is GNU inline assembly, isolated in this function. Rule 11.4: the address
  * of the arguments is passed in a register, as an integer.
  */
-pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args)
+pok_ret_e lja_do_syscall (pok_syscall_id_e syscall_id, pok_syscall_args_t* args)
 {
    register uint64_t x0 asm("x0") = (uint64_t)syscall_id;
    register uint64_t x1 asm("x1") = (uint64_t)(uintptr_t)args;
@@ -56,5 +99,5 @@ pok_ret_t lja_do_syscall (pok_syscall_id_t syscall_id, pok_syscall_args_t* args)
                  : "r" (x1)
                  : "memory");
 
-   return (pok_ret_t)x0;
+   return (pok_ret_e)x0;
 }

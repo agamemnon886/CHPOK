@@ -12,26 +12,57 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Dec 11 16:32:31 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #include <config.h>
 
 #include <types.h>
 
+/**
+ * @macroname `pok_protocols_blowfish_data_t`
+ *
+ * @description
+ * The type of the data that the blowfish protocol encrypts.
+ */
 #define pok_protocols_blowfish_data_t uint64_t
 
 #ifdef POK_NEEDS_PROTOCOLS_BLOWFISH
 
+/** \cond */
 void pok_protocols_blowfish_marshall (void* uncrypted_data, size_t uncrypted_size, void* crypted_data, size_t* crypted_size);
 
 
 void pok_protocols_blowfish_unmarshall (void* crypted_data, size_t crypted_size, void* uncrypted_data, size_t* uncrypted_size);
+/** \endcond */
 
 #ifndef POK_BLOWFISH_KEY
+
+/**
+ * @macroname `POK_BLOWFISH_KEY`
+ *
+ * @description
+ * The key of the blowfish protocol (16 bytes); the configuration may define its
+ * own.
+ */
 #define POK_BLOWFISH_KEY {0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,0xf0,0xe1,0xd2,0xc3,0xb4,0xa5,0x96,0x87}
 #endif
 
 #ifndef POK_BLOWFISH_INIT
+
+/**
+ * @macroname `POK_BLOWFISH_INIT`
+ *
+ * @description
+ * The initialization vector of the blowfish protocol (8 bytes); the
+ * configuration may define its own.
+ */
 #define POK_BLOWFISH_INIT {0xfe,0xdc,0xba,0x98,0x76,0x54,0x32,0x10}
 #endif
 

@@ -18,10 +18,65 @@
  * unsigned constants; the substring is compared with strncmp(), which
  * stops at the end of the string (memcmp() could read past it); one exit;
  * deviations are documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * strstr() of libpok (forward implementation, O(n*m)).
  */
 
 #include <string.h>
 
+/**
+ * @funcname `strstr`
+ *
+ * @description
+ * Finds the first occurrence of a string in another (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const char *` | [in] The string. |
+ * | `s2` | `const char *` | [in] The string looked for. |
+ *
+ * @return The address of the occurrence, s1 if s2 is empty, or NULL if there is
+ *         none.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `found` | `const char *` | The occurrence |
+ * | `p` | `const char *` | The position in s1 |
+ * | `s2_len` | `size_t` | The length of s2 |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `strlen()` with the argument `s2`, and store the result in `s2_len`.
+ * 2. Set `found` to `NULL`.
+ * 3. If `s2_len` is equal to `0U`:
+ *    1. Set `found` to `s1`.
+ * 4. Otherwise:
+ *    1. Set `p` to `s1`.
+ *    2. While `found` is NULL and the value at `p` is not equal to `'\0'`:
+ *       1. If `strncmp(p, s2, s2_len)` is equal to `0`:
+ *          1. Set `found` to `p`.
+ *       2. Otherwise:
+ *          1. Increment `p`.
+ * 5. Return `(char*)found`.
+ *
+ * @calls
+ * - `strlen()`
+ * - `strncmp()`
+ */
 char *strstr(const char *s1, const char *s2)
 {
     // Forward implementation, O(n*m)

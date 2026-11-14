@@ -23,6 +23,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the types and macros are
+ * documented; the types shared with x86_64 point to their documentation, and
+ * their member comments start with arm64:.
  */
 
 /*
@@ -35,27 +39,122 @@
 #ifndef HV_ARCH_CONFIG_H
 #define HV_ARCH_CONFIG_H
 
-// Limit of the CPU table (GICv2 has at most 8 CPUs); hvconfig.py checks it.
+/*
+ * Documented with its x86_64 definition (arm64: a GICv2 has at most 8 CPUs).
+ */
 #define HV_MAX_CPUS     8U
 
+/* Documented with its x86_64 definition. */
 #define HV_PORT_COM1    1U
+/* Documented with its x86_64 definition. */
 #define HV_PORT_COM2    2U
+/* Documented with its x86_64 definition. */
 #define HV_PORT_COM3    3U
+/* Documented with its x86_64 definition. */
 #define HV_PORT_COM4    4U
+
+/**
+ * @macroname `HV_PORT_COM5`
+ *
+ * @description
+ * The serial port 5: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM5    5U
+
+/**
+ * @macroname `HV_PORT_COM6`
+ *
+ * @description
+ * The serial port 6: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM6    6U
+
+/**
+ * @macroname `HV_PORT_COM7`
+ *
+ * @description
+ * The serial port 7: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM7    7U
+
+/**
+ * @macroname `HV_PORT_COM8`
+ *
+ * @description
+ * The serial port 8: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM8    8U
+
+/**
+ * @macroname `HV_PORT_COM9`
+ *
+ * @description
+ * The serial port 9: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM9    9U
+
+/**
+ * @macroname `HV_PORT_COM10`
+ *
+ * @description
+ * The serial port 10: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM10   10U
+
+/**
+ * @macroname `HV_PORT_COM11`
+ *
+ * @description
+ * The serial port 11: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM11   11U
+
+/**
+ * @macroname `HV_PORT_COM12`
+ *
+ * @description
+ * The serial port 12: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM12   12U
+
+/**
+ * @macroname `HV_PORT_COM13`
+ *
+ * @description
+ * The serial port 13: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM13   13U
+
+/**
+ * @macroname `HV_PORT_COM14`
+ *
+ * @description
+ * The serial port 14: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM14   14U
+
+/**
+ * @macroname `HV_PORT_COM15`
+ *
+ * @description
+ * The serial port 15: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM15   15U
+
+/**
+ * @macroname `HV_PORT_COM16`
+ *
+ * @description
+ * The serial port 16: a 16550 on the PCI bus (arm64: its number).
+ */
 #define HV_PORT_COM16   16U
 
-// Number of COM ports.
+/**
+ * @macroname `HV_NB_PORTS`
+ *
+ * @description
+ * The number of COM ports.
+ */
 #define HV_NB_PORTS     16U
 
 #endif // HV_ARCH_CONFIG_H

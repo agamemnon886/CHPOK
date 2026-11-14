@@ -16,6 +16,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; deviations are documented where a
  * guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 /*
@@ -27,6 +31,7 @@
 #ifndef LIBJET_CTYPE_H
 #define LIBJET_CTYPE_H
 
+/** \cond */
 int isalnum(int c);
 int isalpha(int c);
 int isblank(int c);
@@ -41,5 +46,6 @@ int isupper(int c);
 int isxdigit(int c);
 int tolower(int c);
 int toupper(int c);
+/** \endcond */
 
 #endif /* LIBJET_CTYPE_H */

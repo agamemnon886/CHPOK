@@ -21,6 +21,15 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: includes
  * <bsp/bsp.h>, which declares the functions defined here.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * Board initialization of the x86_64 QEMU board: the consoles, the
+ * interrupt controller and the timer.
  */
 
 #include "cons.h"
@@ -31,6 +40,33 @@
 #include <assert.h>
 #include <bsp/bsp.h>
 
+/**
+ * @funcname `ja_bsp_init`
+ *
+ * @description
+ * Initializes the board when the kernel starts: the consoles, the 8259
+ * interrupt controllers and the PIT timer, in this order.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `jet_console_init_all()`.
+ * 2. Call `pok_pic_init()`.
+ * 3. Call `pok_x86_qemu_timer_init()`.
+ *
+ * @calls
+ * - `jet_console_init_all()`
+ * - `pok_pic_init()`
+ * - `pok_x86_qemu_timer_init()`
+ */
 void ja_bsp_init (void)
 {
    jet_console_init_all();

@@ -18,6 +18,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: Doxygen comments for the file; the
+ * types and macros defined in the same way for x86_64 are documented with their
+ * x86_64 definitions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 /* Stack for the (kernel) thread. */
@@ -31,6 +38,9 @@
  * Any stack returned by pok_stack_alloc() is 16-byte aligned (as
  * required by AAPCS64) and has a zeroed frame record (fp, lr) *above*
  * it, which terminates the frame chain.
+ *
+ * Documented with its x86_64 definition:
+ * kernel/arch/x86_64/include/arch/stack.h.
  */
 typedef uintptr_t jet_stack_t;
 

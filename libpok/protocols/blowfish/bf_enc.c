@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Dec 11 16:32:31 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* crypto/bf/bf_enc.c */
@@ -72,6 +81,13 @@
  * [including the GNU Public Licence.]
  */
 
+/**
+ * @file
+ * Blowfish encryption of libpok's protocols (from OpenSSL, by Eric
+ * Young): one block, CBC and ECB modes.
+ */
+
+
 #include <config.h>
 
 #ifdef POK_NEEDS_PROTOCOLS_BLOWFISH
@@ -89,6 +105,62 @@
 to modify the code.
 #endif
 
+/**
+ * @funcname `BF_encrypt`
+ *
+ * @description
+ * Encrypts one 64-bit block (two 32-bit halves) with Blowfish: 16 rounds with
+ * the key's P-array and S-boxes.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `data` | `BF_LONG *` | [in,out] The block, encrypted in place. |
+ * | `key` | `const BF_KEY *` | [in] The key schedule. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `k` | `uint32_t *` | The P-array |
+ * | `l` | `uint32_t` | The left half |
+ * | `r` | `uint32_t` | The right half |
+ * | `t` | `uint32_t` | A temporary of a round |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `l` to `data[0]`.
+ * 2. Set `r` to `data[1]`.
+ * 3. Set `k` to `(BF_LONG*)key`.
+ * 4. Toggle the bits `k[0]` in `l`.
+ * 5. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `1`.
+ * 6. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `2`.
+ * 7. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `3`.
+ * 8. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `4`.
+ * 9. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `5`.
+ * 10. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `6`.
+ * 11. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `7`.
+ * 12. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `8`.
+ * 13. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `9`.
+ * 14. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `10`.
+ * 15. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `11`.
+ * 16. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `12`.
+ * 17. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `13`.
+ * 18. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `14`.
+ * 19. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `15`.
+ * 20. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `16`.
+ * 21. Toggle the bits `k[BF_ROUNDS+1]` in `r`.
+ * 22. Set `data[1]` to `l&0xffffffffL`.
+ * 23. Set `data[0]` to `r&0xffffffffL`.
+ *
+ * @calls
+ * None.
+ */
 void BF_encrypt(BF_LONG *data, const BF_KEY *key)
 	{
 #ifndef BF_PTR2
@@ -166,6 +238,61 @@ void BF_encrypt(BF_LONG *data, const BF_KEY *key)
 
 #ifndef BF_DEFAULT_OPTIONS
 
+/**
+ * @funcname `BF_decrypt`
+ *
+ * @description
+ * Decrypts one 64-bit block with Blowfish (the rounds in reverse order).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `data` | `BF_LONG *` | [in,out] The block, decrypted in place. |
+ * | `key` | `const BF_KEY *` | [in] The key schedule. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `k` | `uint32_t *` | The P-array |
+ * | `l` | `uint32_t` | The left half |
+ * | `r` | `uint32_t` | The right half |
+ * | `t` | `uint32_t` | A temporary of a round |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `l` to `data[0]`.
+ * 2. Set `r` to `data[1]`.
+ * 3. Set `k` to `(BF_LONG *)key`.
+ * 4. Toggle the bits `k[BF_ROUNDS+1]` in `l`.
+ * 5. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `16`.
+ * 6. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `15`.
+ * 7. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `14`.
+ * 8. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `13`.
+ * 9. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `12`.
+ * 10. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `11`.
+ * 11. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `10`.
+ * 12. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `9`.
+ * 13. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `8`.
+ * 14. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `7`.
+ * 15. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `6`.
+ * 16. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `5`.
+ * 17. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `4`.
+ * 18. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `3`.
+ * 19. Use the macro `BF_ENC()` with the arguments `r`, `l`, `k` and `2`.
+ * 20. Use the macro `BF_ENC()` with the arguments `l`, `r`, `k` and `1`.
+ * 21. Toggle the bits `k[0]` in `r`.
+ * 22. Set `data[1]` to `l&0xffffffffL`.
+ * 23. Set `data[0]` to `r&0xffffffffL`.
+ *
+ * @calls
+ * None.
+ */
 void BF_decrypt(BF_LONG *data, const BF_KEY *key)
 	{
 #ifndef BF_PTR2
@@ -241,6 +368,121 @@ void BF_decrypt(BF_LONG *data, const BF_KEY *key)
 #endif
 	}
 
+/**
+ * @funcname `BF_cbc_encrypt`
+ *
+ * @description
+ * Encrypts or decrypts data with Blowfish in CBC mode; a last partial block is
+ * padded.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `in` | `const unsigned char *` | [in] The input. |
+ * | `out` | `unsigned char *` | [out] The output. |
+ * | `length` | `long` | [in] The length of the input. |
+ * | `schedule` | `const BF_KEY *` | [in] The key schedule. |
+ * | `ivec` | `unsigned char *` | [in] The initialization vector (updated). |
+ * | `encrypt` | `int` | [in] BF_ENCRYPT or BF_DECRYPT. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `l` | `long` | The length left |
+ * | `tin` | `uint32_t[2]` | The block |
+ * | `tin0` | `uint32_t` | The first half of the input block |
+ * | `tin1` | `uint32_t` | Its second half |
+ * | `tout0` | `uint32_t` | The first half of the output block |
+ * | `tout1` | `uint32_t` | Its second half |
+ * | `xor0` | `uint32_t` | The first half of the vector |
+ * | `xor1` | `uint32_t` | Its second half |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `l` to `length`.
+ * 2. If `encrypt` is true:
+ *    1. Use the macro `n2l()` with the arguments `ivec` and `tout0`.
+ *    2. Use the macro `n2l()` with the arguments `ivec` and `tout1`.
+ *    3. Subtract `8` from `ivec`.
+ *    4. Subtract `8` from `l`; then while `l` is greater than or equal to `0`,
+ *       repeat (after each pass: subtract `8` from `l`):
+ *       1. Use the macro `n2l()` with the arguments `in` and `tin0`.
+ *       2. Use the macro `n2l()` with the arguments `in` and `tin1`.
+ *       3. Toggle the bits `tout0` in `tin0`.
+ *       4. Toggle the bits `tout1` in `tin1`.
+ *       5. Set `tin[0]` to `tin0`.
+ *       6. Set `tin[1]` to `tin1`.
+ *       7. Call `BF_encrypt()` with the arguments `tin` and `schedule`.
+ *       8. Set `tout0` to `tin[0]`.
+ *       9. Set `tout1` to `tin[1]`.
+ *       10. Use the macro `l2n()` with the arguments `tout0` and `out`.
+ *       11. Use the macro `l2n()` with the arguments `tout1` and `out`.
+ *    5. If `l` is not equal to `-8`:
+ *       1. Use the macro `n2ln()` with the arguments `in`, `tin0`, `tin1` and
+ *          `l+8`.
+ *       2. Use the macro `n2ln()` with the arguments `in`, `tin0`, `tin1` and
+ *          `l+8`.
+ *       3. Use the macro `n2ln()` with the arguments `in`, `tin0`, `tin1` and
+ *          `l+8`.
+ *       4. Do nothing.
+ *       5. Toggle the bits `tout0` in `tin0`.
+ *       6. Toggle the bits `tout1` in `tin1`.
+ *       7. Set `tin[0]` to `tin0`.
+ *       8. Set `tin[1]` to `tin1`.
+ *       9. Call `BF_encrypt()` with the arguments `tin` and `schedule`.
+ *       10. Set `tout0` to `tin[0]`.
+ *       11. Set `tout1` to `tin[1]`.
+ *       12. Use the macro `l2n()` with the arguments `tout0` and `out`.
+ *       13. Use the macro `l2n()` with the arguments `tout1` and `out`.
+ *    6. Use the macro `l2n()` with the arguments `tout0` and `ivec`.
+ *    7. Use the macro `l2n()` with the arguments `tout1` and `ivec`.
+ * 3. Otherwise:
+ *    1. Use the macro `n2l()` with the arguments `ivec` and `xor0`.
+ *    2. Use the macro `n2l()` with the arguments `ivec` and `xor1`.
+ *    3. Subtract `8` from `ivec`.
+ *    4. Subtract `8` from `l`; then while `l` is greater than or equal to `0`,
+ *       repeat (after each pass: subtract `8` from `l`):
+ *       1. Use the macro `n2l()` with the arguments `in` and `tin0`.
+ *       2. Use the macro `n2l()` with the arguments `in` and `tin1`.
+ *       3. Set `tin[0]` to `tin0`.
+ *       4. Set `tin[1]` to `tin1`.
+ *       5. Call `BF_decrypt()` with the arguments `tin` and `schedule`.
+ *       6. Set `tout0` to `tin[0]^xor0`.
+ *       7. Set `tout1` to `tin[1]^xor1`.
+ *       8. Use the macro `l2n()` with the arguments `tout0` and `out`.
+ *       9. Use the macro `l2n()` with the arguments `tout1` and `out`.
+ *       10. Set `xor0` to `tin0`.
+ *       11. Set `xor1` to `tin1`.
+ *    5. If `l` is not equal to `-8`:
+ *       1. Use the macro `n2l()` with the arguments `in` and `tin0`.
+ *       2. Use the macro `n2l()` with the arguments `in` and `tin1`.
+ *       3. Set `tin[0]` to `tin0`.
+ *       4. Set `tin[1]` to `tin1`.
+ *       5. Call `BF_decrypt()` with the arguments `tin` and `schedule`.
+ *       6. Set `tout0` to `tin[0]^xor0`.
+ *       7. Set `tout1` to `tin[1]^xor1`.
+ *       8. Use the macro `l2nn()` with the arguments `tout0`, `tout1`, `out`
+ *          and `l+8`.
+ *       9. Use the macro `l2nn()` with the arguments `tout0`, `tout1`, `out`
+ *          and `l+8`.
+ *       10. Do nothing.
+ *       11. Set `xor0` to `tin0`.
+ *       12. Set `xor1` to `tin1`.
+ *    6. Use the macro `l2n()` with the arguments `xor0` and `ivec`.
+ *    7. Use the macro `l2n()` with the arguments `xor1` and `ivec`.
+ * 4. Set `tin0` to `tin1=tout0=tout1=xor0=xor1=0`.
+ * 5. Set `tin[0]` to `tin[1]=0`.
+ *
+ * @calls
+ * - `BF_encrypt()`
+ * - `BF_decrypt()`
+ */
 void BF_cbc_encrypt(const unsigned char *in, unsigned char *out, long length,
 	     const BF_KEY *schedule, unsigned char *ivec, int encrypt)
 	{
@@ -324,6 +566,52 @@ void BF_cbc_encrypt(const unsigned char *in, unsigned char *out, long length,
 	}
 
 
+/**
+ * @funcname `BF_ecb_encrypt`
+ *
+ * @description
+ * Encrypts or decrypts one 8-byte block with Blowfish in ECB mode.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `in` | `const unsigned char *` | [in] The input block. |
+ * | `out` | `unsigned char *` | [out] The output block. |
+ * | `key` | `const BF_KEY *` | [in] The key schedule. |
+ * | `encrypt` | `int` | [in] BF_ENCRYPT or BF_DECRYPT. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `d` | `uint32_t[2]` | The block |
+ * | `l` | `uint32_t` | A half of the block |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `n2l()` with the arguments `in` and `l`.
+ * 2. Set `d[0]` to `l`.
+ * 3. Use the macro `n2l()` with the arguments `in` and `l`.
+ * 4. Set `d[1]` to `l`.
+ * 5. If `encrypt` is true:
+ *    1. Call `BF_encrypt()` with the arguments `d` and `key`.
+ * 6. Otherwise:
+ *    1. Call `BF_decrypt()` with the arguments `d` and `key`.
+ * 7. Set `l` to `d[0]`.
+ * 8. Use the macro `l2n()` with the arguments `l` and `out`.
+ * 9. Set `l` to `d[1]`.
+ * 10. Use the macro `l2n()` with the arguments `l` and `out`.
+ * 11. Set `l` to `d[0]=d[1]=0`.
+ *
+ * @calls
+ * - `BF_encrypt()`
+ * - `BF_decrypt()`
+ */
 void BF_ecb_encrypt(const unsigned char *in, unsigned char *out,
       const BF_KEY *key, int encrypt)
 {

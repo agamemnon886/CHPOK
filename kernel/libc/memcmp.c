@@ -20,10 +20,66 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: MISRA C:2025: deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ */
+
+/**
+ * @file
+ * memcmp() of the kernel's C library.
  */
 
 #include <libc.h>
 
+/**
+ * @funcname `memcmp`
+ *
+ * @description
+ * Compares two blocks of memory (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `v1` | `const void *` | [in] The first block. |
+ * | `v2` | `const void *` | [in] The second block. |
+ * | `n` | `size_t` | [in] The number of bytes. |
+ *
+ * @return 0 if they are equal, otherwise the difference of the first bytes that
+ *         differ.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `diff` | `int` | The difference of the bytes |
+ * | `i` | `size_t` | The index of the byte |
+ * | `s1` | `const unsigned char *` | The first block, as bytes |
+ * | `s2` | `const unsigned char *` | The second block, as bytes |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `s1` to `v1`.
+ * 2. Set `s2` to `v2`.
+ * 3. Set `i` to `0`; then while `i` is less than `n`, repeat (after each pass:
+ *    increment `i`):
+ *    1. Set `diff` to `s1[i] - s2[i]`.
+ *    2. If `diff` is not equal to `0`:
+ *       1. Return `diff`.
+ * 4. Return `0`.
+ *
+ * @calls
+ * None.
+ */
 /*
  * MISRA C:2025 Rule 11.5 deviation (this file): the standard memcmp() takes
  * and returns pointers to void; the bytes are accessed through pointers to

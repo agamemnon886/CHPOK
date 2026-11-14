@@ -26,6 +26,14 @@
  * guard isn't a reserved identifier; the parameters of the prototypes are
  * named; __<component>_init__() and __<component>_activity__() are
  * declared.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: Doxygen comments for the file,
+ * its types and their members (the descriptions are in the component's
+ * configuration: description and state_doc); the function declarations are
+ * hidden from Doxygen (\cond).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef ROUTER_GEN_H
@@ -38,32 +46,57 @@
 
     #include <interfaces/message_handler_gen.h>
 
-typedef struct ROUTER_state {
-    struct udp_ip_pair map_ip_port_to_idx[10];
+/**
+ * @typename `ROUTER_state`
+ *
+ * @description
+ * The state of an instance of the ROUTER component
+ * (state_struct in its configuration).
+ */
+typedef struct {
+    udp_ip_pair_t map_ip_port_to_idx[10];
+    /**< The destinations (IPv4 address and UDP port) and the index of
+     * their port in portArray. */
     size_t map_ip_port_to_idx_len;
+    /**< The number of destinations in map_ip_port_to_idx. */
 }ROUTER_state;
 
+/**
+ * @typename `ROUTER`
+ *
+ * @description
+ * An instance of the ROUTER component: its state and its
+ * ports.
+ * It passes each UDP payload it receives (portA) to the port of portArray
+ * that its destination address and port select.
+ */
 typedef struct {
-    ROUTER_state state;
+    ROUTER_state state; /**< The state of the instance. */
     struct {
             struct {
                 udp_message_handler ops;
             } portA;
     } in;
+    /**< The in ports, each with the operations of its interface that the
+     * component implements: portA (udp_message_handler). */
     struct {
             struct {
                 message_handler *ops;
                 self_t *owner;
             } *portArray;
     } out;
+    /**< The out ports, each with the operations of the component it is
+     * connected to and that component (owner):
+     * portArray (message_handler). */
 } ROUTER;
 
 
+/** \cond */
 
-      ret_t receive_packet(
+      ret_e receive_packet(
           ROUTER *self, const char * arg1, size_t arg2, uint32_t arg3, uint16_t arg4);
 
-      ret_t
+      ret_e
       ROUTER_call_portArray_handle_by_index(
           int32_t idx, ROUTER *self, const char * arg1, size_t arg2);
 
@@ -78,6 +111,7 @@ typedef struct {
  */
 void __ROUTER_init__(ROUTER *self);
 void __ROUTER_activity__(ROUTER *self);
+/** \endcond */
 
 
 #endif

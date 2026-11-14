@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* w_lgammaf_r.c -- float version of w_lgamma_r.c.
@@ -29,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * lgammaf_r() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -39,6 +49,38 @@
 #include <libm.h>
 #include "math_private.h"
 
+/**
+ * @funcname `lgammaf_r`
+ *
+ * @description
+ * Computes the logarithm of the absolute value of the gamma function of x, in
+ * float; the sign of gamma(x) is stored in *signgamp (reentrant).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ * | `signgamp` | `int *` | [out] Where the sign of gamma(x) is stored. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ieee754_lgammaf_r()` with the arguments `x` and `signgamp`, and
+ *    return its result.
+ *
+ * @calls
+ * - `__ieee754_lgammaf_r()`
+ */
 float
 lgammaf_r(float x, int *signgamp) /* wrapper lgammaf_r */
 {

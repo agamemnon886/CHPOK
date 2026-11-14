@@ -17,6 +17,17 @@
  * guard isn't a reserved identifier; ja_inf_loop() is _Noreturn (a
  * documented Dir 1.2 deviation); pok_arch_init() is declared; deviations
  * are documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; Doxygen comments for the file and its macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 /* Unsorted arch-specific functions. */
@@ -27,24 +38,33 @@
 #include <types.h>
 
 // TODO: Where should be that definition?
+
+/**
+ * @macroname `KERNEL_STACK_SIZE_DEFAULT`
+ *
+ * @description
+ * The default size of a kernel stack, in bytes. TODO: Where should be that
+ * definition?
+ */
 #define KERNEL_STACK_SIZE_DEFAULT 8192
 
-/**
+/*
  * Disable interrupts
  */
+/** \cond */
 void ja_preempt_disable (void);
 
-/**
+/*
  * Enable interrupts
  */
 void ja_preempt_enable (void);
 
-/**
+/*
  * Returns true if interrupts are enabled
  */
 pok_bool_t ja_preempt_enabled(void);
 
-/**
+/*
  * Function that do nothing. Useful for the idle task for example.
  */
 /*
@@ -64,5 +84,7 @@ void pok_arch_init(void);
  * reset cpu
  */
 void ja_cpu_reset(void);
+
+/** \endcond */
 
 #endif /* !__POK_ARCH_H__ */

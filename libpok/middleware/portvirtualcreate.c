@@ -16,8 +16,17 @@
  * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
  * Modified by Kirill Brazhnikov, 2026-10-31: syscall arguments are
  * passed as uintptr_t (64-bit support).
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * pok_ret_e (was pok_ret_t).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
+ */
+
+/**
+ * @file
+ * pok_port_virtual_create() of the old POK interface.
  */
 
 
@@ -31,7 +40,37 @@
 #include <core/syscall.h>
 #include <middleware/port.h>
 
-pok_ret_t pok_port_virtual_create (char* name, pok_port_id_t* id)
+/**
+ * @funcname `pok_port_virtual_create`
+ *
+ * @description
+ * Creates a virtual port (a syscall).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `name` | `char *` | [in] The name. |
+ * | `id` | `pok_port_id_t *` | [out] Where its ID is stored. |
+ *
+ * @return The result of the syscall.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Do nothing.
+ *
+ * @calls
+ * None.
+ */
+pok_ret_e pok_port_virtual_create (char* name, pok_port_id_t* id)
 {
    return (pok_syscall2 (POK_SYSCALL_MIDDLEWARE_VIRTUAL_CREATE, (uintptr_t) name, (uintptr_t) id));
 }

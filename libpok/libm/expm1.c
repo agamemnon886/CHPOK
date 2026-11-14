@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* @(#)s_expm1.c 5.1 93/09/24 */
@@ -26,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * expm1() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 /* expm1(x)
  * Returns exp(x)-1, the exponential of x minus 1.
  *
@@ -142,6 +155,145 @@ Q3  =  -7.93650757867487942473e-05, /* BF14CE19 9EAADBB7 */
 Q4  =   4.00821782732936239552e-06, /* 3ED0CFCA 86E65239 */
 Q5  =  -2.01099218183624371326e-07; /* BE8AFDB7 6E09C32D */
 
+/**
+ * @funcname `expm1`
+ *
+ * @description
+ * Computes exp(x) - 1, accurate near 0 (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `double` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `Q1` | `const double` | A constant of the algorithm |
+ * | `Q2` | `const double` | A constant of the algorithm |
+ * | `Q3` | `const double` | A constant of the algorithm |
+ * | `Q4` | `const double` | A constant of the algorithm |
+ * | `Q5` | `const double` | A constant of the algorithm |
+ * | `huge` | `const double` | A constant of the algorithm |
+ * | `invln2` | `const double` | A constant of the algorithm |
+ * | `ln2_hi` | `const double` | A constant of the algorithm |
+ * | `ln2_lo` | `const double` | A constant of the algorithm |
+ * | `o_threshold` | `const double` | A constant of the algorithm |
+ * | `one` | `const double` | A constant of the algorithm |
+ * | `tiny` | `const double` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `c` | `double` | A temporary of the computation |
+ * | `e` | `double` | A temporary of the computation |
+ * | `hfx` | `double` | A temporary of the computation |
+ * | `hi` | `double` | A temporary of the computation |
+ * | `high` | `uint32_t` | The high word of y |
+ * | `hx` | `uint32_t` | The high word of x |
+ * | `hxs` | `double` | A temporary of the computation |
+ * | `k` | `int32_t` | A temporary of the computation |
+ * | `lo` | `double` | A temporary of the computation |
+ * | `low` | `uint32_t` | The low word of x |
+ * | `r1` | `double` | A temporary of the computation |
+ * | `t` | `double` | A temporary of the computation |
+ * | `xsb` | `int32_t` | A temporary of the computation |
+ * | `y` | `double` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `c` to `0`.
+ * 2. Use the macro `GET_HIGH_WORD()` with the arguments `hx` and `x`.
+ * 3. Set `xsb` to `hx&0x80000000`.
+ * 4. If `xsb` is equal to `0`:
+ *    1. Set `y` to `x`.
+ * 5. Otherwise:
+ *    1. Set `y` to `-x`.
+ * 6. Keep only the bits `0x7fffffff` of `hx`.
+ * 7. If `hx` is greater than or equal to `0x4043687A`:
+ *    1. If `hx` is greater than or equal to `0x40862E42`:
+ *       1. If `hx` is greater than or equal to `0x7ff00000`:
+ *          1. Use the macro `GET_LOW_WORD()` with the arguments `low` and `x`.
+ *          2. If `((hx&0xfffff)|low)` is not equal to `0`:
+ *             1. Return `x+x`.
+ *          3. Otherwise:
+ *             1. Return `x` if `xsb` is equal to `0`, otherwise `-1.0`.
+ *       2. If `x` is greater than `o_threshold`:
+ *          1. Return `huge*huge`.
+ *    2. If `xsb` is not equal to `0`:
+ *       1. If `x+tiny` is less than `0.0`:
+ *          1. Return `tiny-one`.
+ * 8. If `hx` is greater than `0x3fd62e42`:
+ *    1. If `hx` is less than `0x3FF0A2B2`:
+ *       1. If `xsb` is equal to `0`:
+ *          1. Set `hi` to `x - ln2_hi`.
+ *          2. Set `lo` to `ln2_lo`.
+ *          3. Set `k` to `1`.
+ *       2. Otherwise:
+ *          1. Set `hi` to `x + ln2_hi`.
+ *          2. Set `lo` to `-ln2_lo`.
+ *          3. Set `k` to `-1`.
+ *    2. Otherwise:
+ *       1. Set `k` to `invln2*x+((xsb==0)?0.5:-0.5)`.
+ *       2. Set `t` to `k`.
+ *       3. Set `hi` to `x - t*ln2_hi`.
+ *       4. Set `lo` to `t*ln2_lo`.
+ *    3. Set `x` to `hi - lo`.
+ *    4. Set `c` to `(hi-x)-lo`.
+ * 9. Otherwise, if `hx` is less than `0x3c900000`:
+ *    1. Set `t` to `huge+x`.
+ *    2. Return `x - (t-(huge+x))`.
+ * 10. Otherwise:
+ *     1. Set `k` to `0`.
+ * 11. Set `hfx` to `0.5*x`.
+ * 12. Set `hxs` to `x*hfx`.
+ * 13. Set `r1` to `one+hxs*(Q1+hxs*(Q2+hxs*(Q3+hxs*(Q4+hxs*Q5))))`.
+ * 14. Set `t` to `3.0-r1*hfx`.
+ * 15. Set `e` to `hxs*((r1-t)/(6.0 - x*t))`.
+ * 16. If `k` is equal to `0`:
+ *     1. Return `x - (x*e-hxs)`.
+ * 17. Otherwise:
+ *     1. Set `e` to `(x*(e-c)-c)`.
+ *     2. Subtract `hxs` from `e`.
+ *     3. If `k` is equal to `-1`:
+ *        1. Return `0.5*(x-e)-0.5`.
+ *     4. If `k` is equal to `1`:
+ *        1. If `x` is less than `-0.25`:
+ *           1. Return `-2.0*(e-(x+0.5))`.
+ *        2. Otherwise:
+ *           1. Return `one+2.0*(x-e)`.
+ *     5. If `k` is less than or equal to `-2` or `k` is greater than `56`:
+ *        1. Set `y` to `one-(e-x)`.
+ *        2. Use the macro `GET_HIGH_WORD()` with the arguments `high` and `y`.
+ *        3. Use the macro `SET_HIGH_WORD()` with the arguments `y` and
+ *           `high+(k<<20)`.
+ *        4. Return `y-one`.
+ *     6. Set `t` to `one`.
+ *     7. If `k` is less than `20`:
+ *        1. Use the macro `SET_HIGH_WORD()` with the arguments `t` and
+ *           `0x3ff00000 - (0x200000>>k)`.
+ *        2. Set `y` to `t-(e-x)`.
+ *        3. Use the macro `GET_HIGH_WORD()` with the arguments `high` and `y`.
+ *        4. Use the macro `SET_HIGH_WORD()` with the arguments `y` and
+ *           `high+(k<<20)`.
+ *     8. Otherwise:
+ *        1. Use the macro `SET_HIGH_WORD()` with the arguments `t` and
+ *           `((0x3ff-k)<<20)`.
+ *        2. Set `y` to `x-(e+t)`.
+ *        3. Add `one` to `y`.
+ *        4. Use the macro `GET_HIGH_WORD()` with the arguments `high` and `y`.
+ *        5. Use the macro `SET_HIGH_WORD()` with the arguments `y` and
+ *           `high+(k<<20)`.
+ * 18. Return `y`.
+ *
+ * @calls
+ * None.
+ */
 double
 expm1(double x)
 {

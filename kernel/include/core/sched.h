@@ -19,6 +19,18 @@
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier; __user/__kuser are renamed
  * JET_USER/JET_KUSER; slot durations and offsets are pok_time_t.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; Doxygen comments for the file and its types (with their members).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macro QEMU_TRACING of
+ * kernel/core/sched.c is moved here; the Doxygen comment of the file is removed
+ * (header files are not documented).
  */
 
 
@@ -66,16 +78,26 @@ extern pok_partition_t partition_monitor;
 extern pok_partition_t partition_gdb;
 #endif /* POK_NEEDS_GDB */
 
+/**
+ * @typename `pok_sched_slot_t`
+ *
+ * @description
+ * A slot of the module's schedule (a window of the major time frame), set in
+ * deployment.c.
+ */
 typedef struct
 {
-    pok_time_t duration; // Set in deployment.c
-    pok_time_t offset; // Set in deployment.c
+    pok_time_t duration; /**< Its duration. */
+    pok_time_t offset; /**< Its offset in the major time frame. */
 
-    pok_partition_t* partition; // Set in deployment.c
+    pok_partition_t* partition; /**< The partition that runs in it. */
 
-    pok_bool_t periodic_processing_start; // Set in deployment.c
+    /**
+     * Whether the periodic processes of the partition start in it.
+     */
+    pok_bool_t periodic_processing_start;
 
-    uint32_t id; // Set in deployment.c
+    uint32_t id; /**< Its identifier. */
 } pok_sched_slot_t;
 
 /*
@@ -99,10 +121,11 @@ extern const uint8_t pok_module_sched_n;
  */
 extern const pok_time_t pok_config_scheduling_major_frame;
 
+/** \cond */
 void pok_sched_init(void); /* Initialize scheduling stuff */
 
 
-/**
+/*
  *  Starts critical section, when scheduler will not run.
  * 
  * Shouldn't be called from interrupt handler
@@ -112,7 +135,7 @@ void pok_sched_init(void); /* Initialize scheduling stuff */
  */
 void pok_preemption_disable(void);
 
-/**
+/*
  *  Ends critical section, and runs scheduler.
  * 
  * Should be paired with pok_preemption_disable or
@@ -120,7 +143,7 @@ void pok_preemption_disable(void);
  */
 void pok_preemption_enable(void);
 
-/**
+/*
  *  Ends critical section without running scheduler.
  * 
  * Should be paired with pok_preemption_disable or
@@ -132,7 +155,7 @@ void pok_preemption_enable(void);
 void __pok_preemption_enable(void);
 
 
-/** 
+/* 
  * Mark scheduler state as needed to be rechecked.
  * 
  * If called outside of critical section, action will be taken at next
@@ -140,7 +163,7 @@ void __pok_preemption_enable(void);
  */
 void pok_sched_invalidate(void);
 
-/**
+/*
  * Disables preemption in interrupt handler.
  * 
  * If preemption is not disabled by normal context, disable it
@@ -153,7 +176,7 @@ void pok_sched_invalidate(void);
  */
 pok_bool_t pok_preemption_disable_from_interrupt(void);
 
-/**
+/*
  * Set `invalidate` flag for scheduler.
  * 
  * Can be called outside of critical section. So scheduler will found
@@ -161,7 +184,7 @@ pok_bool_t pok_preemption_disable_from_interrupt(void);
  */
 void pok_sched_invalidate(void);
 
-/**
+/*
  * Disable preemption before scheduler (re)start.
  * 
  * DEV: When kernel is initialized, this function should be called
@@ -170,7 +193,7 @@ void pok_sched_invalidate(void);
  */
 void pok_preemption_off(void);
 
-/**
+/*
  * Start scheduler.
  * 
  * Never returns.
@@ -181,7 +204,7 @@ void pok_preemption_off(void);
  */
 void pok_sched_start(void);
 
-/**
+/*
  * Retart scheduler.
  * 
  * Never returns.
@@ -190,14 +213,14 @@ void pok_sched_start(void);
  */
 void pok_sched_restart(void);
 
-/**
+/*
  * Should be called from interrupt handler after time is changed.
  * 
  * Called with disabled interrupts.
  */
 void pok_sched_on_time_changed(void);
 
-/**
+/*
  * Return next release point for periodic process in current partition.
  * 
  * May be used by partition-specific code.
@@ -252,7 +275,7 @@ void pok_partition_return_user(void);
  */
 void pok_partition_return_user_fp(void);
 
-/** 
+/* 
  * Restart current partition.
  * 
  * Because this function is called by partition itself,
@@ -260,5 +283,15 @@ void pok_partition_return_user_fp(void);
  */
 void pok_partition_restart(void);
 
+/** \endcond */
+
+/**
+ * @macroname `QEMU_TRACING`
+ *
+ * @description
+ * Set to 1 to trace the scheduling with QEMU (its variables and code in
+ * pok_sched()); 0 leaves them out.
+ */
+#define QEMU_TRACING 0
 
 #endif /* !POK_SCHED_H */

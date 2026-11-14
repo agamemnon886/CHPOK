@@ -26,6 +26,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-12: Doxygen comments for the file
+ * and the fields of its type.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: struct jet_context is used as the
+ * typedef jet_context_t (declared in asp/cswitch.h); ja_kernel_thread() is
+ * declared here.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef POK_ARM64_THREAD_H
@@ -39,14 +49,23 @@
  *
  * Only callee-saved registers (AAPCS64) are stored. Layout is used by
  * cswitch.S. Size is a multiple of 16, so the stack stays aligned.
+ * Documented with its x86_64 definition (kernel/arch/x86_64/thread.h): the
+ * types defined for each architecture have one header.
  */
 struct jet_context
 {
-  uint64_t x19_x28[10];
-  uint64_t fp;    /* x29 */
-  uint64_t lr;    /* x30, where ja_context_switch() returns to */
-  uint64_t daif;  /* interrupt mask */
-  uint64_t pad;
+  uint64_t x19_x28[10]; /**< arm64: x19 to x28 (callee-saved; x19 is the
+                             function that a new thread runs, for
+                             ja_kernel_thread). */
+  uint64_t fp;    /**< arm64: x29, the frame pointer. */
+  uint64_t lr;    /**< arm64: x30, where ja_context_switch() returns to. */
+  uint64_t daif;  /**< arm64: the interrupt mask (DAIF). */
+  uint64_t pad;   /**< arm64: padding to a multiple of 16 bytes. */
 };
+
+/* This function starts kernel thread and is defined in cswitch.S.*/
+/** \cond */
+void ja_kernel_thread(void);
+/** \endcond */
 
 #endif /* !POK_ARM64_THREAD_H */

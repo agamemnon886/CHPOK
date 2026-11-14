@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* w_logf.c -- float version of w_log.c.
@@ -29,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * logf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -44,6 +54,36 @@
 __weak_alias(logf, _logf)
 #endif
 
+/**
+ * @funcname `logf`
+ *
+ * @description
+ * Computes the natural logarithm of x, in float (C standard): the wrapper of
+ * `__ieee754_logf()`.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ieee754_logf()` with the argument `x`, and return its result.
+ *
+ * @calls
+ * - `__ieee754_logf()`
+ */
 float
 logf(float x)		/* wrapper logf */
 {

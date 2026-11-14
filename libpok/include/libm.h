@@ -12,6 +12,13 @@
  *                                      Copyright (c) 2007-2009 POK team
  *
  * Created by julien on Fri Jan 30 13:44:27 2009
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 
@@ -25,30 +32,133 @@
 
 #include <types.h>
 
+/**
+ * @typename `struct exception`
+ *
+ * @description
+ * An exception of a mathematical function, given to matherr() (the SVID
+ * interface, which needs the tag).
+ */
 struct exception {
+        /**
+         * Its type (DOMAIN, SING, OVERFLOW, UNDERFLOW, TLOSS or PLOSS).
+         */
         int type;
-        char *name;
-        double arg1;
-        double arg2;
+        char *name; /**< The name of the function. */
+        double arg1; /**< Its first argument. */
+        double arg2; /**< Its second argument. */
+        /**
+         * The value the function returns (matherr() may change it).
+         */
         double retval;
 };
 
+/**
+ * @macroname `FP_NAN`
+ *
+ * @description
+ * fpclassify(): not a number.
+ */
 #define FP_NAN          1
+
+/**
+ * @macroname `FP_INFINITE`
+ *
+ * @description
+ * fpclassify(): an infinity.
+ */
 #define FP_INFINITE     2
+
+/**
+ * @macroname `FP_NORMAL`
+ *
+ * @description
+ * fpclassify(): a normal number.
+ */
 #define FP_NORMAL       3
+
+/**
+ * @macroname `FP_SUBNORMAL`
+ *
+ * @description
+ * fpclassify(): a subnormal number.
+ */
 #define FP_SUBNORMAL    4
+
+/**
+ * @macroname `FP_ZERO`
+ *
+ * @description
+ * fpclassify(): zero.
+ */
 #define FP_ZERO         5
 
+/**
+ * @macroname `DOMAIN`
+ *
+ * @description
+ * The type of a struct exception: an argument out of the domain of the
+ * function.
+ */
 #define DOMAIN          1
+
+/**
+ * @macroname `SING`
+ *
+ * @description
+ * The type of a struct exception: a singularity.
+ */
 #define SING            2
+
+/**
+ * @macroname `OVERFLOW`
+ *
+ * @description
+ * The type of a struct exception: an overflow.
+ */
 #define OVERFLOW        3
+
+/**
+ * @macroname `UNDERFLOW`
+ *
+ * @description
+ * The type of a struct exception: an underflow.
+ */
 #define UNDERFLOW       4
+
+/**
+ * @macroname `TLOSS`
+ *
+ * @description
+ * The type of a struct exception: a total loss of significance.
+ */
 #define TLOSS           5
+
+/**
+ * @macroname `PLOSS`
+ *
+ * @description
+ * The type of a struct exception: a partial loss of significance.
+ */
 #define PLOSS           6
 
 
+/**
+ * @macroname `fpclassify`
+ *
+ * @description
+ * The class of a floating point number (FP_NAN, FP_INFINITE, FP_NORMAL,
+ * FP_SUBNORMAL or FP_ZERO): __fpclassifyf() for a float, __fpclassifyd()
+ * otherwise.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `x` | The number (float or double). |
+ */
 #define fpclassify(x) (sizeof (x) == sizeof(float )  ?  __fpclassifyf((float)(x)) : __fpclassifyd((double)(x)))
 
+/** \cond */
 extern int __fpclassifyf(float      );
 extern int __fpclassifyd(double     );
 extern int __fpclassify (long double);
@@ -139,16 +249,26 @@ double   pow(double x, double y);
 float    powf(float x, float y);
 double   remainder(double x, double y);
 float    remainderf(float x, float y);
+/** \endcond */
 #ifdef _SCALB_INT
+/** \cond */
 double   scalb(double x, int fn);
+/** \endcond */
 #else
+/** \cond */
 double   scalb(double x, double fn);
+/** \endcond */
 #endif
 #ifdef _SCALB_INT
+/** \cond */
 float    scalbf(float x, int fn);
+/** \endcond */
 #else
+/** \cond */
 float    scalbf(float x, float fn);
+/** \endcond */
 #endif
+/** \cond */
 double   rint(double x);
 float    rintf(float x);
 double   round(double x);
@@ -169,6 +289,7 @@ double   tanh(double x);
 float    tanhf(float x);
 double   trunc(double x);
 float    truncf(float x);
+/** \endcond */
 
 #endif
 

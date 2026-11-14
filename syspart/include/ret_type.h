@@ -15,14 +15,24 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-04: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
+ * ret_e (was ret_t).
  */
 
 #ifndef RET_TYPE_H
 #define RET_TYPE_H
+
+/**
+ * @typename `ret_e`
+ *
+ * @description
+ * The result of a function of a component.
+ */
 typedef enum {
-    EOK,
-    EINVAL, /* Invalid argument */
-    EAGAIN
-}ret_t;
+    EOK, /**< Success. */
+    EINVAL, /**< Invalid argument. */
+    EAGAIN /**< Try again later. */
+}ret_e;
 
 #endif

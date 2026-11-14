@@ -15,6 +15,19 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-11: the Doxygen comments that don't
+ * document a function definition are plain comments, so that only the function
+ * headers are in the function documentation.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; struct jet_context is declared as the typedef jet_context_t here,
+ * and used by that name; struct jet_interrupt_context is the typedef
+ * interrupt_frame; Doxygen comments for the file.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 #ifndef JET_ASP_CSWITCH_H
@@ -23,9 +36,20 @@
 #include <asp/stack.h>
 
 /* Opaque (kernel thread) context for switch to. */
-struct jet_context;
+/*
+ * The context of a kernel thread, which each architecture defines
+ * (kernel/arch/<arch>/thread.h); the rest of the kernel uses it by pointer.
+ */
+typedef struct jet_context jet_context_t;
 
-/**
+/*
+ * The registers saved on an interrupt or exception, which each
+ * architecture defines (kernel/arch/<arch>/include/arch/
+ * interrupt_frame.h).
+ */
+typedef struct jet_interrupt_context interrupt_frame;
+
+/*
  * Initialize `context` on the given stack.
  * 
  * Return stack pointer, which can be used by pok_context_switch() to
@@ -33,30 +57,31 @@ struct jet_context;
  * 
  * Never returns NULL.
  */
-struct jet_context* ja_context_init(jet_stack_t sp, void (*entry)(void));
+/** \cond */
+jet_context_t* ja_context_init(jet_stack_t sp, void (*entry)(void));
 
-/**
+/*
  * Switch to context, stored in @new_sp.
  * 
  * Pointer (non-NULL) to the current context will stored in @old_sp.
  */
-void ja_context_switch (struct jet_context** old_sp, struct jet_context* new_sp);
+void ja_context_switch (jet_context_t** old_sp, jet_context_t* new_sp);
 
-/**
+/*
  * Jump to context, stored in @new_sp.
  * 
  * Current context will be lost.
  */
-void ja_context_jump(struct jet_context* new_sp);
+void ja_context_jump(jet_context_t* new_sp);
 
-/**
+/*
  * Jump to given entry with given stack.
  * 
  * Mainly used for restart current context.
  */
 void ja_context_restart(jet_stack_t sp, void (*entry)(void));
 
-/**
+/*
  * Jump to given entry with given stack.
  * 
  * Mainly used for restart current context.
@@ -68,7 +93,9 @@ void ja_context_restart(jet_stack_t sp, void (*entry)(void));
  * something else.
  */
 void ja_context_restart_and_save(jet_stack_t sp, void (*entry)(void),
-        struct jet_context** new_context_p);
+        jet_context_t** new_context_p);
+
+/** \endcond */
 
 
 #endif /* JET_ASP_CSWITCH_H */

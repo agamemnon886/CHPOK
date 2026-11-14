@@ -12,6 +12,15 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
+ * have a step for the declaration of a local variable; the @locals table
+ * describes it, and an initialized one is set in a step.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* e_powf.c -- float version of e_pow.c.
@@ -29,6 +38,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * `__ieee754_powf()` of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -68,6 +81,271 @@ ivln2    =  1.4426950216e+00, /* 0x3fb8aa3b =1/ln2 */
 ivln2_h  =  1.4426879883e+00, /* 0x3fb8aa00 =16b 1/ln2*/
 ivln2_l  =  7.0526075433e-06; /* 0x36eca570 =1/ln2 tail*/
 
+/**
+ * @funcname `__ieee754_powf`
+ *
+ * @description
+ * Computes x raised to the power y, in float: the IEEE 754 core of powf().
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ * | `y` | `float` | [in] The second argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `L1` | `const float` | A constant of the algorithm |
+ * | `L2` | `const float` | A constant of the algorithm |
+ * | `L3` | `const float` | A constant of the algorithm |
+ * | `L4` | `const float` | A constant of the algorithm |
+ * | `L5` | `const float` | A constant of the algorithm |
+ * | `L6` | `const float` | A constant of the algorithm |
+ * | `P1` | `const float` | A constant of the algorithm |
+ * | `P2` | `const float` | A constant of the algorithm |
+ * | `P3` | `const float` | A constant of the algorithm |
+ * | `P4` | `const float` | A constant of the algorithm |
+ * | `P5` | `const float` | A constant of the algorithm |
+ * | `bp` | `const float[2]` | A constant of the algorithm |
+ * | `cp` | `const float` | A constant of the algorithm |
+ * | `cp_h` | `const float` | A constant of the algorithm |
+ * | `cp_l` | `const float` | A constant of the algorithm |
+ * | `dp_h` | `const float[2]` | A constant of the algorithm |
+ * | `dp_l` | `const float[2]` | A constant of the algorithm |
+ * | `huge` | `const float` | A constant of the algorithm |
+ * | `ivln2` | `const float` | A constant of the algorithm |
+ * | `ivln2_h` | `const float` | A constant of the algorithm |
+ * | `ivln2_l` | `const float` | A constant of the algorithm |
+ * | `lg2` | `const float` | A constant of the algorithm |
+ * | `lg2_h` | `const float` | A constant of the algorithm |
+ * | `lg2_l` | `const float` | A constant of the algorithm |
+ * | `one` | `const float` | A constant of the algorithm |
+ * | `ovt` | `const float` | A constant of the algorithm |
+ * | `tiny` | `const float` | A constant of the algorithm |
+ * | `two` | `const float` | A constant of the algorithm |
+ * | `two24` | `const float` | A constant of the algorithm |
+ * | `zero` | `const float` | A constant of the algorithm |
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `ax` | `float` | A temporary of the computation |
+ * | `hx` | `int32_t` | The bits of x |
+ * | `hy` | `int32_t` | The bits of y |
+ * | `i` | `int32_t` | The bits of z without the sign bit |
+ * | `is` | `int32_t` | The bits of t1 |
+ * | `ix` | `int32_t` | The bits of ax |
+ * | `iy` | `int32_t` | The bits of y without the sign bit |
+ * | `j` | `int32_t` | The bits of z |
+ * | `k` | `int32_t` | A temporary of the computation |
+ * | `n` | `int32_t` | A temporary of the computation |
+ * | `p_h` | `float` | A temporary of the computation |
+ * | `p_l` | `float` | A temporary of the computation |
+ * | `r` | `float` | A temporary of the computation |
+ * | `s` | `float` | A temporary of the computation |
+ * | `s2` | `float` | A temporary of the computation |
+ * | `s_h` | `float` | A temporary of the computation |
+ * | `s_l` | `float` | A temporary of the computation |
+ * | `t` | `float` | A temporary of the computation |
+ * | `t1` | `float` | A temporary of the computation |
+ * | `t2` | `float` | A temporary of the computation |
+ * | `t_h` | `float` | A temporary of the computation |
+ * | `t_l` | `float` | A temporary of the computation |
+ * | `u` | `float` | A temporary of the computation |
+ * | `v` | `float` | A temporary of the computation |
+ * | `w` | `float` | A temporary of the computation |
+ * | `yisint` | `int32_t` | A temporary of the computation |
+ * | `yy1` | `float` | A temporary of the computation |
+ * | `z` | `float` | A temporary of the computation |
+ * | `z_h` | `float` | A temporary of the computation |
+ * | `z_l` | `float` | A temporary of the computation |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Use the macro `GET_FLOAT_WORD()` with the arguments `hx` and `x`.
+ * 2. Use the macro `GET_FLOAT_WORD()` with the arguments `hy` and `y`.
+ * 3. Set `ix` to `hx&0x7fffffff`.
+ * 4. Set `iy` to `hy&0x7fffffff`.
+ * 5. If `iy` is equal to `0`:
+ *    1. Return `one`.
+ * 6. If `ix` is greater than `0x7f800000` or `iy` is greater than
+ *    `0x7f800000`:
+ *    1. Return `x+y`.
+ * 7. Set `yisint` to `0`.
+ * 8. If `hx` is less than `0`:
+ *    1. If `iy` is greater than or equal to `0x4b800000`:
+ *       1. Set `yisint` to `2`.
+ *    2. Otherwise, if `iy` is greater than or equal to `0x3f800000`:
+ *       1. Set `k` to `(iy>>23)-0x7f`.
+ *       2. Set `j` to `iy>>(23-k)`.
+ *       3. If `(j<<(23-k))` is equal to `iy`:
+ *          1. Set `yisint` to `2-(j&1)`.
+ * 9. If `iy` is equal to `0x7f800000`:
+ *    1. If `ix` is equal to `0x3f800000`:
+ *       1. Return `y - y`.
+ *    2. Otherwise, if `ix` is greater than `0x3f800000`:
+ *       1. Return `y` if `hy` is greater than or equal to `0`, otherwise
+ *          `zero`.
+ *    3. Otherwise:
+ *       1. Return `-y` if `hy` is less than `0`, otherwise `zero`.
+ * 10. If `iy` is equal to `0x3f800000`:
+ *     1. If `hy` is less than `0`:
+ *        1. Return `one/x`.
+ *     2. Otherwise:
+ *        1. Return `x`.
+ * 11. If `hy` is equal to `0x40000000`:
+ *     1. Return `x*x`.
+ * 12. If `hy` is equal to `0x3f000000`:
+ *     1. If `hx` is greater than or equal to `0`:
+ *        1. Call `__ieee754_sqrtf()` with the argument `x`, and return its
+ *           result.
+ * 13. Call `fabsf()` with the argument `x`, and store the result in `ax`.
+ * 14. If `ix` is equal to `0x7f800000` or `ix` is equal to `0` or `ix` is equal
+ *     to `0x3f800000`:
+ *     1. Set `z` to `ax`.
+ *     2. If `hy` is less than `0`:
+ *        1. Set `z` to `one/z`.
+ *     3. If `hx` is less than `0`:
+ *        1. If `((ix-0x3f800000)|yisint)` is equal to `0`:
+ *           1. Set `z` to `(z-z)/(z-z)`.
+ *        2. Otherwise, if `yisint` is equal to `1`:
+ *           1. Set `z` to `-z`.
+ *     4. Return `z`.
+ * 15. If `((((uint32_t)hx>>31)-1)|yisint)` is equal to `0`:
+ *     1. Return `(x-x)/(x-x)`.
+ * 16. If `iy` is greater than `0x4d000000`:
+ *     1. If `ix` is less than `0x3f7ffff8`:
+ *        1. Return `huge*huge` if `hy` is less than `0`, otherwise `tiny*tiny`.
+ *     2. If `ix` is greater than `0x3f800007`:
+ *        1. Return `huge*huge` if `hy` is greater than `0`, otherwise
+ *           `tiny*tiny`.
+ *     3. Set `t` to `ax-one`.
+ *     4. Set `w` to
+ *        `(t*t)*((float)0.5-t*((float)0.333333333333-t*(float)0.25))`.
+ *     5. Set `u` to `ivln2_h*t`.
+ *     6. Set `v` to `t*ivln2_l-w*ivln2`.
+ *     7. Set `t1` to `u+v`.
+ *     8. Use the macro `GET_FLOAT_WORD()` with the arguments `is` and `t1`.
+ *     9. Use the macro `SET_FLOAT_WORD()` with the arguments `t1` and
+ *        `is&0xfffff000`.
+ *     10. Set `t2` to `v-(t1-u)`.
+ * 17. Otherwise:
+ *     1. Set `n` to `0`.
+ *     2. If `ix` is less than `0x00800000`:
+ *        1. Multiply `ax` by `two24`.
+ *        2. Subtract `24` from `n`.
+ *        3. Use the macro `GET_FLOAT_WORD()` with the arguments `ix` and `ax`.
+ *     3. Add `((ix)>>23)-0x7f` to `n`.
+ *     4. Set `j` to `ix&0x007fffff`.
+ *     5. Set `ix` to `j|0x3f800000`.
+ *     6. If `j` is less than or equal to `0x1cc471`:
+ *        1. Set `k` to `0`.
+ *     7. Otherwise, if `j` is less than `0x5db3d7`:
+ *        1. Set `k` to `1`.
+ *     8. Otherwise:
+ *        1. Set `k` to `0`.
+ *        2. Add `1` to `n`.
+ *        3. Subtract `0x00800000` from `ix`.
+ *     9. Use the macro `SET_FLOAT_WORD()` with the arguments `ax` and `ix`.
+ *     10. Set `u` to `ax-bp[k]`.
+ *     11. Set `v` to `one/(ax+bp[k])`.
+ *     12. Set `s` to `u*v`.
+ *     13. Set `s_h` to `s`.
+ *     14. Use the macro `GET_FLOAT_WORD()` with the arguments `is` and `s_h`.
+ *     15. Use the macro `SET_FLOAT_WORD()` with the arguments `s_h` and
+ *         `is&0xfffff000`.
+ *     16. Use the macro `SET_FLOAT_WORD()` with the arguments `t_h` and
+ *         `((ix>>1)|0x20000000)+0x0040000+(k<<21)`.
+ *     17. Set `t_l` to `ax - (t_h-bp[k])`.
+ *     18. Set `s_l` to `v*((u-s_h*t_h)-s_h*t_l)`.
+ *     19. Set `s2` to `s*s`.
+ *     20. Set `r` to `s2*s2*(L1+s2*(L2+s2*(L3+s2*(L4+s2*(L5+s2*L6)))))`.
+ *     21. Add `s_l*(s_h+s)` to `r`.
+ *     22. Set `s2` to `s_h*s_h`.
+ *     23. Set `t_h` to `(float)3.0+s2+r`.
+ *     24. Use the macro `GET_FLOAT_WORD()` with the arguments `is` and `t_h`.
+ *     25. Use the macro `SET_FLOAT_WORD()` with the arguments `t_h` and
+ *         `is&0xfffff000`.
+ *     26. Set `t_l` to `r-((t_h-(float)3.0)-s2)`.
+ *     27. Set `u` to `s_h*t_h`.
+ *     28. Set `v` to `s_l*t_h+t_l*s`.
+ *     29. Set `p_h` to `u+v`.
+ *     30. Use the macro `GET_FLOAT_WORD()` with the arguments `is` and `p_h`.
+ *     31. Use the macro `SET_FLOAT_WORD()` with the arguments `p_h` and
+ *         `is&0xfffff000`.
+ *     32. Set `p_l` to `v-(p_h-u)`.
+ *     33. Set `z_h` to `cp_h*p_h`.
+ *     34. Set `z_l` to `cp_l*p_h+p_l*cp+dp_l[k]`.
+ *     35. Set `t` to `(float)n`.
+ *     36. Set `t1` to `(((z_h+z_l)+dp_h[k])+t)`.
+ *     37. Use the macro `GET_FLOAT_WORD()` with the arguments `is` and `t1`.
+ *     38. Use the macro `SET_FLOAT_WORD()` with the arguments `t1` and
+ *         `is&0xfffff000`.
+ *     39. Set `t2` to `z_l-(((t1-t)-dp_h[k])-z_h)`.
+ * 18. Set `s` to `one`.
+ * 19. If `((((uint32_t)hx>>31)-1)|(yisint-1))` is equal to `0`:
+ *     1. Set `s` to `-one`.
+ * 20. Use the macro `GET_FLOAT_WORD()` with the arguments `is` and `y`.
+ * 21. Use the macro `SET_FLOAT_WORD()` with the arguments `yy1` and
+ *     `is&0xfffff000`.
+ * 22. Set `p_l` to `(y-yy1)*t1+y*t2`.
+ * 23. Set `p_h` to `yy1*t1`.
+ * 24. Set `z` to `p_l+p_h`.
+ * 25. Use the macro `GET_FLOAT_WORD()` with the arguments `j` and `z`.
+ * 26. If `j` is greater than `0x43000000`:
+ *     1. Return `s*huge*huge`.
+ * 27. Otherwise, if `j` is equal to `0x43000000`:
+ *     1. If `p_l+ovt` is greater than `z-p_h`:
+ *        1. Return `s*huge*huge`.
+ * 28. Otherwise, if `(uint32_t)j` is equal to `0xc3160000`:
+ *     1. If `p_l` is less than or equal to `z-p_h`:
+ *        1. Return `s*tiny*tiny`.
+ * 29. Otherwise, if `(j&0x7fffffff)` is greater than `0x43160000`:
+ *     1. Return `s*tiny*tiny`.
+ * 30. Set `i` to `j&0x7fffffff`.
+ * 31. Set `k` to `(i>>23)-0x7f`.
+ * 32. Set `n` to `0`.
+ * 33. If `i` is greater than `0x3f000000`:
+ *     1. Set `n` to `j+(0x00800000>>(k+1))`.
+ *     2. Set `k` to `((n&0x7fffffff)>>23)-0x7f`.
+ *     3. Use the macro `SET_FLOAT_WORD()` with the arguments `t` and
+ *        `n&~(0x007fffff>>k)`.
+ *     4. Set `n` to `((n&0x007fffff)|0x00800000)>>(23-k)`.
+ *     5. If `j` is less than `0`:
+ *        1. Set `n` to `-n`.
+ *     6. Subtract `t` from `p_h`.
+ * 34. Set `t` to `p_l+p_h`.
+ * 35. Use the macro `GET_FLOAT_WORD()` with the arguments `is` and `t`.
+ * 36. Use the macro `SET_FLOAT_WORD()` with the arguments `t` and
+ *     `is&0xfffff000`.
+ * 37. Set `u` to `t*lg2_h`.
+ * 38. Set `v` to `(p_l-(t-p_h))*lg2+t*lg2_l`.
+ * 39. Set `z` to `u+v`.
+ * 40. Set `w` to `v-(z-u)`.
+ * 41. Set `t` to `z*z`.
+ * 42. Set `t1` to `z - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))))`.
+ * 43. Set `r` to `(z*t1)/(t1-two)-(w+z*w)`.
+ * 44. Set `z` to `one-(r-z)`.
+ * 45. Use the macro `GET_FLOAT_WORD()` with the arguments `j` and `z`.
+ * 46. Add `(n<<23)` to `j`.
+ * 47. If `(j>>23)` is less than or equal to `0`:
+ *     1. Call `scalbnf()` with the arguments `z` and `n`, and store the result
+ *        in `z`.
+ * 48. Otherwise:
+ *     1. Use the macro `SET_FLOAT_WORD()` with the arguments `z` and `j`.
+ * 49. Return `s*z`.
+ *
+ * @calls
+ * - `__ieee754_sqrtf()`
+ * - `fabsf()`
+ * - `scalbnf()`
+ */
 float
 __ieee754_powf(float x, float y)
 {

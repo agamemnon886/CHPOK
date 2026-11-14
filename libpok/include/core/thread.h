@@ -18,6 +18,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the unused macros
+ * POK_THREAD_DEFAULT_PRIORITY, POK_DEFAULT_STACK_SIZE and pok_thread_status are
+ * removed.
  */
 
 #ifndef POK_THREAD_H
@@ -29,16 +33,16 @@
 
 #ifdef POK_NEEDS_THREADS
 
-#define POK_THREAD_DEFAULT_PRIORITY 42
-
-#define POK_DEFAULT_STACK_SIZE 2048
-
 #include <uapi/thread_types.h>
 #include <core/syscall.h>
 
-// Renames for system calls
+/**
+ * @macroname `pok_thread_period`
+ *
+ * @description
+ * The name of the system call pok_sched_end_period() in libpok.
+ */
 #define pok_thread_period pok_sched_end_period
-#define pok_thread_status pok_thread_get_status
 
 #endif /* __POK_NEEDS_THREADS */
 #endif /* POK_THREAD_H */

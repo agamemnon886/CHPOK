@@ -22,6 +22,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: MISRA C:2025: MAX_PACKET_SIZE
  * is an unsigned constant, as it is compared with sizes.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros of virtio_network.c are
+ * here; the callback has the type virtio_packet_received_fn_t; the types are
+ * typedefs without a tag, documented with the macros.
  */
 
 #ifndef VIRTIO_NETWORK_DEVICE_H
@@ -34,31 +38,120 @@
 #include <pci.h>
 
 
+/**
+ * @macroname `POK_MAX_RECEIVE_BUFFERS`
+ *
+ * @description
+ * The number of receive buffers of a virtio network device.
+ */
 #define POK_MAX_RECEIVE_BUFFERS 100
 
+/**
+ * @macroname `MAX_PACKET_SIZE`
+ *
+ * @description
+ * The maximum size of a frame, in bytes.
+ */
 #define MAX_PACKET_SIZE 1500U
 
-struct receive_buffer {
-    struct virtio_net_hdr virtio_net_hdr;
-    char packet[MAX_PACKET_SIZE];
-} __attribute__((packed));
+/**
+ * @typename `receive_buffer_t`
+ *
+ * @description
+ * A buffer for a received frame, with the virtio header the device writes
+ * before it.
+ */
+typedef struct {
+    virtio_net_hdr_t virtio_net_hdr; /**< The virtio header. */
+    char packet[MAX_PACKET_SIZE]; /**< The frame. */
+} __attribute__((packed)) receive_buffer_t;
 
-struct send_buffer {
-    char data[MAX_PACKET_SIZE];
-} __attribute__((packed));
+/**
+ * @typename `send_buffer_t`
+ *
+ * @description
+ * A buffer for a frame being sent.
+ */
+typedef struct {
+    char data[MAX_PACKET_SIZE]; /**< The frame. */
+} __attribute__((packed)) send_buffer_t;
 
-struct virtio_network_device {
-    s_pci_dev pci_device;
+/**
+ * @typename `virtio_packet_received_fn_t`
+ *
+ * @description
+ * Gets a frame received by the device: the frame and its size.
+ */
+typedef void (*virtio_packet_received_fn_t)(const char *frame,
+    size_t size);
 
-    struct virtio_virtqueue rx_vq, tx_vq;
+/**
+ * @typename `virtio_network_device_t`
+ *
+ * @description
+ * A virtio network device: its PCI device, its queues and its buffers.
+ */
+typedef struct {
+    pci_dev_t pci_device; /**< The PCI device. */
 
-    uint8_t mac[6];
+    virtio_virtqueue_t rx_vq; /**< The receive queue. */
+    virtio_virtqueue_t tx_vq; /**< The transmit queue. */
 
-    void (*packet_received_callback)(const char *, size_t);
+    uint8_t mac[6]; /**< The MAC address of the device. */
 
-    struct receive_buffer receive_buffers[POK_MAX_RECEIVE_BUFFERS];
-    struct send_buffer *send_buffers;
-    int32_t inited;
-};
+    /**
+     * Gets the frames received.
+     */
+    virtio_packet_received_fn_t packet_received_callback;
+
+    /**
+     * The receive buffers.
+     */
+    receive_buffer_t receive_buffers[POK_MAX_RECEIVE_BUFFERS];
+    /**
+     * The send buffers (one for each descriptor of the transmit queue).
+     */
+    send_buffer_t *send_buffers;
+    int32_t inited; /**< Whether the device is initialized. */
+} virtio_network_device_t;
+
+/**
+ * @macroname `VIRTIO_PCI_VENDORID`
+ *
+ * @description
+ * The PCI vendor ID of the virtio devices.
+ */
+#define VIRTIO_PCI_VENDORID 0x1AF4
+
+/**
+ * @macroname `VIRTIO_NETWORK_RX_VIRTQUEUE`
+ *
+ * @description
+ * The index of the receive queue of a virtio network device.
+ */
+#define VIRTIO_NETWORK_RX_VIRTQUEUE 0
+
+/**
+ * @macroname `VIRTIO_NETWORK_TX_VIRTQUEUE`
+ *
+ * @description
+ * The index of the transmit queue of a virtio network device.
+ */
+#define VIRTIO_NETWORK_TX_VIRTQUEUE 1
+
+/**
+ * @macroname `PRINTF`
+ *
+ * @description
+ * Prints a message of the virtio network component: printf() with the prefix
+ * "VIRTIO_NET_DEV: ", its result discarded.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `fmt` | The format (a string literal). |
+ * | `...` | Its arguments. |
+ */
+#define PRINTF(fmt, ...) (void) printf("VIRTIO_NET_DEV: " fmt, ##__VA_ARGS__)
 
 #endif

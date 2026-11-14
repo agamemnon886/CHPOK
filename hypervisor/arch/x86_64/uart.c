@@ -25,34 +25,90 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Modified by Kirill Brazhnikov, 2026-11-08: moved from hypervisor/src/ to
- * arch/x86_64/; hv_port_name() (from vm.c) names the serial ports.
+ * arch/x86_64/; hv_port_name() (from vm.c) names the serial ports. Doxygen
+ * headers for the file and its functions.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the macros, types and external
+ * declarations are in arch/internal.h, documented there.
  */
 
-/*
+/**
+ * @file
  * Polled 16550 UART output for the hypervisor's own console. The guests'
  * serial ports are forwarded by vuart.c and programmed by the guests.
  */
 
 #include <arch/internal.h>
 
-#define UART_THR    0U      // Transmit holding register (DLAB = 0)
-#define UART_IER    1U      // Interrupt enable (DLAB = 0)
-#define UART_DLL    0U      // Divisor latch, low byte (DLAB = 1)
-#define UART_DLM    1U      // Divisor latch, high byte (DLAB = 1)
-#define UART_FCR    2U
-#define UART_LCR    3U
-#define UART_MCR    4U
-#define UART_LSR    5U
-
-#define UART_LSR_THRE   0x20U   // Transmit holding register empty
-
-// Write a register of the UART at port.
+/**
+ * @funcname `uart_out`
+ *
+ * @description
+ * Writes a register of a 16550 UART.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `port` | `uint16_t` | [in] The UART's I/O base address. |
+ * | `reg` | `uint16_t` | [in] The register offset. |
+ * | `value` | `uint8_t` | [in] The value. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `x86_outb()` with the arguments `(uint16_t) (port + reg)` and
+ *    `value`.
+ *
+ * @calls
+ * - `x86_outb()`
+ */
 static void uart_out(uint16_t port, uint16_t reg, uint8_t value)
 {
     x86_outb((uint16_t) (port + reg), value);
 }
 
-// Set up the UART at port: 38400 baud, 8N1, FIFOs on, no interrupts.
+/**
+ * @funcname `uart_init`
+ *
+ * @description
+ * Sets up a 16550 UART for the hypervisor console: 38400 baud, 8 data bits,
+ * no parity, one stop bit, FIFOs on, no interrupts.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `port` | `uint16_t` | [in] The UART's I/O base address. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `uart_out()` with the arguments `port`, `UART_IER` and `0x00U`.
+ * 2. Call `uart_out()` with the arguments `port`, `UART_LCR` and `0x80U`.
+ * 3. Call `uart_out()` with the arguments `port`, `UART_DLL` and `0x03U`.
+ * 4. Call `uart_out()` with the arguments `port`, `UART_DLM` and `0x00U`.
+ * 5. Call `uart_out()` with the arguments `port`, `UART_LCR` and `0x03U`.
+ * 6. Call `uart_out()` with the arguments `port`, `UART_FCR` and `0xC7U`.
+ * 7. Call `uart_out()` with the arguments `port`, `UART_MCR` and `0x03U`.
+ *
+ * @calls
+ * - `uart_out()`
+ */
 void uart_init(uint16_t port)
 {
     uart_out(port, UART_IER, 0x00U);    // No interrupts
@@ -64,7 +120,39 @@ void uart_init(uint16_t port)
     uart_out(port, UART_MCR, 0x03U);    // DTR, RTS; no interrupt line
 }
 
-// Write a character to the UART at port, waiting for room in it.
+/**
+ * @funcname `uart_putc`
+ *
+ * @description
+ * Writes a character to a 16550 UART, waiting for room in it.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `port` | `uint16_t` | [in] The UART's I/O base address. |
+ * | `c` | `char` | [in] The character. |
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. While `(x86_inb((uint16_t) (port + UART_LSR)) & UART_LSR_THRE)` is equal
+ *    to `0U`:
+ *    1. Call `x86_pause()`.
+ * 2. Call `uart_out()` with the arguments `port`, `UART_THR` and `(uint8_t) c`.
+ *
+ * @calls
+ * - `x86_inb()`
+ * - `x86_pause()`
+ * - `uart_out()`
+ */
 void uart_putc(uint16_t port, char c)
 {
     while ((x86_inb((uint16_t) (port + UART_LSR)) & UART_LSR_THRE) == 0U) {
@@ -73,7 +161,53 @@ void uart_putc(uint16_t port, char c)
     uart_out(port, UART_THR, (uint8_t) c);
 }
 
-// Name of a serial port (COM1-COM4, or "none").
+/**
+ * @funcname `hv_port_name`
+ *
+ * @description
+ * Returns the name of a host serial port, for the messages.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `port` | `uint16_t` | [in] The port's I/O base address, or HV_PORT_NONE. |
+ *
+ * @return "COM1" to "COM4", or "none".
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `name` | `const char *` | The name |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Depending on `port`:
+ *    1. Case `HV_PORT_COM1`:
+ *       1. Set `name` to `"COM1"`.
+ *       2. Leave the switch.
+ *    2. Case `HV_PORT_COM2`:
+ *       1. Set `name` to `"COM2"`.
+ *       2. Leave the switch.
+ *    3. Case `HV_PORT_COM3`:
+ *       1. Set `name` to `"COM3"`.
+ *       2. Leave the switch.
+ *    4. Case `HV_PORT_COM4`:
+ *       1. Set `name` to `"COM4"`.
+ *       2. Leave the switch.
+ *    5. Otherwise (default):
+ *       1. Set `name` to `"none"`.
+ *       2. Leave the switch.
+ * 2. Return `name`.
+ *
+ * @calls
+ * None.
+ */
 const char *hv_port_name(uint16_t port)
 {
     const char *name;

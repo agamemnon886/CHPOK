@@ -12,6 +12,12 @@
  *                                      Copyright (c) 2007-2009 POK team 
  *
  * Created by julien on Fri Jan 30 14:41:34 2009 
+ *
+ * Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+ * Modified by Kirill Brazhnikov, 2026-11-09: Doxygen headers for the file
+ * and its functions.
+ * The modifications are distributed under the POK licence
+ * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /* w_remainderf.c -- float version of w_remainder.c.
@@ -29,6 +35,10 @@
  * ====================================================
  */
 
+/**
+ * @file
+ * remainderf() of libpok's math library (fdlibm, from Sun Microsystems).
+ */
 #include <config.h>
 #ifdef POK_NEEDS_LIBMATH
 
@@ -39,6 +49,38 @@
 #include <libm.h>
 #include "math_private.h"
 
+/**
+ * @funcname `remainderf`
+ *
+ * @description
+ * Computes the IEEE remainder of x/y, in float (C standard): the wrapper of
+ * `__ieee754_remainderf()`.
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `x` | `float` | [in] The argument. |
+ * | `y` | `float` | [in] The second argument. |
+ *
+ * @return The result.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * None.
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Call `__ieee754_remainderf()` with the arguments `x` and `y`, and return
+ *    its result.
+ *
+ * @calls
+ * - `__ieee754_remainderf()`
+ */
 float
 remainderf(float x, float y)	/* wrapper remainder */
 {

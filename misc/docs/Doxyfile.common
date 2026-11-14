@@ -1,0 +1,609 @@
+# Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The Doxygen settings shared by the five documents that `make docs`
+# builds (from the repository root): docs/boards.pdf, kernel.pdf,
+# libpok.pdf, syspart.pdf and hypervisor.pdf. Each has a configuration of
+# its own, misc/docs/Doxyfile.<document>, which includes this file and
+# gives its name, its input and its output directory
+# (build/docs/<document>). Only the settings that differ from Doxygen's
+# defaults are given. The header format is described in README.md
+# ("Function documentation"); Doxygen reads the headers as they are (no
+# input filter), which needs Doxygen 1.18 or later (its Markdown tables).
+
+STRIP_FROM_PATH        = .
+TAB_SIZE               = 8
+OPTIMIZE_OUTPUT_FOR_C  = YES
+
+# The fields of a function header that Doxygen has no command for (it has
+# its own \name and \callgraph commands, hence funcname and calls). The
+# description is Doxygen's detailed description (@details). The parameters
+# are a Markdown table (Name, Type, Description: [in], [out] or [in,out]
+# first) rather than @param lines, which have no type. The sections that
+# may hold a table start on the next page if the table wouldn't start on
+# this one (\tablespace), so that the heading stays with its table. The
+# header of a type (struct, union, enum or typedef) has the same Name and
+# Description fields (typename, description); its members are documented
+# by their own comments (/**< ... */), from which Doxygen makes the table
+# of the fields or of the enumerators. The header of a macro too
+# (macroname, description), with the table of its parameters (params:
+# Name, Description) if it has any. A type header puts its type in the
+# group jetos_types, a macro header its macro in jetos_macros
+# (misc/docs/groups.dox). The Name of a type and of a macro start with an
+# invisible mark (\jetostype, \jetosmacro), by which make docs counts
+# them.
+ALIASES                = "funcname=\par Name:^^" \
+                         "typename=\ingroup jetos_types^^ \
+                             \latexonly\jetostype\endlatexonly\par Name:^^" \
+                         "macroname=\ingroup jetos_macros^^ \
+                             \latexonly\jetosmacro\endlatexonly\par Name:^^" \
+                         "description=@details^^\par Description:^^" \
+                         "params=\tablespace\par Parameters:^^" \
+                         "globals=\tablespace\par Global Variables:^^" \
+                         "locals=\tablespace\par Local Variables:^^" \
+                         "hlr=\par High Level Requirements:^^" \
+                         "llr=\par Low Level Requirements:^^" \
+                         "design=\par Design:^^" \
+                         "calls=\par Call Graph:^^" \
+                         "tablespace=\latexonly\jetostablespace\endlatexonly"
+
+# Only documented functions and types (and the files that hold them) are
+# shown; a member of a type without a comment is left out.
+EXTRACT_ALL            = NO
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+# A typedef of a struct, union or enum is documented as that type, under
+# the typedef's name. Every type and macro is in a group of
+# misc/docs/groups.dox (the typename and macroname aliases add \ingroup):
+# Doxygen documents them there, in the chapters Data Structure
+# Documentation and Macro Definitions, and lists them in the summary of
+# their file's section. A struct or union is written in its group's
+# chapter with the others (not on a page of its own).
+TYPEDEF_HIDES_STRUCT   = YES
+INLINE_SIMPLE_STRUCTS  = YES
+INLINE_GROUPED_CLASSES = YES
+SHOW_INCLUDE_FILES     = NO
+# The layout of the pages: Doxygen's, except for the groups (see the file).
+LAYOUT_FILE            = misc/docs/DoxygenLayout.xml
+SORT_MEMBER_DOCS       = NO
+SHOW_USED_FILES        = NO
+
+# Doxygen shows its progress (the files it reads and its steps; make docs
+# shows it and keeps it in build/docs/<document>/doxygen.log). The
+# warnings go to build/docs/<document>/warnings.log (WARN_LOGFILE, set by
+# each document).
+QUIET                  = NO
+# The parameters are documented in the @params table, not with @param, so
+# Doxygen doesn't check them; it reports errors in the headers.
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+
+# The input of a document (INPUT, set by each document) is its directory,
+# of which Doxygen reads the C files and the headers. The function
+# declarations of a header are hidden from Doxygen (/** \cond */ ... /**
+# \endcond */): it would document each function again in the header's
+# section, and would merge the documentation of a function defined in more
+# than one file (one for each architecture) into each definition.
+FILE_PATTERNS          = *.c *.h
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */build/*
+
+SOURCE_BROWSER         = NO
+VERBATIM_HEADERS       = NO
+
+GENERATE_HTML          = NO
+GENERATE_LATEX         = YES
+LATEX_OUTPUT           = latex
+USE_PDFLATEX           = YES
+PDF_HYPERLINKS         = YES
+PAPER_TYPE             = a4
+LATEX_BATCHMODE        = YES
+
+# The LaTeX style of the PDF. Doxygen writes each EXTRA_PACKAGES entry on
+# a line of its own as "\usepackage<entry>", after its own doxygen.sty, so
+# an entry that starts with "{<package>}" loads that package and may go on
+# with LaTeX code (LaTeX ignores a package loaded again). An entry is one
+# line of LaTeX: it may continue on the next lines here (a "\" at the end
+# of a line, inside the quotes), but can't hold a LaTeX comment (%).
+#
+# The tables of the function and macro headers (Markdown tables, which Doxygen
+# 1.18 writes as DoxyTable): a table of three columns (Name, Type,
+# Description) or two (Name, Description) starts at the indentation of its
+# section and fills the line: the name column is as wide as its contents
+# (names aren't broken), the type column as its types (at most 0.45 of the
+# line, and less if the description's longest word needs the room, but not
+# less than the type's longest word), and the description takes the rest,
+# ragged right (\jetos_measure:nn and \jetos_cols_end:n measure the cells;
+# a list in a cell counts its words and its indentation). A table whose
+# minimum (the name, the longest word of the type and of the description)
+# doesn't fit is set in \small, or \footnotesize. It may continue on the
+# next page, with the header row repeated. It is an xltabular (Doxygen's
+# tabularray tables take minutes per thousand pages): a \hline is
+# added after each row, the first row is the header and its cells' \SetCell
+# colors them. Other Markdown tables keep Doxygen's layout. Before the heading
+# of a section that may hold a table (\tablespace): room for the heading, the
+# header row and a row, else a new page.
+EXTRA_PACKAGES = "{needspace}\newcommand{\jetostablespace}{\Needspace \
+                    {10\baselineskip}}\newcommand{\jetostype}{} \
+                    \newcommand{\jetosmacro}{}"
+EXTRA_PACKAGES += "{xltabular}\ExplSyntaxOn \
+    \tl_new:N \l__jetos_table_tl \
+    \cs_new_protected:Npn \jetos_table:nn #1 #2 { \
+      \tl_set:Nn \l__jetos_table_tl {#2} \
+      \regex_replace_all:nnN { \c{\\} } { \c{\\} \c{hline} } \
+        \l__jetos_table_tl \
+      \exp_last_unbraced:Nno \__jetos_table:nw {#1} \l__jetos_table_tl \
+        \q_stop } \
+    \cs_new_protected:Npn \__jetos_table:nw #1 #2 \\ \hline #3 \q_stop { \
+      \cs_set_protected:Npn \SetCell ##1 { \
+        \cellcolor{\tableheadbgcolor} \bfseries } \
+      \setlength{\LTleft}{\use:c{@totalleftmargin}} \
+      \setlength{\LTright}{0pt} \setlength{\LTpost}{0pt} \
+      \setlength{\LTpre}{\parskip} \
+      \group_begin: \tl_use:N \l__jetos_size_tl \
+      \begin{xltabular}{\linewidth}{#1} \
+      \hline #2 \\ \hline \endfirsthead \
+      \hline #2 \\ \hline \endhead \
+      #3 \end{xltabular} \group_end: } \
+    \dim_new:N \l__jetos_namew_dim \dim_new:N \l__jetos_typew_dim \
+    \dim_new:N \l__jetos_typemin_dim \dim_new:N \l__jetos_descmin_dim \
+    \box_new:N \l__jetos_cell_box \seq_new:N \l__jetos_words_seq \
+    \seq_new:N \l__jetos_trows_seq \seq_new:N \l__jetos_tcells_seq \
+    \tl_new:N \l__jetos_meas_tl \tl_new:N \l__jetos_c_tl \
+    \tl_new:N \l__jetos_size_tl \tl_new:N \l__jetos_ratio_tl \
+    \cs_new_protected:Npn \__jetos_nolists: { \
+      \tl_if_in:NnT \l__jetos_meas_tl { \begin } { \
+        \regex_replace_all:nnN { \c{begin} .* \c{end} \cB. .*? \cE. } \
+          { } \l__jetos_meas_tl } } \
+    \cs_new_protected:Npn \__jetos_wmax:NNn #1 #2 #3 { \
+      \tl_set:Nn \l__jetos_meas_tl {#3} \
+      \__jetos_nolists: \
+      \tl_if_in:NnF \l__jetos_meas_tl { \begin } { \
+        \tl_if_in:NnF \l__jetos_meas_tl { \item } { \
+          \hbox_set:Nn \l__jetos_cell_box { \cs_set_eq:NN \par \scan_stop: \
+            \cs_set_eq:NN \\ \scan_stop: #2 \tl_use:N \l__jetos_meas_tl } \
+          \dim_set:Nn #1 \
+            { \dim_max:nn {#1} { \box_wd:N \l__jetos_cell_box } } } } } \
+    \dim_new:N \l__jetos_w_dim \dim_new:N \l__jetos_indent_dim \
+    \cs_new_protected:Npn \__jetos_words:NNn #1 #2 #3 { \
+      \tl_set:Nn \l__jetos_meas_tl {#3} \
+      \dim_zero:N \l__jetos_w_dim \dim_zero:N \l__jetos_indent_dim \
+      \tl_if_in:NnT \l__jetos_meas_tl { \begin } { \
+        \dim_set_eq:NN \l__jetos_indent_dim \leftmargini \
+        \regex_replace_all:nnN \
+          { \c{begin|end} \cB. .*? \cE. | \c{item} } { \c{par} } \
+          \l__jetos_meas_tl } \
+      \tl_replace_all:Nnn \l__jetos_meas_tl { \par } { ~ } \
+      \exp_args:NNnV \seq_set_split:Nnn \l__jetos_words_seq { ~ } \
+        \l__jetos_meas_tl \
+      \seq_map_inline:Nn \l__jetos_words_seq \
+        { \__jetos_wmax:NNn \l__jetos_w_dim #2 {##1} } \
+      \dim_set:Nn #1 { \dim_max:nn {#1} \
+        { \l__jetos_w_dim + \l__jetos_indent_dim } } } \
+    \cs_new_protected:Npn \jetos_cols_reset: { \
+      \dim_zero:N \l__jetos_namew_dim \dim_zero:N \l__jetos_typew_dim \
+      \dim_zero:N \l__jetos_typemin_dim \dim_zero:N \l__jetos_descmin_dim } \
+    \cs_new_protected:Npn \jetos_cols_add:nnn #1 #2 #3 { \
+      \__jetos_wmax:NNn \l__jetos_namew_dim \ttfamily {#1} \
+      \__jetos_wmax:NNn \l__jetos_typew_dim \ttfamily {#2} \
+      \__jetos_words:NNn \l__jetos_typemin_dim \ttfamily {#2} \
+      \__jetos_words:NNn \l__jetos_descmin_dim \normalfont {#3} } \
+    \cs_generate_variant:Nn \jetos_cols_add:nnn { VVV } \
+    \cs_new_protected:Npn \__jetos_scale:N #1 { \
+      \dim_set:Nn #1 { \l__jetos_ratio_tl #1 } } \
+    \cs_new_protected:Npn \jetos_cols_end:n #1 { \
+      \dim_set:Nn \l_tmpb_dim { \linewidth - \tabcolsep * 2 * #1 \
+        - \arrayrulewidth * ( #1 + 1 ) } \
+      \dim_set:Nn \l_tmpa_dim { \l__jetos_namew_dim + \l__jetos_descmin_dim \
+        \int_compare:nNnT {#1} > {2} \
+          { + \dim_max:nn { \l__jetos_typemin_dim } { 3em } } } \
+      \tl_clear:N \l__jetos_size_tl \
+      \dim_compare:nNnT { \l_tmpa_dim } > { \l_tmpb_dim } { \
+        \dim_compare:nNnTF { 0.9\l_tmpa_dim } > { \l_tmpb_dim } { \
+          \tl_set:Nn \l__jetos_size_tl { \footnotesize } \
+          \tl_set:Nn \l__jetos_ratio_tl { 0.8 } } { \
+          \tl_set:Nn \l__jetos_size_tl { \small } \
+          \tl_set:Nn \l__jetos_ratio_tl { 0.9 } } \
+        \__jetos_scale:N \l__jetos_namew_dim \
+        \__jetos_scale:N \l__jetos_typew_dim \
+        \__jetos_scale:N \l__jetos_typemin_dim \
+        \__jetos_scale:N \l__jetos_descmin_dim } \
+      \dim_set:Nn \l_tmpa_dim { \l_tmpb_dim - \l__jetos_namew_dim \
+        - \l__jetos_descmin_dim } \
+      \dim_set:Nn \l__jetos_typew_dim { \dim_max:nn \
+        { \dim_min:nn { \dim_min:nn { \l__jetos_typew_dim } \
+          { 0.45\linewidth } } { \l_tmpa_dim } } \
+        { \dim_max:nn { \l__jetos_typemin_dim } { 3em } } } } \
+    \cs_new_protected:Npn \jetos_measure:nn #1 #2 { \
+      \jetos_cols_reset: \
+      \tl_set:Nn \l__jetos_meas_tl {#2} \
+      \tl_remove_all:Nn \l__jetos_meas_tl { \hline } \
+      \exp_args:NNnV \seq_set_split:Nnn \l__jetos_trows_seq { \\ } \
+        \l__jetos_meas_tl \
+      \int_compare:nNnT {#1} = {1} \
+        { \seq_pop_left:NN \l__jetos_trows_seq \l_tmpa_tl } \
+      \seq_map_inline:Nn \l__jetos_trows_seq { \
+        \seq_set_split:Nnn \l__jetos_tcells_seq { & } {##1} \
+        \int_case:nn { \seq_count:N \l__jetos_tcells_seq } { \
+          {2} { \
+            \seq_pop_left:NN \l__jetos_tcells_seq \l_tmpa_tl \
+            \seq_pop_left:NN \l__jetos_tcells_seq \l__jetos_c_tl \
+            \jetos_cols_add:VVV \l_tmpa_tl \c_empty_tl \l__jetos_c_tl } \
+          {3} { \
+            \seq_pop_left:NN \l__jetos_tcells_seq \l_tmpa_tl \
+            \seq_pop_left:NN \l__jetos_tcells_seq \l_tmpb_tl \
+            \seq_pop_left:NN \l__jetos_tcells_seq \l__jetos_c_tl \
+            \jetos_cols_add:VVV \l_tmpa_tl \l_tmpb_tl \
+              \l__jetos_c_tl } } } } \
+    \RenewDocumentEnvironment{DoxyTable}{m +m m m +b}{ \
+      \int_case:nnF {#1} { \
+        {3} { \jetos_measure:nn {1} {#5} \jetos_cols_end:n {3} \
+          \jetos_table:nn {|l|>{\raggedright\arraybackslash \
+          }p{\l__jetos_typew_dim}|>{\raggedright\arraybackslash}X|} {#5} } \
+        {2} { \jetos_measure:nn {1} {#5} \jetos_cols_end:n {2} \
+          \jetos_table:nn {|l|>{\raggedright\arraybackslash}X|} {#5} } } { \
+        \par \SetTblrOuter[longtblr]{theme=DoxyTableBareTheme,entry=none} \
+        \begin{longtblr}{hlines,vlines,measure=vbox, \
+          colspec={*{#1}{l}},rowhead=#4}#5\end{longtblr} } }{} \
+    \ExplSyntaxOff"
+# The tables of the fields of a struct or union (DoxyFields, which Doxygen
+# writes for a "simple" struct or union: one whose every field fits in 60
+# characters, type, name and parameters) and of the enumerators of an enum
+# (DoxyEnumFields) are xltabulars too, in the same style, after a heading
+# like those of the function headers (Data Fields:, Enumerators:). Doxygen's
+# rows of the fields (type & name & description) are rewritten as Name,
+# Type, Description; a function pointer's parameters and an array's sizes,
+# which Doxygen writes after the name, go to the type, and the type of an
+# unnamed struct or union is written "struct { ... }" (Doxygen links it to
+# a section that doesn't exist). Both tables are sized like the tables of
+# the function headers (above), the values of the enumerators like the
+# types. Names, types and values are in typewriter, as code. Each row ends
+# with a \hline. Before the heading: room for the heading, the header row
+# and a row (14 lines), else a new page.
+EXTRA_PACKAGES += "{xltabular}\ExplSyntaxOn \
+    \cs_new_protected:Npn \jetos_head:n #1 { \
+      \cellcolor{\tableheadbgcolor} \normalfont \bfseries #1 } \
+    \cs_new_protected:Npn \jetos_fields:nnnn #1 #2 #3 #4 { \
+      \par \Needspace{14\baselineskip} \
+      \begin{DoxyParagraph}{#1}\end{DoxyParagraph} \
+      \setlength{\LTleft}{\use:c{@totalleftmargin}} \
+      \setlength{\LTright}{0pt} \setlength{\LTpost}{0pt} \
+      \setlength{\LTpre}{\parskip} \
+      \group_begin: \tl_use:N \l__jetos_size_tl \
+      \begin{xltabular}{\linewidth}{#2} \
+      \hline #3 \\ \hline \endfirsthead \
+      \hline #3 \\ \hline \endhead \
+      #4 \end{xltabular} \group_end: \par } \
+    \cs_generate_variant:Nn \jetos_fields:nnnn { nnnV } \
+    \tl_new:N \l__jetos_body_tl \tl_new:N \l__jetos_rows_tl \
+    \tl_new:N \l__jetos_type_tl \tl_new:N \l__jetos_name_tl \
+    \tl_new:N \l__jetos_desc_tl \seq_new:N \l__jetos_rows_seq \
+    \seq_new:N \l__jetos_cells_seq \seq_new:N \l__jetos_parts_seq \
+    \cs_new_protected:Npn \__jetos_field_row:n #1 { \
+      \seq_set_split:Nnn \l__jetos_cells_seq { & } {#1} \
+      \int_compare:nNnT { \seq_count:N \l__jetos_cells_seq } = { 3 } { \
+        \tl_set:Nx \l__jetos_type_tl { \seq_item:Nn \l__jetos_cells_seq {1} } \
+        \tl_set:Nx \l__jetos_name_tl { \seq_item:Nn \l__jetos_cells_seq {2} } \
+        \tl_set:Nx \l__jetos_desc_tl { \seq_item:Nn \l__jetos_cells_seq {3} } \
+        \regex_replace_once:nnN { \A (?: \c{par} | \s )+ } { } \
+          \l__jetos_type_tl \
+        \regex_replace_once:nnN { \A (\c{doxymbox} \cB. .*? \cE.) \s+ } \
+          { \1 } \l__jetos_type_tl \
+        \regex_replace_all:nnN { \c{doxymbox} \cB. \c{hyperlink} \
+          \cB. (?:\c[^BE].)*? _1_1_0f (?:\c[^BE].)* \cE. \
+          \cB. (struct|union) \s* \cE. \cE. } \
+          { \1 \c{space} \c{\{} \c{space} ... \c{space} \c{\}} } \
+          \l__jetos_type_tl \
+        \exp_args:NnV \regex_extract_once:nnNT \
+          { \A (.*?) ((?:\c{\+})*[\(\[].*) \Z } \l__jetos_name_tl \
+          \l__jetos_parts_seq { \
+          \tl_set:Nx \l__jetos_name_tl \
+            { \seq_item:Nn \l__jetos_parts_seq {2} } \
+          \tl_put_right:Nx \l__jetos_type_tl \
+            { \seq_item:Nn \l__jetos_parts_seq {3} } \
+          \regex_replace_all:nnN { \c{\+} ([\[]) } { \c{allowbreak} \1 } \
+            \l__jetos_type_tl } \
+        \jetos_cols_add:VVV \l__jetos_name_tl \l__jetos_type_tl \
+          \l__jetos_desc_tl \
+        \tl_put_right:Nx \l__jetos_rows_tl { \
+          \exp_not:V \l__jetos_name_tl \exp_not:n { & } \
+          \exp_not:V \l__jetos_type_tl \exp_not:n { & } \
+          \exp_not:V \l__jetos_desc_tl \exp_not:n { \\ \hline } } } } \
+    \RenewDocumentEnvironment{DoxyFields}{m +b}{ \
+      \tl_set:Nn \l__jetos_body_tl {#2} \
+      \tl_remove_all:Nn \l__jetos_body_tl { \hline } \
+      \exp_args:NNnV \seq_set_split:Nnn \l__jetos_rows_seq { \\ } \
+        \l__jetos_body_tl \
+      \tl_clear:N \l__jetos_rows_tl \
+      \jetos_cols_reset: \
+      \seq_map_function:NN \l__jetos_rows_seq \__jetos_field_row:n \
+      \jetos_cols_end:n {3} \
+      \jetos_fields:nnnV {Data~Fields:} {|>{\ttfamily}l|>{\raggedright \
+        \arraybackslash \ttfamily}p{\l__jetos_typew_dim}| \
+        >{\raggedright\arraybackslash}X|} \
+        {\jetos_head:n {Name} & \
+        \jetos_head:n {Type} & \jetos_head:n {Description}} \
+        \l__jetos_rows_tl }{} \
+    \RenewDocumentEnvironment{DoxyEnumFields}{O{2} m +b}{ \
+      \jetos_measure:nn {0} {#3} \
+      \int_compare:nNnTF {#1} > {2} { \
+        \jetos_cols_end:n {3} \
+        \jetos_fields:nnnn {Enumerators:} {|>{\ttfamily}l|>{\raggedright \
+          \arraybackslash \ttfamily}p{\l__jetos_typew_dim}| \
+          >{\raggedright\arraybackslash}X|} \
+          {\jetos_head:n {Name} \
+          & \jetos_head:n {Value} & \jetos_head:n {Description}} {#3} } { \
+        \jetos_cols_end:n {2} \
+        \jetos_fields:nnnn {Enumerators:} \
+          {|>{\ttfamily}l|>{\raggedright\arraybackslash}X|} \
+          {\jetos_head:n {Name} \
+          & \jetos_head:n {Description}} {#3} } }{} \
+    \ExplSyntaxOff"
+# Numbered lists (the Design steps) are numbered like sections at every
+# level: 4., 4.1., 4.1.2., ... instead of Doxygen's 1., (a), i., A., ...
+# (\jetospre{<level>}: the numbers of the levels above, "4.1." at level
+# 3). A level is indented by 1.5em from the one above it, whatever the
+# width of its labels: the text follows the label on the first line of an
+# item, and the next lines are indented by 1.5em, so deep levels keep most
+# of the line width.
+EXTRA_PACKAGES += "{enumitem}\newcommand{\jetospre}[1]{\ifnum#1>1 \
+    \jetospre{\numexpr#1-1\relax}\arabic{DoxyEnumerate\romannumeral \
+    \numexpr#1-1\relax}.\fi}"
+# Code in the numbered lists (`text` in the Design steps, which Doxygen
+# sets in typewriter as {\ttfamily ...} or \texttt{...}) isn't broken
+# across lines: a code span that doesn't fit goes to the next line as a
+# whole (only one longer than a line is broken, at its spaces), and the
+# lines are ragged right. (\ttfamily at the start of a group closes that
+# group and puts the code in a box instead, which the end of the group
+# closes; then \jetosput sets the box, or its contents if it's too wide.)
+EXTRA_PACKAGES += "{enumitem}\newsavebox{\jetosbox}\let\jetostt\ttfamily \
+    \newcommand{\jetosput}{\ifdim\wd\jetosbox>\linewidth \
+        \unhbox\jetosbox\else\box\jetosbox\fi} \
+    \newcommand{\jetosttbox}{\ifnum\currentgrouptype=1 \egroup\leavevmode \
+        \setbox\jetosbox\hbox\bgroup\aftergroup\jetosput\fi\jetostt} \
+    \newcommand{\jetoscode}{\raggedright\let\ttfamily\jetosttbox \
+        \def\texttt##1{\leavevmode\setbox\jetosbox \
+        \hbox{\jetostt##1}\jetosput}}"
+EXTRA_PACKAGES += "{enumitem}\SetEnumitemKey{jetos}{wide=0pt, \
+    leftmargin=1.5em,before=\jetoscode} \
+    \setlist[DoxyEnumerate,1]{jetos,label=\jetospre{1}\arabic*.} \
+    \setlist[DoxyEnumerate,2]{jetos,label=\jetospre{2}\arabic*.} \
+    \setlist[DoxyEnumerate,3]{jetos,label=\jetospre{3}\arabic*.} \
+    \setlist[DoxyEnumerate,4]{jetos,label=\jetospre{4}\arabic*.} \
+    \setlist[DoxyEnumerate,5]{jetos,label=\jetospre{5}\arabic*.} \
+    \setlist[DoxyEnumerate,6]{jetos,label=\jetospre{6}\arabic*.} \
+    \setlist[DoxyEnumerate,7]{jetos,label=\jetospre{7}\arabic*.} \
+    \setlist[DoxyEnumerate,8]{jetos,label=\jetospre{8}\arabic*.} \
+    \setlist[DoxyEnumerate,9]{jetos,label=\jetospre{9}\arabic*.} \
+    \setlist[DoxyEnumerate,10]{jetos,label=\jetospre{10}\arabic*.} \
+    \setlist[DoxyEnumerate,11]{jetos,label=\jetospre{11}\arabic*.} \
+    \setlist[DoxyEnumerate,12]{jetos,label=\jetospre{12}\arabic*.}"
+# The chapters, arranged in LaTeX (Doxygen writes "Topic Index", "Topic
+# Documentation" with a section per group, and "File Documentation"; the
+# header files have no @file, so only the C files are in it):
+# - "Topic Index" and its contents are left out;
+# - instead of "Topic Documentation", each group (misc/docs/groups.dox) is a
+#   chapter, "Data Structures" and "Macro Definitions": the group's heading
+#   is a chapter, the headings of the parts of a group ("Detailed
+#   Description", "Data Structure Documentation", "Typedef Documentation",
+#   "Enumeration Type Documentation", "Macro Definition Documentation") are
+#   left out, and each type or macro is a section of the chapter. A struct
+#   or union is titled by its name, without Doxygen's "struct " or
+#   "union " (a type defined by its tag is titled by its tag);
+# - "File Documentation" is "Functions".
+# The table of contents goes one level deeper, so that it still lists the
+# functions, with room for the page numbers of its deepest entries.
+EXTRA_PACKAGES += "{xparse}\ExplSyntaxOn \
+    \cs_new_eq:NN \jetossec \doxysection \
+    \cs_new_eq:NN \jetossubsec \doxysubsection \
+    \cs_new_eq:NN \jetossubsubsec \doxysubsubsection \
+    \cs_new_eq:NN \jetossubsubsubsec \doxysubsubsubsection \
+    \cs_new_eq:NN \__jetos_chapter:w \chapter \
+    \cs_new_eq:NN \__jetos_input:w \input \
+    \tl_new:N \l__jetos_title_tl \
+    \NewDocumentCommand \__jetos_group_title:w { s o m } \
+      { \__jetos_chapter:w {#3} } \
+    \NewDocumentCommand \__jetos_part_title:w { s o m } { \
+      \IfBooleanTF {#1} { \jetossubsec* {#3} } { \
+        \tl_set:Nn \l__jetos_title_tl {#3} \
+        \tl_trim_spaces:N \l__jetos_title_tl \
+        \str_case:VnF \l__jetos_title_tl { \
+          {Detailed~Description} { } \
+          {Data~Structure~Documentation} { } \
+          {Typedef~Documentation} { } \
+          {Enumeration~Type~Documentation} { } \
+          {Macro~Definition~Documentation} { } } \
+          { \jetossec {#3} } } } \
+    \NewDocumentCommand \__jetos_type_title:w { s o m } { \
+      \IfBooleanTF {#1} { \jetossubsec* {#3} } { \
+        \tl_set:Nn \l__jetos_title_tl {#3} \
+        \regex_replace_once:nnN { \A (struct|union) \s+ } { } \
+          \l__jetos_title_tl \
+        \exp_args:NV \jetossec \l__jetos_title_tl } } \
+    \cs_new_protected:Npn \__jetos_normal: { \
+      \cs_set_eq:NN \doxysection \jetossec \
+      \cs_set_eq:NN \doxysubsection \jetossubsec \
+      \cs_set_eq:NN \doxysubsubsection \jetossubsubsec \
+      \cs_set_eq:NN \doxysubsubsubsection \jetossubsubsubsec } \
+    \cs_new_protected:Npn \__jetos_groups: { \
+      \cs_set_eq:NN \doxysection \__jetos_group_title:w \
+      \cs_set_eq:NN \doxysubsection \__jetos_part_title:w \
+      \cs_set_eq:NN \doxysubsubsection \__jetos_type_title:w \
+      \cs_set_eq:NN \doxysubsubsubsection \jetossubsec } \
+    \cs_new_protected:Npn \__jetos_skip_input:n #1 \
+      { \cs_gset_eq:NN \input \__jetos_input:w } \
+    \cs_new_protected:Npn \__jetos_braced:Nw #1 { \
+      \peek_catcode:NTF \c_group_begin_token {#1} { \__jetos_input:w } } \
+    \RenewDocumentCommand \chapter { s o m } { \
+      \IfBooleanTF {#1} { \__jetos_chapter:w * {#3} } { \
+        \str_case:nnF {#3} { \
+          {Topic~Index} { \cs_gset_protected:Npn \input \
+            { \__jetos_braced:Nw \__jetos_skip_input:n } } \
+          {Topic~Documentation} { \__jetos_groups: } \
+          {File~Documentation} { \__jetos_normal: \
+            \__jetos_chapter:w {Functions} } } \
+          { \__jetos_normal: \__jetos_chapter:w {#3} } } } \
+    \setcounter{tocdepth}{4} \
+    \expandafter\def\csname @pnumwidth\endcsname{2.2em} \
+    \expandafter\def\csname @tocrmarg\endcsname{3.2em} \
+    \ExplSyntaxOff"
+# The code in the Design sections (typewriter, whose spaces don't stretch)
+# would run into the margin rather than break: the lines may be looser.
+EXTRA_PACKAGES += "{needspace}\AtBeginDocument{\sloppy}"
+# The index is in one column (the book class's theindex has two, too narrow
+# for the long names, which are never broken).
+EXTRA_PACKAGES += "{needspace}\makeatletter \
+    \renewenvironment{theindex}{\clearpage \
+      \@makeschapterhead{\indexname} \
+      \@mkboth{\MakeUppercase\indexname}{\MakeUppercase\indexname} \
+      \thispagestyle{plain}\parindent\z@ \
+      \parskip\z@ \@plus .3\p@\relax \let\item\@idxitem}{\clearpage} \
+    \makeatother"
+# Words and names are never broken across lines, only the spaces between
+# them: Doxygen's break points inside names (\+, which it draws with a hook
+# arrow) do nothing, except the one before the [ of an array's size, which
+# breaks the line there without a mark (actions[A]|[B], never inside a
+# name); TeX doesn't hyphenate words, nor break a word at its hyphen
+# (16-bit); the PDF's title and bookmarks leave \+ out.
+EXTRA_PACKAGES += "{needspace}\makeatletter \
+    \protected\def\+{\@ifnextchar[{\allowbreak}{}} \makeatother \
+    \AtBeginDocument{\hyphenpenalty=10000 \exhyphenpenalty=10000} \
+    \AddToHook{package/hyperref/after}{\pdfstringdefDisableCommands{\def\+{}}}"
+# The fields of a header (Description:, Parameters:, ..., Call Graph:, and
+# Returns, Data Fields:, Enumerators:): the heading at the left margin, its
+# contents on the next lines, indented by \jetosindent, until the next
+# heading or section. Doxygen writes a heading with an empty paragraph
+# (the aliases end the title's line) and its contents after it, so the
+# indentation is a state: \leftskip for the paragraphs, \@totalleftmargin
+# and \linewidth for the lists and tables (a list sets \leftskip to 0);
+# \jetos@unindent ends it, at the next heading and at every section and
+# chapter heading. A field with no contents (High Level Requirements: ...)
+# shows "None." (a heading leaves a 1sp skip, which is still the last
+# thing on the page if nothing came after it). A heading is one blank line
+# below what comes before it, and its contents half a line below it (a
+# table has no space after it, \LTpost, and \LTpre is the \parskip that
+# the heading takes back).
+# The Name: paragraph isn't shown (the name is the title of the section).
+EXTRA_PACKAGES += "{needspace}\makeatletter \
+    \newlength{\jetosindent}\setlength{\jetosindent}{1.5em} \
+    \newif\ifjetos@in \
+    \def\jetos@indent{\ifjetos@in\else \jetos@intrue \
+      \leftskip\jetosindent \advance\@totalleftmargin\jetosindent \
+      \advance\linewidth-\jetosindent \fi} \
+    \def\jetos@unindent{\par \ifjetos@in \ifdim\lastskip=1sp \
+      None.\par \fi \jetos@infalse \leftskip\z@skip \
+      \advance\@totalleftmargin-\jetosindent \
+      \advance\linewidth\jetosindent \fi} \
+    \def\jetos@head#1{\jetos@unindent \Needspace{3\baselineskip} \
+      \vskip-\parskip \vskip\baselineskip \
+      \noindent{\DoxyLabelFont #1}\par \nobreak \jetos@indent \
+      \vskip-\parskip \vskip0.5\baselineskip \vskip1sp} \
+    \def\jetos@endhead{\par \aftergroup\jetos@indent} \
+    \renewenvironment{DoxyDesc}[1]{\jetos@head{#1}}{\jetos@endhead} \
+    \def\jetos@name{Name:} \
+    \RenewDocumentEnvironment{DoxyParagraph}{m +b}{\def\jetos@title{#1} \
+      \ifx\jetos@title\jetos@name \else \jetos@head{#1}#2\jetos@endhead \fi \
+      }{} \
+    \let\jetos@startsection\@startsection \
+    \def\@startsection{\jetos@unindent \jetos@startsection} \
+    \let\jetos@chapterhead\@makechapterhead \
+    \def\@makechapterhead{\jetos@unindent \jetos@chapterhead} \
+    \let\jetos@schapterhead\@makeschapterhead \
+    \def\@makeschapterhead{\jetos@unindent \jetos@schapterhead} \
+    \makeatother"
+
+# Every function is documented, whatever the configuration: all
+# POK_NEEDS_* and POK_CONFIG_NEEDS_* macros are defined, and the optional
+# syspart code (PCI_DEBUG, the NE2000 driver) is included. The other
+# macros are those that appear in signatures.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+SEARCH_INCLUDES        = NO
+PREDEFINED             = __STDC__=1 \
+                         "__attribute__(x)=" \
+                         JET_USER= \
+                         JET_KUSER= \
+                         POK_CONFIG_NEEDS_DEBUG \
+                         POK_CONFIG_NEEDS_FUNC_STRNCASECMP \
+                         POK_CONFIG_NEEDS_FUNC_UDIVDI3 \
+                         POK_NEEDS_ARINC653_BLACKBOARD \
+                         POK_NEEDS_ARINC653_BUFFER \
+                         POK_NEEDS_ARINC653_ERROR \
+                         POK_NEEDS_ARINC653_EVENT \
+                         POK_NEEDS_ARINC653_MUTEX \
+                         POK_NEEDS_ARINC653_PARTITION \
+                         POK_NEEDS_ARINC653_PROCESS \
+                         POK_NEEDS_ARINC653_QUEUEING \
+                         POK_NEEDS_ARINC653_SAMPLING \
+                         POK_NEEDS_ARINC653_SEMAPHORE \
+                         POK_NEEDS_ARINC653_TIME \
+                         POK_NEEDS_BLACKBOARDS \
+                         POK_NEEDS_BUFFERS \
+                         POK_NEEDS_CONSOLE \
+                         POK_NEEDS_COVERAGE_INFOS \
+                         POK_NEEDS_DEBUG \
+                         POK_NEEDS_ERROR_HANDLING \
+                         POK_NEEDS_EVENTS \
+                         POK_NEEDS_FUNCTIONS_TIME_GETTICK \
+                         POK_NEEDS_FUNCTION_TIME_GET \
+                         POK_NEEDS_FUNCTION_TIME_GETTICK \
+                         POK_NEEDS_GDB \
+                         POK_NEEDS_GETTICK \
+                         POK_NEEDS_GETTICKS \
+                         POK_NEEDS_INSTRUMENTATION \
+                         POK_NEEDS_IO \
+                         POK_NEEDS_LIBC_STDIO \
+                         POK_NEEDS_LIBMATH \
+                         POK_NEEDS_MIDDLEWARE \
+                         POK_NEEDS_MONITOR \
+                         POK_NEEDS_MUTEXES \
+                         POK_NEEDS_NETWORKING \
+                         POK_NEEDS_PARTITIONS \
+                         POK_NEEDS_PCI \
+                         POK_NEEDS_PORTS_QUEUEING \
+                         POK_NEEDS_PORTS_SAMPLING \
+                         POK_NEEDS_PORTS_VIRTUAL \
+                         POK_NEEDS_PROTOCOLS \
+                         POK_NEEDS_PROTOCOLS_BLOWFISH \
+                         POK_NEEDS_PROTOCOLS_CAESAR \
+                         POK_NEEDS_PROTOCOLS_DES \
+                         POK_NEEDS_SCHED \
+                         POK_NEEDS_SCHED_STOP_SELF \
+                         POK_NEEDS_SEMAPHORS \
+                         POK_NEEDS_STDIO \
+                         POK_NEEDS_THREADS \
+                         POK_NEEDS_THREAD_SLEEP \
+                         POK_NEEDS_THREAD_SLEEP_UNTIL \
+                         POK_NEEDS_THREAD_SUSPEND \
+                         POK_NEEDS_TIME \
+                         POK_NEEDS_WAIT_FOR_GDB \
+                         POK_NEEDS_ZERO_DIVISION_EXCEPTION \
+                         PCI_DEBUG \
+                         SYS_NEEDS_DRIVER_NE2000
+
+HAVE_DOT               = NO

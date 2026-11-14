@@ -15,6 +15,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-02: MISRA C:2025: the header
  * guard isn't a reserved identifier.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented.
  */
 
 #ifndef LIBJET_ARINC_ALLOC_H
@@ -37,16 +41,23 @@ extern char* arinc_intra_heap;
  * Memory will have alignment suitable for any object which fits into
  * given size.
  */
+/** \cond */
 void* arinc_alloc(size_t size, size_t alignment);
+/** \endcond */
 
-/*
- * State of the arinc allocator.
+/**
+ * @typename `arinc_allocator_state`
+ *
+ * @description
+ * The state of the allocator of the ARINC objects (arinc_alloc()): how much of
+ * its memory is used, to be restored with arinc_allocator_reset_state().
  */
 typedef size_t arinc_allocator_state;
 
 /*
  * Return current state of the allocator.
  */
+/** \cond */
 arinc_allocator_state arinc_allocator_get_state(void);
 
 /*
@@ -54,6 +65,7 @@ arinc_allocator_state arinc_allocator_get_state(void);
  * State should be previously obtained with arinc_allocator_get_state().
  */
 void arinc_allocator_reset_state(arinc_allocator_state state);
+/** \endcond */
 
 #endif /* defined(POK_NEEDS_ARINC653_BUFFER) || defined(POK_NEEDS_ARINC653_BLACKBOARD) */
 

@@ -19,6 +19,13 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-03: long lines are wrapped at 80
  * columns.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-13: the function declarations are
+ * hidden from Doxygen (\cond): only the definitions of the functions are
+ * documented; Doxygen comments for the file and its macros.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
+ * removed (header files are not documented).
  */
 
 /*
@@ -40,6 +47,7 @@
  * 
  * If given area cannot be write by the user space, returns NULL.
  */
+/** \cond */
 void* JET_KUSER jet_user_to_kernel(void* JET_USER addr, size_t size);
 
 /* 
@@ -60,12 +68,34 @@ const void* JET_KUSER jet_user_to_kernel_ro(const void* JET_USER addr,
  */
 pok_bool_t jet_check_access_exec(void* JET_USER addr);
 
+/** \endcond */
 
-/* Shortcat for jet_user_to_kernel for typed pointers. */
+
+/**
+ * @macroname `jet_user_to_kernel_typed`
+ *
+ * @description
+ * Shortcat for jet_user_to_kernel for typed pointers.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `addr` | The user address (a typed pointer). |
+ */
 #define jet_user_to_kernel_typed(addr) \
     jet_user_to_kernel((addr), sizeof(*(addr)))
 
-/* Shortcat for jet_user_to_kernel_ro for typed pointers. */
+/**
+ * @macroname `jet_user_to_kernel_typed_ro`
+ *
+ * @description
+ * Shortcat for jet_user_to_kernel_ro for typed pointers.
+ *
+ * @params
+ * | Name | Description |
+ * |------|-------------|
+ * | `addr` | The user address (a typed pointer). |
+ */
 #define jet_user_to_kernel_typed_ro(addr) \
     jet_user_to_kernel_ro((addr), sizeof(*(addr)))
 
@@ -74,6 +104,9 @@ pok_bool_t jet_check_access_exec(void* JET_USER addr);
  * 
  * Destination buffer should be checked before.
  */
+/** \cond */
 void pok_copy_name_to_user(char* JET_KUSER to, const char* name);
+
+/** \endcond */
 
 #endif /* POK_UACCESS_H */

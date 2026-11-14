@@ -17,10 +17,58 @@
  * all if/else/loop bodies; essentially Boolean conditions; U suffixes for
  * unsigned constants; a single loop with one exit; deviations are
  * documented where a guideline can't be followed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-08: Doxygen headers for the file
+ * and its functions.
+ */
+
+/**
+ * @file
+ * strpbrk() of libpok.
  */
 
 #include <string.h>
 
+/**
+ * @funcname `strpbrk`
+ *
+ * @description
+ * Finds the first character of a string that is in another (C standard).
+ *
+ * @params
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `s1` | `const char *` | [in] The string. |
+ * | `s2` | `const char *` | [in] The characters looked for. |
+ *
+ * @return The address of the character, or NULL if there is none.
+ *
+ * @globals
+ * None.
+ *
+ * @locals
+ * | Name | Type | Description |
+ * |------|------|-------------|
+ * | `found` | `const char *` | The character found |
+ * | `i` | `size_t` | The index of the character |
+ *
+ * @hlr
+ *
+ * @llr
+ *
+ * @design
+ * 1. Set `found` to `NULL`.
+ * 2. Set `i` to `0U`.
+ * 3. While `found` is NULL and `s1[i]` is not equal to `'\0'`:
+ *    1. If `strchr(s2, (int)s1[i])` is not NULL:
+ *       1. Set `found` to the address of `s1[i]`.
+ *    2. Otherwise:
+ *       1. Increment `i`.
+ * 4. Return `(char*)found`.
+ *
+ * @calls
+ * - `strchr()`
+ */
 char *strpbrk(const char *s1, const char *s2)
 {
     const char *found = NULL;
