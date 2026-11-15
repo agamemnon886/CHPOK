@@ -50,7 +50,7 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * boards/x86_64-qemu/cons.c (the board support packages are in kernel/bsps);
  * the function headers follow outb() and inb(), which call x86_outb() and
- * x86_inb().
+ * x86_inb(); the port numbers are converted to uint16_t at these calls.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */

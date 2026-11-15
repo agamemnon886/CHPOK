@@ -42,7 +42,7 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * boards/x86_64-qemu/pit.c (the board support packages are in kernel/bsps);
  * the function headers follow outb() and inb(), which call x86_outb() and
- * x86_inb().
+ * x86_inb(); the value read from port B is compared with 0U.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */

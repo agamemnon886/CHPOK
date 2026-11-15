@@ -46,7 +46,9 @@
 #
 # Modified by Kirill Brazhnikov, 2026-11-15: the sources are in core/ (it was
 # src/ and include/), csps/<arch>/ and bsps/<bsp>/ (it was arch/<arch>/); the
-# headers shared with the kernel (include/) are on the include path.
+# headers shared with the kernel (include/) are on the include path; builds
+# format.c, memcpy.c and memset.c of the library shared with the kernel
+# (common/).
 
 import os
 import sys
@@ -138,6 +140,12 @@ for src, obj in (('core', 'obj'), (csp_dir, 'obj-csp'),
     for f in Glob(os.path.join(src, '*.c')) + Glob(os.path.join(src, '*.S')):
         objects.append(env.Object(os.path.join(build, obj,
                                                os.path.basename(str(f)))))
+# The library shared with the kernel (common/ of the repository): only the
+# files that the hypervisor uses.
+common_dir = os.path.join('..', 'common')
+env.VariantDir(os.path.join(build, 'obj-common'), common_dir, duplicate=0)
+for f in ('format.c', 'memcpy.c', 'memset.c'):
+    objects.append(env.Object(os.path.join(build, 'obj-common', f)))
 objects.append(env.Object(generated[0]))
 images_object = env.Object(generated[1])
 # hv_images.S includes the image of each VM (and its device tree on arm64).

@@ -34,7 +34,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/multiboot.c (the code of the processor architecture
- * is in hypervisor/csps).
+ * is in hypervisor/csps); memcpy() and memset() of the library shared with the
+ * kernel replace hv_memcpy() and hv_memset().
  */
 
 /**
@@ -273,13 +274,13 @@ static void put_mmap_entry(uint64_t pa, uint64_t base, uint64_t length)
  * 11. Call `put_mmap_entry()` with the arguments
  *     `mbi + MBI_MMAP_OFFSET + MMAP_ENTRY_SIZE`, `HIGH_MEMORY_START` and
  *     `size - HIGH_MEMORY_START`.
- * 12. Call `hv_memcpy()` with the arguments `name`, `loader_name` and
+ * 12. Call `memcpy()` with the arguments `name`, `loader_name` and
  *     `sizeof(loader_name)`.
  *
  * @calls
  * - `put32()`
  * - `put_mmap_entry()`
- * - `hv_memcpy()`
+ * - `memcpy()`
  */
 static void write_mbi(const hv_vm_t *vm)
 {
@@ -300,7 +301,7 @@ static void write_mbi(const hv_vm_t *vm)
     put_mmap_entry(mbi + MBI_MMAP_OFFSET, 0U, LOW_MEMORY_END);
     put_mmap_entry(mbi + MBI_MMAP_OFFSET + MMAP_ENTRY_SIZE,
                    HIGH_MEMORY_START, size - HIGH_MEMORY_START);
-    hv_memcpy(name, loader_name, sizeof(loader_name));
+    (void) memcpy(name, loader_name, sizeof(loader_name));
 }
 
 /**
@@ -344,24 +345,24 @@ static void write_mbi(const hv_vm_t *vm)
  *    2. Call `hv_fatal()` with the argument `"bad VM image"`.
  * 6. Call `zero_ram()` with the arguments `vm->ram_base` and
  *    `cfg->memory_size`.
- * 7. Call `hv_memcpy()` with the arguments
+ * 7. Call `memcpy()` with the arguments
  *    `(uint8_t *) (uintptr_t) (vm->ram_base + load)`, `cfg->image` and
  *    `(size_t) image_size`.
  * 8. Call `write_mbi()` with the argument `vm`.
  * 9. Call `vpic_reset()` with the address of `vm->arch.pic`.
  * 10. Call `vpit_reset()` with the address of `vm->arch.pit`.
- * 11. Call `hv_memset()` with the arguments `vm->arch.io_logged`, `0U` and
+ * 11. Call `memset()` with the arguments `vm->arch.io_logged`, `0` and
  *     `sizeof(vm->arch.io_logged)`.
  *
  * @calls
  * - `vm_print()`
  * - `hv_fatal()`
  * - `zero_ram()`
- * - `hv_memcpy()`
+ * - `memcpy()`
  * - `write_mbi()`
  * - `vpic_reset()`
  * - `vpit_reset()`
- * - `hv_memset()`
+ * - `memset()`
  */
 void vm_load(hv_vm_t *vm)
 {
@@ -380,12 +381,12 @@ void vm_load(hv_vm_t *vm)
 
     // Cleared RAM, then the loaded bytes (the BSS after them stays 0).
     zero_ram(vm->ram_base, cfg->memory_size);
-    hv_memcpy((uint8_t *) (uintptr_t) (vm->ram_base + load), cfg->image,
-              (size_t) image_size);
+    (void) memcpy((uint8_t *) (uintptr_t) (vm->ram_base + load), cfg->image,
+                  (size_t) image_size);
     write_mbi(vm);
 
     // Devices as after power-on; unhandled ports are reported again.
     vpic_reset(&vm->arch.pic);
     vpit_reset(&vm->arch.pit);
-    hv_memset(vm->arch.io_logged, 0U, sizeof(vm->arch.io_logged));
+    (void) memset(vm->arch.io_logged, 0, sizeof(vm->arch.io_logged));
 }

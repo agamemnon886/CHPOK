@@ -33,7 +33,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/fdt.c (the code of the board, its devices and the
- * virtual devices of the VMs is in hypervisor/bsps).
+ * virtual devices of the VMs is in hypervisor/bsps); memset() of the library
+ * shared with the kernel replaces hv_memset().
  */
 
 /**
@@ -647,7 +648,7 @@ static void use_property(const fdt_t *fdt, node_e node, uint32_t nameoff,
  * 2. Set `depth` to `0U`.
  * 3. Set `ok` to `true`.
  * 4. Set `done` to `false`.
- * 5. Call `hv_memset()` with the arguments `info`, `0U` and `sizeof(*info)`.
+ * 5. Call `memset()` with the arguments `info`, `0` and `sizeof(*info)`.
  * 6. Set `fdt.blob` to `(const uint8_t *) (uintptr_t) address`.
  * 7. If `be32(fdt.blob, 0U)` is not equal to `FDT_MAGIC`:
  *    1. Return `false`.
@@ -720,7 +721,7 @@ static void use_property(const fdt_t *fdt, node_e node, uint32_t nameoff,
  * 15. Return `ok && done`.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  * - `be32()`
  * - `node_kind()`
  * - `align4()`
@@ -741,7 +742,7 @@ bool fdt_read(uint64_t address, hv_fdt_info_t *info)
     bool ok = true;
     bool done = false;
 
-    hv_memset(info, 0U, sizeof(*info));
+    (void) memset(info, 0, sizeof(*info));
     fdt.blob = (const uint8_t *) (uintptr_t) address;
     if (be32(fdt.blob, 0U) != FDT_MAGIC) {
         return false;

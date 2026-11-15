@@ -43,7 +43,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/include/hv/hv.h (the common code and its headers are in
- * hypervisor/core); the comments name the new paths.
+ * hypervisor/core); the comments name the new paths; hv_memcpy(), hv_memset(),
+ * conversion_t and NUMBER_DIGITS are gone: the hypervisor uses the library
+ * shared with the kernel (include/common/string.h and format.h).
  */
 
 /*
@@ -65,6 +67,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+/* memcpy() and memset(), shared with the kernel (common/). */
+#include <common/string.h>
 
 #include <hv/config.h>
 #include <arch/arch.h>
@@ -268,15 +273,6 @@ extern const uint32_t hv_image_crc;
  */
 #define OUT_BUFFER_SIZE     128U
 
-/**
- * @macroname `NUMBER_DIGITS`
- *
- * @description
- * The size of the buffer for the digits of a number (2^64 has 20 decimal
- * digits).
- */
-#define NUMBER_DIGITS       24U
-
 // Characters not yet written to the console.
 
 /**
@@ -289,20 +285,6 @@ typedef struct {
     char buffer[OUT_BUFFER_SIZE]; /**< The characters. */
     size_t length; /**< Their number. */
 } output_t;
-
-// A conversion specification without its conversion character.
-
-/**
- * @typename `conversion_t`
- *
- * @description
- * A conversion specification of hv_printf(), without its conversion character.
- */
-typedef struct {
-    bool zero_pad; /**< Whether the number is padded with zeros. */
-    uint32_t width; /**< The minimum width of the field. */
-    uint32_t longs; /**< Number of l modifiers (z counts as one). */
-} conversion_t;
 
 // vm.c: the end of the hypervisor image (hv.lds).
 extern uint8_t __hv_end[];
@@ -328,10 +310,6 @@ void hv_fatal(const char *message) HV_NORETURN;
 /** \cond */
 uint32_t hv_crc32(const uint8_t *data, size_t length);
 void hv_image_check(void);
-
-// string.c
-void hv_memset(void *dst, uint8_t value, size_t size);
-void hv_memcpy(void *dst, const void *src, size_t size);
 
 /*
  * MISRA C:2025 Rule 5.10 deviation: GCC may emit calls to memset() and

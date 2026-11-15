@@ -32,6 +32,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-14: the macros, the types and the
  * declarations of kernel/libc/printf.c, readline.c and monitor.c are moved
  * here.
+ * Modified by Kirill Brazhnikov, 2026-11-15: memcpy() and memset() are
+ * declared in include/common/string.h, and the types of the formatter
+ * (emit_character_t, emitter_t, format_spec_t) are replaced by those of
+ * include/common/format.h, both shared with the hypervisor.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -49,6 +53,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+/* memcpy() and memset(), which the hypervisor uses too (common/). */
+#include <common/string.h>
 
 /*
  * MISRA C:2025 Rule 5.10 and Dir 1.2 deviation: this is the kernel's own C
@@ -58,13 +64,8 @@
  */
 
 /** \cond */
-void  *memcpy(void * to, const void * from, size_t n);
 void *memmove(void *dest, const void *src, size_t count);
 int memcmp(const void *v1, const void *v2, size_t n);
-
-/* avoid errors for windows */
-/*__attribute__ ((weak))*/
-void  *memset(void *dest, int val, size_t count);
 
 size_t strlen (const char* str);
 size_t strnlen (const char* str, size_t n);
@@ -107,15 +108,6 @@ void pok_monitor_thread_init(void);
 /** \endcond */
 #endif /* NEEDS_CONSOLE or NEEDS_DEBUG */
 
-/**
- * @typename `emit_character_t`
- *
- * @description
- * Emit single character: the output function of an emitter (emitter_t),
- * which outputs the character c to the output that private_data points to
- * (the console's buffer or a string). It returns nothing.
- */
-typedef void (*emit_character_t)(char c, void *private_data);
 
 /**
  * @macroname `BUF_SIZE`
@@ -155,32 +147,7 @@ typedef struct
 } s_sprintf_t;
 
 
-/**
- * @typename `emitter_t`
- *
- * @description
- * Where the characters go: an output function and its output.
- */
-typedef struct {
-    emit_character_t emit_character; /**< The output function. */
-    void *private_data; /**< The output, passed to emit_character. */
-} emitter_t;
 
-/**
- * @typename `format_spec_t`
- *
- * @description
- * Conversion specification: flags, field width, precision and length.
- */
-typedef struct {
-    /** Number of 'l' modifiers; 'z' counts as one. */
-    uint32_t length;
-    int32_t pad; /**< Field width. */
-    /** The precision (0 if none is given; used only for strings). */
-    int32_t precision;
-    /** The '0' flag: pad with zeros instead of spaces. */
-    bool pad_with_zero;
-} format_spec_t;
 
 /**
  * @macroname `BUFMEM`

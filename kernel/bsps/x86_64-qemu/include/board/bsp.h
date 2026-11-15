@@ -30,7 +30,7 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * boards/x86_64-qemu/include/board/bsp.h (the board support packages are in
- * kernel/bsps); the comments name the new paths.
+ * kernel/bsps); the comments name the new paths. COM_LSR is unsigned.
  */
 
 #ifndef JET_X86_64_QEMU_BSP_H

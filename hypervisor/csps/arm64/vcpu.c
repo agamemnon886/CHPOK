@@ -34,7 +34,8 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/vcpu.c (the code of the processor architecture is in
  * hypervisor/csps); system registers are accessed with read_sysreg(),
- * write_sysreg() and isb(), shared with the kernel.
+ * write_sysreg() and isb(), shared with the kernel; memset() of the library
+ * shared with the kernel replaces hv_memset().
  */
 
 /**
@@ -257,7 +258,7 @@ static void reset_el1(void)
  * @design
  * 1. Set `regs` to the address of `vcpu->arch.regs`.
  * 2. Set `host_sp` to `regs->host_sp`.
- * 3. Call `hv_memset()` with the arguments `regs`, `0U` and `sizeof(*regs)`.
+ * 3. Call `memset()` with the arguments `regs`, `0` and `sizeof(*regs)`.
  * 4. Set `regs->host_sp` to `host_sp`.
  * 5. Set `regs->x[0]` to `HV_GUEST_RAM`.
  * 6. Set `regs->elr` to `vcpu->vm->config->entry`.
@@ -272,7 +273,7 @@ static void reset_el1(void)
  * 14. Call `isb()`.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  * - `reset_el1()`
  * - `gic_vcpu_reset()`
  * - `isb()`
@@ -284,7 +285,7 @@ void hv_arch_vcpu_init(hv_vcpu_t *vcpu)
     hv_guest_regs_t *regs = &vcpu->arch.regs;
     uint64_t host_sp = regs->host_sp;
 
-    hv_memset(regs, 0U, sizeof(*regs));
+    (void) memset(regs, 0, sizeof(*regs));
     regs->host_sp = host_sp;
     regs->x[0] = HV_GUEST_RAM;
     regs->elr = vcpu->vm->config->entry;

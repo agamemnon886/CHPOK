@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/vgicd.c (the code of the board, its devices and the
- * virtual devices of the VMs is in hypervisor/bsps).
+ * virtual devices of the VMs is in hypervisor/bsps); memset() of the library
+ * shared with the kernel replaces hv_memset().
  */
 
 /**
@@ -79,14 +80,14 @@
  * @llr
  *
  * @design
- * 1. Call `hv_memset()` with the arguments `gicd`, `0U` and `sizeof(*gicd)`.
+ * 1. Call `memset()` with the arguments `gicd`, `0` and `sizeof(*gicd)`.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  */
 void vgicd_reset(hv_vgicd_t *gicd)
 {
-    hv_memset(gicd, 0U, sizeof(*gicd));
+    (void) memset(gicd, 0, sizeof(*gicd));
 }
 
 /**

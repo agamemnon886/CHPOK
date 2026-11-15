@@ -36,7 +36,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/svm.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); memset() of the library shared with the kernel replaces
+ * hv_memset().
  */
 
 /**
@@ -189,16 +190,16 @@ bool svm_supported(void)
  * @llr
  *
  * @design
- * 1. Call `hv_memset()` with the arguments `msrpm`, `0xFFU` and
+ * 1. Call `memset()` with the arguments `msrpm`, `0xFF` and
  *    `sizeof(msrpm)`.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  */
 void svm_init(void)
 {
     // Every MSR access exits (see handle_msr()).
-    hv_memset(msrpm, 0xFFU, sizeof(msrpm));
+    (void) memset(msrpm, 0xFF, sizeof(msrpm));
 }
 
 /**
@@ -335,7 +336,7 @@ static void set_segment(vmcb_segment_t *seg, uint16_t selector,
  * 2. Set `c` to the address of `vmcb->control`.
  * 3. Set `s` to the address of `vmcb->save`.
  * 4. Set `vm` to `vcpu->vm`.
- * 5. Call `hv_memset()` with the arguments `vmcb`, `0U` and `sizeof(*vmcb)`.
+ * 5. Call `memset()` with the arguments `vmcb`, `0` and `sizeof(*vmcb)`.
  * 6. Set `c->intercept_misc1` to
  *    `SVM_INTERCEPT_INTR | SVM_INTERCEPT_CPUID | SVM_INTERCEPT_HLT |`
  *    `SVM_INTERCEPT_INVLPGA | SVM_INTERCEPT_IOIO | SVM_INTERCEPT_MSR |`
@@ -386,13 +387,13 @@ static void set_segment(vmcb_segment_t *seg, uint16_t selector,
  * 34. Set `s->rsp` to `0U`.
  * 35. Set `s->rax` to `MULTIBOOT_BOOT_MAGIC`.
  * 36. Set `s->g_pat` to `GUEST_PAT`.
- * 37. Call `hv_memset()` with the arguments the address of `vcpu->arch.regs`,
- *     `0U` and `sizeof(vcpu->arch.regs)`.
+ * 37. Call `memset()` with the arguments the address of `vcpu->arch.regs`,
+ *     `0` and `sizeof(vcpu->arch.regs)`.
  * 38. Set `vcpu->arch.regs.rbx` to `HV_GUEST_MBI`.
  * 39. Set `vcpu->arch.flush_tlb` to `true`.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  * - `svm_pa()`
  * - `x86_rdtsc()`
  * - `set_segment()`
@@ -404,7 +405,7 @@ void hv_arch_vcpu_init(hv_vcpu_t *vcpu)
     vmcb_save_t *s = &vmcb->save;
     const hv_vm_t *vm = vcpu->vm;
 
-    hv_memset(vmcb, 0U, sizeof(*vmcb));
+    (void) memset(vmcb, 0, sizeof(*vmcb));
 
     /*
      * Exits: physical interrupts, the instructions the hypervisor
@@ -464,7 +465,7 @@ void hv_arch_vcpu_init(hv_vcpu_t *vcpu)
     s->g_pat = GUEST_PAT;           // Power-on PAT
 
     // EBX: the Multiboot information written by vm_load().
-    hv_memset(&vcpu->arch.regs, 0U, sizeof(vcpu->arch.regs));
+    (void) memset(&vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
     vcpu->arch.regs.rbx = HV_GUEST_MBI;
     vcpu->arch.flush_tlb = true;
 }

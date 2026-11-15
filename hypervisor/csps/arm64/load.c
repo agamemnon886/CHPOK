@@ -33,7 +33,8 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/load.c (the code of the processor architecture is in
  * hypervisor/csps); system registers are accessed with read_sysreg(),
- * write_sysreg() and isb(), shared with the kernel.
+ * write_sysreg() and isb(), shared with the kernel; memcpy() and memset() of
+ * the library shared with the kernel replace hv_memcpy() and hv_memset().
  */
 
 /**
@@ -355,10 +356,10 @@ static void clean_caches(uint64_t pa, uint64_t size)
  *    2. Call `hv_fatal()` with the argument `"bad VM image"`.
  * 8. Call `zero_ram()` with the arguments `vm->ram_base` and
  *    `cfg->memory_size`.
- * 9. Call `hv_memcpy()` with the arguments
+ * 9. Call `memcpy()` with the arguments
  *    `(uint8_t *) (uintptr_t) vm->ram_base`, `cfg->boot_data` and
  *    `(size_t) dtb_size`.
- * 10. Call `hv_memcpy()` with the arguments
+ * 10. Call `memcpy()` with the arguments
  *     `(uint8_t *) (uintptr_t) (vm->ram_base + (load - HV_GUEST_RAM))`,
  *     `cfg->image` and `(size_t) image_size`.
  * 11. Call `clean_caches()` with the arguments `vm->ram_base` and
@@ -368,18 +369,18 @@ static void clean_caches(uint64_t pa, uint64_t size)
  * 14. Call `vuart_reset()` with the address of `vm->arch.uart[1]`.
  * 15. Set `vm->arch.timer_pending` to `false`.
  * 16. Set `vm->arch.timer_irqs` to `0U`.
- * 17. Call `hv_memset()` with the arguments `vm->arch.mmio_logged`, `0U` and
+ * 17. Call `memset()` with the arguments `vm->arch.mmio_logged`, `0` and
  *     `sizeof(vm->arch.mmio_logged)`.
  *
  * @calls
  * - `vm_print()`
  * - `hv_fatal()`
  * - `zero_ram()`
- * - `hv_memcpy()`
+ * - `memcpy()`
  * - `clean_caches()`
  * - `vgicd_reset()`
  * - `vuart_reset()`
- * - `hv_memset()`
+ * - `memset()`
  */
 void vm_load(hv_vm_t *vm)
 {
@@ -402,10 +403,11 @@ void vm_load(hv_vm_t *vm)
 
     // Cleared RAM, then the device tree and the image (its BSS stays 0).
     zero_ram(vm->ram_base, cfg->memory_size);
-    hv_memcpy((uint8_t *) (uintptr_t) vm->ram_base, cfg->boot_data,
-              (size_t) dtb_size);
-    hv_memcpy((uint8_t *) (uintptr_t) (vm->ram_base + (load - HV_GUEST_RAM)),
-              cfg->image, (size_t) image_size);
+    (void) memcpy((uint8_t *) (uintptr_t) vm->ram_base, cfg->boot_data,
+                  (size_t) dtb_size);
+    (void) memcpy(
+        (uint8_t *) (uintptr_t) (vm->ram_base + (load - HV_GUEST_RAM)),
+        cfg->image, (size_t) image_size);
     clean_caches(vm->ram_base, cfg->memory_size);
 
     // Devices as after power-on; unhandled registers are reported again.
@@ -414,5 +416,5 @@ void vm_load(hv_vm_t *vm)
     vuart_reset(&vm->arch.uart[1]);
     vm->arch.timer_pending = false;
     vm->arch.timer_irqs = 0U;
-    hv_memset(vm->arch.mmio_logged, 0U, sizeof(vm->arch.mmio_logged));
+    (void) memset(vm->arch.mmio_logged, 0, sizeof(vm->arch.mmio_logged));
 }

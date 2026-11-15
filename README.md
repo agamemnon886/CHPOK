@@ -18,7 +18,8 @@ JetOS supports x86_64 and arm64 (AArch64).
       csps/<arch>/        CPU support packages: x86_64, arm64
       bsps/<bsp>/         board support packages: x86_64-qemu, arm64-qemu
       include/            the kernel's own headers
-    common/               library shared by the kernel and the hypervisor
+    common/               library shared by the kernel and the hypervisor:
+                          memcpy(), memset() and the printf formatter
     include/              headers shared by the kernel and the hypervisor:
       common/             the library, the device tree and Multiboot
       csps/<arch>/cpu/    registers and instructions of the processor
@@ -506,7 +507,7 @@ is a GDB thread:
     hypervisor/hvcrc.py         image check (CRC-32 written after linking)
     hypervisor/core/            common: CPUs and vCPUs (cpus.c), VM RAM
                                 (vm.c), console (console.c, printf.c),
-                                image check at boot (crc.c), string.c
+                                image check at boot (crc.c)
       include/hv/               hv.h (data structures and interfaces
                                 between the parts), config.h (the
                                 generated VM table)

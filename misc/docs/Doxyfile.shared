@@ -25,8 +25,8 @@
 #
 # The configuration of docs/shared.pdf, the documentation of the functions,
 # types and macros that the kernel and the hypervisor share (common/ and
-# include/), built by `make docs` or `make docs-shared`. The shared settings are in
-# misc/docs/Doxyfile.common, which also explains the input.
+# include/), built by `make docs` or `make docs-shared`. The shared
+# settings are in misc/docs/Doxyfile.common, which also explains the input.
 
 @INCLUDE               = misc/docs/Doxyfile.common
 

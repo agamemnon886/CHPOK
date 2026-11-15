@@ -20,7 +20,8 @@
  * and its functions.
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/strcmp.c
  * (kernel/libc is split up: this file is in the library shared with the
- * hypervisor).
+ * hypervisor); moved from common/ to kernel/core, because only the kernel uses
+ * it and it depends on the kernel's configuration.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */

@@ -34,7 +34,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/ioport.c (the code of the board, its devices and the
- * virtual devices of the VMs is in hypervisor/bsps).
+ * virtual devices of the VMs is in hypervisor/bsps); memset() of the library
+ * shared with the kernel replaces hv_memset().
  */
 
 /**
@@ -119,7 +120,7 @@ static void iopm_allow(uint8_t *iopm, uint16_t first, uint32_t count)
  * @llr
  *
  * @design
- * 1. Call `hv_memset()` with the arguments `vm->arch.iopm`, `0xFFU` and
+ * 1. Call `memset()` with the arguments `vm->arch.iopm`, `0xFF` and
  *    `SVM_IOPM_SIZE`.
  * 2. If `vm->config->console_port` is equal to `HV_PORT_COM1`:
  *    1. Call `iopm_allow()` with the arguments `vm->arch.iopm`, `HV_PORT_COM1`
@@ -129,13 +130,13 @@ static void iopm_allow(uint8_t *iopm, uint16_t first, uint32_t count)
  *       and `UART_PORTS`.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  * - `iopm_allow()`
  */
 void io_init_iopm(hv_vm_t *vm)
 {
     // A set bit makes the access to that port exit.
-    hv_memset(vm->arch.iopm, 0xFFU, SVM_IOPM_SIZE);
+    (void) memset(vm->arch.iopm, 0xFF, SVM_IOPM_SIZE);
     if (vm->config->console_port == HV_PORT_COM1) {
         iopm_allow(vm->arch.iopm, HV_PORT_COM1, UART_PORTS);
     }

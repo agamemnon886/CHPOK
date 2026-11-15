@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/npt.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); memset() of the library shared with the kernel replaces
+ * hv_memset().
  */
 
 /**
@@ -117,7 +118,7 @@ static uint64_t npt_pa(const uint64_t *table)
  * @design
  * 1. Set `t` to the address of `npt[vm_index]`.
  * 2. Set `pages` to `size / HV_LARGE_PAGE_SIZE`.
- * 3. Call `hv_memset()` with the arguments `t`, `0U` and `sizeof(*t)`.
+ * 3. Call `memset()` with the arguments `t`, `0` and `sizeof(*t)`.
  * 4. Set `t->pml4[0]` to `npt_pa(t->pdpt) | NPT_TABLE`.
  * 5. Set `t->pdpt[0]` to `npt_pa(t->pd) | NPT_TABLE`.
  * 6. Set `i` to `0U`; then while `i` is less than `pages` and `i` is less than
@@ -126,7 +127,7 @@ static uint64_t npt_pa(const uint64_t *table)
  * 7. Call `npt_pa()` with the argument `t->pml4`, and return its result.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  * - `npt_pa()`
  */
 uint64_t npt_build(uint32_t vm_index, uint64_t ram_base, uint64_t size)
@@ -136,7 +137,7 @@ uint64_t npt_build(uint32_t vm_index, uint64_t ram_base, uint64_t size)
     uint64_t pages = size / HV_LARGE_PAGE_SIZE;
 
     // One entry each in the PML4 and PDPT cover guest-physical 0-1 GiB.
-    hv_memset(t, 0U, sizeof(*t));
+    (void) memset(t, 0, sizeof(*t));
     t->pml4[0] = npt_pa(t->pdpt) | NPT_TABLE;
     t->pdpt[0] = npt_pa(t->pd) | NPT_TABLE;
     // Guest page i is host page ram_base + i * 2 MiB; the rest is absent.

@@ -22,19 +22,20 @@
  * and its functions.
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/memset.c
  * (kernel/libc is split up: this file is in the library shared with the
- * hypervisor).
+ * hypervisor); it is shared with the hypervisor, and declared in
+ * include/common/string.h.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
 /**
  * @file
- * memset() of the kernel's C library (weak: an architecture may have its
- * own).
+ * memset() of the library that the kernel and the hypervisor share (weak:
+ * an architecture may have its own).
  */
 
 
-#include <libc.h>
+#include <common/string.h>
 
 /*
  * MISRA C:2025 Rule 11.5 deviation (this file): the standard memset() takes

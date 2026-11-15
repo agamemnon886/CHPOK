@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/stage2.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); memset() of the library shared with the kernel replaces
+ * hv_memset().
  */
 
 /**
@@ -203,7 +204,7 @@ static void map_device(stage2_tables_t *t, uint64_t ipa, uint64_t pa)
  * 1. Set `t` to the address of `tables[vm->index]`.
  * 2. Set `blocks` to `vm->config->memory_size >> L2_SHIFT`.
  * 3. Set `uarts` to `{ HV_GUEST_UART0, HV_GUEST_UART1 }`.
- * 4. Call `hv_memset()` with the arguments `t`, `0U` and `sizeof(*t)`.
+ * 4. Call `memset()` with the arguments `t`, `0` and `sizeof(*t)`.
  * 5. Set `t->l1[index_of(HV_GUEST_GICD, L1_SHIFT)]` to
  *    `table_pa(t->l2_devices) | DESC_TABLE`.
  * 6. Set `t->l1[index_of(HV_GUEST_RAM, L1_SHIFT)]` to
@@ -231,7 +232,7 @@ static void map_device(stage2_tables_t *t, uint64_t ipa, uint64_t pa)
  *     `((uint64_t) (vm->index + 1U) << VTTBR_VMID_SHIFT) | table_pa(t->l1)`.
  *
  * @calls
- * - `hv_memset()`
+ * - `memset()`
  * - `index_of()`
  * - `table_pa()`
  * - `map_device()`
@@ -245,7 +246,7 @@ uint64_t stage2_build(const hv_vm_t *vm, uint64_t gicv)
     uint64_t blocks = vm->config->memory_size >> L2_SHIFT;
     const uint64_t uarts[2] = { HV_GUEST_UART0, HV_GUEST_UART1 };
 
-    hv_memset(t, 0U, sizeof(*t));
+    (void) memset(t, 0, sizeof(*t));
     t->l1[index_of(HV_GUEST_GICD, L1_SHIFT)] = table_pa(t->l2_devices)
                                                | DESC_TABLE;
     t->l1[index_of(HV_GUEST_RAM, L1_SHIFT)] = table_pa(t->l2_ram)

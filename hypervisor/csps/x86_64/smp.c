@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/smp.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); memcpy() of the library shared with the kernel replaces
+ * hv_memcpy().
  */
 
 /**
@@ -71,11 +72,11 @@
  * @design
  * 1. Set `start` to `(uintptr_t) hv_ap_trampoline`.
  * 2. Set `size` to `(size_t) ((uintptr_t) hv_ap_trampoline_end - start)`.
- * 3. Call `hv_memcpy()` with the arguments `(void *) AP_TRAMPOLINE`,
+ * 3. Call `memcpy()` with the arguments `(void *) AP_TRAMPOLINE`,
  *    `hv_ap_trampoline` and `size`.
  *
  * @calls
- * - `hv_memcpy()`
+ * - `memcpy()`
  */
 /*
  * MISRA C:2025 Rule 11.4 and Rule 11.6 deviation (copy_trampoline(),
@@ -88,7 +89,7 @@ static void copy_trampoline(void)
     uintptr_t start = (uintptr_t) hv_ap_trampoline;
     size_t size = (size_t) ((uintptr_t) hv_ap_trampoline_end - start);
 
-    hv_memcpy((void *) AP_TRAMPOLINE, hv_ap_trampoline, size);
+    (void) memcpy((void *) AP_TRAMPOLINE, hv_ap_trampoline, size);
 }
 
 /**
