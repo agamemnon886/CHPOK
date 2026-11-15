@@ -48,7 +48,9 @@
  * have a step for the declaration of a local variable; the @locals table
  * describes it, and an initialized one is set in a step.
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * boards/x86_64-qemu/cons.c (the board support packages are in kernel/bsps).
+ * boards/x86_64-qemu/cons.c (the board support packages are in kernel/bsps);
+ * the function headers follow outb() and inb(), which call x86_outb() and
+ * x86_inb().
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
@@ -113,13 +115,13 @@ static s_cons_t g_cons;
  * @llr
  *
  * @design
- * 1. Return `(inb(port + 5) & 0x20U) != 0U`.
+ * 1. Return `(inb((uint16_t)port + 5U) & 0x20U) != 0U`.
  *
  * @calls
- * None.
+ * - `x86_inb()`
  */
 static pok_bool_t is_transmit_empty(int32_t port) {
-   return (inb(port + 5) & 0x20U) != 0U;
+   return (inb((uint16_t)port + 5U) & 0x20U) != 0U;
 }
 
 /**
@@ -147,10 +149,11 @@ static pok_bool_t is_transmit_empty(int32_t port) {
  * @design
  * 1. While `is_transmit_empty(port)` is false:
  *    1. Do nothing.
- * 2. Execute the assembly code `outb(port, a)`.
+ * 2. Use the macro `outb(port, a)`.
  *
  * @calls
  * - `is_transmit_empty()`
+ * - `x86_outb()`
  */
 static void write_serial(int32_t port, char a) {
    while (!is_transmit_empty(port)) {
@@ -186,18 +189,18 @@ static void write_serial(int32_t port, char a) {
  * @llr
  *
  * @design
- * 1. Set `flags` to `inb(port + COM_LSR)`.
+ * 1. Set `flags` to `inb((uint16_t)port + COM_LSR)`.
  * 2. If `(flags & COM_LSR_DATA)` is equal to `0` or `((flags & COM_LSR_RFE))`
  *    is not equal to `0`:
  *    1. Return `0`.
  * 3. Return `1`.
  *
  * @calls
- * None.
+ * - `x86_inb()`
  */
 static int32_t data_to_read(int32_t port) //return 0 if no data to read
 {
-    int32_t flags = inb(port + COM_LSR);
+    int32_t flags = inb((uint16_t)port + COM_LSR);
 	if (((flags & COM_LSR_DATA) == 0) || (((flags & COM_LSR_RFE)) != 0)) {
 		return 0;
 	}
@@ -233,13 +236,15 @@ static int32_t data_to_read(int32_t port) //return 0 if no data to read
  * @design
  * 1. If `data_to_read(port)` is equal to `0`:
  *    1. Return `-1`.
- * 2. Set `data` to `inb(port+COM_RX)`.
- * 3. If `(inb(port+COM_LSR) & COM_LSR_RFE)` is equal to `0`:
+ * 2. Set `data` to `inb((uint16_t)port)`.
+ * 3. If `(inb((uint16_t)port + COM_LSR) & (uint8_t)COM_LSR_RFE)` is equal to
+ *    `0U`:
  *    1. Return `data`.
  * 4. Return `-1`.
  *
  * @calls
  * - `data_to_read()`
+ * - `x86_inb()`
  */
 static int32_t read_serial(int32_t port)
 {
@@ -248,8 +253,8 @@ static int32_t read_serial(int32_t port)
 	}
 
    int32_t data;
-	data=inb(port+COM_RX);
-	if ( (inb(port+COM_LSR) & COM_LSR_RFE) == 0 ) {
+	data=inb((uint16_t)port); /* COM_RX: register 0 */
+	if ( (inb((uint16_t)port + COM_LSR) & (uint8_t)COM_LSR_RFE) == 0U ) {
 		return data;
 	}
 	return -1;
@@ -613,16 +618,17 @@ static size_t iostream_write_common (int32_t port, const char *s, size_t length)
  * @design
  * 1. Call `pok_cons_clear()`.
  * 2. Set `g_cons.cur_attr` to `(char) 0x07U`.
- * 3. Execute the assembly code `outb(port + 1, 0x00)`.
- * 4. Execute the assembly code `outb(port + 3, 0x80)`.
- * 5. Execute the assembly code `outb(port + 0, 0x03)`.
- * 6. Execute the assembly code `outb(port + 1, 0x00)`.
- * 7. Execute the assembly code `outb(port + 3, 0x03)`.
- * 8. Execute the assembly code `outb(port + 2, 0xC7)`.
- * 9. Execute the assembly code `outb(port + 4, 0x0B)`.
+ * 3. Use the macro `outb((uint16_t)port + 1U, 0x00)`.
+ * 4. Use the macro `outb((uint16_t)port + 3U, 0x80)`.
+ * 5. Use the macro `outb((uint16_t)port, 0x03)`.
+ * 6. Use the macro `outb((uint16_t)port + 1U, 0x00)`.
+ * 7. Use the macro `outb((uint16_t)port + 3U, 0x03)`.
+ * 8. Use the macro `outb((uint16_t)port + 2U, 0xC7)`.
+ * 9. Use the macro `outb((uint16_t)port + 4U, 0x0B)`.
  *
  * @calls
  * - `pok_cons_clear()`
+ * - `x86_outb()`
  */
 static void iostream_init_common (int32_t port)
 {
@@ -630,13 +636,14 @@ static void iostream_init_common (int32_t port)
    pok_cons_clear ();
    g_cons.cur_attr = (char) 0x07U; // Light grey on black.
    /* To be fixed : init serial */
-   outb(port + 1, 0x00);    // Disable all interrupts
-   outb(port + 3, 0x80);    // Enable DLAB (set baud rate divisor)
-   outb(port + 0, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
-   outb(port + 1, 0x00);    //                  (hi byte)
-   outb(port + 3, 0x03);    // 8 bits, no parity, one stop bit
-   outb(port + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
-   outb(port + 4, 0x0B);    // IRQs enabled, RTS/DSR set
+   outb((uint16_t)port + 1U, 0x00);    // Disable all interrupts
+   outb((uint16_t)port + 3U, 0x80);    // Enable DLAB (set baud rate divisor)
+   outb((uint16_t)port, 0x03);    // Set divisor to 3 (lo byte) 38400 baud
+   outb((uint16_t)port + 1U, 0x00);    //                  (hi byte)
+   outb((uint16_t)port + 3U, 0x03);    // 8 bits, no parity, one stop bit
+   // Enable FIFO, clear them, with 14-byte threshold
+   outb((uint16_t)port + 2U, 0xC7);
+   outb((uint16_t)port + 4U, 0x0B);    // IRQs enabled, RTS/DSR set
 }
 
 /**

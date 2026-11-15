@@ -35,14 +35,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/include/arch/arm64.h (the code of the processor
- * architecture is in hypervisor/csps).
+ * architecture is in hypervisor/csps); read_sysreg(), write_sysreg() and isb()
+ * come from include/csps/arm64/cpu/sysreg.h, shared with the kernel (they were
+ * HV_READ_SYSREG, HV_WRITE_SYSREG and arm64_isb()).
  */
 
 /*
  * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this file): system
  * registers and privileged instructions are reached with GNU inline
  * assembly, isolated in these macros and small static inline functions;
- * HV_READ_SYSREG() is a GNU statement expression, so that it yields the
+ * read_sysreg() is a GNU statement expression, so that it yields the
  * value read. Rule 20.10 (advisory): # makes the register name a part of
  * the instruction.
  */
@@ -52,50 +54,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-
-/**
- * @macroname `HV_READ_SYSREG`
- *
- * @description
- * Evaluates to the value of a system register (a uint64_t).
- *
- * @params
- * | Name | Description |
- * |------|-------------|
- * | `reg` | The name of the system register (as the MRS instruction takes it). |
- */
-#define HV_READ_SYSREG(reg) ({                              \
-    uint64_t sysreg_value;                                  \
-    asm volatile ("mrs %0, " #reg : "=r" (sysreg_value));   \
-    sysreg_value;                                           \
-})
-
-/**
- * @macroname `HV_WRITE_SYSREG`
- *
- * @description
- * Writes a value to a system register.
- *
- * @params
- * | Name | Description |
- * |------|-------------|
- * | `reg` | The name of the system register (as the MSR instruction takes it). |
- * | `value` | The value to write. |
- */
-#define HV_WRITE_SYSREG(reg, value) do {                    \
-    uint64_t sysreg_value = (uint64_t) (value);             \
-    asm volatile ("msr " #reg ", %0" : : "r" (sysreg_value) \
-                  : "memory");                              \
-} while (false)
-
 /*
- * Instruction synchronization barrier: the instructions after it see the
- * effects of the system register writes before it.
+ * read_sysreg(), write_sysreg() and isb(), which the kernel uses too.
  */
-static inline void arm64_isb(void)
-{
-    asm volatile ("isb" : : : "memory");
-}
+#include <cpu/sysreg.h>
 
 /*
  * Data synchronization barrier, inner shareable domain: the memory accesses and

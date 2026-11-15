@@ -36,7 +36,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/include/arch/x86.h (the code of the processor
- * architecture is in hypervisor/csps).
+ * architecture is in hypervisor/csps). MSR_EFER and the I/O port functions are
+ * in include/csps/x86_64/cpu (regs.h, io.h), shared with the kernel.
  */
 
 /*
@@ -50,6 +51,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+/* Shared with the kernel. */
+#include <cpu/regs.h>
+#include <cpu/io.h>
 
 /**
  * @macroname `X86_RFLAGS_IF`
@@ -122,14 +126,6 @@
  * The number of the page attribute table MSR.
  */
 #define MSR_PAT                 0x00000277U
-
-/**
- * @macroname `MSR_EFER`
- *
- * @description
- * The number of the extended feature enable register MSR.
- */
-#define MSR_EFER                0xC0000080U
 
 /**
  * @macroname `MSR_STAR`
@@ -218,63 +214,6 @@
  * The bit of VM_CR that disables SVM.
  */
 #define VM_CR_SVMDIS            (1UL << 4)
-
-/*
- * Writes a byte to an I/O port.
- */
-static inline void x86_outb(uint16_t port, uint8_t value)
-{
-    asm volatile ("outb %0, %1" : : "a" (value), "Nd" (port) : "memory");
-}
-
-/*
- * Writes a 16-bit word to an I/O port.
- */
-static inline void x86_outw(uint16_t port, uint16_t value)
-{
-    asm volatile ("outw %0, %1" : : "a" (value), "Nd" (port) : "memory");
-}
-
-/*
- * Writes a 32-bit word to an I/O port.
- */
-static inline void x86_outl(uint16_t port, uint32_t value)
-{
-    asm volatile ("outl %0, %1" : : "a" (value), "Nd" (port) : "memory");
-}
-
-/*
- * Reads a byte from an I/O port.
- */
-static inline uint8_t x86_inb(uint16_t port)
-{
-    uint8_t value;
-
-    asm volatile ("inb %1, %0" : "=a" (value) : "Nd" (port) : "memory");
-    return value;
-}
-
-/*
- * Reads a 16-bit word from an I/O port.
- */
-static inline uint16_t x86_inw(uint16_t port)
-{
-    uint16_t value;
-
-    asm volatile ("inw %1, %0" : "=a" (value) : "Nd" (port) : "memory");
-    return value;
-}
-
-/*
- * Reads a 32-bit word from an I/O port.
- */
-static inline uint32_t x86_inl(uint16_t port)
-{
-    uint32_t value;
-
-    asm volatile ("inl %1, %0" : "=a" (value) : "Nd" (port) : "memory");
-    return value;
-}
 
 /*
  * Reads a model-specific register.

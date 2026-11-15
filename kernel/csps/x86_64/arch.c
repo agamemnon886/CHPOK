@@ -40,7 +40,9 @@
  * describes it, and an initialized one is set in a step.
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * kernel/arch/x86_64/arch.c (the CPU support packages are in kernel/csps).
+ * kernel/arch/x86_64/arch.c (the CPU support packages are in kernel/csps); the
+ * function headers follow outb() and inb(), which call x86_outb() and
+ * x86_inb().
  */
 
 /**
@@ -291,10 +293,12 @@ _Noreturn void ja_inf_loop(void)
  * 1. Set `good` to `0x02`.
  * 2. While `(good & 0x02U)` is not equal to `0U`:
  *    1. Set `good` to `inb(0x64)`.
- * 3. Execute the assembly code `outb(0x64, 0xFE)`.
+ * 3. Use the macro `outb(0x64, 0xFE)`.
  * 4. Call `ja_inf_loop()`.
  *
  * @calls
+ * - `x86_inb()`
+ * - `x86_outb()`
  * - `ja_inf_loop()`
  */
 void ja_cpu_reset(void)

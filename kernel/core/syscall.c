@@ -46,6 +46,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
  * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-15: the function headers follow
+ * outb() and inb(), which call x86_outb() and x86_inb().
  */
 
 #include <config.h>
@@ -351,7 +354,7 @@ static pok_ret_e unprotected_syscall(
  *           `(args->arg1 > pok_partitions[infos->partition].io_max)` is true:
  *           1. Return `-POK_ERRNO_EPERM`.
  *        2. Otherwise:
- *           1. Execute the assembly code
+ *           1. Use the macro
  *              `outb((uint16_t) args->arg1, (uint8_t) args->arg2)`.
  *           2. Return `POK_ERRNO_OK`.
  *        3. Leave the switch.
@@ -380,12 +383,12 @@ static pok_ret_e unprotected_syscall(
  * - `pok_clock_gettime()`
  * - `jet_time()`
  * - `unprotected_syscall()`
+ * - `x86_inb()`
+ * - `x86_outb()`
  * - `pok_virt_to_phys()`
  * - `pok_phys_to_virt()`
  * - `printf()`
  * - `pok_raise_error()`
- * - `ja_inb()`
- * - `ja_outb()`
  */
 /*
  * MISRA C:2025 Rule 11.4 and Rule 11.6 deviation: syscall arguments arrive in

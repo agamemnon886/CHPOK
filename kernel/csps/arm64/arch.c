@@ -37,7 +37,8 @@
  * and its functions.
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * kernel/arch/arm64/arch.c (the CPU support packages are in kernel/csps).
+ * kernel/arch/arm64/arch.c (the CPU support packages are in kernel/csps);
+ * sysreg.h is include/csps/arm64/cpu/sysreg.h, shared with the hypervisor.
  */
 
 /**
@@ -52,7 +53,7 @@
 #include <bsp/bsp.h>
 
 #include "space.h"
-#include "sysreg.h"
+#include <cpu/sysreg.h>
 #include "interrupt.h"
 
 /**

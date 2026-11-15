@@ -29,7 +29,9 @@
  * have a step for the declaration of a local variable; the @locals table
  * describes it, and an initialized one is set in a step.
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * boards/x86_64-qemu/pic.c (the board support packages are in kernel/bsps).
+ * boards/x86_64-qemu/pic.c (the board support packages are in kernel/bsps);
+ * the function headers follow outb() and inb(), which call x86_outb() and
+ * x86_inb().
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -68,19 +70,19 @@
  * @llr
  *
  * @design
- * 1. Execute the assembly code `outb (PIC_MASTER_BASE, PIC_MASTER_ICW1)`.
- * 2. Execute the assembly code `outb (PIC_SLAVE_BASE, PIC_SLAVE_ICW1)`.
- * 3. Execute the assembly code `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW2)`.
- * 4. Execute the assembly code `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW2)`.
- * 5. Execute the assembly code `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW3)`.
- * 6. Execute the assembly code `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW3)`.
- * 7. Execute the assembly code `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW4)`.
- * 8. Execute the assembly code `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW4)`.
- * 9. Execute the assembly code `outb (PIC_MASTER_BASE + 1, 0xfb)`.
- * 10. Execute the assembly code `outb (PIC_SLAVE_BASE + 1, 0xff)`.
+ * 1. Use the macro `outb (PIC_MASTER_BASE, PIC_MASTER_ICW1)`.
+ * 2. Use the macro `outb (PIC_SLAVE_BASE, PIC_SLAVE_ICW1)`.
+ * 3. Use the macro `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW2)`.
+ * 4. Use the macro `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW2)`.
+ * 5. Use the macro `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW3)`.
+ * 6. Use the macro `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW3)`.
+ * 7. Use the macro `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW4)`.
+ * 8. Use the macro `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW4)`.
+ * 9. Use the macro `outb (PIC_MASTER_BASE + 1, 0xfb)`.
+ * 10. Use the macro `outb (PIC_SLAVE_BASE + 1, 0xff)`.
  *
  * @calls
- * None.
+ * - `x86_outb()`
  */
 void pok_pic_init (void)
 {
@@ -131,16 +133,17 @@ void pok_pic_init (void)
  *    1. Return `(POK_ERRNO_EINVAL)`.
  * 2. If `irq` is less than `8U`:
  *    1. Set `mask` to `inb (PIC_MASTER_BASE + 1)`.
- *    2. Execute the assembly code
+ *    2. Use the macro
  *       `outb (PIC_MASTER_BASE + 1, (uint8_t) (mask | (1U << irq)))`.
  * 3. Otherwise:
  *    1. Set `mask` to `inb (PIC_SLAVE_BASE + 1)`.
- *    2. Execute the assembly code
+ *    2. Use the macro
  *       `outb (PIC_SLAVE_BASE + 1, (uint8_t) (mask | (1U << (irq - 8U))))`.
  * 4. Return `(POK_ERRNO_OK)`.
  *
  * @calls
- * None.
+ * - `x86_inb()`
+ * - `x86_outb()`
  */
 int32_t pok_pic_mask (uint8_t irq)
 {
@@ -195,16 +198,17 @@ int32_t pok_pic_mask (uint8_t irq)
  *    1. Return `(POK_ERRNO_EINVAL)`.
  * 2. If `irq` is less than `8U`:
  *    1. Set `mask` to `inb(PIC_MASTER_BASE + 1)`.
- *    2. Execute the assembly code
+ *    2. Use the macro
  *       `outb(PIC_MASTER_BASE + 1, (uint8_t) (mask & ~(1U << irq)))`.
  * 3. Otherwise:
  *    1. Set `mask` to `inb(PIC_SLAVE_BASE + 1)`.
- *    2. Execute the assembly code
+ *    2. Use the macro
  *       `outb(PIC_SLAVE_BASE + 1, (uint8_t) (mask & ~(1U << (irq - 8U))))`.
  * 4. Return `(POK_ERRNO_OK)`.
  *
  * @calls
- * None.
+ * - `x86_inb()`
+ * - `x86_outb()`
  */
 int32_t pok_pic_unmask(uint8_t irq)
 {
@@ -252,11 +256,11 @@ int32_t pok_pic_unmask(uint8_t irq)
  *
  * @design
  * 1. If `irq` is greater than or equal to `8U`:
- *    1. Execute the assembly code `outb (PIC_SLAVE_BASE, 0x20)`.
- * 2. Execute the assembly code `outb (PIC_MASTER_BASE, 0x20)`.
+ *    1. Use the macro `outb (PIC_SLAVE_BASE, 0x20)`.
+ * 2. Use the macro `outb (PIC_MASTER_BASE, 0x20)`.
  *
  * @calls
- * None.
+ * - `x86_outb()`
  */
 void pok_pic_eoi (uint8_t irq)
 {

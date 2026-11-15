@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/main.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); system registers are accessed with read_sysreg(),
+ * write_sysreg() and isb(), shared with the kernel.
  */
 
 /**
@@ -64,14 +65,14 @@
  * @llr
  *
  * @design
- * 1. Return `(uint32_t) (HV_READ_SYSREG(mpidr_el1) & MPIDR_AFFINITY)`.
+ * 1. Return `(uint32_t) (read_sysreg(mpidr_el1) & MPIDR_AFFINITY)`.
  *
  * @calls
  * None.
  */
 static uint32_t this_mpidr(void)
 {
-    return (uint32_t) (HV_READ_SYSREG(mpidr_el1) & MPIDR_AFFINITY);
+    return (uint32_t) (read_sysreg(mpidr_el1) & MPIDR_AFFINITY);
 }
 
 /**
@@ -174,7 +175,7 @@ hv_cpu_t *hv_this_cpu(void)
  *
  * @design
  * 1. Call `arm64_mask_all()`.
- * 2. Use the macro `HV_WRITE_SYSREG()` with the arguments `cntv_ctl_el0` and
+ * 2. Use the macro `write_sysreg()` with the arguments `cntv_ctl_el0` and
  *    `0U`.
  * 3. Call `gic_cpu_off()`.
  * 4. While `true` is true:
@@ -188,7 +189,7 @@ hv_cpu_t *hv_this_cpu(void)
 void hv_halt_forever(void)
 {
     arm64_mask_all();
-    HV_WRITE_SYSREG(cntv_ctl_el0, 0U);
+    write_sysreg(cntv_ctl_el0, 0U);
     gic_cpu_off();
     while (true) {
         arm64_wfi();
@@ -214,14 +215,14 @@ void hv_halt_forever(void)
  * @llr
  *
  * @design
- * 1. Return `HV_READ_SYSREG(cntfrq_el0)`.
+ * 1. Return `read_sysreg(cntfrq_el0)`.
  *
  * @calls
  * None.
  */
 uint64_t hv_counter_hz(void)
 {
-    return HV_READ_SYSREG(cntfrq_el0);
+    return read_sysreg(cntfrq_el0);
 }
 
 /**
@@ -250,14 +251,14 @@ uint64_t hv_counter_hz(void)
  *
  * @design
  * 1. Set `ticks` to `(microseconds * hv_counter_hz()) / 1000000U`.
- * 2. Call `arm64_isb()`.
- * 3. Set `start` to `HV_READ_SYSREG(cntpct_el0)`.
- * 4. While `(HV_READ_SYSREG(cntpct_el0) - start)` is less than `ticks`:
+ * 2. Call `isb()`.
+ * 3. Set `start` to `read_sysreg(cntpct_el0)`.
+ * 4. While `(read_sysreg(cntpct_el0) - start)` is less than `ticks`:
  *    1. Call `arm64_yield()`.
  *
  * @calls
  * - `hv_counter_hz()`
- * - `arm64_isb()`
+ * - `isb()`
  * - `arm64_yield()`
  */
 void hv_udelay(uint64_t microseconds)
@@ -265,9 +266,9 @@ void hv_udelay(uint64_t microseconds)
     uint64_t ticks = (microseconds * hv_counter_hz()) / 1000000U;
     uint64_t start;
 
-    arm64_isb();
-    start = HV_READ_SYSREG(cntpct_el0);
-    while ((HV_READ_SYSREG(cntpct_el0) - start) < ticks) {
+    isb();
+    start = read_sysreg(cntpct_el0);
+    while ((read_sysreg(cntpct_el0) - start) < ticks) {
         arm64_yield();
     }
 }
@@ -298,8 +299,8 @@ void hv_udelay(uint64_t microseconds)
  * @design
  * 1. Call `hv_printf()` with the arguments
  *    `"[hv] %%s at EL2: ESR 0x%%lx ELR 0x%%lx FAR 0x%%lx\n"`,
- *    `kinds[kind & 3U]`, `HV_READ_SYSREG(esr_el2)`, `HV_READ_SYSREG(elr_el2)`
- *    and `HV_READ_SYSREG(far_el2)`.
+ *    `kinds[kind & 3U]`, `read_sysreg(esr_el2)`, `read_sysreg(elr_el2)`
+ *    and `read_sysreg(far_el2)`.
  * 2. Call `hv_fatal()` with the argument `"exception in the hypervisor"`.
  *
  * @calls
@@ -313,8 +314,8 @@ void hv_el2_exception(uint64_t kind)
     };
 
     hv_printf("[hv] %s at EL2: ESR 0x%lx ELR 0x%lx FAR 0x%lx\n",
-              kinds[kind & 3U], HV_READ_SYSREG(esr_el2),
-              HV_READ_SYSREG(elr_el2), HV_READ_SYSREG(far_el2));
+              kinds[kind & 3U], read_sysreg(esr_el2),
+              read_sysreg(elr_el2), read_sysreg(far_el2));
     hv_fatal("exception in the hypervisor");
 }
 

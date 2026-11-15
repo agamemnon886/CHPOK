@@ -19,6 +19,10 @@ JetOS supports x86_64 and arm64 (AArch64).
       bsps/<bsp>/         board support packages: x86_64-qemu, arm64-qemu
       include/            the kernel's own headers
     common/               library shared by the kernel and the hypervisor
+    include/              headers shared by the kernel and the hypervisor:
+      common/             the library, the device tree and Multiboot
+      csps/<arch>/cpu/    registers and instructions of the processor
+      bsps/<bsp>/dev/     registers of the devices of the board
     hypervisor/           hypervisor (see "Hypervisor")
       core/               independent of the processor and of the board
       csps/<arch>/        CPU support packages (SVM, EL2)
@@ -34,7 +38,7 @@ JetOS supports x86_64 and arm64 (AArch64).
 
 The kernel and the hypervisor are separate programs under different
 licences (the hypervisor is BSD-only), so they share only code under the
-BSD-2-Clause or POK licence: `common/`.
+BSD-2-Clause or POK licence: `common/` and `include/`.
 
 ## Building
 
@@ -606,8 +610,7 @@ third-party `libm` and `protocols`), `syspart` and the C templates of
 `misc` has a Doxygen header right before its definition, except the
 `static inline` functions defined in headers, which have a plain comment
 and aren't documented. `make docs` turns
-the headers into one document per component, with Doxygen and LaTeX in
-the build image (`misc/docker/Dockerfile`, which builds Doxygen 1.18 from
+the headers into one document per component, with Doxygen | `docs/shared.pdf` | the library and the headers shared by the kernel and the hypervisor (`common`, `include`) |
 its source release):
 
 | Document | Contents |

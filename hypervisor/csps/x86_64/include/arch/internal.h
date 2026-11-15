@@ -35,7 +35,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/include/arch/internal.h (the code of the processor
- * architecture is in hypervisor/csps); the comments name the new paths.
+ * architecture is in hypervisor/csps); the comments name the new paths; port B
+ * is in include/bsps/x86_64-qemu/dev/i8254.h, shared with the kernel.
  */
 
 /*
@@ -48,6 +49,8 @@
 #define HV_ARCH_INTERNAL_H
 
 #include <hv/hv.h>
+/* Shared with the kernel. */
+#include <dev/i8254.h>
 
 /**
  * @macroname `HV_VECTOR_TIMER`
@@ -867,38 +870,6 @@ typedef struct {
  * The I/O port of the command register of the PIT.
  */
 #define PIT_COMMAND         0x43U
-
-/**
- * @macroname `PORT_B`
- *
- * @description
- * The I/O port of the system control port B.
- */
-#define PORT_B              0x61U
-
-/**
- * @macroname `PORT_B_GATE2`
- *
- * @description
- * The bit of port B that gates channel 2 of the PIT.
- */
-#define PORT_B_GATE2        0x01U
-
-/**
- * @macroname `PORT_B_SPEAKER`
- *
- * @description
- * The bit of port B that connects channel 2 to the speaker.
- */
-#define PORT_B_SPEAKER      0x02U
-
-/**
- * @macroname `PORT_B_OUT2`
- *
- * @description
- * The bit of port B that reads the output of channel 2.
- */
-#define PORT_B_OUT2         0x20U
 
 /** @} */
 

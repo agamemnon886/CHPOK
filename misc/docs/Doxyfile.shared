@@ -24,8 +24,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # The configuration of docs/shared.pdf, the documentation of the functions,
-# types and macros that the kernel and the hypervisor share (common/),
-# built by `make docs` or `make docs-shared`. The shared settings are in
+# types and macros that the kernel and the hypervisor share (common/ and
+# include/), built by `make docs` or `make docs-shared`. The shared settings are in
 # misc/docs/Doxyfile.common, which also explains the input.
 
 @INCLUDE               = misc/docs/Doxyfile.common
@@ -35,5 +35,6 @@ PROJECT_BRIEF          = "Functions and data types"
 OUTPUT_DIRECTORY       = build/docs/shared
 WARN_LOGFILE           = build/docs/shared/warnings.log
 
-# The C files of common/, and the groups of the types and macros.
-INPUT                  = common misc/docs/groups.dox
+# The C files of common/, the headers of include/, and the groups of the
+# types and macros.
+INPUT                  = common include misc/docs/groups.dox

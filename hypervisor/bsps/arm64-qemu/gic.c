@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/gic.c (the code of the board, its devices and the
- * virtual devices of the VMs is in hypervisor/bsps).
+ * virtual devices of the VMs is in hypervisor/bsps). GICD_IPRIORITYR() takes
+ * the interrupt number (the definition shared with the kernel).
  */
 
 /**
@@ -374,9 +375,9 @@ uint32_t gic_host_iidr(void)
  * 3. Call `gic_write32()` with the arguments `gicd`, `GICD_ICACTIVER0` and
  *    `0xFFFFFFFFU`.
  * 4. Call `gic_write8()` with the arguments `gicd`,
- *    `GICD_IPRIORITYR + HV_IRQ_VTIMER` and `HOST_PRIORITY`.
+ *    `GICD_IPRIORITYR(HV_IRQ_VTIMER)` and `HOST_PRIORITY`.
  * 5. Call `gic_write8()` with the arguments `gicd`,
- *    `GICD_IPRIORITYR + IRQ_MAINTENANCE` and `HOST_PRIORITY`.
+ *    `GICD_IPRIORITYR(IRQ_MAINTENANCE)` and `HOST_PRIORITY`.
  * 6. Call `gic_write32()` with the arguments `gicd`, `GICD_ISENABLER0` and
  *    `HOST_IRQS`.
  * 7. Call `gic_write32()` with the arguments `gicc`, `GICC_PMR` and `0xFFU`.
@@ -397,8 +398,8 @@ void gic_init_cpu(void)
     gic_write32(gicd, GICD_ICENABLER(0U), 0xFFFFFFFFU);
     gic_write32(gicd, GICD_ICPENDR0, 0xFFFFFFFFU);
     gic_write32(gicd, GICD_ICACTIVER0, 0xFFFFFFFFU);
-    gic_write8(gicd, GICD_IPRIORITYR + HV_IRQ_VTIMER, HOST_PRIORITY);
-    gic_write8(gicd, GICD_IPRIORITYR + IRQ_MAINTENANCE, HOST_PRIORITY);
+    gic_write8(gicd, GICD_IPRIORITYR(HV_IRQ_VTIMER), HOST_PRIORITY);
+    gic_write8(gicd, GICD_IPRIORITYR(IRQ_MAINTENANCE), HOST_PRIORITY);
     gic_write32(gicd, GICD_ISENABLER0, HOST_IRQS);
 
     gic_write32(gicc, GICC_PMR, 0xFFU);

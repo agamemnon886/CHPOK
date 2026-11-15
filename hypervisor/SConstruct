@@ -44,9 +44,9 @@
 # architecture in csps/<arch>/ and the code of each board (its devices
 # and the virtual devices of the VMs, the linker script) in bsps/<bsp>/.
 #
-# Modified by Kirill Brazhnikov, 2026-11-15: the sources are in core/ (it
-# was src/ and include/), csps/<arch>/ and bsps/<bsp>/ (it was
-# arch/<arch>/).
+# Modified by Kirill Brazhnikov, 2026-11-15: the sources are in core/ (it was
+# src/ and include/), csps/<arch>/ and bsps/<bsp>/ (it was arch/<arch>/); the
+# headers shared with the kernel (include/) are on the include path.
 
 import os
 import sys
@@ -76,6 +76,9 @@ if bsp not in BSPS:
 target = BSPS[bsp]
 csp_dir = os.path.join('csps', target['arch'])
 bsp_dir = os.path.join('bsps', bsp)
+# The headers that the hypervisor shares with the kernel (include/ of the
+# repository: common/, csps/<arch>/cpu/ and bsps/<bsp>/dev/).
+shared_dir = os.path.join('..', 'include')
 
 config = ARGUMENTS.get('config', '../examples/hv-two-vms/config.xml')
 config = os.path.abspath(config)
@@ -105,7 +108,11 @@ env = Environment(ENV=os.environ,
                   CFLAGS=flags,
                   ASFLAGS=flags + ' -c',
                   CPPPATH=[Dir(os.path.join('core', 'include')),
-                           Dir(os.path.join(csp_dir, 'include'))],
+                           Dir(os.path.join(csp_dir, 'include')),
+                           # The headers shared with the kernel.
+                           Dir(shared_dir),
+                           Dir(os.path.join(shared_dir, csp_dir)),
+                           Dir(os.path.join(shared_dir, bsp_dir))],
                   LINKFLAGS=target['ldflags'] + ' -nostdlib'
                             ' -z max-page-size=0x1000'
                             ' -z noexecstack --no-warn-rwx-segments'

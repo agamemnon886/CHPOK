@@ -28,7 +28,8 @@
  * removed (header files are not documented).
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/x86_64/include/arch/ioports.h (the CPU support packages are in
- * kernel/csps).
+ * kernel/csps); the macros call the I/O port functions shared with the
+ * hypervisor (include/csps/x86_64/cpu/io.h).
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -39,11 +40,11 @@
 #include <stdint.h>
 
 /*
- * MISRA C:2025 Dir 1.2 and Dir 4.3 deviation (this header): the I/O port
- * instructions are GNU inline assembly, isolated in these macros; the
- * reading macros are GNU statement expressions, so that they yield the
- * value read.
+ * The instructions are in the functions that the kernel shares with the
+ * hypervisor; the macros below give them the names of the kernel's
+ * architecture interface and convert their arguments.
  */
+#include <cpu/io.h>
 
 /**
  * @macroname `ja_outb`
@@ -57,10 +58,7 @@
  * | `port` | The I/O port. |
  * | `data` | The value written. |
  */
-#define ja_outb(port, data)                                        \
-  asm volatile ("outb %b0,%w1"                                  \
-                :						\
-		:"a" (data),"d" (port))
+#define ja_outb(port, data) x86_outb((uint16_t)(port), (uint8_t)(data))
 
 /**
  * @macroname `ja_inb`
@@ -73,14 +71,7 @@
  * |------|-------------|
  * | `port` | The I/O port. |
  */
-#define ja_inb(port)                                               \
-({                                                              \
-  uint8_t res;                                            \
-  asm volatile ("inb %w1,%0"                                    \
-                :"=a" (res)                                     \
-                :"d" (port));                                   \
-  res;                                                          \
-})
+#define ja_inb(port) x86_inb((uint16_t)(port))
 
 /**
  * @macroname `ja_outw`
@@ -94,10 +85,8 @@
  * | `port` | The I/O port. |
  * | `data` | The value written. |
  */
-#define ja_outw(port, data)                                        \
-  asm volatile ("outw %0,%w1"					\
-                :						\
-		:"a" (data),"d" (port))
+#define ja_outw(port, data) \
+    x86_outw((uint16_t)(port), (uint16_t)(data))
 
 /**
  * @macroname `ja_inw`
@@ -110,14 +99,7 @@
  * |------|-------------|
  * | `port` | The I/O port. |
  */
-#define ja_inw(port)                                               \
-({                                                              \
-  uint16_t res;						\
-  asm volatile ("inw %w1,%0"					\
-                :"=a" (res)                                     \
-                :"d" (port));					\
-  res;                                                          \
-})
+#define ja_inw(port) x86_inw((uint16_t)(port))
 
 /**
  * @macroname `ja_outl`
@@ -131,10 +113,8 @@
  * | `port` | The I/O port. |
  * | `data` | The value written. |
  */
-#define ja_outl(port, data)                                        \
-  asm volatile ("outl %k0,%w1"					\
-                :						\
-		:"a" (data),"d" (port))
+#define ja_outl(port, data) \
+    x86_outl((uint16_t)(port), (uint32_t)(data))
 
 /**
  * @macroname `ja_inl`
@@ -147,13 +127,6 @@
  * |------|-------------|
  * | `port` | The I/O port. |
  */
-#define ja_inl(port)                                               \
-({                                                              \
-  uint32_t res;						\
-  asm volatile ("inl %w1,%0"					\
-                :"=a" (res)                                     \
-                :"d" (port));					\
-  res;                                                          \
-})
+#define ja_inl(port) x86_inl((uint16_t)(port))
 
 #endif /* POK_X86_64_IOPORTS_H */

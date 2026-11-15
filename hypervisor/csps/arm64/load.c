@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/load.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); system registers are accessed with read_sysreg(),
+ * write_sysreg() and isb(), shared with the kernel.
  */
 
 /**
@@ -276,7 +277,7 @@ static void zero_ram(uint64_t pa, uint64_t size)
  * @llr
  *
  * @design
- * 1. Set `line` to `4UL << ((HV_READ_SYSREG(ctr_el0) >> CTR_DMINLINE_SHIFT) &`
+ * 1. Set `line` to `4UL << ((read_sysreg(ctr_el0) >> CTR_DMINLINE_SHIFT) &`
  *    `CTR_DMINLINE_MASK)`.
  * 2. Set `a` to `pa & ~(line - 1U)`; then while `a` is less than `(pa + size)`,
  *    repeat (after each pass: add `line` to `a`):
@@ -284,17 +285,17 @@ static void zero_ram(uint64_t pa, uint64_t size)
  * 3. Call `arm64_dsb_ish()`.
  * 4. Call `arm64_ic_iallu()`.
  * 5. Call `arm64_dsb_ish()`.
- * 6. Call `arm64_isb()`.
+ * 6. Call `isb()`.
  *
  * @calls
  * - `arm64_dc_cvac()`
  * - `arm64_dsb_ish()`
  * - `arm64_ic_iallu()`
- * - `arm64_isb()`
+ * - `isb()`
  */
 static void clean_caches(uint64_t pa, uint64_t size)
 {
-    uint64_t line = 4UL << ((HV_READ_SYSREG(ctr_el0) >> CTR_DMINLINE_SHIFT)
+    uint64_t line = 4UL << ((read_sysreg(ctr_el0) >> CTR_DMINLINE_SHIFT)
                             & CTR_DMINLINE_MASK);
 
     for (uint64_t a = pa & ~(line - 1U); a < (pa + size); a += line) {
@@ -303,7 +304,7 @@ static void clean_caches(uint64_t pa, uint64_t size)
     arm64_dsb_ish();
     arm64_ic_iallu();
     arm64_dsb_ish();
-    arm64_isb();
+    isb();
 }
 
 /**

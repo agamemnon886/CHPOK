@@ -29,7 +29,8 @@
  * Doxygen comment of the file is removed (header files are not documented).
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/x86_64/space.h (the CPU support packages are in kernel/csps);
- * the comments name the new paths.
+ * the comments name the new paths. LARGE_PAGE_SIZE is in
+ * include/csps/x86_64/cpu/regs.h, shared with the hypervisor.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -43,6 +44,8 @@
 #include <bsp/bsp.h>
 #include <stdint.h>
 #include <asp/space.h>
+/* Shared with the hypervisor. */
+#include <cpu/regs.h>
 
 /**
  * @macroname `POK_PARTITION_MEMORY_BASE`
@@ -123,15 +126,6 @@ struct jet_fp_store
  * (kernel/csps/arm64/space.h: a page and a translation table).
  */
 #define PAGE_SIZE 0x1000U
-
-/**
- * @macroname `LARGE_PAGE_SIZE`
- *
- * @description
- * The size of a large page (a page directory entry with PTE_PS), in bytes: the
- * kernel maps the RAM with them.
- */
-#define LARGE_PAGE_SIZE 0x200000U
 
 /**
  * @macroname `TABLE_ENTRIES`

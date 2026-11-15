@@ -40,7 +40,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/arm64/gdb.c (the CPU support packages are in kernel/csps); the
- * comments name the new paths.
+ * comments name the new paths; sysreg.h is include/csps/arm64/cpu/sysreg.h,
+ * shared with the hypervisor.
  */
 
 /**
@@ -81,7 +82,7 @@
 
 #include "interrupt.h"
 #include "space.h"
-#include "sysreg.h"
+#include <cpu/sysreg.h>
 
 /*
  * MISRA C:2025 Dir 1.2 deviation (this file): read_sysreg() is a GNU

@@ -30,7 +30,8 @@
  * comment of the file is removed (header files are not documented).
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/arm64/space.h (the CPU support packages are in kernel/csps); the
- * comments name the new paths.
+ * comments name the new paths; the translation bits that the hypervisor uses
+ * too are in include/csps/arm64/cpu/mmu.h.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -43,6 +44,8 @@
 #include <bsp/bsp.h>
 #include <stdint.h>
 #include <asp/space.h>
+/* The translation bits that the hypervisor uses too. */
+#include <cpu/mmu.h>
 
 /*
  * Virtual address where partition's memory starts (in every user space).
@@ -108,32 +111,6 @@ struct jet_fp_store
  * kernel/csps/x86_64/space.h. */
 #define TABLE_ENTRIES 512U
 
-/**
- * @macroname `L1_SHIFT`
- *
- * @description
- * The shift of the level 1 index in a virtual address (a level 1 block maps 1
- * GiB).
- */
-#define L1_SHIFT 30
-
-/**
- * @macroname `L2_SHIFT`
- *
- * @description
- * The shift of the level 2 index in a virtual address (a level 2 block maps 2
- * MiB).
- */
-#define L2_SHIFT 21
-
-/**
- * @macroname `L3_SHIFT`
- *
- * @description
- * The shift of the level 3 index in a virtual address (a page maps 4 KiB).
- */
-#define L3_SHIFT 12
-
 /*
  * The same on x86_64 and arm64; documented with its x86_64 definition:
  * kernel/csps/x86_64/space.h. */
@@ -146,43 +123,6 @@ struct jet_fp_store
  * Descriptor bits: the fields of a translation table descriptor.
  * @{
  */
-
-/**
- * @macroname `DESC_TABLE`
- *
- * @description
- * A descriptor of the next level table (level 1, 2).
- */
-#define DESC_TABLE (3ULL << 0)
-
-/**
- * @macroname `DESC_BLOCK`
- *
- * @description
- * A block descriptor (level 1, 2).
- */
-#define DESC_BLOCK (1ULL << 0)
-
-/**
- * @macroname `DESC_PAGE`
- *
- * @description
- * A page descriptor (level 3).
- */
-#define DESC_PAGE (3ULL << 0)
-
-/**
- * @macroname `DESC_ATTR`
- *
- * @description
- * The memory attributes of a block or page: an index in MAIR_EL1.
- *
- * @params
- * | Name | Description |
- * |------|-------------|
- * | `idx` | MAIR_IDX_DEVICE or MAIR_IDX_NORMAL. |
- */
-#define DESC_ATTR(idx) ((uint64_t)(idx) << 2)
 
 /**
  * @macroname `DESC_AP_EL1_RW`
@@ -207,22 +147,6 @@ struct jet_fp_store
  * Access: read-only at EL1 and EL0.
  */
 #define DESC_AP_ALL_RO (3ULL << 6)
-
-/**
- * @macroname `DESC_SH_INNER`
- *
- * @description
- * Inner shareable.
- */
-#define DESC_SH_INNER (3ULL << 8)
-
-/**
- * @macroname `DESC_AF`
- *
- * @description
- * The access flag (set, so that the first access doesn't fault).
- */
-#define DESC_AF (1ULL << 10)
 
 /**
  * @macroname `DESC_NG`
@@ -329,39 +253,6 @@ struct jet_fp_store
  */
 
 /**
- * @macroname `TCR_T0SZ`
- *
- * @description
- * T0SZ: the size of the address space of TTBR0 is 2^(64 - 25) bytes (39-bit
- * virtual addresses).
- */
-#define TCR_T0SZ 25ULL
-
-/**
- * @macroname `TCR_IRGN0_WBWA`
- *
- * @description
- * Table walks through TTBR0: inner write-back write-allocate cacheable.
- */
-#define TCR_IRGN0_WBWA (1ULL << 8)
-
-/**
- * @macroname `TCR_ORGN0_WBWA`
- *
- * @description
- * Table walks through TTBR0: outer write-back write-allocate cacheable.
- */
-#define TCR_ORGN0_WBWA (1ULL << 10)
-
-/**
- * @macroname `TCR_SH0_INNER`
- *
- * @description
- * Table walks through TTBR0: inner shareable.
- */
-#define TCR_SH0_INNER (3ULL << 12)
-
-/**
  * @macroname `TCR_EPD1`
  *
  * @description
@@ -387,36 +278,12 @@ struct jet_fp_store
  */
 
 /**
- * @macroname `SCTLR_M`
- *
- * @description
- * The MMU is enabled.
- */
-#define SCTLR_M (1ULL << 0)
-
-/**
  * @macroname `SCTLR_A`
  *
  * @description
  * Alignment checks (cleared: unaligned accesses are allowed).
  */
 #define SCTLR_A (1ULL << 1)
-
-/**
- * @macroname `SCTLR_C`
- *
- * @description
- * The data cache is enabled.
- */
-#define SCTLR_C (1ULL << 2)
-
-/**
- * @macroname `SCTLR_I`
- *
- * @description
- * The instruction cache is enabled.
- */
-#define SCTLR_I (1ULL << 12)
 
 /** @} */
 

@@ -33,7 +33,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/vcpu.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); system registers are accessed with read_sysreg(),
+ * write_sysreg() and isb(), shared with the kernel.
  */
 
 /**
@@ -78,31 +79,31 @@
  *
  * @design
  * 1. Set `vcpu` to the address of `cpu->vcpu`.
- * 2. Set `pmcr` to `HV_READ_SYSREG(pmcr_el0)`.
- * 3. Use the macro `HV_WRITE_SYSREG()` with the arguments `tpidr_el2` and
+ * 2. Set `pmcr` to `read_sysreg(pmcr_el0)`.
+ * 3. Use the macro `write_sysreg()` with the arguments `tpidr_el2` and
  *    `(uint64_t) (uintptr_t) &vcpu->arch.regs`.
- * 4. Use the macro `HV_WRITE_SYSREG()` with the arguments `vtcr_el2` and
+ * 4. Use the macro `write_sysreg()` with the arguments `vtcr_el2` and
  *    `VTCR_VALUE`.
- * 5. Use the macro `HV_WRITE_SYSREG()` with the arguments `vttbr_el2` and
+ * 5. Use the macro `write_sysreg()` with the arguments `vttbr_el2` and
  *    `vcpu->vm->arch.vttbr`.
- * 6. Use the macro `HV_WRITE_SYSREG()` with the arguments `hcr_el2` and
+ * 6. Use the macro `write_sysreg()` with the arguments `hcr_el2` and
  *    `HCR_VALUE`.
- * 7. Use the macro `HV_WRITE_SYSREG()` with the arguments `cptr_el2` and
+ * 7. Use the macro `write_sysreg()` with the arguments `cptr_el2` and
  *    `CPTR_EL2_RES1`.
- * 8. Use the macro `HV_WRITE_SYSREG()` with the arguments `hstr_el2` and `0U`.
- * 9. Use the macro `HV_WRITE_SYSREG()` with the arguments `mdcr_el2` and
+ * 8. Use the macro `write_sysreg()` with the arguments `hstr_el2` and `0U`.
+ * 9. Use the macro `write_sysreg()` with the arguments `mdcr_el2` and
  *    `(pmcr >> PMCR_N_SHIFT) & PMCR_N_MASK`.
- * 10. Use the macro `HV_WRITE_SYSREG()` with the arguments `cnthctl_el2` and
+ * 10. Use the macro `write_sysreg()` with the arguments `cnthctl_el2` and
  *     `CNTHCTL_EL1_ACCESS`.
- * 11. Use the macro `HV_WRITE_SYSREG()` with the arguments `vpidr_el2` and
- *     `HV_READ_SYSREG(midr_el1)`.
- * 12. Use the macro `HV_WRITE_SYSREG()` with the arguments `vmpidr_el2` and
+ * 11. Use the macro `write_sysreg()` with the arguments `vpidr_el2` and
+ *     `read_sysreg(midr_el1)`.
+ * 12. Use the macro `write_sysreg()` with the arguments `vmpidr_el2` and
  *     `VMPIDR_RES1 | vcpu->index`.
- * 13. Call `arm64_isb()`.
+ * 13. Call `isb()`.
  * 14. Call `gic_init_cpu()`.
  *
  * @calls
- * - `arm64_isb()`
+ * - `isb()`
  * - `gic_init_cpu()`
  */
 /*
@@ -113,20 +114,20 @@
 void hv_arch_cpu_enable(hv_cpu_t *cpu)
 {
     hv_vcpu_t *vcpu = &cpu->vcpu;
-    uint64_t pmcr = HV_READ_SYSREG(pmcr_el0);
+    uint64_t pmcr = read_sysreg(pmcr_el0);
 
-    HV_WRITE_SYSREG(tpidr_el2, (uint64_t) (uintptr_t) &vcpu->arch.regs);
-    HV_WRITE_SYSREG(vtcr_el2, VTCR_VALUE);
-    HV_WRITE_SYSREG(vttbr_el2, vcpu->vm->arch.vttbr);
-    HV_WRITE_SYSREG(hcr_el2, HCR_VALUE);
-    HV_WRITE_SYSREG(cptr_el2, CPTR_EL2_RES1);
-    HV_WRITE_SYSREG(hstr_el2, 0U);
+    write_sysreg(tpidr_el2, (uint64_t) (uintptr_t) &vcpu->arch.regs);
+    write_sysreg(vtcr_el2, VTCR_VALUE);
+    write_sysreg(vttbr_el2, vcpu->vm->arch.vttbr);
+    write_sysreg(hcr_el2, HCR_VALUE);
+    write_sysreg(cptr_el2, CPTR_EL2_RES1);
+    write_sysreg(hstr_el2, 0U);
     // The guest has all the performance counters; debug stays at EL1.
-    HV_WRITE_SYSREG(mdcr_el2, (pmcr >> PMCR_N_SHIFT) & PMCR_N_MASK);
-    HV_WRITE_SYSREG(cnthctl_el2, CNTHCTL_EL1_ACCESS);
-    HV_WRITE_SYSREG(vpidr_el2, HV_READ_SYSREG(midr_el1));
-    HV_WRITE_SYSREG(vmpidr_el2, VMPIDR_RES1 | vcpu->index);
-    arm64_isb();
+    write_sysreg(mdcr_el2, (pmcr >> PMCR_N_SHIFT) & PMCR_N_MASK);
+    write_sysreg(cnthctl_el2, CNTHCTL_EL1_ACCESS);
+    write_sysreg(vpidr_el2, read_sysreg(midr_el1));
+    write_sysreg(vmpidr_el2, VMPIDR_RES1 | vcpu->index);
+    isb();
     gic_init_cpu();
 }
 
@@ -148,47 +149,47 @@ void hv_arch_cpu_enable(hv_cpu_t *cpu)
  * @llr
  *
  * @design
- * 1. Use the macro `HV_WRITE_SYSREG()` with the arguments `sctlr_el1` and
+ * 1. Use the macro `write_sysreg()` with the arguments `sctlr_el1` and
  *    `SCTLR_EL1_RESET`.
- * 2. Use the macro `HV_WRITE_SYSREG()` with the arguments `tcr_el1` and `0U`.
- * 3. Use the macro `HV_WRITE_SYSREG()` with the arguments `ttbr0_el1` and `0U`.
- * 4. Use the macro `HV_WRITE_SYSREG()` with the arguments `ttbr1_el1` and `0U`.
- * 5. Use the macro `HV_WRITE_SYSREG()` with the arguments `mair_el1` and `0U`.
- * 6. Use the macro `HV_WRITE_SYSREG()` with the arguments `amair_el1` and `0U`.
- * 7. Use the macro `HV_WRITE_SYSREG()` with the arguments `vbar_el1` and `0U`.
- * 8. Use the macro `HV_WRITE_SYSREG()` with the arguments `cpacr_el1` and `0U`.
- * 9. Use the macro `HV_WRITE_SYSREG()` with the arguments `contextidr_el1` and
+ * 2. Use the macro `write_sysreg()` with the arguments `tcr_el1` and `0U`.
+ * 3. Use the macro `write_sysreg()` with the arguments `ttbr0_el1` and `0U`.
+ * 4. Use the macro `write_sysreg()` with the arguments `ttbr1_el1` and `0U`.
+ * 5. Use the macro `write_sysreg()` with the arguments `mair_el1` and `0U`.
+ * 6. Use the macro `write_sysreg()` with the arguments `amair_el1` and `0U`.
+ * 7. Use the macro `write_sysreg()` with the arguments `vbar_el1` and `0U`.
+ * 8. Use the macro `write_sysreg()` with the arguments `cpacr_el1` and `0U`.
+ * 9. Use the macro `write_sysreg()` with the arguments `contextidr_el1` and
  *    `0U`.
- * 10. Use the macro `HV_WRITE_SYSREG()` with the arguments `tpidr_el1` and
+ * 10. Use the macro `write_sysreg()` with the arguments `tpidr_el1` and
  *     `0U`.
- * 11. Use the macro `HV_WRITE_SYSREG()` with the arguments `tpidr_el0` and
+ * 11. Use the macro `write_sysreg()` with the arguments `tpidr_el0` and
  *     `0U`.
- * 12. Use the macro `HV_WRITE_SYSREG()` with the arguments `tpidrro_el0` and
+ * 12. Use the macro `write_sysreg()` with the arguments `tpidrro_el0` and
  *     `0U`.
- * 13. Use the macro `HV_WRITE_SYSREG()` with the arguments `sp_el0` and `0U`.
- * 14. Use the macro `HV_WRITE_SYSREG()` with the arguments `sp_el1` and `0U`.
- * 15. Use the macro `HV_WRITE_SYSREG()` with the arguments `elr_el1` and `0U`.
- * 16. Use the macro `HV_WRITE_SYSREG()` with the arguments `spsr_el1` and `0U`.
- * 17. Use the macro `HV_WRITE_SYSREG()` with the arguments `esr_el1` and `0U`.
- * 18. Use the macro `HV_WRITE_SYSREG()` with the arguments `far_el1` and `0U`.
- * 19. Use the macro `HV_WRITE_SYSREG()` with the arguments `afsr0_el1` and
+ * 13. Use the macro `write_sysreg()` with the arguments `sp_el0` and `0U`.
+ * 14. Use the macro `write_sysreg()` with the arguments `sp_el1` and `0U`.
+ * 15. Use the macro `write_sysreg()` with the arguments `elr_el1` and `0U`.
+ * 16. Use the macro `write_sysreg()` with the arguments `spsr_el1` and `0U`.
+ * 17. Use the macro `write_sysreg()` with the arguments `esr_el1` and `0U`.
+ * 18. Use the macro `write_sysreg()` with the arguments `far_el1` and `0U`.
+ * 19. Use the macro `write_sysreg()` with the arguments `afsr0_el1` and
  *     `0U`.
- * 20. Use the macro `HV_WRITE_SYSREG()` with the arguments `afsr1_el1` and
+ * 20. Use the macro `write_sysreg()` with the arguments `afsr1_el1` and
  *     `0U`.
- * 21. Use the macro `HV_WRITE_SYSREG()` with the arguments `par_el1` and `0U`.
- * 22. Use the macro `HV_WRITE_SYSREG()` with the arguments `csselr_el1` and
+ * 21. Use the macro `write_sysreg()` with the arguments `par_el1` and `0U`.
+ * 22. Use the macro `write_sysreg()` with the arguments `csselr_el1` and
  *     `0U`.
- * 23. Use the macro `HV_WRITE_SYSREG()` with the arguments `mdscr_el1` and
+ * 23. Use the macro `write_sysreg()` with the arguments `mdscr_el1` and
  *     `0U`.
- * 24. Use the macro `HV_WRITE_SYSREG()` with the arguments `cntkctl_el1` and
+ * 24. Use the macro `write_sysreg()` with the arguments `cntkctl_el1` and
  *     `0U`.
- * 25. Use the macro `HV_WRITE_SYSREG()` with the arguments `cntv_ctl_el0` and
+ * 25. Use the macro `write_sysreg()` with the arguments `cntv_ctl_el0` and
  *     `0U`.
- * 26. Use the macro `HV_WRITE_SYSREG()` with the arguments `cntv_cval_el0` and
+ * 26. Use the macro `write_sysreg()` with the arguments `cntv_cval_el0` and
  *     `0U`.
- * 27. Use the macro `HV_WRITE_SYSREG()` with the arguments `cntp_ctl_el0` and
+ * 27. Use the macro `write_sysreg()` with the arguments `cntp_ctl_el0` and
  *     `0U`.
- * 28. Use the macro `HV_WRITE_SYSREG()` with the arguments `cntp_cval_el0` and
+ * 28. Use the macro `write_sysreg()` with the arguments `cntp_cval_el0` and
  *     `0U`.
  *
  * @calls
@@ -196,34 +197,34 @@ void hv_arch_cpu_enable(hv_cpu_t *cpu)
  */
 static void reset_el1(void)
 {
-    HV_WRITE_SYSREG(sctlr_el1, SCTLR_EL1_RESET);
-    HV_WRITE_SYSREG(tcr_el1, 0U);
-    HV_WRITE_SYSREG(ttbr0_el1, 0U);
-    HV_WRITE_SYSREG(ttbr1_el1, 0U);
-    HV_WRITE_SYSREG(mair_el1, 0U);
-    HV_WRITE_SYSREG(amair_el1, 0U);
-    HV_WRITE_SYSREG(vbar_el1, 0U);
-    HV_WRITE_SYSREG(cpacr_el1, 0U);
-    HV_WRITE_SYSREG(contextidr_el1, 0U);
-    HV_WRITE_SYSREG(tpidr_el1, 0U);
-    HV_WRITE_SYSREG(tpidr_el0, 0U);
-    HV_WRITE_SYSREG(tpidrro_el0, 0U);
-    HV_WRITE_SYSREG(sp_el0, 0U);
-    HV_WRITE_SYSREG(sp_el1, 0U);
-    HV_WRITE_SYSREG(elr_el1, 0U);
-    HV_WRITE_SYSREG(spsr_el1, 0U);
-    HV_WRITE_SYSREG(esr_el1, 0U);
-    HV_WRITE_SYSREG(far_el1, 0U);
-    HV_WRITE_SYSREG(afsr0_el1, 0U);
-    HV_WRITE_SYSREG(afsr1_el1, 0U);
-    HV_WRITE_SYSREG(par_el1, 0U);
-    HV_WRITE_SYSREG(csselr_el1, 0U);
-    HV_WRITE_SYSREG(mdscr_el1, 0U);
-    HV_WRITE_SYSREG(cntkctl_el1, 0U);
-    HV_WRITE_SYSREG(cntv_ctl_el0, 0U);
-    HV_WRITE_SYSREG(cntv_cval_el0, 0U);
-    HV_WRITE_SYSREG(cntp_ctl_el0, 0U);
-    HV_WRITE_SYSREG(cntp_cval_el0, 0U);
+    write_sysreg(sctlr_el1, SCTLR_EL1_RESET);
+    write_sysreg(tcr_el1, 0U);
+    write_sysreg(ttbr0_el1, 0U);
+    write_sysreg(ttbr1_el1, 0U);
+    write_sysreg(mair_el1, 0U);
+    write_sysreg(amair_el1, 0U);
+    write_sysreg(vbar_el1, 0U);
+    write_sysreg(cpacr_el1, 0U);
+    write_sysreg(contextidr_el1, 0U);
+    write_sysreg(tpidr_el1, 0U);
+    write_sysreg(tpidr_el0, 0U);
+    write_sysreg(tpidrro_el0, 0U);
+    write_sysreg(sp_el0, 0U);
+    write_sysreg(sp_el1, 0U);
+    write_sysreg(elr_el1, 0U);
+    write_sysreg(spsr_el1, 0U);
+    write_sysreg(esr_el1, 0U);
+    write_sysreg(far_el1, 0U);
+    write_sysreg(afsr0_el1, 0U);
+    write_sysreg(afsr1_el1, 0U);
+    write_sysreg(par_el1, 0U);
+    write_sysreg(csselr_el1, 0U);
+    write_sysreg(mdscr_el1, 0U);
+    write_sysreg(cntkctl_el1, 0U);
+    write_sysreg(cntv_ctl_el0, 0U);
+    write_sysreg(cntv_cval_el0, 0U);
+    write_sysreg(cntp_ctl_el0, 0U);
+    write_sysreg(cntp_cval_el0, 0U);
 }
 
 /**
@@ -263,18 +264,18 @@ static void reset_el1(void)
  * 7. Set `regs->spsr` to `SPSR_EL1H_MASKED`.
  * 8. Call `reset_el1()`.
  * 9. Call `gic_vcpu_reset()`.
- * 10. Call `arm64_isb()`.
- * 11. Use the macro `HV_WRITE_SYSREG()` with the arguments `cntvoff_el2` and
- *     `HV_READ_SYSREG(cntpct_el0)`.
+ * 10. Call `isb()`.
+ * 11. Use the macro `write_sysreg()` with the arguments `cntvoff_el2` and
+ *     `read_sysreg(cntpct_el0)`.
  * 12. Call `arm64_tlbi_vmalls12e1()`.
  * 13. Call `arm64_dsb_ish()`.
- * 14. Call `arm64_isb()`.
+ * 14. Call `isb()`.
  *
  * @calls
  * - `hv_memset()`
  * - `reset_el1()`
  * - `gic_vcpu_reset()`
- * - `arm64_isb()`
+ * - `isb()`
  * - `arm64_tlbi_vmalls12e1()`
  * - `arm64_dsb_ish()`
  */
@@ -291,11 +292,11 @@ void hv_arch_vcpu_init(hv_vcpu_t *vcpu)
 
     reset_el1();
     gic_vcpu_reset();
-    arm64_isb();
-    HV_WRITE_SYSREG(cntvoff_el2, HV_READ_SYSREG(cntpct_el0));
+    isb();
+    write_sysreg(cntvoff_el2, read_sysreg(cntpct_el0));
     arm64_tlbi_vmalls12e1();
     arm64_dsb_ish();
-    arm64_isb();
+    isb();
 }
 
 /**
@@ -328,9 +329,9 @@ void hv_arch_vcpu_init(hv_vcpu_t *vcpu)
  * 3. Call `hv_printf()` with the arguments
  *    `"[hv] %%s: PC 0x%%lx PSTATE 0x%%lx ESR 0x%%lx FAR 0x%%lx\n"`
  *    `"[hv] %%s: SCTLR_EL1 0x%%lx TTBR0_EL1 0x%%lx VBAR_EL1 0x%%lx\n"`, `name`,
- *    `regs->elr`, `regs->spsr`, `HV_READ_SYSREG(esr_el2)`,
- *    `HV_READ_SYSREG(far_el2)`, `name`, `HV_READ_SYSREG(sctlr_el1)`,
- *    `HV_READ_SYSREG(ttbr0_el1)` and `HV_READ_SYSREG(vbar_el1)`.
+ *    `regs->elr`, `regs->spsr`, `read_sysreg(esr_el2)`,
+ *    `read_sysreg(far_el2)`, `name`, `read_sysreg(sctlr_el1)`,
+ *    `read_sysreg(ttbr0_el1)` and `read_sysreg(vbar_el1)`.
  *
  * @calls
  * - `hv_printf()`
@@ -342,9 +343,9 @@ void hv_report_state(const hv_vcpu_t *vcpu)
 
     hv_printf("[hv] %s: PC 0x%lx PSTATE 0x%lx ESR 0x%lx FAR 0x%lx\n"
               "[hv] %s: SCTLR_EL1 0x%lx TTBR0_EL1 0x%lx VBAR_EL1 0x%lx\n",
-              name, regs->elr, regs->spsr, HV_READ_SYSREG(esr_el2),
-              HV_READ_SYSREG(far_el2), name, HV_READ_SYSREG(sctlr_el1),
-              HV_READ_SYSREG(ttbr0_el1), HV_READ_SYSREG(vbar_el1));
+              name, regs->elr, regs->spsr, read_sysreg(esr_el2),
+              read_sysreg(far_el2), name, read_sysreg(sctlr_el1),
+              read_sysreg(ttbr0_el1), read_sysreg(vbar_el1));
 }
 
 /**
@@ -372,8 +373,8 @@ void hv_report_state(const hv_vcpu_t *vcpu)
  * @llr
  *
  * @design
- * 1. Set `ipa` to `((HV_READ_SYSREG(hpfar_el2) >> HPFAR_FIPA_SHIFT) << 12) |`
- *    `(HV_READ_SYSREG(far_el2) & PAGE_OFFSET_MASK)`.
+ * 1. Set `ipa` to `((read_sysreg(hpfar_el2) >> HPFAR_FIPA_SHIFT) << 12) |`
+ *    `(read_sysreg(far_el2) & PAGE_OFFSET_MASK)`.
  * 2. Call `hv_printf()` with the arguments
  *    `"[hv] %%s: instruction fetch from guest-physical address "`
  *    `"0x%%lx outside its RAM (ESR 0x%%lx)\n"`, `vcpu->vm->config->name`, `ipa`
@@ -386,8 +387,8 @@ void hv_report_state(const hv_vcpu_t *vcpu)
  */
 static void report_fetch(const hv_vcpu_t *vcpu, uint64_t esr)
 {
-    uint64_t ipa = ((HV_READ_SYSREG(hpfar_el2) >> HPFAR_FIPA_SHIFT) << 12)
-                   | (HV_READ_SYSREG(far_el2) & PAGE_OFFSET_MASK);
+    uint64_t ipa = ((read_sysreg(hpfar_el2) >> HPFAR_FIPA_SHIFT) << 12)
+                   | (read_sysreg(far_el2) & PAGE_OFFSET_MASK);
 
     hv_printf("[hv] %s: instruction fetch from guest-physical address "
               "0x%lx outside its RAM (ESR 0x%lx)\n", vcpu->vm->config->name,
@@ -537,7 +538,7 @@ static hv_action_e handle_sync(hv_vcpu_t *vcpu, uint64_t esr)
  * 3. Set `action` to `HV_CONTINUE`.
  * 4. If `exit` is equal to `HV_EXIT_SYNC`:
  *    1. Call `handle_sync()` with the arguments `vcpu` and
- *       `HV_READ_SYSREG(esr_el2)`, and store the result in `action`.
+ *       `read_sysreg(esr_el2)`, and store the result in `action`.
  * 5. Otherwise, if `exit` is equal to `HV_EXIT_IRQ`:
  *    1. Call `gic_handle_irq()` with the argument `cpu`.
  * 6. Otherwise, if `exit` is equal to `HV_EXIT_FIQ`:
@@ -548,7 +549,7 @@ static hv_action_e handle_sync(hv_vcpu_t *vcpu, uint64_t esr)
  * 7. Otherwise, if `exit` is equal to `HV_EXIT_SERROR`:
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] %%s: SError (ESR 0x%%lx)\n"`, `name` and
- *       `HV_READ_SYSREG(esr_el2)`.
+ *       `read_sysreg(esr_el2)`.
  *    2. Call `hv_report_state()` with the argument `vcpu`.
  *    3. Set `action` to `HV_STOP`.
  * 8. Otherwise:
@@ -572,7 +573,7 @@ static hv_action_e handle_exit(hv_cpu_t *cpu, uint64_t exit)
     hv_action_e action = HV_CONTINUE;
 
     if (exit == HV_EXIT_SYNC) {
-        action = handle_sync(vcpu, HV_READ_SYSREG(esr_el2));
+        action = handle_sync(vcpu, read_sysreg(esr_el2));
     } else if (exit == HV_EXIT_IRQ) {
         gic_handle_irq(cpu);
     } else if (exit == HV_EXIT_FIQ) {
@@ -582,7 +583,7 @@ static hv_action_e handle_exit(hv_cpu_t *cpu, uint64_t exit)
         }
     } else if (exit == HV_EXIT_SERROR) {
         hv_printf("[hv] %s: SError (ESR 0x%lx)\n", name,
-                  HV_READ_SYSREG(esr_el2));
+                  read_sysreg(esr_el2));
         hv_report_state(vcpu);
         action = HV_STOP;
     } else {

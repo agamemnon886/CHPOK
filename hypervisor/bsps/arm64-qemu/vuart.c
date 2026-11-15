@@ -32,7 +32,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/vuart.c (the code of the board, its devices and the
- * virtual devices of the VMs is in hypervisor/bsps).
+ * virtual devices of the VMs is in hypervisor/bsps); the PL011 registers have
+ * their shared names (PL011_DR, PL011_FR and the bits of PL011_FR).
  */
 
 /**
@@ -266,18 +267,18 @@ static uint32_t *stored_register(hv_vuart_t *uart, uint32_t offset)
  * 1. Call `stored_register()` with the arguments `uart` and `offset`, and store
  *    the result in `reg`.
  * 2. Set `known` to `true`.
- * 3. If `offset` is equal to `UART_DR`:
+ * 3. If `offset` is equal to `PL011_DR`:
  *    1. If `write` is true:
  *       1. Call `hv_uart_write()` with the arguments `uart->host_port` and
  *          `(uint8_t) *value`.
  *    2. Otherwise:
  *       1. Call `hv_uart_read()` with the argument `uart->host_port`, and store
  *          the result in `*value`.
- * 4. Otherwise, if `offset` is equal to `UART_FR`:
+ * 4. Otherwise, if `offset` is equal to `PL011_FR`:
  *    1. If `write` is false:
  *       1. Set `*value` to
- *          `(hv_uart_rx_ready(uart->host_port) ? 0U : UART_FR_RXFE) |`
- *          `(hv_uart_tx_empty(uart->host_port) ? UART_FR_TXFE : 0U)`.
+ *          `(hv_uart_rx_ready(uart->host_port) ? 0U : PL011_FR_RXFE) |`
+ *          `(hv_uart_tx_empty(uart->host_port) ? PL011_FR_TXFE : 0U)`.
  * 5. Otherwise, if `reg` is not NULL:
  *    1. If `write` is true:
  *       1. Set `*reg` to `(uint32_t) *value & 0xFFFFU`.
@@ -312,16 +313,16 @@ bool vuart_access(hv_vuart_t *uart, uint32_t offset, bool write,
     uint32_t *reg = stored_register(uart, offset);
     bool known = true;
 
-    if (offset == UART_DR) {
+    if (offset == PL011_DR) {
         if (write) {
             hv_uart_write(uart->host_port, (uint8_t) *value);
         } else {
             *value = hv_uart_read(uart->host_port);
         }
-    } else if (offset == UART_FR) {
+    } else if (offset == PL011_FR) {
         if (!write) {
-            *value = (hv_uart_rx_ready(uart->host_port) ? 0U : UART_FR_RXFE)
-                     | (hv_uart_tx_empty(uart->host_port) ? UART_FR_TXFE
+            *value = (hv_uart_rx_ready(uart->host_port) ? 0U : PL011_FR_RXFE)
+                     | (hv_uart_tx_empty(uart->host_port) ? PL011_FR_TXFE
                                                            : 0U);
         }
     } else if (reg != NULL) {

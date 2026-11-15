@@ -45,11 +45,24 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * boards/arm64-qemu/include/board/bsp.h (the board support packages are in
- * kernel/bsps); the comments name the new paths.
+ * kernel/bsps); the comments name the new paths; the registers of the GIC, the
+ * PL011, the PL031 and PSCI, and the device tree format, which the hypervisor
+ * uses too, are in the shared headers (include/bsps/arm64-qemu/dev,
+ * include/common/fdt.h).
  */
 
 #ifndef JET_ARM64_QEMU_BSP_H
 #define JET_ARM64_QEMU_BSP_H
+
+/*
+ * The registers of the devices of the board and the device tree format,
+ * which the hypervisor uses too.
+ */
+#include <common/fdt.h>
+#include <dev/gicv2.h>
+#include <dev/pl011.h>
+#include <dev/pl031.h>
+#include <dev/psci.h>
 
 /**
  * @name Memory map
@@ -178,107 +191,6 @@
 /** @} */
 
 /**
- * @name GICv2 registers
- * The offsets of the registers of the GICv2 distributor (from
- * BOARD_GICD_BASE) and of its CPU interface (from BOARD_GICC_BASE) that
- * the board uses.
- * @{
- */
-
-/**
- * @macroname `GICD_CTLR`
- *
- * @description
- * The distributor control register (1 enables the forwarding of
- * interrupts to the CPU interfaces).
- */
-#define GICD_CTLR           0x000U
-
-/**
- * @macroname `GICD_ISENABLER`
- *
- * @description
- * The offset of the n-th set-enable register of the distributor, which
- * enables interrupts 32 * n to 32 * n + 31 (one bit each).
- *
- * @params
- * | Name | Description |
- * |------|-------------|
- * | `n` | The number of the register (an interrupt number divided by 32). |
- */
-#define GICD_ISENABLER(n)   (0x100U + (4U * (n)))
-
-/**
- * @macroname `GICD_IPRIORITYR`
- *
- * @description
- * The offset of the priority byte of an interrupt in the distributor
- * (lower values are higher priorities).
- *
- * @params
- * | Name | Description |
- * |------|-------------|
- * | `n` | The interrupt number. |
- */
-#define GICD_IPRIORITYR(n)  (0x400U + (n))
-
-/**
- * @macroname `GICC_CTLR`
- *
- * @description
- * The CPU interface control register (1 enables the signalling of
- * interrupts to the CPU).
- */
-#define GICC_CTLR           0x000U
-
-/**
- * @macroname `GICC_PMR`
- *
- * @description
- * The priority mask register of the CPU interface: only interrupts with a
- * higher priority (a lower value) are signalled.
- */
-#define GICC_PMR            0x004U
-
-/**
- * @macroname `GICC_IAR`
- *
- * @description
- * The interrupt acknowledge register of the CPU interface: reading it
- * gives the number of the pending interrupt and makes it active.
- */
-#define GICC_IAR            0x00cU
-
-/**
- * @macroname `GICC_EOIR`
- *
- * @description
- * The end of interrupt register of the CPU interface: writing the value
- * read from GICC_IAR ends that interrupt.
- */
-#define GICC_EOIR           0x010U
-
-/** @} */
-
-/**
- * @macroname `GIC_SPURIOUS`
- *
- * @description
- * The first interrupt number that GICC_IAR gives for no interrupt (1020 to
- * 1023: spurious or special); a number below it is a real interrupt.
- */
-#define GIC_SPURIOUS        1020U
-
-/**
- * @macroname `RTC_DR`
- *
- * @description
- * The data register of the PL031 RTC (offset from BOARD_RTC_BASE): the
- * current calendar time, in seconds since the Epoch.
- */
-#define RTC_DR              0x000U
-
-/**
  * @name Virtual timer control bits
  * The bits of CNTV_CTL_EL0, the control register of the EL1 virtual timer.
  * @{
@@ -303,156 +215,10 @@
 
 /** @} */
 
-/**
- * @macroname `PSCI_SYSTEM_RESET`
- *
- * @description
- * The PSCI function ID of SYSTEM_RESET, which resets the system (QEMU
- * restarts the machine).
- */
-#define PSCI_SYSTEM_RESET   0x84000009U
-
 /*
  * Set by entry.S. PSCI uses smc if the kernel was entered at EL2, hvc
  * otherwise.
  */
 extern char ja_boot_from_el2;
-
-/**
- * @name PL011 UART registers
- * The offsets of the registers of a PL011 UART (from its base address)
- * and the bits of its flag register that the console uses.
- * @{
- */
-
-/**
- * @macroname `UART_DR`
- *
- * @description
- * The data register: writing it sends a byte, reading it gives the
- * received byte.
- */
-#define UART_DR 0x00U
-
-/**
- * @macroname `UART_FR`
- *
- * @description
- * The flag register (UART_FR_RXFE, UART_FR_TXFF).
- */
-#define UART_FR 0x18U
-
-/**
- * @macroname `UART_FR_RXFE`
- *
- * @description
- * UART_FR: the receive FIFO is empty (no byte to read).
- */
-#define   UART_FR_RXFE (1U << 4)
-
-/**
- * @macroname `UART_FR_TXFF`
- *
- * @description
- * UART_FR: the transmit FIFO is full (no byte can be written).
- */
-#define   UART_FR_TXFF (1U << 5)
-
-/** @} */
-
-/**
- * @name Device tree format
- * Device tree (flattened): header fields, tokens. The offsets of the
- * header fields (big-endian 32-bit words) from the start of the device
- * tree, the size of the header, and the tokens of its structure block.
- * @{
- */
-
-/**
- * @macroname `FDT_MAGIC`
- *
- * @description
- * The first word of a device tree (its magic number).
- */
-#define FDT_MAGIC          0xD00DFEEDU
-
-/**
- * @macroname `FDT_OFF_TOTALSIZE`
- *
- * @description
- * The offset of the header field totalsize: the size of the whole device
- * tree.
- */
-#define FDT_OFF_TOTALSIZE  4U
-
-/**
- * @macroname `FDT_OFF_STRUCT`
- *
- * @description
- * The offset of the header field off_dt_struct: the offset of the
- * structure block.
- */
-#define FDT_OFF_STRUCT     8U
-
-/**
- * @macroname `FDT_SIZE_STRUCT`
- *
- * @description
- * The offset of the header field size_dt_struct: the size of the
- * structure block.
- */
-#define FDT_SIZE_STRUCT    36U
-
-/**
- * @macroname `FDT_HEADER_SIZE`
- *
- * @description
- * The size of the header (version 17), the smallest valid device tree.
- */
-#define FDT_HEADER_SIZE    40U
-
-/**
- * @macroname `FDT_BEGIN_NODE`
- *
- * @description
- * The token that starts a node (followed by its name).
- */
-#define FDT_BEGIN_NODE     1U
-
-/**
- * @macroname `FDT_END_NODE`
- *
- * @description
- * The token that ends a node.
- */
-#define FDT_END_NODE       2U
-
-/**
- * @macroname `FDT_PROP`
- *
- * @description
- * The token of a property (followed by its length, its name offset and
- * its value).
- */
-#define FDT_PROP           3U
-
-/**
- * @macroname `FDT_NOP`
- *
- * @description
- * A token to ignore.
- */
-#define FDT_NOP            4U
-
-/** @} */
-
-/**
- * @macroname `FDT_SIZE_MAX`
- *
- * @description
- * Sanity limit of the size of the device tree: a larger totalsize means
- * that there is no valid device tree.
- */
-#define FDT_SIZE_MAX       0x100000U
 
 #endif /* JET_ARM64_QEMU_BSP_H */

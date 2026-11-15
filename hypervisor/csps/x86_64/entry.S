@@ -29,7 +29,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/entry.S (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); the definitions that the kernel uses too are in
+ * include/csps/x86_64/cpu/regs.h and include/common/multiboot.h.
  */
 
 /*
@@ -51,8 +52,9 @@
  * hv_ap_stack_top, both set by smp.c for each AP in turn.
  */
 
-#define MULTIBOOT_MAGIC         0x1BADB002
-#define MULTIBOOT_LOAD_ADDRS    0x00010000      // a.out kludge
+// Shared with the kernel.
+#include <cpu/regs.h>
+#include <common/multiboot.h>
 
 // GDT selectors.
 #define SEL_CODE64              0x08
@@ -67,19 +69,9 @@
 #define PD_LARGE_PAGE           0x083           // + 2 MiB page
 #define PD_UNCACHED             0x018           // PWT, PCD
 #define UNCACHED_FROM           0xC0000000
-#define LARGE_PAGE_SIZE         0x200000
 #define PD_TABLES               4               // one per GiB
 #define PD_ENTRIES_TOTAL        2048            // 4 GiB / 2 MiB
 #define TABLE_SIZE              0x1000
-
-#define CR0_PE                  0x00000001
-#define CR0_WP                  0x00010000
-#define CR0_PG                  0x80000000
-#define CR4_PAE                 0x00000020
-#define CR4_PGE                 0x00000080
-#define MSR_EFER                0xC0000080
-#define EFER_LME                0x00000100
-#define EFER_NXE                0x00000800
 
 // Address of a trampoline label in the copy at AP_BASE.
 #define AP_ADDR(label)          (AP_BASE + ((label) - hv_ap_trampoline))

@@ -50,7 +50,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/arm64/exceptions.c (the CPU support packages are in
- * kernel/csps).
+ * kernel/csps); sysreg.h is include/csps/arm64/cpu/sysreg.h, shared with the
+ * hypervisor.
  */
 
 /**
@@ -68,7 +69,7 @@
 #include <asp/gdb.h>
 
 #include "interrupt.h"
-#include "sysreg.h"
+#include <cpu/sysreg.h>
 
 /*
  * MISRA C:2025 Dir 1.2 deviation (this file): read_sysreg() is a GNU

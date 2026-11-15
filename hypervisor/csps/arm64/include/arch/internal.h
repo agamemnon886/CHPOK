@@ -35,7 +35,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/include/arch/internal.h (the code of the processor
- * architecture is in hypervisor/csps); the comments name the new paths.
+ * architecture is in hypervisor/csps); the comments name the new paths; the
+ * device registers, the device tree format and the translation bits that the
+ * kernel uses too are in the shared headers (include/).
  */
 
 /*
@@ -49,6 +51,18 @@
 #define HV_ARCH_INTERNAL_H
 
 #include <hv/hv.h>
+
+/*
+ * The registers of the devices of the board and the device tree format,
+ * which the kernel uses too.
+ */
+#include <common/fdt.h>
+#include <dev/gicv2.h>
+#include <dev/pl011.h>
+#include <dev/pl031.h>
+#include <dev/psci.h>
+/* The translation bits that the kernel uses too. */
+#include <cpu/mmu.h>
 
 /**
  * @macroname `HV_HOST_UART0`
@@ -250,127 +264,6 @@ typedef struct {
 extern hv_mmu_regs_t hv_el2_mmu;
 
 /**
- * @macroname `FDT_MAGIC`
- *
- * @description
- * The magic number at the start of a device tree blob.
- */
-#define FDT_MAGIC           0xD00DFEEDU
-
-/**
- * @macroname `FDT_HEADER_SIZE`
- *
- * @description
- * The size of the header of the blob, in bytes.
- */
-#define FDT_HEADER_SIZE     40U
-
-/**
- * @macroname `FDT_SIZE_MAX`
- *
- * @description
- * The largest device tree blob that is accepted (the tree of QEMU is far
- * smaller).
- */
-#define FDT_SIZE_MAX        0x100000U
-
-/**
- * @macroname `FDT_OFF_TOTALSIZE`
- *
- * @description
- * The offset of the total size in the header.
- */
-#define FDT_OFF_TOTALSIZE   4U
-
-/**
- * @macroname `FDT_OFF_STRUCT`
- *
- * @description
- * The offset of the offset of the structure block in the header.
- */
-#define FDT_OFF_STRUCT      8U
-
-/**
- * @macroname `FDT_OFF_STRINGS`
- *
- * @description
- * The offset of the offset of the strings block in the header.
- */
-#define FDT_OFF_STRINGS     12U
-
-/**
- * @macroname `FDT_OFF_VERSION`
- *
- * @description
- * The offset of the version in the header.
- */
-#define FDT_OFF_VERSION     20U
-
-/**
- * @macroname `FDT_OFF_SIZE_STRINGS`
- *
- * @description
- * The offset of the size of the strings block in the header.
- */
-#define FDT_OFF_SIZE_STRINGS 32U
-
-/**
- * @macroname `FDT_OFF_SIZE_STRUCT`
- *
- * @description
- * The offset of the size of the structure block in the header.
- */
-#define FDT_OFF_SIZE_STRUCT 36U
-
-/**
- * @macroname `FDT_VERSION_MIN`
- *
- * @description
- * The oldest version of the blob that is read.
- */
-#define FDT_VERSION_MIN     16U
-
-/**
- * @macroname `FDT_BEGIN_NODE`
- *
- * @description
- * The token that begins a node.
- */
-#define FDT_BEGIN_NODE      1U
-
-/**
- * @macroname `FDT_END_NODE`
- *
- * @description
- * The token that ends a node.
- */
-#define FDT_END_NODE        2U
-
-/**
- * @macroname `FDT_PROP`
- *
- * @description
- * The token of a property.
- */
-#define FDT_PROP            3U
-
-/**
- * @macroname `FDT_NOP`
- *
- * @description
- * The token that is skipped.
- */
-#define FDT_NOP             4U
-
-/**
- * @macroname `FDT_END`
- *
- * @description
- * The token that ends the structure block.
- */
-#define FDT_END             9U
-
-/**
  * @macroname `DEPTH_MAX`
  *
  * @description
@@ -422,14 +315,6 @@ typedef struct {
     uint32_t size_cells; /**< The number of cells of a size of the root. */
     uint32_t cpu_cells; /**< The number of cells of the reg of a CPU. */
 } cells_t;
-
-/**
- * @macroname `GICD_CTLR`
- *
- * @description
- * The offset of the control register of the distributor.
- */
-#define GICD_CTLR           0x000U
 
 /**
  * @macroname `GICD_TYPER`
@@ -485,14 +370,6 @@ typedef struct {
 #define GICD_ICACTIVER0     0x380U
 
 /**
- * @macroname `GICD_IPRIORITYR`
- *
- * @description
- * The offset of the priority registers of the distributor.
- */
-#define GICD_IPRIORITYR     0x400U
-
-/**
  * @macroname `GICD_CTLR_ENABLE`
  *
  * @description
@@ -509,44 +386,12 @@ typedef struct {
 #define GICD_TYPER_LINES    0x1FU
 
 /**
- * @macroname `GICC_CTLR`
- *
- * @description
- * The offset of the control register of the CPU interface.
- */
-#define GICC_CTLR           0x000U
-
-/**
- * @macroname `GICC_PMR`
- *
- * @description
- * The offset of the priority mask register of the CPU interface.
- */
-#define GICC_PMR            0x004U
-
-/**
  * @macroname `GICC_BPR`
  *
  * @description
  * The offset of the binary point register of the CPU interface.
  */
 #define GICC_BPR            0x008U
-
-/**
- * @macroname `GICC_IAR`
- *
- * @description
- * The offset of the interrupt acknowledge register.
- */
-#define GICC_IAR            0x00CU
-
-/**
- * @macroname `GICC_EOIR`
- *
- * @description
- * The offset of the end of interrupt register.
- */
-#define GICC_EOIR           0x010U
 
 /**
  * @macroname `GICC_DIR`
@@ -579,14 +424,6 @@ typedef struct {
  * The mask of the interrupt ID in GICC_IAR.
  */
 #define GICC_IAR_ID         0x3FFU
-
-/**
- * @macroname `GIC_SPURIOUS`
- *
- * @description
- * The interrupt ID that means no interrupt is pending.
- */
-#define GIC_SPURIOUS        1020U
 
 /**
  * @macroname `GICH_HCR`
@@ -879,35 +716,6 @@ typedef struct {
 #define L1_ENTRIES          512U
 
 /**
- * @macroname `L1_SHIFT`
- *
- * @description
- * The shift of the address to the index of a level 1 entry (1 GiB).
- */
-#define L1_SHIFT            30U
-
-/**
- * @macroname `DESC_BLOCK`
- *
- * @description
- * The bits of a descriptor that make it map a block.
- */
-#define DESC_BLOCK          0x1UL
-
-/**
- * @macroname `DESC_ATTR`
- *
- * @description
- * The bits of a descriptor that select the MAIR attribute.
- *
- * @params
- * | Name | Description |
- * |------|-------------|
- * | `i` | The MAIR index. |
- */
-#define DESC_ATTR(i)        ((uint64_t) (i) << 2)
-
-/**
  * @macroname `DESC_AP_RW`
  *
  * @description
@@ -915,22 +723,6 @@ typedef struct {
  * as 1 at EL2).
  */
 #define DESC_AP_RW          (1UL << 6)
-
-/**
- * @macroname `DESC_SH_INNER`
- *
- * @description
- * The bits of a descriptor for inner shareable memory.
- */
-#define DESC_SH_INNER       (3UL << 8)
-
-/**
- * @macroname `DESC_AF`
- *
- * @description
- * The access flag of a descriptor.
- */
-#define DESC_AF             (1UL << 10)
 
 /**
  * @macroname `DESC_XN`
@@ -984,38 +776,6 @@ typedef struct {
                              | DESC_AP_RW | DESC_SH_INNER | DESC_AF)
 
 /**
- * @macroname `TCR_T0SZ`
- *
- * @description
- * The bits of TCR_EL2 for 39-bit addresses (T0SZ).
- */
-#define TCR_T0SZ            25UL
-
-/**
- * @macroname `TCR_IRGN0_WBWA`
- *
- * @description
- * The bits of TCR_EL2: inner write-back write-allocate walks.
- */
-#define TCR_IRGN0_WBWA      (1UL << 8)
-
-/**
- * @macroname `TCR_ORGN0_WBWA`
- *
- * @description
- * The bits of TCR_EL2: outer write-back write-allocate walks.
- */
-#define TCR_ORGN0_WBWA      (1UL << 10)
-
-/**
- * @macroname `TCR_SH0_INNER`
- *
- * @description
- * The bits of TCR_EL2: inner shareable walks.
- */
-#define TCR_SH0_INNER       (3UL << 12)
-
-/**
  * @macroname `TCR_PS_40BIT`
  *
  * @description
@@ -1049,36 +809,12 @@ typedef struct {
 #define SCTLR_RES1          0x30C50830UL
 
 /**
- * @macroname `SCTLR_M`
- *
- * @description
- * The bit of SCTLR_EL2 that enables the MMU.
- */
-#define SCTLR_M             (1UL << 0)
-
-/**
- * @macroname `SCTLR_C`
- *
- * @description
- * The bit of SCTLR_EL2 that enables the data cache.
- */
-#define SCTLR_C             (1UL << 2)
-
-/**
  * @macroname `SCTLR_SA`
  *
  * @description
  * The bit of SCTLR_EL2 that enables the stack alignment check.
  */
 #define SCTLR_SA            (1UL << 3)
-
-/**
- * @macroname `SCTLR_I`
- *
- * @description
- * The bit of SCTLR_EL2 that enables the instruction cache.
- */
-#define SCTLR_I             (1UL << 12)
 
 /**
  * @macroname `SCTLR_VALUE`
@@ -1202,126 +938,6 @@ typedef struct {
 #define SLOTS                   32U
 
 /**
- * @macroname `PSCI_VERSION`
- *
- * @description
- * The function ID of PSCI_VERSION.
- */
-#define PSCI_VERSION            0x84000000U
-
-/**
- * @macroname `PSCI_CPU_OFF`
- *
- * @description
- * The function ID of CPU_OFF.
- */
-#define PSCI_CPU_OFF            0x84000002U
-
-/**
- * @macroname `PSCI_CPU_ON_32`
- *
- * @description
- * The function ID of CPU_ON (32-bit arguments).
- */
-#define PSCI_CPU_ON_32          0x84000003U
-
-/**
- * @macroname `PSCI_CPU_ON_64`
- *
- * @description
- * The function ID of CPU_ON (64-bit arguments).
- */
-#define PSCI_CPU_ON_64          0xC4000003U
-
-/**
- * @macroname `PSCI_AFFINITY_INFO_32`
- *
- * @description
- * The function ID of AFFINITY_INFO (32-bit arguments).
- */
-#define PSCI_AFFINITY_INFO_32   0x84000004U
-
-/**
- * @macroname `PSCI_AFFINITY_INFO_64`
- *
- * @description
- * The function ID of AFFINITY_INFO (64-bit arguments).
- */
-#define PSCI_AFFINITY_INFO_64   0xC4000004U
-
-/**
- * @macroname `PSCI_SYSTEM_OFF`
- *
- * @description
- * The function ID of SYSTEM_OFF.
- */
-#define PSCI_SYSTEM_OFF         0x84000008U
-
-/**
- * @macroname `PSCI_SYSTEM_RESET`
- *
- * @description
- * The function ID of SYSTEM_RESET.
- */
-#define PSCI_SYSTEM_RESET       0x84000009U
-
-/**
- * @macroname `PSCI_FEATURES`
- *
- * @description
- * The function ID of PSCI_FEATURES.
- */
-#define PSCI_FEATURES           0x8400000AU
-
-/**
- * @macroname `PSCI_VERSION_1_0`
- *
- * @description
- * The version 1.0 of PSCI, as PSCI_VERSION returns it.
- */
-#define PSCI_VERSION_1_0        0x00010000
-
-/**
- * @macroname `PSCI_SUCCESS`
- *
- * @description
- * The call succeeded.
- */
-#define PSCI_SUCCESS            0
-
-/**
- * @macroname `PSCI_NOT_SUPPORTED`
- *
- * @description
- * The function is not supported.
- */
-#define PSCI_NOT_SUPPORTED      (-1)
-
-/**
- * @macroname `PSCI_INVALID_PARAMETERS`
- *
- * @description
- * A parameter is invalid.
- */
-#define PSCI_INVALID_PARAMETERS (-2)
-
-/**
- * @macroname `PSCI_ALREADY_ON`
- *
- * @description
- * The CPU is already on.
- */
-#define PSCI_ALREADY_ON         (-4)
-
-/**
- * @macroname `PSCI_AFFINITY_ON`
- *
- * @description
- * The CPU is on (the result of AFFINITY_INFO).
- */
-#define PSCI_AFFINITY_ON        0
-
-/**
  * @macroname `START_TIMEOUT_US`
  *
  * @description
@@ -1336,38 +952,6 @@ typedef struct {
  * The number of the entries of a stage 2 table.
  */
 #define ENTRIES             512U
-
-/**
- * @macroname `L2_SHIFT`
- *
- * @description
- * The shift of the address to the index of a level 2 entry (2 MiB).
- */
-#define L2_SHIFT            21U
-
-/**
- * @macroname `L3_SHIFT`
- *
- * @description
- * The shift of the address to the index of a level 3 entry (4 KiB).
- */
-#define L3_SHIFT            12U
-
-/**
- * @macroname `DESC_TABLE`
- *
- * @description
- * The bits of a descriptor that points to a lower table.
- */
-#define DESC_TABLE          0x3UL
-
-/**
- * @macroname `DESC_PAGE`
- *
- * @description
- * The bits of a level 3 descriptor that maps a page.
- */
-#define DESC_PAGE           0x3UL
 
 /**
  * @macroname `S2_MEMATTR_NORMAL`
@@ -1465,46 +1049,6 @@ typedef struct {
      */
     uint64_t l2_ram[ENTRIES];
 } stage2_tables_t;
-
-/**
- * @macroname `PL011_DR`
- *
- * @description
- * The offset of the data register of a PL011.
- */
-#define PL011_DR            0x000U
-
-/**
- * @macroname `PL011_FR`
- *
- * @description
- * The offset of the flag register of a PL011.
- */
-#define PL011_FR            0x018U
-
-/**
- * @macroname `PL011_FR_RXFE`
- *
- * @description
- * The bit of the flag register: the receive FIFO is empty.
- */
-#define PL011_FR_RXFE       (1U << 4)
-
-/**
- * @macroname `PL011_FR_TXFF`
- *
- * @description
- * The bit of the flag register: the transmit FIFO is full.
- */
-#define PL011_FR_TXFF       (1U << 5)
-
-/**
- * @macroname `PL011_FR_TXFE`
- *
- * @description
- * The bit of the flag register: the transmit FIFO is empty.
- */
-#define PL011_FR_TXFE       (1U << 7)
 
 /**
  * @macroname `UART_RBR`
@@ -1973,28 +1517,12 @@ _Static_assert(offsetof(hv_arch_vcpu_t, regs) == 0U, "vcpu regs");
 #define TARGETS_CPU0        0x01010101U
 
 /**
- * @macroname `UART_DR`
- *
- * @description
- * The offset of the data register of a PL011.
- */
-#define UART_DR             0x000U
-
-/**
  * @macroname `UART_RSR`
  *
  * @description
  * The offset of the receive status register of a PL011.
  */
 #define UART_RSR            0x004U
-
-/**
- * @macroname `UART_FR`
- *
- * @description
- * The offset of the flag register of a PL011.
- */
-#define UART_FR             0x018U
 
 /**
  * @macroname `UART_ILPR`
@@ -2085,36 +1613,12 @@ _Static_assert(offsetof(hv_arch_vcpu_t, regs) == 0U, "vcpu regs");
 #define UART_DMACR          0x048U
 
 /**
- * @macroname `UART_FR_RXFE`
- *
- * @description
- * The bit of the flag register: the receive FIFO is empty.
- */
-#define UART_FR_RXFE        (1U << 4)
-
-/**
- * @macroname `UART_FR_TXFE`
- *
- * @description
- * The bit of the flag register: the transmit FIFO is empty.
- */
-#define UART_FR_TXFE        (1U << 7)
-
-/**
  * @macroname `UART_CR_RESET`
  *
  * @description
  * The reset value of the control register of a PL011 (TXE and RXE).
  */
 #define UART_CR_RESET       0x300U
-
-/**
- * @macroname `RTC_DR`
- *
- * @description
- * The offset of the data register of a PL031.
- */
-#define RTC_DR              0x000U
 
 /**
  * @macroname `ID_FIRST`

@@ -40,7 +40,9 @@
  * have a step for the declaration of a local variable; the @locals table
  * describes it, and an initialized one is set in a step.
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * boards/x86_64-qemu/pit.c (the board support packages are in kernel/bsps).
+ * boards/x86_64-qemu/pit.c (the board support packages are in kernel/bsps);
+ * the function headers follow outb() and inb(), which call x86_outb() and
+ * x86_inb().
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -190,22 +192,24 @@ static uint64_t read_tsc(void)
  *
  * @design
  * 1. Set `port_b` to `inb(PORT_B)`.
- * 2. Execute the assembly code
+ * 2. Use the macro
  *    `outb(PORT_B, (port_b & ~PORT_B_SPEAKER) | PORT_B_GATE2)`.
- * 3. Execute the assembly code `outb (PIT_BASE + 3, 0xb0)`.
- * 4. Execute the assembly code
+ * 3. Use the macro `outb (PIT_BASE + 3, 0xb0)`.
+ * 4. Use the macro
  *    `outb (PIT_BASE + 2, CALIBRATION_PIT_TICKS & 0xffU)`.
- * 5. Execute the assembly code
+ * 5. Use the macro
  *    `outb (PIT_BASE + 2, (CALIBRATION_PIT_TICKS >> 8) & 0xffU)`.
  * 6. Call `read_tsc()`, and store the result in `tsc_begin`.
- * 7. While `(inb(PORT_B) & PORT_B_OUT2)` is equal to `0`:
+ * 7. While `(inb(PORT_B) & PORT_B_OUT2)` is equal to `0U`:
  *    1. Do nothing.
  * 8. Call `read_tsc()`, and store the result in `tsc_end`.
- * 9. Execute the assembly code `outb(PORT_B, port_b)`.
+ * 9. Use the macro `outb(PORT_B, port_b)`.
  * 10. Return
  *     `((tsc_end - tsc_begin) * OSCILLATOR_RATE) / CALIBRATION_PIT_TICKS`.
  *
  * @calls
+ * - `x86_inb()`
+ * - `x86_outb()`
  * - `read_tsc()`
  */
 static uint64_t calibrate_tsc(void)
@@ -220,7 +224,7 @@ static uint64_t calibrate_tsc(void)
    outb (PIT_BASE + 2, (CALIBRATION_PIT_TICKS >> 8) & 0xffU);
 
    uint64_t tsc_begin = read_tsc();
-   while ((inb(PORT_B) & PORT_B_OUT2) == 0) {
+   while ((inb(PORT_B) & PORT_B_OUT2) == 0U) {
       ;
    }
    uint64_t tsc_end = read_tsc();
@@ -257,16 +261,17 @@ static uint64_t calibrate_tsc(void)
  * 1. Call `calibrate_tsc()`, and store the result in `tsc_freq`.
  * 2. Call `read_tsc()`, and store the result in `tsc_start`.
  * 3. Set `pit_freq` to `POK_TIMER_FREQUENCY`.
- * 4. Execute the assembly code `outb (PIT_BASE + 3, 0x34)`.
- * 5. Execute the assembly code
+ * 4. Use the macro `outb (PIT_BASE + 3, 0x34)`.
+ * 5. Use the macro
  *    `outb (PIT_BASE, (OSCILLATOR_RATE / pit_freq) & 0xffU)`.
- * 6. Execute the assembly code
+ * 6. Use the macro
  *    `outb (PIT_BASE, ((OSCILLATOR_RATE / pit_freq) >> 8) & 0xffU)`.
  * 7. Call `pok_pic_unmask()` with the argument `PIT_IRQ`.
  *
  * @calls
  * - `calibrate_tsc()`
  * - `read_tsc()`
+ * - `x86_outb()`
  * - `pok_pic_unmask()`
  */
 void pok_x86_qemu_timer_init(void)

@@ -15,7 +15,10 @@
  * kernel/arch/x86/entry.S to x86_64 (64-bit).
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * kernel/arch/x86_64/entry.S (the CPU support packages are in kernel/csps).
+ * kernel/arch/x86_64/entry.S (the CPU support packages are in kernel/csps);
+ * the control register, EFER and Multiboot definitions that the hypervisor
+ * uses too are in include/csps/x86_64/cpu/regs.h and
+ * include/common/multiboot.h.
  */
 
 /*
@@ -32,31 +35,23 @@
  */
 
 #include "gdt.h"
+/* Shared with the hypervisor. */
+#include <cpu/regs.h>
+#include <common/multiboot.h>
 
 #define STACK_SIZE 0x4000
 
-#define MULTIBOOT_MAGIC     0x1BADB002
-#define MULTIBOOT_FLAGS     0x00010000 /* Load addresses are in the header. */
-
-#define CR0_PE  (1 << 0)
 #define CR0_MP  (1 << 1)
 #define CR0_EM  (1 << 2)
-#define CR0_WP  (1 << 16)
-#define CR0_PG  (1 << 31)
-#define CR4_PAE (1 << 5)
-#define CR4_PGE (1 << 7)
 #define CR4_OSFXSR (1 << 9)
 #define CR4_OSXMMEXCPT (1 << 10)
-#define MSR_EFER 0xC0000080
-#define EFER_LME (1 << 8)
-#define EFER_NXE (1 << 11)
 
 .section .multiboot, "a"
   .align 4
 multiboot_header:
   .long   MULTIBOOT_MAGIC
-  .long   MULTIBOOT_FLAGS
-  .long   -(MULTIBOOT_MAGIC + MULTIBOOT_FLAGS)
+  .long   MULTIBOOT_LOAD_ADDRS
+  .long   -(MULTIBOOT_MAGIC + MULTIBOOT_LOAD_ADDRS)
   .long   multiboot_header      /* header_addr */
   .long   __pok_load_begin      /* load_addr */
   .long   __pok_load_end        /* load_end_addr */

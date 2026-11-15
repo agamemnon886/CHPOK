@@ -33,7 +33,8 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/mmio.c (the code of the processor architecture is in
- * hypervisor/csps).
+ * hypervisor/csps); system registers are accessed with read_sysreg(),
+ * write_sysreg() and isb(), shared with the kernel.
  */
 
 /**
@@ -369,8 +370,8 @@ static uint64_t load_value(uint64_t value, uint32_t size, bool sign,
  * @design
  * 1. Set `vm` to `vcpu->vm`.
  * 2. Set `regs` to the address of `vcpu->arch.regs`.
- * 3. Set `hpfar` to `HV_READ_SYSREG(hpfar_el2)`.
- * 4. Set `far` to `HV_READ_SYSREG(far_el2)`.
+ * 3. Set `hpfar` to `read_sysreg(hpfar_el2)`.
+ * 4. Set `far` to `read_sysreg(far_el2)`.
  * 5. Set `ipa` to
  *    `((hpfar >> HPFAR_FIPA_SHIFT) << 12) | (far & PAGE_OFFSET_MASK)`.
  * 6. Call `device_of()` with the arguments `vm` and `ipa`, and store the result
@@ -423,8 +424,8 @@ hv_action_e mmio_abort(hv_vcpu_t *vcpu, uint64_t esr)
 {
     hv_vm_t *vm = vcpu->vm;
     hv_guest_regs_t *regs = &vcpu->arch.regs;
-    uint64_t hpfar = HV_READ_SYSREG(hpfar_el2);
-    uint64_t far = HV_READ_SYSREG(far_el2);
+    uint64_t hpfar = read_sysreg(hpfar_el2);
+    uint64_t far = read_sysreg(far_el2);
     uint64_t ipa = ((hpfar >> HPFAR_FIPA_SHIFT) << 12)
                    | (far & PAGE_OFFSET_MASK);
     uint32_t device = device_of(vm, ipa);

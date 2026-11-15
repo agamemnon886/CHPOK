@@ -24,13 +24,18 @@
  * Modified by Kirill Brazhnikov, 2026-11-14: the macros of
  * boards/x86_64-qemu/pit.c are moved here.
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * boards/x86_64-qemu/pit.h (the board support packages are in kernel/bsps).
+ * boards/x86_64-qemu/pit.h (the board support packages are in kernel/bsps);
+ * port B is in include/bsps/x86_64-qemu/dev/i8254.h, shared with the
+ * hypervisor.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
 
 #ifndef POK_X86_QEMU_PIT_H
 #define POK_X86_QEMU_PIT_H
+
+/* System control port B, which the hypervisor uses too. */
+#include <dev/i8254.h>
 
 /** \cond */
 void pok_x86_qemu_timer_init (void);
@@ -60,38 +65,6 @@ void pok_x86_qemu_timer_init (void);
  * (bit 5).
  * @{
  */
-
-/**
- * @macroname `PORT_B`
- *
- * @description
- * The I/O port of port B.
- */
-#define PORT_B 0x61
-
-/**
- * @macroname `PORT_B_GATE2`
- *
- * @description
- * The gate of PIT channel 2 (1 lets it count).
- */
-#define PORT_B_GATE2 0x01
-
-/**
- * @macroname `PORT_B_SPEAKER`
- *
- * @description
- * Connects PIT channel 2 to the speaker (cleared during the calibration).
- */
-#define PORT_B_SPEAKER 0x02
-
-/**
- * @macroname `PORT_B_OUT2`
- *
- * @description
- * The output of PIT channel 2 (set when its count has ended).
- */
-#define PORT_B_OUT2 0x20U
 
 /** @} */
 

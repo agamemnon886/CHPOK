@@ -130,7 +130,7 @@ typedef struct
  * @description
  * In: Line Status Register (COM_LSR_DATA, COM_LSR_RFE).
  */
-#define COM_LSR		5
+#define COM_LSR		5U
 
 /**
  * @macroname `COM_RX`

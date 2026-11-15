@@ -31,7 +31,8 @@
 #
 # Modified by Kirill Brazhnikov, 2026-11-15: the kernel's CPU and board code is
 # in kernel/csps and kernel/bsps (it was kernel/arch and boards/); builds the
-# library shared with the hypervisor, common/.
+# library shared with the hypervisor, common/; the headers shared with the
+# hypervisor (include/) are on the kernel's include path.
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -116,6 +117,10 @@ env['KERNEL_CPPPATH'] = [
     env['POK_PATH']+'/kernel/include',
     env['POK_PATH']+'/kernel/csps/' + env['ARCH'] + '/include',
     env['POK_PATH']+'/kernel/bsps/' + env['BSP'] + '/include',
+    # The headers that the kernel shares with the hypervisor.
+    env['POK_PATH']+'/include',
+    env['POK_PATH']+'/include/csps/' + env['ARCH'],
+    env['POK_PATH']+'/include/bsps/' + env['BSP'],
 ]
 
 env['LIBPOK_CPPPATH'] = [

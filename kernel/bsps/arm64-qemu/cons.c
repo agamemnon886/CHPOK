@@ -44,7 +44,9 @@
  * describes it, and an initialized one is set in a step.
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * boards/arm64-qemu/cons.c (the board support packages are in kernel/bsps).
+ * boards/arm64-qemu/cons.c (the board support packages are in kernel/bsps);
+ * the PL011 registers and the device tree offsets have their shared names
+ * (PL011_DR, PL011_FR, FDT_OFF_SIZE_STRUCT).
  */
 
 /**
@@ -88,10 +90,10 @@
  * @llr
  *
  * @design
- * 1. While `(ja_mmio_read32(base + UART_FR) & UART_FR_TXFF)` is not equal to
+ * 1. While `(ja_mmio_read32(base + PL011_FR) & PL011_FR_TXFF)` is not equal to
  *    `0U`:
  *    1. Do nothing.
- * 2. Call `ja_mmio_write32()` with the arguments `base + UART_DR` and
+ * 2. Call `ja_mmio_write32()` with the arguments `base + PL011_DR` and
  *    `(uint8_t)c`.
  *
  * @calls
@@ -100,10 +102,10 @@
  */
 static void uart_putc(uintptr_t base, char c)
 {
-    while ((ja_mmio_read32(base + UART_FR) & UART_FR_TXFF) != 0U) {
+    while ((ja_mmio_read32(base + PL011_FR) & PL011_FR_TXFF) != 0U) {
         ;
     }
-    ja_mmio_write32(base + UART_DR, (uint8_t)c);
+    ja_mmio_write32(base + PL011_DR, (uint8_t)c);
 }
 
 /**
@@ -137,10 +139,10 @@ static void uart_putc(uintptr_t base, char c)
  * @design
  * 1. Set `i` to `0`; then while `i` is not equal to `length`, repeat (after
  *    each pass: increment `i`):
- *    1. If `(ja_mmio_read32(base + UART_FR) & UART_FR_RXFE)` is not equal to
+ *    1. If `(ja_mmio_read32(base + PL011_FR) & PL011_FR_RXFE)` is not equal to
  *       `0U`:
  *       1. Leave the loop.
- *    2. Set `s[i]` to `(char)ja_mmio_read32(base + UART_DR)`.
+ *    2. Set `s[i]` to `(char)ja_mmio_read32(base + PL011_DR)`.
  * 2. Return `i`.
  *
  * @calls
@@ -151,10 +153,10 @@ static size_t uart_read(uintptr_t base, char* s, size_t length)
     size_t i;
     for (i = 0; i != length; i++)
     {
-        if ((ja_mmio_read32(base + UART_FR) & UART_FR_RXFE) != 0U) {
+        if ((ja_mmio_read32(base + PL011_FR) & PL011_FR_RXFE) != 0U) {
             break;
         }
-        s[i] = (char)ja_mmio_read32(base + UART_DR);
+        s[i] = (char)ja_mmio_read32(base + PL011_DR);
     }
     return i;
 }
@@ -515,8 +517,8 @@ static pok_bool_t fdt_block_has_node(const uint8_t* fdt, uint32_t begin,
  *       store the result in `total`.
  *    2. Call `fdt_be32()` with the address of `fdt[FDT_OFF_STRUCT]`, and store
  *       the result in `begin`.
- *    3. Call `fdt_be32()` with the address of `fdt[FDT_SIZE_STRUCT]`, and store
- *       the result in `size`.
+ *    3. Call `fdt_be32()` with the address of `fdt[FDT_OFF_SIZE_STRUCT]`, and
+ *       store the result in `size`.
  *    4. If `total` is less than or equal to `FDT_SIZE_MAX` and `total` is
  *       greater than or equal to `FDT_HEADER_SIZE` and `begin` is less than or
  *       equal to `total` and `size` is less than or equal to `(total - begin)`:
@@ -542,7 +544,7 @@ static pok_bool_t fdt_has_node(const char* name)
     {
         uint32_t total = fdt_be32(&fdt[FDT_OFF_TOTALSIZE]);
         uint32_t begin = fdt_be32(&fdt[FDT_OFF_STRUCT]);
-        uint32_t size = fdt_be32(&fdt[FDT_SIZE_STRUCT]);
+        uint32_t size = fdt_be32(&fdt[FDT_OFF_SIZE_STRUCT]);
 
         if ((total <= FDT_SIZE_MAX) && (total >= FDT_HEADER_SIZE)
             && (begin <= total) && (size <= (total - begin)))

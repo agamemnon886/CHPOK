@@ -40,7 +40,9 @@
  * inline functions are plain comments (they are not documented).
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
- * kernel/arch/arm64/sysreg.h (the CPU support packages are in kernel/csps).
+ * kernel/arch/arm64/sysreg.h (the CPU support packages are in kernel/csps);
+ * moved from kernel/csps/arm64/sysreg.h, because the hypervisor uses it too;
+ * write_sysreg() tells the compiler that the write may change memory.
  */
 
 #ifndef JET_ARM64_SYSREG_H
@@ -87,7 +89,8 @@
  */
 #define write_sysreg(reg, val) do {                         \
     uint64_t sysreg_val = (uint64_t)(val);                  \
-    asm volatile("msr " #reg ", %0" : : "r" (sysreg_val));  \
+    asm volatile("msr " #reg ", %0" : : "r" (sysreg_val)    \
+                 : "memory");                               \
 } while(false)
 
 /*
