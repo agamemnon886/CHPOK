@@ -19,5 +19,7 @@ build/
 *.gdb_history
 MISRA.md
 
-# The function documentation (make docs): docs/<component>.pdf.
-/docs/
+# The documents built by make docs: the function documentation
+# (docs/<component>.pdf) and the system requirements (docs/*_SRQs.pdf,
+# whose sources are in docs/SRQs).
+/docs/*.pdf

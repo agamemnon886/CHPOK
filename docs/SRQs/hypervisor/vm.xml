@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Virtual machines": the
+  creation of the VMs from the configuration.
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-vm">
+  <title>Virtual machines</title>
+  <para>The hypervisor creates the VMs of its configuration when it
+  starts.</para>
+
+  <section xml:id="SRQ-HV-VM-001" role="requirement">
+    <title>SRQ-HV-VM-001</title>
+    <para>The hypervisor shall create, when it starts, every VM of its
+    configuration, in the order of the configuration.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The set of VMs is static: it is known when the hypervisor
+      is built and doesn't change while it runs.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ-HV-VM-002" role="requirement">
+    <title>SRQ-HV-VM-002</title>
+    <para>The hypervisor shall give each VM a region of the memory of
+    the computer, of the size of the configuration, that overlaps
+    neither the hypervisor nor the region of another VM.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A VM must not be able to read or change the memory of
+      another VM or of the hypervisor.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test and analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ-HV-VM-003" role="requirement">
+    <title>SRQ-HV-VM-003</title>
+    <para>The hypervisor shall stop, with a message on its console,
+    before it starts any VM, if the memory of the computer cannot hold
+    the VMs of the configuration.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Running only a part of the configuration would hide the
+      error.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

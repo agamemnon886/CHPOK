@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Introduction": the purpose
+  and the scope of the document, what the hypervisor is, and how the
+  requirements are written and identified.
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-intro">
+  <title>Introduction</title>
+
+  <section xml:id="hv-intro-purpose">
+    <title>Purpose</title>
+    <para>This document states the system requirements (SRQs) of the
+    JetOS hypervisor. The high level requirements of the functions of
+    the hypervisor, which are written in the headers of the functions
+    and published in the function documentation
+    (<filename>docs/hypervisor.pdf</filename>), are traced to the
+    requirements of this document.</para>
+  </section>
+
+  <section xml:id="hv-intro-scope">
+    <title>Scope: what the hypervisor is</title>
+    <para>The hypervisor (<filename>hypervisor/</filename>) is the
+    software that runs at the highest privilege level of a computer
+    and shares it between virtual machines (VMs), each of which runs
+    one JetOS image. It supports x86_64 processors with AMD SVM and
+    arm64 processors with EL2. Its configuration (the VMs, their
+    images, memory, processors and serial ports) is fixed when the
+    hypervisor is built.</para>
+    <para>JetOS itself (the kernel and the board support packages) is
+    not in the scope of this document: its requirements are in the
+    document <citetitle>JetOS System Requirements</citetitle>.</para>
+  </section>
+
+  <section xml:id="hv-intro-conventions">
+    <title>Conventions</title>
+    <para>A requirement has an identifier of the form
+    <literal>SRQ-HV-<replaceable>AREA</replaceable>-<replaceable
+    >NNN</replaceable></literal>, where
+    <replaceable>AREA</replaceable> names the chapter of the
+    requirement. An identifier is never changed and never used again
+    for another requirement. A requirement states, with
+    <quote>shall</quote>, one behaviour of the hypervisor that can be
+    verified; its rationale and its verification method (test,
+    analysis or review) follow it.</para>
+  </section>
+</chapter>

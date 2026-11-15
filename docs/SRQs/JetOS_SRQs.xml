@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  The System Requirements of JetOS (the kernel and the board support
+  packages): the book, which includes one file of docs/SRQs/jetos per
+  chapter. `make docs` (or `make docs-JetOS_SRQs`) builds
+  docs/JetOS_SRQs.pdf from it.
+-->
+<book xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi="http://www.w3.org/2001/XInclude"
+      version="5.0" xml:lang="en" xml:id="JetOS_SRQs">
+  <info>
+    <title>JetOS System Requirements</title>
+    <subtitle>Kernel and board support packages</subtitle>
+    <author>
+      <personname>Kirill Brazhnikov</personname>
+    </author>
+    <copyright>
+      <year>2026</year>
+      <holder>Kirill Brazhnikov</holder>
+    </copyright>
+  </info>
+  <xi:include href="jetos/intro.xml"/>
+  <xi:include href="jetos/time.xml"/>
+</book>

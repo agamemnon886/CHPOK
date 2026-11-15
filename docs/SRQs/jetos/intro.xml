@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Introduction": the purpose and the
+  scope of the document, what JetOS is, and how the requirements are
+  written and identified.
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-intro">
+  <title>Introduction</title>
+
+  <section xml:id="jet-intro-purpose">
+    <title>Purpose</title>
+    <para>This document states the system requirements (SRQs) of JetOS.
+    The high level requirements of the JetOS functions, which are
+    written in the headers of the functions and published in the
+    function documentation (<filename>docs/kernel.pdf</filename> and
+    <filename>docs/boards.pdf</filename>), are traced to the
+    requirements of this document.</para>
+  </section>
+
+  <section xml:id="jet-intro-scope">
+    <title>Scope: what JetOS is</title>
+    <para>In this document, JetOS is the software that runs in the
+    privileged mode of the processor of a module and shares the module
+    between partitions. It consists of:</para>
+    <itemizedlist>
+      <listitem>
+        <para>the kernel (<filename>kernel/</filename>): the
+        architecture independent core, the code of the supported
+        processor architectures (x86_64 and arm64) and the support
+        library of the kernel;</para>
+      </listitem>
+      <listitem>
+        <para>the board support packages
+        (<filename>boards/</filename>): <literal>x86_64-qemu</literal>
+        and <literal>arm64-qemu</literal>.</para>
+      </listitem>
+    </itemizedlist>
+    <para>The following are not part of JetOS as defined here, and
+    have, or will have, requirements documents of their own:</para>
+    <itemizedlist>
+      <listitem>
+        <para>the partition library (<filename>libpok/</filename>): the
+        ARINC 653 application executive (APEX) interface, the C
+        library and the mathematical library;</para>
+      </listitem>
+      <listitem>
+        <para>the system partitions
+        (<filename>syspart/</filename>);</para>
+      </listitem>
+      <listitem>
+        <para>the hypervisor (<filename>hypervisor/</filename>), whose
+        requirements are in the document <citetitle>Hypervisor System
+        Requirements</citetitle>;</para>
+      </listitem>
+      <listitem>
+        <para>the examples, the tests and the benchmarks.</para>
+      </listitem>
+    </itemizedlist>
+    <para>The services that the kernel provides to partitions through
+    system calls, including those that the APEX interface is built on
+    (partitions, processes, time, ports, health monitoring), are in the
+    scope of this document; they are stated as the behaviour of the
+    kernel, not as the APEX services.</para>
+  </section>
+
+  <section xml:id="jet-intro-conventions">
+    <title>Conventions</title>
+    <para>A requirement has an identifier of the form
+    <literal>SRQ-JET-<replaceable>AREA</replaceable>-<replaceable
+    >NNN</replaceable></literal>, where
+    <replaceable>AREA</replaceable> names the chapter of the
+    requirement. An identifier is never changed and never used again
+    for another requirement. A requirement states, with
+    <quote>shall</quote>, one behaviour of JetOS that can be verified;
+    its rationale and its verification method (test, analysis or
+    review) follow it.</para>
+  </section>
+
+  <section xml:id="jet-intro-terms">
+    <title>Terms</title>
+    <variablelist>
+      <varlistentry>
+        <term>Module</term>
+        <listitem>
+          <para>The computer that JetOS runs on: a processor, its
+          memory and its devices.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Partition</term>
+        <listitem>
+          <para>A program that JetOS runs in the unprivileged mode of
+          the processor, in an address space and in time windows of
+          its own.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>System time</term>
+        <listitem>
+          <para>The time since the start of the module, in
+          nanoseconds.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+</chapter>

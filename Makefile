@@ -51,7 +51,11 @@
 #                        # PDF per component: docs/boards.pdf, kernel.pdf,
 #                        # libpok.pdf, syspart.pdf, hypervisor.pdf
 #                        # (misc/docs, in Docker)
+#                        # and the system requirements documents
+#                        # docs/JetOS_SRQs.pdf and Hypervisor_SRQs.pdf
+#                        # (docs/SRQs, DocBook 5)
 #   make docs-<name>     # build docs/<name>.pdf only (e.g. make docs-kernel)
+#   make docs-srqs       # build the system requirements documents only
 #   make clean-docs      # remove the documentation build and the PDFs
 #   make help            # show this help
 #
@@ -109,6 +113,11 @@
 #
 # Modified by Kirill Brazhnikov, 2026-11-13: make docs also counts the types
 # and macros, which may be none.
+#
+# Modified by Kirill Brazhnikov, 2026-11-15: make docs also builds the
+# system requirements documents docs/JetOS_SRQs.pdf and
+# docs/Hypervisor_SRQs.pdf from their DocBook 5 sources in docs/SRQs
+# (make docs-srqs, make docs-<name>); make clean-docs keeps docs/.
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -198,8 +207,11 @@ help:
 	@echo "  make clean-hv        Clean the hypervisor builds"
 	@echo "  make docs            Build the function docs: docs/boards.pdf,"
 	@echo "                       kernel.pdf, libpok.pdf, syspart.pdf and"
-	@echo "                       hypervisor.pdf"
+	@echo "                       hypervisor.pdf, and the system"
+	@echo "                       requirements: docs/JetOS_SRQs.pdf and"
+	@echo "                       Hypervisor_SRQs.pdf"
 	@echo "  make docs-<name>     Build one of them (e.g. make docs-kernel)"
+	@echo "  make docs-srqs       Build the system requirements only"
 	@echo "  make clean-docs      Remove the documentation build and PDFs"
 	@echo "  make help            Show this help"
 	@echo ""
@@ -433,6 +445,46 @@ DOCS_BUILD = out=$(DOCS_OUT)/$$d && pdf=$(DOCS_DIR)/$$d.pdf && \
 		> $$out/summary.txt && \
 	printf " %s warnings\n" $$warns >> $$out/summary.txt
 
+# The system requirements documents (README.md, "System requirements"),
+# SRQS: docs/<name>.pdf, from the DocBook 5 book docs/SRQs/<name>.xml and
+# the chapters it includes. xmllint checks the book against the DocBook 5
+# RELAX NG schema (SRQS_RNG) and resolves its XIncludes, and dblatex
+# (settings in misc/docs/srqs.xsl) makes the PDF with pdflatex. make docs
+# builds them before the function documentation, make docs-srqs only
+# them and make docs-<name> one of them. The output of dblatex is in
+# build/docs/<name>/dblatex.log and its LaTeX files in
+# build/docs/<name>/tex.
+SRQS := JetOS_SRQs Hypervisor_SRQs
+SRQS_DIR := $(DOCS_DIR)/SRQs
+SRQS_RNG ?= /usr/share/xml/docbook/schema/rng/5.0/docbook.rng
+SRQS_TARGETS := $(addprefix docs-,$(SRQS))
+# The commands that build the document $d (a shell variable).
+SRQS_BUILD = out=$(DOCS_OUT)/$$d && pdf=$(DOCS_DIR)/$$d.pdf && \
+	src=$(SRQS_DIR)/$$d.xml && \
+	rm -rf $$out && mkdir -p $$out $(DOCS_DIR) && t0=$$(date +%s) && \
+	echo "==== $$pdf" && \
+	echo "== xmllint: $$src, DocBook 5 ($(SRQS_RNG))" && \
+	xmllint --xinclude --noout --relaxng $(SRQS_RNG) $$src && \
+	xmllint --xinclude --output $$out/$$d.xml $$src && \
+	echo "== dblatex $$out/$$d.xml (pdflatex, several passes)" && \
+	{ dblatex -d --tmpdir=$$out/tex -p misc/docs/srqs.xsl \
+		-o $$out/$$d.pdf $$out/$$d.xml > $$out/dblatex.log 2>&1 || \
+	  { tail -20 $$out/dblatex.log; \
+	    echo "dblatex failed: see $$out/dblatex.log"; exit 1; }; } && \
+	t1=$$(date +%s) && \
+	cp $$out/$$d.pdf $$pdf && \
+	reqs=$$(grep -c "xml:id=\"SRQ-" $$out/$$d.xml || true) && \
+	pages=$$(sed -n \
+		"s/^Output written on .*pdf (\([0-9]*\) pages.*/\1/p" \
+		$$out/tex/$$d.log | tail -1) && \
+	echo "== $$pdf built" && \
+	echo "  Requirements: $$reqs" && \
+	echo "  dblatex:      $$((t1 - t0)) s;" \
+		"$$(grep -c "^Overfull" $$out/tex/$$d.log) overfull lines" && \
+	echo "  PDF:          $$pages pages, $$(du -h $$pdf | cut -f1)" && \
+	printf "  %-24s %5s pages, %4s requirements\n" \
+		$$pdf $$pages $$reqs > $$out/summary.txt
+
 ifdef NATIVE
 DOCS_RUN = cd "$(POK_PATH)" &&
 DOCS_DOCKER_IMAGE :=
@@ -444,20 +496,32 @@ DOCS_RUN = $(DOCKER) run --rm \
 DOCS_DOCKER_IMAGE := docker-image
 endif
 
-.PHONY: docs clean-docs $(DOCS_TARGETS)
+.PHONY: docs docs-srqs clean-docs $(DOCS_TARGETS) $(SRQS_TARGETS)
 
 docs: $(DOCS_DOCKER_IMAGE)
-	@$(DOCS_RUN) sh -c 'for d in $(DOCS); do { $(DOCS_BUILD); } || exit 1; \
+	@$(DOCS_RUN) sh -c 'for d in $(SRQS); do { $(SRQS_BUILD); } || exit 1; \
+		done; \
+		for d in $(DOCS); do { $(DOCS_BUILD); } || exit 1; \
 		done; echo "==== Documents"; \
-		for d in $(DOCS); do cat $(DOCS_OUT)/$$d/summary.txt; done'
+		for d in $(SRQS) $(DOCS); do \
+			cat $(DOCS_OUT)/$$d/summary.txt; done'
+
+docs-srqs: $(DOCS_DOCKER_IMAGE)
+	@$(DOCS_RUN) sh -c 'for d in $(SRQS); do { $(SRQS_BUILD); } || exit 1; \
+		done; echo "==== Documents"; \
+		for d in $(SRQS); do cat $(DOCS_OUT)/$$d/summary.txt; done'
 
 $(DOCS_TARGETS): docs-%: $(DOCS_DOCKER_IMAGE)
 	@$(DOCS_RUN) sh -c 'd=$*; $(DOCS_BUILD)'
 
+$(SRQS_TARGETS): docs-%: $(DOCS_DOCKER_IMAGE)
+	@$(DOCS_RUN) sh -c 'd=$*; $(SRQS_BUILD)'
+
+# docs/ also holds the sources of the system requirements (docs/SRQs),
+# so only the PDFs are removed.
 clean-docs:
 	rm -rf $(DOCS_OUT)
-	rm -f $(addprefix $(DOCS_DIR)/,$(addsuffix .pdf,$(DOCS)))
-	rmdir $(DOCS_DIR) 2>/dev/null || true
+	rm -f $(addprefix $(DOCS_DIR)/,$(addsuffix .pdf,$(DOCS) $(SRQS)))
 
 # Remove build artifacts directly instead of running `scons -c`: scons
 # has to locate the compiler before it can compute what to clean, and

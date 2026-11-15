@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Time": the system time, the
+  calendar time and the periodic tick.
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-time">
+  <title>Time</title>
+  <para>JetOS keeps the time of the module and gives it to the
+  scheduler and to the partitions.</para>
+
+  <section xml:id="SRQ-JET-TIME-001" role="requirement">
+    <title>SRQ-JET-TIME-001</title>
+    <para>JetOS shall maintain a system time, in nanoseconds since the
+    start of the module, that never decreases.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The time windows of the partitions, the time-outs and the
+      periods of the processes are all measured against one
+      clock.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ-JET-TIME-002" role="requirement">
+    <title>SRQ-JET-TIME-002</title>
+    <para>JetOS shall give the system time to a partition that asks
+    for the time of the real-time clock, and shall refuse a request
+    for any other clock with an error.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partition library builds its time services on the
+      system time; no other clock exists in the module.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ-JET-TIME-003" role="requirement">
+    <title>SRQ-JET-TIME-003</title>
+    <para>JetOS shall give the calendar time, in seconds, to a
+    partition that asks for it: the calendar time read at the start of
+    the module plus the system time.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Partitions need the date for logs and time stamps, and it
+      has to advance with the system time.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ-JET-TIME-004" role="requirement">
+    <title>SRQ-JET-TIME-004</title>
+    <para>JetOS shall re-evaluate its scheduling decisions at every
+    tick of a periodic timer of the board, whose frequency is fixed
+    when JetOS is built.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The ends of the time windows and the time-outs take effect
+      within one tick period of their time.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

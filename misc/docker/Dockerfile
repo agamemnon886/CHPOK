@@ -30,9 +30,14 @@
 # function documentation (make docs): Doxygen, built from source in a
 # stage of its own, the TeX packages of its PDF output, and make.
 #
+# Modified by Kirill Brazhnikov, 2026-11-15: the image also builds the
+# system requirements documents (docs/SRQs, DocBook 5): dblatex, the
+# DocBook 5 schema and xmllint.
+#
 # Build environment for CHPOK's x86_64-qemu and arm64-qemu examples, used
 # by the top-level Makefile (`make all`), and of the function documentation
-# (`make docs`). Works the same on macOS and Linux hosts.
+# and the system requirements documents (`make docs`). Works the same on
+# macOS and Linux hosts.
 #
 # Uses Debian's native compiler for the host architecture and a genuine
 # cross-compiler for the other one, so the image runs natively (no
@@ -110,6 +115,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cm-super-minimal \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=doxygen /usr/local/bin/doxygen /usr/local/bin/doxygen
+
+# The system requirements documents (make docs, docs/SRQs): DocBook 5
+# sources, checked against the DocBook 5 RELAX NG schema (docbook5-xml)
+# with xmllint (libxml2-utils) and turned into PDFs by dblatex, with the
+# TeX packages above.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        dblatex \
+        docbook5-xml \
+        libxml2-utils \
+        xsltproc \
+    && rm -rf /var/lib/apt/lists/*
 
 # The build runs under an arbitrary host uid that has no passwd entry
 # or home directory, so give it a writable HOME.

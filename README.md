@@ -13,8 +13,9 @@ JetOS supports x86_64 and arm64 (AArch64).
 
 Examples are built with `make`, which runs the build in a Docker container
 (see `misc/docker/Dockerfile`), so only `make` and Docker are needed, on
-Linux or macOS. The image also has Doxygen and LaTeX for the function
-documentation (`make docs`, see "Function documentation"): its first build
+Linux or macOS. The image also has Doxygen, LaTeX and the DocBook tools
+for the function documentation and the system requirements (`make docs`,
+see "System requirements" and "Function documentation"): its first build
 downloads TeX and compiles Doxygen, which takes several minutes.
 
 On macOS with [Colima](https://github.com/abiosoft/colima) as the Docker
@@ -521,6 +522,52 @@ libpok's C library (`tests/libc`). They are built like the examples and run in Q
     make BSP=arm64-qemu hv-test  # the hypervisor tests on arm64
 
 See `tests/README` for what each test covers and how to add one.
+
+## System requirements
+
+The system requirements (SRQs) are written in DocBook 5, under
+`docs/SRQs`, and `make docs` builds a PDF of each document:
+
+| Document | Source | Contents |
+|----------|--------|----------|
+| `docs/JetOS_SRQs.pdf` | `docs/SRQs/JetOS_SRQs.xml`, `docs/SRQs/jetos/` | JetOS: the kernel (`kernel`) and the board support packages (`boards`) |
+| `docs/Hypervisor_SRQs.pdf` | `docs/SRQs/Hypervisor_SRQs.xml`, `docs/SRQs/hypervisor/` | the hypervisor (`hypervisor`) |
+
+The partition library (`libpok`: the ARINC 653 APEX interface, the C
+library and the mathematical library) and the system partitions
+(`syspart`) are not covered by these documents.
+
+    make docs                    # these documents, then the function
+                                 # documentation
+    make docs-srqs               # the two requirements documents only
+    make docs-JetOS_SRQs         # one of them
+
+A document is a `<book>` that includes its chapters with XInclude, one
+file per chapter. A requirement is a section of its chapter, whose
+`xml:id` and title are its identifier, `SRQ-JET-<AREA>-<NNN>` (JetOS) or
+`SRQ-HV-<AREA>-<NNN>` (the hypervisor), where the area is that of the
+chapter; an identifier is never changed, nor used again:
+
+    <section xml:id="SRQ-JET-TIME-001" role="requirement">
+      <title>SRQ-JET-TIME-001</title>
+      <para>JetOS shall ... .</para>
+      <formalpara>
+        <title>Rationale</title>
+        <para>...</para>
+      </formalpara>
+      <formalpara>
+        <title>Verification</title>
+        <para>Test.</para>
+      </formalpara>
+    </section>
+
+`make docs` checks each book against the DocBook 5 RELAX NG schema with
+`xmllint` (an invalid book stops the build) and makes the PDF with
+`dblatex` and the settings of `misc/docs/srqs.xsl`, both in the build
+image (with `NATIVE=1`: the host's `xmllint` and `dblatex`, and
+`SRQS_RNG=<path>` for the schema, `docbook.rng`). It shows the number of
+requirements, the pages and the overfull lines of each document; the
+output of `dblatex` is in `build/docs/<name>/dblatex.log`.
 
 ## Function documentation
 
