@@ -28,8 +28,11 @@
   Modified by Kirill Brazhnikov, 2026-11-08: the image is built for the
   hypervisor's BSP ({bsp}).
 
+  Modified by Kirill Brazhnikov, 2026-11-15: a comment names
+  hypervisor/core/crc.c (it was hypervisor/src/crc.c).
+
   Hypervisor test: the hypervisor checks the CRC-32 of its image at boot
-  (hvcrc.py, hypervisor/src/crc.c). The image as built must pass and start VM
+  (hvcrc.py, hypervisor/core/crc.c). The image as built must pass and start VM
   "mutex"; run_hv_test.sh also boots a copy with one bit flipped, which
   must stop with a CRC mismatch before any VM starts.
 -->

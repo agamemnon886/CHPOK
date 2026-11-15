@@ -28,7 +28,10 @@
  # their names (HV_PORT_COMn, defined per architecture); boot_data is the
  # VM's device tree on arm64 (hv_dtb_N in hv_images.S), NULL on x86_64.
  #
- # Template of the VM table (hv_vm_config_t, include/hv/config.h),
+ # Modified by Kirill Brazhnikov, 2026-11-15: a comment names
+ # core/include/hv/config.h (it was include/hv/config.h).
+ #
+ # Template of the VM table (hv_vm_config_t, core/include/hv/config.h),
  # rendered by hvconfig.py.
  #}
 {%- macro port(name) -%}

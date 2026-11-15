@@ -40,7 +40,13 @@
 # does it). PREFIX is the cross toolchain prefix (default
 # x86_64-linux-gnu- or aarch64-linux-gnu-). After linking, hvcrc.py writes
 # the CRC-32 of the image into hv.elf, which the hypervisor checks at
-# boot. The common code is in src/, each architecture's in arch/<arch>/.
+# boot. The common code is in core/, the code of each processor
+# architecture in csps/<arch>/ and the code of each board (its devices
+# and the virtual devices of the VMs, the linker script) in bsps/<bsp>/.
+#
+# Modified by Kirill Brazhnikov, 2026-11-15: the sources are in core/ (it
+# was src/ and include/), csps/<arch>/ and bsps/<bsp>/ (it was
+# arch/<arch>/).
 
 import os
 import sys
@@ -68,7 +74,8 @@ if bsp not in BSPS:
     print('unknown bsp=%s; use x86_64-qemu or arm64-qemu' % bsp)
     Exit(1)
 target = BSPS[bsp]
-arch_dir = os.path.join('arch', target['arch'])
+csp_dir = os.path.join('csps', target['arch'])
+bsp_dir = os.path.join('bsps', bsp)
 
 config = ARGUMENTS.get('config', '../examples/hv-two-vms/config.xml')
 config = os.path.abspath(config)
@@ -89,7 +96,7 @@ flags = ('-std=gnu99 -ffreestanding -nostdlib -nostdinc -iwithprefix include'
          # Fixed low addresses (on x86_64: BIOS data, the AP trampoline)
          # are not null pointer offsets.
          ' --param=min-pagesize=0')
-lds = File(os.path.join(arch_dir, 'hv.lds'))
+lds = File(os.path.join(bsp_dir, 'hv.lds'))
 
 env = Environment(ENV=os.environ,
                   CC=prefix + 'gcc',
@@ -97,8 +104,8 @@ env = Environment(ENV=os.environ,
                   LINK=prefix + 'ld',
                   CFLAGS=flags,
                   ASFLAGS=flags + ' -c',
-                  CPPPATH=[Dir('include'), Dir(os.path.join(arch_dir,
-                                                            'include'))],
+                  CPPPATH=[Dir(os.path.join('core', 'include')),
+                           Dir(os.path.join(csp_dir, 'include'))],
                   LINKFLAGS=target['ldflags'] + ' -nostdlib'
                             ' -z max-page-size=0x1000'
                             ' -z noexecstack --no-warn-rwx-segments'
@@ -118,7 +125,8 @@ env.AlwaysBuild(generated)
 
 # The common code and the architecture's, each in its own object directory.
 objects = []
-for src, obj in (('src', 'obj'), (arch_dir, 'obj-arch')):
+for src, obj in (('core', 'obj'), (csp_dir, 'obj-csp'),
+                 (bsp_dir, 'obj-bsp')):
     env.VariantDir(os.path.join(build, obj), src, duplicate=0)
     for f in Glob(os.path.join(src, '*.c')) + Glob(os.path.join(src, '*.S')):
         objects.append(env.Object(os.path.join(build, obj,

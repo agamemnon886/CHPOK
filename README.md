@@ -9,6 +9,33 @@ The key new features include:
 
 JetOS supports x86_64 and arm64 (AArch64).
 
+## Source tree
+
+    kernel/               JetOS kernel
+      core/               the kernel proper: independent of the processor
+                          and of the board
+      debug/              GDB server, monitor, readline
+      csps/<arch>/        CPU support packages: x86_64, arm64
+      bsps/<bsp>/         board support packages: x86_64-qemu, arm64-qemu
+      include/            the kernel's own headers
+    common/               library shared by the kernel and the hypervisor
+    hypervisor/           hypervisor (see "Hypervisor")
+      core/               independent of the processor and of the board
+      csps/<arch>/        CPU support packages (SVM, EL2)
+      bsps/<bsp>/         board support packages: the devices of the
+                          board and the virtual devices of the VMs
+    libpok/               library of the partitions (ARINC 653 APEX, C
+                          library, libm)
+    syspart/              drivers and network components of system
+                          partitions (x86_64)
+    misc/                 build scripts, templates, Docker image, docs
+    examples/, tests/, benchmark/
+    docs/SRQs/            system requirements (DocBook 5)
+
+The kernel and the hypervisor are separate programs under different
+licences (the hypervisor is BSD-only), so they share only code under the
+BSD-2-Clause or POK licence: `common/`.
+
 ## Building
 
 Examples are built with `make`, which runs the build in a Docker container
@@ -247,7 +274,7 @@ On arm64 (`make BSP=arm64-qemu run-hv`):
 
 After linking, `hypervisor/hvcrc.py` writes a CRC-32 of the image into
 `hv.elf`. At boot, before anything else, the hypervisor computes the CRC
-of its loaded image again (`hypervisor/src/crc.c`) and compares the two.
+of its loaded image again (`hypervisor/core/crc.c`) and compares the two.
 If they differ, it prints both and halts. It starts no VM and no other
 CPU:
 
@@ -255,7 +282,7 @@ CPU:
     [hv] fatal error on CPU 0: the hypervisor image is corrupted
 
 The CRC covers the loaded image from its start up to the CRC word that
-follows `.rodata` (see `hypervisor/arch/<arch>/hv.lds`). That includes the
+follows `.rodata` (see `hypervisor/bsps/<bsp>/hv.lds`). That includes the
 ELF headers, the code, the constants, the VM table and the VMs' images
 (and device trees, on arm64). It doesn't cover `.data`, a few variables
 that are written before the check: on x86_64, the Multiboot information
@@ -473,38 +500,41 @@ is a GDB thread:
     templates/hv_config.c.tpl
     hypervisor/SConstruct       build (bsp= selects the architecture)
     hypervisor/hvcrc.py         image check (CRC-32 written after linking)
-    hypervisor/include/hv/      hv.h (data structures and interfaces
-                                between the parts), config.h (the
-                                generated VM table)
-    hypervisor/src/             common: CPUs and vCPUs (cpus.c), VM RAM
+    hypervisor/core/            common: CPUs and vCPUs (cpus.c), VM RAM
                                 (vm.c), console (console.c, printf.c),
                                 image check at boot (crc.c), string.c
-    hypervisor/arch/x86_64/     x86_64:
-      entry.S, main.c, smp.c,   Multiboot entry, long mode, start-up (ACPI
-      acpi.c                    MADT), APs
-      lapic.c, pit.c, idt.c,    physical timers and interrupts
-      isr.S
+      include/hv/               hv.h (data structures and interfaces
+                                between the parts), config.h (the
+                                generated VM table)
+    hypervisor/csps/x86_64/     the processor, x86_64:
+      entry.S, main.c, smp.c    Multiboot entry, long mode, start-up, APs
+      lapic.c, idt.c, isr.S     local APIC timer and interrupts
       svm.c, svm_run.S          SVM: VMCB, run loop, exit handling
       multiboot.c, npt.c        image loading, nested page tables
+      include/arch/             svm.h (VMCB), x86.h (instructions),
+                                arch.h, config.h, internal.h
+    hypervisor/bsps/x86_64-qemu/  the board, x86_64:
+      acpi.c, pit.c             ACPI MADT, physical legacy timers
       ioport.c, vpic.c,         the VMs' I/O ports and emulated devices,
       vpit.c, vuart.c, uart.c   the host's serial ports
-      hv.lds, include/arch/     linker script; svm.h (VMCB), x86.h
-                                (instructions), arch.h, config.h,
-                                internal.h
-    hypervisor/arch/arm64/      arm64:
+      hv.lds                    linker script
+    hypervisor/csps/arm64/      the processor, arm64:
       entry.S, main.c, mmu.c,   EL2 entry, start-up, EL2 page tables,
-      fdt.c, smp.c, psci.c      QEMU's device tree, other CPUs, PSCI
+      smp.c                     other CPUs
       vectors.S, vcpu.c         exception vectors, guest entry and exit,
                                 run loop, exit handling
-      load.c, stage2.c          image loading, stage-2 tables
+      load.c, stage2.c, mmio.c  image loading, stage-2 tables, emulated
+                                device accesses
+      include/arch/             arm64.h (instructions), arch.h, config.h,
+                                internal.h
+    hypervisor/bsps/arm64-qemu/   the board, arm64:
+      fdt.c, psci.c             QEMU's device tree, PSCI
       gic.c, vgicd.c            the host GIC and the virtual timer
                                 interrupt, the VMs' distributor
-      mmio.c, vuart.c           emulated device accesses, the VMs' PL011s
-                                and PL031
+      vuart.c                   the VMs' PL011s and PL031
       uart.c, pci.c             the host's serial ports (PL011s, PCI
                                 16550s)
-      hv.lds, include/arch/     linker script; arm64.h (instructions),
-                                arch.h, config.h, internal.h
+      hv.lds                    linker script
     examples/hv-*/              hypervisor configurations
     tests/hypervisor/           hypervisor tests (make hv-test)
 
@@ -530,7 +560,7 @@ The system requirements (SRQs) are written in DocBook 5, under
 
 | Document | Source | Contents |
 |----------|--------|----------|
-| `docs/JetOS_SRQs.pdf` | `docs/SRQs/JetOS_SRQs.xml`, `docs/SRQs/jetos/` | JetOS: the kernel (`kernel`) and the board support packages (`boards`) |
+| `docs/JetOS_SRQs.pdf` | `docs/SRQs/JetOS_SRQs.xml`, `docs/SRQs/jetos/` | JetOS: the kernel (`kernel`, with its board support packages, `kernel/bsps`) |
 | `docs/Hypervisor_SRQs.pdf` | `docs/SRQs/Hypervisor_SRQs.xml`, `docs/SRQs/hypervisor/` | the hypervisor (`hypervisor`) |
 
 The partition library (`libpok`: the ARINC 653 APEX interface, the C
@@ -571,7 +601,7 @@ output of `dblatex` is in `build/docs/<name>/dblatex.log`.
 
 ## Function documentation
 
-Every C function in `boards`, `hypervisor`, `kernel`, `libpok` (with the
+Every C function in `common`, `hypervisor`, `kernel`, `libpok` (with the
 third-party `libm` and `protocols`), `syspart` and the C templates of
 `misc` has a Doxygen header right before its definition, except the
 `static inline` functions defined in headers, which have a plain comment
@@ -582,8 +612,9 @@ its source release):
 
 | Document | Contents |
 |----------|----------|
-| `docs/boards.pdf` | the board support packages (`boards`) |
-| `docs/kernel.pdf` | the kernel (`kernel`) |
+| `docs/boards.pdf` | the board support packages (`kernel/bsps`) |
+| `docs/kernel.pdf` | the kernel (`kernel`, without `kernel/bsps`) |
+| `docs/shared.pdf` | the library shared by the kernel and the hypervisor (`common`) |
 | `docs/libpok.pdf` | the library of the partitions (`libpok`) |
 | `docs/syspart.pdf` | the drivers and network components (`syspart`) |
 | `docs/hypervisor.pdf` | the hypervisor (`hypervisor`) |
@@ -591,7 +622,7 @@ its source release):
 The functions generated from the C templates of `misc` are in the
 document of the directory that holds the generated file.
 
-    make docs                    # build the five documents
+    make docs                    # build the six documents
     make docs-<name>             # build docs/<name>.pdf only
                                  # (e.g. make docs-kernel)
     make clean-docs              # remove build/docs and the PDFs
@@ -611,7 +642,7 @@ a summary: the time of each step, the files read and documented, the
 functions, types and macros, the warnings, the pages and overfull lines,
 and the size of the PDF. The whole output is in
 `build/docs/<name>/doxygen.log` and `build/docs/<name>/latex.log`. At the
-end, `make docs` lists the five documents with their pages, functions,
+end, `make docs` lists the six documents with their pages, functions,
 types, macros and warnings.
 
 A document has these chapters:
@@ -823,7 +854,7 @@ Other rules:
 
 ### Code layout
 
-The C code of `boards`, `hypervisor`, `kernel`, `libpok` (with `libm` and
+The C code of `common`, `hypervisor`, `kernel`, `libpok` (with `libm` and
 `protocols`) and `syspart` is laid out so that each kind of definition has
 one place:
 
@@ -863,7 +894,7 @@ one place:
 ### Types
 
 Every type defined at file scope (struct, union, enum and typedef) in
-`boards`, `hypervisor`, `kernel`, `libpok` and `syspart` has a header too,
+`common`, `hypervisor`, `kernel`, `libpok` and `syspart` has a header too,
 right before its definition, and each of its members (fields and
 enumerators) has a comment, from which Doxygen makes the table of the
 fields (Name, Type, Description) or of the enumerators:
@@ -909,7 +940,7 @@ fields (Name, Type, Description) or of the enumerators:
   `` `name` ``; `<word>` would be read as an HTML tag: it is written in
   code too).
 - A type defined under the same name for each architecture (in
-  `arch/x86_64` and `arch/arm64`) has one header, at its x86_64
+  `csps/x86_64` and `csps/arm64`) has one header, at its x86_64
   definition, which describes both definitions; the member comments of
   both start with `x86_64:` or `arm64:`. Doxygen keeps one type per name:
   it shows such a type once, with the fields of both.
@@ -976,7 +1007,7 @@ guards:
   the configuration that Doxygen reads (all `POK_NEEDS_*` macros defined,
   `PREDEFINED` in `misc/docs/Doxyfile.common`).
 - A macro defined in the same way for each architecture (the same name and
-  value in `arch/x86_64` and `arch/arm64`) has one header, at its x86_64
+  value in `csps/x86_64` and `csps/arm64`) has one header, at its x86_64
   definition, which says so; the arm64 one has a plain comment pointing to
   it (Doxygen would merge their documentation). A macro that several files
   use is defined once, in their shared header.
@@ -988,8 +1019,9 @@ LaTeX style, with the rest of the documents', is in
 
 ## MISRA C:2025
 
-The kernel, libpok, the architecture code, the boards, syspart and the
-hypervisor follow MISRA C:2025. Where a guideline can't be followed, a
-comment that starts with `MISRA C:2025` names it and gives the reason:
+The kernel (with its CPU and board support packages), the shared
+library, libpok, syspart and the hypervisor follow MISRA C:2025. Where a
+guideline can't be followed, a comment that starts with `MISRA C:2025`
+names it and gives the reason:
 
-    grep -rn "MISRA C:2025" kernel libpok boards syspart misc hypervisor
+    grep -rn "MISRA C:2025" kernel common libpok syspart misc hypervisor

@@ -36,10 +36,13 @@
 #
 # The CRC covers the loaded bytes from hv_image_begin up to the 4-byte
 # word at hv_image_crc, which holds the CRC (little-endian); see
-# arch/*/hv.lds. hv.elf is one PT_LOAD segment that QEMU's Multiboot
+# bsps/*/hv.lds. hv.elf is one PT_LOAD segment that QEMU's Multiboot
 # (x86_64) or ELF (arm64) loader copies unchanged, so these are file
-# bytes, and src/crc.c computes the same CRC over the loaded image at
+# bytes, and core/crc.c computes the same CRC over the loaded image at
 # boot. The CRC is zlib's (IEEE 802.3).
+#
+# Modified by Kirill Brazhnikov, 2026-11-15: the comments name bsps/*/hv.lds
+# and core/crc.c (it was arch/ and src/).
 
 import struct
 import sys
