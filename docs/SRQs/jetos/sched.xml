@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Scheduling".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-sched">
+  <title>Scheduling</title>
+  <para>JetOS schedules at two levels: the module executes the slots of
+    the schedule, which gives the processor to the partitions in turn,
+    and inside a partition its own scheduler chooses its process. The
+    requirements on the processes are in the chapter "Processes".</para>
+
+  <section xml:id="SRQ_JET_SCHED_001" role="requirement">
+    <title>SRQ_JET_SCHED_001</title>
+    <para>JetOS shall execute the schedule of the module as an endless
+      series of major frames, each the same ordered list of slots, the
+      first one beginning when the schedule starts.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The cyclic schedule is the ARINC 653 time partitioning.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SCHED_002" role="requirement">
+    <title>SRQ_JET_SCHED_002</title>
+    <para>JetOS shall, in a partition slot, run only the partition of the
+      slot; in a spare slot, nothing; in a monitor slot, the monitor, and
+      in a GDB slot the GDB server, if configured.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The time of each partition is fixed in advance.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SCHED_003" role="requirement">
+    <title>SRQ_JET_SCHED_003</title>
+    <para>JetOS shall end a slot and begin the next one, switching to its
+      partition, at the end of the duration of the slot, within one
+      period of the timer tick, whatever the partition does.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A partition cannot keep the processor longer than its slot,
+        so the others always get their time.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SCHED_004" role="requirement">
+    <title>SRQ_JET_SCHED_004</title>
+    <para>JetOS shall save the context of a partition at the end of its
+      slot, and resume it, at the point where it was interrupted, at the
+      start of its next slot, unless the partition was restarted in the
+      meantime.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A partition does not notice the slots of the others.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SCHED_005" role="requirement">
+    <title>SRQ_JET_SCHED_005</title>
+    <para>JetOS shall handle the events of a partition (time-outs, the
+      release of periodic processes, deadlines, delayed starts and
+      messages for its ports) in the partition, in its own context.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Kernel work for one partition must not run in the time that
+        belongs to another.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SCHED_006" role="requirement">
+    <title>SRQ_JET_SCHED_006</title>
+    <para>JetOS shall start the periodic processes of a partition at the
+      start of a slot of that partition that is marked as starting
+      periodic processing.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Periodic processing starts at known points of the schedule.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SCHED_007" role="requirement">
+    <title>SRQ_JET_SCHED_007</title>
+    <para>JetOS shall let a partition idle, waiting for events, when none
+      of its processes can run.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partition has nothing to execute, and nothing else may
+        run in its slot.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SCHED_008" role="requirement">
+    <title>SRQ_JET_SCHED_008</title>
+    <para>JetOS shall start the schedule again from the first slot of a
+      new major frame, with every partition started afresh, when the
+      module restarts.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A module restart has to put every partition in a known state.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

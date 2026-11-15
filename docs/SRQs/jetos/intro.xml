@@ -39,8 +39,9 @@
     <para>This document states the system requirements (SRQs) of JetOS.
     The high level requirements of the JetOS functions, which are
     written in the headers of the functions and published in the
-    function documentation (<filename>docs/kernel.pdf</filename> and
-    <filename>docs/boards.pdf</filename>), are traced to the
+    function documentation (<filename>docs/kernel.pdf</filename>,
+    <filename>docs/boards.pdf</filename> and
+    <filename>docs/shared.pdf</filename>), are traced to the
     requirements of this document.</para>
   </section>
 
@@ -98,7 +99,7 @@
   <section xml:id="jet-intro-conventions">
     <title>Conventions</title>
     <para>A requirement has an identifier of the form
-    <literal>SRQ-JET-<replaceable>AREA</replaceable>-<replaceable
+    <literal>SRQ_JET_<replaceable>AREA</replaceable>_<replaceable
     >NNN</replaceable></literal>, where
     <replaceable>AREA</replaceable> names the chapter of the
     requirement. An identifier is never changed and never used again
@@ -131,6 +132,45 @@
         <listitem>
           <para>The time since the start of the module, in
           nanoseconds.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Process</term>
+        <listitem>
+          <para>The unit of execution inside a partition, as in ARINC
+          653 (a thread in the code).</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Slot, major frame</term>
+        <listitem>
+          <para>A slot is an interval of the schedule of the module,
+          given to one partition or to a service of the kernel; a
+          major frame is the sequence of all the slots, which the
+          module repeats for ever.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Port, channel</term>
+        <listitem>
+          <para>A port is the end of a channel in a partition, through
+          which the partition sends or receives messages; a channel
+          connects a source port with a destination port.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Health monitoring</term>
+        <listitem>
+          <para>The detection of errors of the module and of the
+          partitions, and the recovery from them by the actions of
+          configured tables.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Critical section (msection)</term>
+        <listitem>
+          <para>A mutual exclusion region of a partition, managed in the
+          memory of the partition with the help of the kernel.</para>
         </listitem>
       </varlistentry>
     </variablelist>

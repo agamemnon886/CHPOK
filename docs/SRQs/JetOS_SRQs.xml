@@ -46,5 +46,22 @@
     </copyright>
   </info>
   <xi:include href="jetos/intro.xml"/>
+  <xi:include href="jetos/overview.xml"/>
+  <xi:include href="jetos/boot.xml"/>
+  <xi:include href="jetos/cfg.xml"/>
+  <xi:include href="jetos/mem.xml"/>
+  <xi:include href="jetos/part.xml"/>
+  <xi:include href="jetos/sched.xml"/>
+  <xi:include href="jetos/thr.xml"/>
+  <xi:include href="jetos/sync.xml"/>
   <xi:include href="jetos/time.xml"/>
+  <xi:include href="jetos/ipc.xml"/>
+  <xi:include href="jetos/hm.xml"/>
+  <xi:include href="jetos/sys.xml"/>
+  <xi:include href="jetos/int.xml"/>
+  <xi:include href="jetos/cons.xml"/>
+  <xi:include href="jetos/dbg.xml"/>
+  <xi:include href="jetos/bsp.xml"/>
+  <xi:include href="jetos/lib.xml"/>
+  <xi:include href="jetos/gen.xml"/>
 </book>

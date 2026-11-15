@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Health monitoring".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-hm">
+  <title>Health monitoring</title>
+  <para>Health monitoring detects the errors of the module and of the
+    partitions and recovers from them according to the tables of the
+    configuration. An error has an identifier and arises in a system
+    state; the table gives the action for each pair. The errors are:
+    module post-processing event list, illegal request, application
+    error, partition load error, numeric error, memory violation,
+    deadline missed, hardware fault, power failure, stack overflow,
+    process initialization error, no memory for process data, assertion
+    failure, configuration error, check pool and unhandled interrupt. The
+    system states are: partition operating system initialization
+    (<literal>INIT_PARTOS</literal>), partition user initialization
+    (<literal>INIT_PARTUSER</literal>), interrupt handler, module
+    operating system, partition operating system, error handler and user
+    process.</para>
+
+  <section xml:id="SRQ_JET_HM_001" role="requirement">
+    <title>SRQ_JET_HM_001</title>
+    <para>JetOS shall detect and report as errors, when they happen in a
+      partition: a fault of the memory protection (memory violation), an
+      arithmetic fault (numeric error), an invalid instruction or request
+      (illegal request), a missed deadline, a failure of the loading of
+      the partition, and an unexpected interrupt or exception.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the errors that the hardware and the kernel can
+        detect.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_002" role="requirement">
+    <title>SRQ_JET_HM_002</title>
+    <para>JetOS shall decide, from the configuration, whether an error in
+      a system state is an error of the module or of the partition.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The level decides who recovers.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_003" role="requirement">
+    <title>SRQ_JET_HM_003</title>
+    <para>JetOS shall handle an error of the module at once, by the
+      action that the table of the module gives: ignore it, restart the
+      module (every partition is loaded again and starts in
+      <literal>COLD_START</literal> mode) or shut it down; shutting down
+      is the action if the table says nothing.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The module level is the last line of recovery.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_004" role="requirement">
+    <title>SRQ_JET_HM_004</title>
+    <para>JetOS shall handle an error of a partition by the action that
+      the table of the partition gives: ignore it, stop the partition
+      (<literal>IDLE</literal> mode), or restart it in
+      <literal>COLD_START</literal> or <literal>WARM_START</literal>
+      mode; stopping is the action if the table says nothing; and shall
+      report a restart on the console, with the description of the error,
+      and record it as the reason of the start.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partition level recovers without disturbing the others.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_005" role="requirement">
+    <title>SRQ_JET_HM_005</title>
+    <para>JetOS shall, for an error that arises in a process in
+      <literal>NORMAL</literal> mode of a partition that has an error
+      handler, leave its handling to the error handler, which gets it as
+      the next error to handle; otherwise the table of the partition
+      shall decide.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The application can handle the errors of its processes.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_006" role="requirement">
+    <title>SRQ_JET_HM_006</title>
+    <para>JetOS shall let a partition create one error handler process,
+      which has the highest priority of the partition (above all the
+      priorities that the application can give), and configure its
+      concurrency control, only while the partition is not in
+      <literal>NORMAL</literal> mode.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The error handler must run before the other processes.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_007" role="requirement">
+    <title>SRQ_JET_HM_007</title>
+    <para>JetOS shall give the error handler, on request, the next error
+      to handle with its identifier, message, the process concerned and
+      the failed address; a synchronous error of a process first, then a
+      missed deadline, then a deadline out of range.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The handler decides what to do from the details.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_008" role="requirement">
+    <title>SRQ_JET_HM_008</title>
+    <para>JetOS shall let a partition raise an application error with a
+      message and an error of the operating system code of the partition,
+      and report a message of the application on the console with the
+      name of the partition.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the means of the application to use the health
+        monitoring.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_009" role="requirement">
+    <title>SRQ_JET_HM_009</title>
+    <para>JetOS shall handle the errors that remain when the error
+      handler stops as errors of the partition, through its table.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An error must not be forgotten.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_010" role="requirement">
+    <title>SRQ_JET_HM_010</title>
+    <para>JetOS shall treat an error that is found in the monitor, the
+      debugger or the idle partition as fatal.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These partitions are parts of the kernel, and nothing is left
+        to recover them.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

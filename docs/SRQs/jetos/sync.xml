@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Process synchronization".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-sync">
+  <title>Process synchronization</title>
+  <para>Processes of a partition synchronize with the help of critical
+    sections of the partition's library (called msections), which are
+    managed in the memory of the partition, and enter the kernel only
+    when they have to wait or to wake up another process.</para>
+
+  <section xml:id="SRQ_JET_SYNC_001" role="requirement">
+    <title>SRQ_JET_SYNC_001</title>
+    <para>JetOS shall, when a process wants to enter a critical section
+      that another process of its partition owns, run the owner until it
+      has left the section, so that the processes do not wait for each
+      other for ever, and shall give the processor back to the highest
+      priority process after that.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The owner inherits the urgency of the waiting process, which
+        prevents priority inversion.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYNC_002" role="requirement">
+    <title>SRQ_JET_SYNC_002</title>
+    <para>JetOS shall let the owner of a critical section release it and
+      wait, with a time-out, until another process of the partition wakes
+      it up, and shall make it enter the section again when it wakes up.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>This is the wait of a process on a condition that another one
+        changes inside the section.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYNC_003" role="requirement">
+    <title>SRQ_JET_SYNC_003</title>
+    <para>JetOS shall let the owner of a critical section wake up one or
+      all of the processes that wait on it, and tell how many there are.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The owner announces the change of the condition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYNC_004" role="requirement">
+    <title>SRQ_JET_SYNC_004</title>
+    <para>JetOS shall let a partition ask the kernel to choose the
+      process to run again after a change that it made in its own memory,
+      such as leaving a critical section.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel does not see the changes that are made in user
+        space.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYNC_005" role="requirement">
+    <title>SRQ_JET_SYNC_005</title>
+    <para>JetOS shall delay the stop of a process that is in a critical
+      section until it leaves it, and let the process that asked for the
+      stop wait meanwhile.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A stop in a critical section would block the others for ever.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

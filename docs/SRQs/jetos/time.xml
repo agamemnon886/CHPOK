@@ -35,8 +35,8 @@
   <para>JetOS keeps the time of the module and gives it to the
   scheduler and to the partitions.</para>
 
-  <section xml:id="SRQ-JET-TIME-001" role="requirement">
-    <title>SRQ-JET-TIME-001</title>
+  <section xml:id="SRQ_JET_TIME_001" role="requirement">
+    <title>SRQ_JET_TIME_001</title>
     <para>JetOS shall maintain a system time, in nanoseconds since the
     start of the module, that never decreases.</para>
     <formalpara>
@@ -51,8 +51,8 @@
     </formalpara>
   </section>
 
-  <section xml:id="SRQ-JET-TIME-002" role="requirement">
-    <title>SRQ-JET-TIME-002</title>
+  <section xml:id="SRQ_JET_TIME_002" role="requirement">
+    <title>SRQ_JET_TIME_002</title>
     <para>JetOS shall give the system time to a partition that asks
     for the time of the real-time clock, and shall refuse a request
     for any other clock with an error.</para>
@@ -67,8 +67,8 @@
     </formalpara>
   </section>
 
-  <section xml:id="SRQ-JET-TIME-003" role="requirement">
-    <title>SRQ-JET-TIME-003</title>
+  <section xml:id="SRQ_JET_TIME_003" role="requirement">
+    <title>SRQ_JET_TIME_003</title>
     <para>JetOS shall give the calendar time, in seconds, to a
     partition that asks for it: the calendar time read at the start of
     the module plus the system time.</para>
@@ -83,8 +83,8 @@
     </formalpara>
   </section>
 
-  <section xml:id="SRQ-JET-TIME-004" role="requirement">
-    <title>SRQ-JET-TIME-004</title>
+  <section xml:id="SRQ_JET_TIME_004" role="requirement">
+    <title>SRQ_JET_TIME_004</title>
     <para>JetOS shall re-evaluate its scheduling decisions at every
     tick of a periodic timer of the board, whose frequency is fixed
     when JetOS is built.</para>
@@ -92,6 +92,37 @@
       <title>Rationale</title>
       <para>The ends of the time windows and the time-outs take effect
       within one tick period of their time.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_TIME_005" role="requirement">
+    <title>SRQ_JET_TIME_005</title>
+    <para>JetOS shall let the kernel and the partitions arrange for
+      something to happen at a time (a time-out, a release, a deadline),
+      and shall make it happen at that time or later, never before, in
+      the order of the times.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>All time-related services are built on such delayed events.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_TIME_006" role="requirement">
+    <title>SRQ_JET_TIME_006</title>
+    <para>JetOS shall take the calendar time at the start of the module
+      from the real-time clock of the board if the board has one, and
+      from a fixed date if it has not.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The calendar time has to come from somewhere at the start.</para>
     </formalpara>
     <formalpara>
       <title>Verification</title>

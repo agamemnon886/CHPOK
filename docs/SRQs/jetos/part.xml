@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Partitions".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-part">
+  <title>Partitions</title>
+  <para>A partition is the unit of isolation: it has its own memory, its
+    own time windows and its own operating mode. This chapter states how
+    partitions are loaded, started, restarted and stopped. The operating
+    modes follow ARINC 653 and are written <literal>COLD_START</literal>
+    and <literal>WARM_START</literal> for the initialization modes
+    (INIT_COLD and INIT_WARM in the code).</para>
+
+  <section xml:id="SRQ_JET_PART_001" role="requirement">
+    <title>SRQ_JET_PART_001</title>
+    <para>JetOS shall give each partition an operating mode, one of
+      <literal>IDLE</literal>, <literal>COLD_START</literal>,
+      <literal>WARM_START</literal> and <literal>NORMAL</literal>, and
+      shall start each partition in <literal>COLD_START</literal> mode
+      when the module starts.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The mode tells what the partition may do and what the kernel
+        does with its time.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_002" role="requirement">
+    <title>SRQ_JET_PART_002</title>
+    <para>JetOS shall load the image of a partition from the archive
+      embedded in the kernel into its memory space when the partition
+      starts: it shall check the image and its loadable segments against
+      the memory space of the partition, copy the segments, clear the
+      memory that they do not initialize, and take the entry point from
+      the image.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The code of the partition is part of the kernel image; it
+        must be put in the right place, and a damaged or oversized image
+        must not corrupt anything.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_003" role="requirement">
+    <title>SRQ_JET_PART_003</title>
+    <para>JetOS shall treat an image that cannot be loaded as a partition
+      load error of the partition (see health monitoring).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A module must come up, or fail visibly, with a bad image in
+        one partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_004" role="requirement">
+    <title>SRQ_JET_PART_004</title>
+    <para>JetOS shall, when a partition starts or restarts, give it empty
+      state: the memory of its image as loaded, no processes created, no
+      ports created, the shared area initialized, all its stacks free;
+      and shall run its first process, the main process, at the entry
+      point of the image, with preemption locked.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Each start is a fresh one, so that a restart really recovers
+        the partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_005" role="requirement">
+    <title>SRQ_JET_PART_005</title>
+    <para>JetOS shall change the mode of the calling partition at its
+      request as follows: to <literal>COLD_START</literal> or
+      <literal>WARM_START</literal> it shall restart the partition in
+      that mode; to <literal>IDLE</literal> it shall stop its processing;
+      to <literal>NORMAL</literal> it shall start its processes. The
+      request shall be refused with an error for
+      <literal>WARM_START</literal> while the mode is
+      <literal>COLD_START</literal>, for <literal>NORMAL</literal> while
+      the mode is <literal>NORMAL</literal>, and for any other mode.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the mode transitions that ARINC 653 allows to a
+        partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_006" role="requirement">
+    <title>SRQ_JET_PART_006</title>
+    <para>JetOS shall, when a partition enters <literal>NORMAL</literal>
+      mode, release its locked preemption and start the processes that
+      were started during the initialization: an aperiodic process after
+      its delay, a periodic process at the next start of periodic
+      processing of the partition plus its delay, each with its deadline
+      set.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The initialization ends and the application runs at a defined
+        time.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_007" role="requirement">
+    <title>SRQ_JET_PART_007</title>
+    <para>JetOS shall, while a partition is in <literal>IDLE</literal>
+      mode, run none of its processes, while its time slots stay assigned
+      to it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An idle partition must not disturb the schedule of the
+        others.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_008" role="requirement">
+    <title>SRQ_JET_PART_008</title>
+    <para>JetOS shall record, for each partition, why it started last
+      (normal start, partition restart, restart by the health monitor of
+      the module or of the partition) and give it, with its identifier,
+      period, duration, mode and lock level, as the status of the
+      partition on request.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An application decides what to recover from the reason of its
+        start.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_009" role="requirement">
+    <title>SRQ_JET_PART_009</title>
+    <para>JetOS shall let a partition raise the lock level of its
+      preemption (locking it) up to a maximum of 16 levels (a request
+      beyond it is refused with an error), and lower it; while the level
+      is above 0 the current process shall not be preempted by another
+      process of its partition, and when it falls to 0 the partition
+      shall choose the process to run again. The level shall not change
+      outside <literal>NORMAL</literal> mode or in the error handler.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Preemption locking is the ARINC 653 means to protect short
+        critical regions of a partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_010" role="requirement">
+    <title>SRQ_JET_PART_010</title>
+    <para>JetOS shall run, if configured, kernel-only partitions without
+      a memory space of their own, for the monitor and for the debugger,
+      as part of the kernel.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These partitions are parts of the kernel's own diagnostics,
+        not applications.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+</chapter>

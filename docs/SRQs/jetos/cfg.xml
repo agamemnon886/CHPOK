@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Configuration".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-cfg">
+  <title>Configuration</title>
+  <para>JetOS has no run-time configuration: a module is described once,
+    in a configuration file in the XML format of ARINC 653 part 1, and
+    the kernel is built for that description.</para>
+
+  <section xml:id="SRQ_JET_CFG_001" role="requirement">
+    <title>SRQ_JET_CFG_001</title>
+    <para>JetOS shall take the configuration of the module, that is its
+      partitions, their memory, the schedule, the ports and the channels
+      between them, and the health monitoring tables, from a description
+      that is fixed when it is built, and shall not change it while it
+      runs.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A fixed configuration is what makes the behaviour of the
+        module predictable and certifiable.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CFG_002" role="requirement">
+    <title>SRQ_JET_CFG_002</title>
+    <para>The schedule of a module shall be an ordered list of slots; the
+      duration of a slot shall be at least 1 millisecond; the length of a
+      major frame shall be the sum of the durations of its slots; the
+      kind of a slot shall be partition, spare, monitor, GDB or
+      networking.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The slots are what the time partitioning is made of.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CFG_003" role="requirement">
+    <title>SRQ_JET_CFG_003</title>
+    <para>JetOS shall be built only from a configuration in which: the
+      first slot belongs to a partition; every partition has at least one
+      slot in which its periodic processing may start; a slot for
+      networking is present if and only if networking is configured; the
+      memory blocks mapped into one partition do not share pages; names
+      that identify partitions, ports and memory blocks are unique when
+      compared without regard to case; and the sizes of the messages of
+      the two ends of a channel agree.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An inconsistent configuration is found when the module is
+        built, not when it flies.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CFG_004" role="requirement">
+    <title>SRQ_JET_CFG_004</title>
+    <para>JetOS shall treat names of partitions, processes, ports and
+      memory blocks as equal when they differ only in case.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>ARINC 653 names are case insensitive.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CFG_005" role="requirement">
+    <title>SRQ_JET_CFG_005</title>
+    <para>The configuration shall give each partition: a name, an
+      identifier, a period (the major frame if none is given), the size
+      of its memory, its ports, and its health monitoring table; and
+      shall tell whether it is a kernel-only partition.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the properties of a partition that the kernel needs
+        to schedule it and to give it memory.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CFG_006" role="requirement">
+    <title>SRQ_JET_CFG_006</title>
+    <para>The configuration shall give the module a health monitoring
+      table, and each partition one, mapping a system state and an error
+      to an action; where an entry is missing the action shall be
+      shutting down the module for the module table and idling the
+      partition for a partition table.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The default is the safe side of each level.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

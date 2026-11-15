@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "General constraints".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-gen">
+  <title>General constraints</title>
+  <para>These requirements apply to JetOS as a whole.</para>
+
+  <section xml:id="SRQ_JET_GEN_001" role="requirement">
+    <title>SRQ_JET_GEN_001</title>
+    <para>JetOS shall provide the same services with the same behaviour
+      on x86_64 and on arm64, except where this document says otherwise.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A partition must not depend on the architecture.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_GEN_002" role="requirement">
+    <title>SRQ_JET_GEN_002</title>
+    <para>JetOS shall not use floating point instructions in the kernel
+      itself, so that the floating point state belongs to the partitions
+      alone.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel need not save the state of the unit when it is
+        entered.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_GEN_003" role="requirement">
+    <title>SRQ_JET_GEN_003</title>
+    <para>JetOS shall be written for 64-bit processors, with its
+      addresses and sizes held in types that are as wide as the pointers.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Both targets are 64-bit.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_GEN_004" role="requirement">
+    <title>SRQ_JET_GEN_004</title>
+    <para>JetOS shall be built as one kernel image that holds the kernel,
+      the configuration, and the images of the partitions, for one board.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The module is loaded in one piece.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_GEN_005" role="requirement">
+    <title>SRQ_JET_GEN_005</title>
+    <para>JetOS shall be developed according to the MISRA C:2025
+      guidelines, with each deviation documented where it is made.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The coding rules are a means to the safety of the code.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+</chapter>

@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Inter-partition communication".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-ipc">
+  <title>Inter-partition communication</title>
+  <para>Partitions communicate only through ports. A port is an end of a
+    channel that the configuration draws between ports of partitions; it
+    is either a sampling port, which holds the latest message, or a
+    queuing port, which holds a queue of messages. Every port has a
+    direction, source (out) or destination (in).</para>
+
+  <section xml:id="SRQ_JET_IPC_001" role="requirement">
+    <title>SRQ_JET_IPC_001</title>
+    <para>JetOS shall let a partition communicate with other partitions
+      only through the ports that the configuration gives it, and shall
+      deliver the messages that a partition writes to a source port to
+      the destination port at the other end of its channel, whole and
+      unchanged.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Channels are the only way for partitions to exchange data, so
+        that the flow of information is as configured.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_002" role="requirement">
+    <title>SRQ_JET_IPC_002</title>
+    <para>JetOS shall create a port at the request of its partition only
+      while the partition is not in <literal>NORMAL</literal> mode, and
+      only if the name is that of a port of the partition in the
+      configuration and the maximum message size, the direction and, for
+      a queuing port, the maximum number of messages of the request agree
+      with it; otherwise it shall refuse the request with an error.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A port is what the configuration says, and the set of ports
+        is fixed once the partition runs.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_003" role="requirement">
+    <title>SRQ_JET_IPC_003</title>
+    <para>JetOS shall give a partition the identifier of a created port,
+      found by its name, and the status of a port: for a sampling port
+      its maximum message size, direction, refresh period and the
+      validity of the last message that was read, for a queuing port its
+      maximum message size, direction, maximum and present number of
+      messages, and the number of processes waiting.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partition has to find and to inspect its ports.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_004" role="requirement">
+    <title>SRQ_JET_IPC_004</title>
+    <para>JetOS shall make the ports of a partition unusable when the
+      partition restarts, so that the partition has to create them again.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Each start of a partition begins with no ports.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_005" role="requirement">
+    <title>SRQ_JET_IPC_005</title>
+    <para>JetOS shall not let a partition use a port of another
+      partition.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Ports are identified in the partition that created them only.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_006" role="requirement">
+    <title>SRQ_JET_IPC_006</title>
+    <para>JetOS shall keep in a sampling channel only the latest message,
+      and shall store a message of a sampling source port by replacing
+      the message that was there, with the time of writing.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A sampling port is for data that is refreshed, where only the
+        newest value counts.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_007" role="requirement">
+    <title>SRQ_JET_IPC_007</title>
+    <para>JetOS shall give the process that reads a sampling destination
+      port the latest message with its length, without removing it, and
+      whether it is valid, that is not older than the refresh period of
+      the port; and shall refuse a sampling port whose refresh period is
+      not finite and positive at its creation.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A reader must know whether the data is fresh enough to use.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_008" role="requirement">
+    <title>SRQ_JET_IPC_008</title>
+    <para>JetOS shall tell, on request, whether a sampling destination
+      port has a message that has not been read yet.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A reader can see if there is anything new before it reads.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_009" role="requirement">
+    <title>SRQ_JET_IPC_009</title>
+    <para>JetOS shall keep the messages of a queuing channel in the order
+      in which they were sent, deliver each one at most once, and give
+      the receiver the message that was sent first.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A queuing port is for data that must not be lost or
+        reordered.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_010" role="requirement">
+    <title>SRQ_JET_IPC_010</title>
+    <para>JetOS shall let a process send a message to a queuing source
+      port at once if the queue has room and no process is waiting to
+      send before it; otherwise it shall make the process wait, up to its
+      time-out (none, for no waiting; or infinite), until there is room,
+      and report an error for a time-out.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the blocking semantics of the queuing ports of
+        ARINC 653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_011" role="requirement">
+    <title>SRQ_JET_IPC_011</title>
+    <para>JetOS shall let a process receive a message from a queuing
+      destination port at once if there is one and no process is waiting
+      to receive before it; otherwise it shall make the process wait, up
+      to its time-out, until a message arrives, and report an error for a
+      time-out.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the blocking semantics of the queuing ports of
+        ARINC 653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_012" role="requirement">
+    <title>SRQ_JET_IPC_012</title>
+    <para>JetOS shall wake the processes that wait on a queuing port in
+      the order in which they began to wait or in the order of their
+      priorities, as the discipline of the port that the partition set
+      when creating it says.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The discipline is a choice of the application.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_013" role="requirement">
+    <title>SRQ_JET_IPC_013</title>
+    <para>JetOS shall wake a process that waits on a port when the
+      partition of the other end of the channel has made it possible,
+      although that partition runs only in its own slots.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Partitions run in different slots but their ports are linked.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_014" role="requirement">
+    <title>SRQ_JET_IPC_014</title>
+    <para>JetOS shall, if a message of a queuing channel cannot be queued
+      because the receiving side is full, discard the new message when
+      the channel is set to do so, and shall then tell the receiver, when
+      it next receives, that messages have been lost.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A receiver that is slower than the sender must know that it
+        lost data.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_015" role="requirement">
+    <title>SRQ_JET_IPC_015</title>
+    <para>JetOS shall discard the messages that are in the queue of a
+      queuing destination port when the partition clears it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A partition can drop what it does not want any more.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

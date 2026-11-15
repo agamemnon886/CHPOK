@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Start-up".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-boot">
+  <title>Start-up</title>
+  <para>These requirements cover what JetOS does between the moment a
+    boot loader or the firmware hands over the module and the moment the
+    first partition runs.</para>
+
+  <section xml:id="SRQ_JET_BOOT_001" role="requirement">
+    <title>SRQ_JET_BOOT_001</title>
+    <para>JetOS shall start on x86_64 when it is loaded by a Multiboot
+      boot loader, and on arm64 when it is entered at exception level 1
+      or 2.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the ways in which QEMU, the target of both boards,
+        starts a kernel image.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BOOT_002" role="requirement">
+    <title>SRQ_JET_BOOT_002</title>
+    <para>JetOS shall initialize, before the first partition runs: the
+      processor, the board (the consoles, the interrupt controller, the
+      timer and the calendar clock), the memory spaces of the partitions,
+      the partitions, the channels between ports and the schedule, in an
+      order in which each step finds what it needs ready.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partitions can be started only on top of memory
+        protection, a clock and a console.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BOOT_003" role="requirement">
+    <title>SRQ_JET_BOOT_003</title>
+    <para>JetOS shall start the consoles first, so that an error found
+      during the rest of the start-up can be reported.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Nothing else is available to show why a module does not come
+        up.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BOOT_004" role="requirement">
+    <title>SRQ_JET_BOOT_004</title>
+    <para>JetOS shall start the schedule at the first slot of a major
+      frame at the end of its initialization, and its start-up code shall
+      not return.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The module runs the partitions for as long as it is powered;
+        there is nothing to return to.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BOOT_005" role="requirement">
+    <title>SRQ_JET_BOOT_005</title>
+    <para>JetOS shall report a fatal error found during start-up (for
+      example an invalid memory block) on the main console and shall then
+      stop the module.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Health monitoring needs partitions, which do not exist yet at
+        that point.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BOOT_006" role="requirement">
+    <title>SRQ_JET_BOOT_006</title>
+    <para>JetOS shall run the application's main function directly, with
+      no partitions, when it is built for a module with no partitions
+      configured.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel started as a single-program operating system
+        before it became a partitioning one; this behaviour is kept for
+        the examples that use it.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

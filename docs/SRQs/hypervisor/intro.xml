@@ -61,7 +61,7 @@
   <section xml:id="hv-intro-conventions">
     <title>Conventions</title>
     <para>A requirement has an identifier of the form
-    <literal>SRQ-HV-<replaceable>AREA</replaceable>-<replaceable
+    <literal>SRQ_HV_<replaceable>AREA</replaceable>_<replaceable
     >NNN</replaceable></literal>, where
     <replaceable>AREA</replaceable> names the chapter of the
     requirement. An identifier is never changed and never used again

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Console".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-cons">
+  <title>Console</title>
+  <para>JetOS has a main console, a serial line that the kernel and the
+    partitions write their messages to and that the monitor reads its
+    commands from, and a debug console, a second serial line that is used
+    only by the GDB server.</para>
+
+  <section xml:id="SRQ_JET_CONS_001" role="requirement">
+    <title>SRQ_JET_CONS_001</title>
+    <para>JetOS shall write the text that a partition sends to the
+      console to the main console, as the partition gave it, and shall
+      not lose or mix the text of one write with that of another.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Partitions report their state and their errors on the
+        console.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_002" role="requirement">
+    <title>SRQ_JET_CONS_002</title>
+    <para>JetOS shall provide the kernel with formatted output to the
+      main console, whose text is written as one message, so that the
+      messages of the kernel and of a partition are not interleaved.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Messages that are mixed are unreadable.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_003" role="requirement">
+    <title>SRQ_JET_CONS_003</title>
+    <para>JetOS shall translate each line feed that it writes to the main
+      console into a carriage return and a line feed.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Serial terminals need both.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_004" role="requirement">
+    <title>SRQ_JET_CONS_004</title>
+    <para>JetOS shall give the main console and the debug console, on
+      request, the characters that have arrived, without waiting for
+      more, and shall be able to wait for the next character of each.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The monitor and the GDB server read their input this way.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_005" role="requirement">
+    <title>SRQ_JET_CONS_005</title>
+    <para>JetOS shall write to a console all the bytes it is given,
+      waiting for the device as long as it must.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A console must not lose output.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_006" role="requirement">
+    <title>SRQ_JET_CONS_006</title>
+    <para>JetOS shall drop what is written to a console that the board
+      does not provide, and give no input from it, instead of failing.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A module can run on a board that has no second serial line.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_007" role="requirement">
+    <title>SRQ_JET_CONS_007</title>
+    <para>JetOS shall pass the data of the debug console to the serial
+      line unchanged.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The protocol of the debugger needs the bytes as they are.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

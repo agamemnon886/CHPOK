@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Memory".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-mem">
+  <title>Memory</title>
+  <para>Each partition runs in a memory space of its own. The
+    requirements of this chapter state how the spaces are laid out and
+    what the kernel checks when it touches memory of a partition.</para>
+
+  <section xml:id="SRQ_JET_MEM_001" role="requirement">
+    <title>SRQ_JET_MEM_001</title>
+    <para>JetOS shall give each partition a memory space of its own: its
+      code and data, its heap and the stacks of its processes, backed by
+      physical memory that no other partition has.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Spatial partitioning is the basis of the isolation of
+        partitions.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test and analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_002" role="requirement">
+    <title>SRQ_JET_MEM_002</title>
+    <para>JetOS shall enable the memory protection of the processor
+      (paging on x86_64, the MMU on arm64) before any partition runs, and
+      shall run the partitions in the unprivileged mode of the processor.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Without both, a partition could reach the memory of the
+        kernel or of another partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis and test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_003" role="requirement">
+    <title>SRQ_JET_MEM_003</title>
+    <para>JetOS shall not let a partition read, write or execute the
+      memory of the kernel or of another partition; an attempt shall be
+      handled as a memory violation error of the partition (see health
+      monitoring).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A fault of one partition must stay in that partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_004" role="requirement">
+    <title>SRQ_JET_MEM_004</title>
+    <para>JetOS shall map a configured memory block, by its name, size,
+      virtual address and kind of access (read-only or read-write), into
+      every partition that is allowed to access it, and into no other;
+      the same physical memory shall back the block in all of them.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Memory blocks are the way partitions share memory when the
+        configuration says so.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_005" role="requirement">
+    <title>SRQ_JET_MEM_005</title>
+    <para>JetOS shall give a partition, on request, the address, the size
+      and the access that it has to a memory block named in the request,
+      and an error if it has no such block.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partition has to find out where a block is mapped.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_006" role="requirement">
+    <title>SRQ_JET_MEM_006</title>
+    <para>JetOS shall check every address that a partition passes to a
+      service: the area shall lie in the code, data and heap of the
+      partition, or in its stacks; a service shall refuse a request with
+      a bad area with an error and shall not touch the memory.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel must not be made to read or write memory that the
+        partition could not.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_007" role="requirement">
+    <title>SRQ_JET_MEM_007</title>
+    <para>JetOS shall accept as the entry point of a process only an
+      address in code that the partition can execute.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A process must not start in data or in the memory of another
+        space.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_008" role="requirement">
+    <title>SRQ_JET_MEM_008</title>
+    <para>JetOS shall allocate the stack of each process of a partition
+      from the stack area of the partition, with the size given when the
+      process is created, aligned as the processor requires, and shall
+      give all the stacks back when the partition restarts.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Stacks come from memory that the partition owns, and a
+        restart begins with all of it free.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_009" role="requirement">
+    <title>SRQ_JET_MEM_009</title>
+    <para>JetOS shall share with each partition an area at the start of
+      its memory, which the kernel and the partition both access, in
+      which they keep the state that the partition's library needs (such
+      as the mode of the partition and the state of its processes and
+      critical sections).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Some state is cheaper to read in the partition than to ask
+        the kernel for.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_010" role="requirement">
+    <title>SRQ_JET_MEM_010</title>
+    <para>JetOS shall allocate its own memory only while it initializes,
+      from a heap that starts after the kernel image and ends below the
+      memory of the partitions, and shall never free it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>No allocation after the start means no failing allocation and
+        no fragmentation during the operation.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_011" role="requirement">
+    <title>SRQ_JET_MEM_011</title>
+    <para>JetOS shall convert, at the request of a partition, an address
+      of its memory space to the physical address that backs it and back;
+      an address that does not belong to the space shall stop the module.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The old interface for drivers in partitions that need the
+        physical addresses of their buffers.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

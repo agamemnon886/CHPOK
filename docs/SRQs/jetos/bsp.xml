@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Boards".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-bsp">
+  <title>Boards</title>
+  <para>JetOS runs on two boards, both emulated by QEMU:
+    <literal>x86_64-qemu</literal>, the PC machine, and
+    <literal>arm64-qemu</literal>, the <literal>virt</literal> machine.
+    The requirements are those that the kernel has of a board.</para>
+
+  <section xml:id="SRQ_JET_BSP_001" role="requirement">
+    <title>SRQ_JET_BSP_001</title>
+    <para>A board shall provide to the kernel: the main console and
+      optionally the debug console, the interrupt controller with the
+      interrupt of a periodic timer, the system time, the calendar time,
+      a means to stop and to resume the system time, and the reset of the
+      module.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>This is all the kernel uses of the hardware that is not the
+        processor.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BSP_002" role="requirement">
+    <title>SRQ_JET_BSP_002</title>
+    <para>The board <literal>x86_64-qemu</literal> shall provide the
+      serial lines as consoles, the two 8259 interrupt controllers with
+      their interrupts delivered as vectors 32 to 47, the 8254 timer as
+      the periodic timer at the configured frequency, and the system time
+      from the time stamp counter of the processor, whose frequency is
+      calibrated against the timer at the start.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the devices of the PC machine.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BSP_003" role="requirement">
+    <title>SRQ_JET_BSP_003</title>
+    <para>The board <literal>arm64-qemu</literal> shall provide the PL011
+      serial lines as consoles (the second one only if QEMU creates it,
+      which the kernel finds in the device tree), the GICv2 interrupt
+      controller, the virtual timer of the processor as the periodic
+      timer at the configured frequency and as the system time, the PL031
+      real-time clock as the calendar time at the start, and the reset of
+      the module through PSCI.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the devices of the virt machine.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BSP_004" role="requirement">
+    <title>SRQ_JET_BSP_004</title>
+    <para>The boards shall place the memory of the partitions 16 MiB into
+      the RAM, below which are the kernel image and the heap of the
+      kernel, and shall assume 1 GiB of RAM.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Both boards have the same layout, and the same memory is
+        enough for the hypervisor.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BSP_005" role="requirement">
+    <title>SRQ_JET_BSP_005</title>
+    <para>The boards shall give the same behaviour to the kernel, except
+      where the devices differ: the time sources, the interrupt
+      controllers, the serial lines and the reset.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel above the boards is the same.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

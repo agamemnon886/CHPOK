@@ -579,12 +579,12 @@ library and the mathematical library) and the system partitions
 
 A document is a `<book>` that includes its chapters with XInclude, one
 file per chapter. A requirement is a section of its chapter, whose
-`xml:id` and title are its identifier, `SRQ-JET-<AREA>-<NNN>` (JetOS) or
-`SRQ-HV-<AREA>-<NNN>` (the hypervisor), where the area is that of the
+`xml:id` and title are its identifier, `SRQ_JET_<AREA>_<NNN>` (JetOS) or
+`SRQ_HV_<AREA>_<NNN>` (the hypervisor), where the area is that of the
 chapter; an identifier is never changed, nor used again:
 
-    <section xml:id="SRQ-JET-TIME-001" role="requirement">
-      <title>SRQ-JET-TIME-001</title>
+    <section xml:id="SRQ_JET_TIME_001" role="requirement">
+      <title>SRQ_JET_TIME_001</title>
       <para>JetOS shall ... .</para>
       <formalpara>
         <title>Rationale</title>
@@ -611,14 +611,15 @@ third-party `libm` and `protocols`), `syspart` and the C templates of
 `misc` has a Doxygen header right before its definition, except the
 `static inline` functions defined in headers, which have a plain comment
 and aren't documented. `make docs` turns
-the headers into one document per component, with Doxygen | `docs/shared.pdf` | the library and the headers shared by the kernel and the hypervisor (`common`, `include`) |
+the headers into one document per component, with Doxygen and LaTeX in
+the build image (`misc/docker/Dockerfile`, which builds Doxygen 1.18 from
 its source release):
 
 | Document | Contents |
 |----------|----------|
 | `docs/boards.pdf` | the board support packages (`kernel/bsps`) |
 | `docs/kernel.pdf` | the kernel (`kernel`, without `kernel/bsps`) |
-| `docs/shared.pdf` | the library shared by the kernel and the hypervisor (`common`) |
+| `docs/shared.pdf` | the library and the headers shared by the kernel and the hypervisor (`common`, `include`) |
 | `docs/libpok.pdf` | the library of the partitions (`libpok`) |
 | `docs/syspart.pdf` | the drivers and network components (`syspart`) |
 | `docs/hypervisor.pdf` | the hypervisor (`hypervisor`) |

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Support routines".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-lib">
+  <title>Support routines</title>
+  <para>The kernel carries the routines of the C library that it needs,
+    since it cannot use the library of a partition.</para>
+
+  <section xml:id="SRQ_JET_LIB_001" role="requirement">
+    <title>SRQ_JET_LIB_001</title>
+    <para>JetOS shall provide the kernel with the routines of the C
+      library that copy, fill, move, compare and search memory and that
+      measure, compare and search strings, with the behaviour that the C
+      standard gives them (strings compared without regard to case where
+      the name says so).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel code uses them in the usual way, and the behaviour
+        must be the standard one.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_LIB_002" role="requirement">
+    <title>SRQ_JET_LIB_002</title>
+    <para>JetOS shall provide formatted output that writes to the main
+      console and into a buffer of a given size, which it terminates with
+      a NUL and cuts to size, with the integer, hexadecimal, pointer,
+      character, string and percent conversions of the C standard.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Messages are formatted in the kernel.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

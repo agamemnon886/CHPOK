@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Debugging support".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-dbg">
+  <title>Debugging support</title>
+  <para>These requirements apply to the parts of JetOS that are there to
+    debug and to monitor a module. The GDB server, the monitor and the
+    instrumentation are present only in a kernel that is built with them.</para>
+
+  <section xml:id="SRQ_JET_DBG_001" role="requirement">
+    <title>SRQ_JET_DBG_001</title>
+    <para>JetOS shall, when it is built with the GDB server, accept
+      requests of the GDB remote serial protocol over the debug console,
+      with checksums and acknowledgments, in the time slots of the
+      schedule that are GDB slots and, if it is configured to wait for
+      GDB, at the start of the module before the partitions start.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A debugger can be connected to a module that is running in a
+        defined way.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_002" role="requirement">
+    <title>SRQ_JET_DBG_002</title>
+    <para>JetOS shall present to the debugger the kernel as process 1,
+      whose threads are the kernel-only partitions, and each user
+      partition as a process of its own, whose threads are the processes
+      of the partition and an idle thread for the time when no process
+      can run.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The debugger sees the module as ARINC 653 partitions and
+        processes.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_003" role="requirement">
+    <title>SRQ_JET_DBG_003</title>
+    <para>JetOS shall stop the whole module while the debugger holds it,
+      and shall not count the time spent stopped in the system time.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Time slots, deadlines and time-outs of the partitions must
+        not be affected by debugging.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_004" role="requirement">
+    <title>SRQ_JET_DBG_004</title>
+    <para>JetOS shall let the debugger read and write the registers of a
+      thread, including those of the floating point unit, and read and
+      write the memory of the space of a thread (or of the kernel) as far
+      as it can be accessed, showing the debugger the code that is in
+      memory under a breakpoint and keeping the breakpoints when the
+      debugger writes the code.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A debugger shows and changes the state of the module.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_005" role="requirement">
+    <title>SRQ_JET_DBG_005</title>
+    <para>JetOS shall let the debugger set and clear software
+      breakpoints, and hardware breakpoints and watchpoints (as far as
+      the processor supports their kind and size), and shall stop the
+      module and report the reason when one is hit.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the means of a debugger to stop the program at a
+        point or at an access.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_006" role="requirement">
+    <title>SRQ_JET_DBG_006</title>
+    <para>JetOS shall let the debugger resume the module, run it one
+      instruction at a time, change the program counter and interrupt a
+      running module in a GDB slot.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the controls of a debugger.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_007" role="requirement">
+    <title>SRQ_JET_DBG_007</title>
+    <para>JetOS shall let the debugger attach to and detach from the
+      processes, and shall end the session, with all the breakpoints and
+      watchpoints removed, when the debugger detaches from the last one.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A module must not keep breakpoints that nobody uses.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_008" role="requirement">
+    <title>SRQ_JET_DBG_008</title>
+    <para>JetOS shall, when it is built with the monitor, read commands
+      on the main console after a character has been typed, with the
+      partitions paused, and offer the commands that list the partitions,
+      give the state of a partition, pause, resume and restart it, reset
+      the module, leave the monitor and show help; and shall resume the
+      partitions that are not kept paused when the monitor is left.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An operator can examine and control a module on a terminal.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_009" role="requirement">
+    <title>SRQ_JET_DBG_009</title>
+    <para>JetOS shall let the monitor read a line with editing, a prompt
+      and the history of the lines typed.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Commands are typed by a person.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_010" role="requirement">
+    <title>SRQ_JET_DBG_010</title>
+    <para>JetOS shall, when it is built with instrumentation, print on
+      the console the description of the partitions and of the processes
+      and the events of the running process in the format of the Cheddar
+      scheduling tool.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A schedule can be analysed offline.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_011" role="requirement">
+    <title>SRQ_JET_DBG_011</title>
+    <para>JetOS shall provide a fatal stop of the kernel that prints a
+      message and halts the module, and that can be used at any point of
+      the kernel, also in a kernel thread with preemption enabled.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Errors that cannot be recovered must be reported, and the
+        module must not go on.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_DBG_012" role="requirement">
+    <title>SRQ_JET_DBG_012</title>
+    <para>JetOS shall provide a dump of memory on the console, in
+      hexadecimal with the printable characters, as a diagnostic.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The state of memory has to be seen when debugging.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

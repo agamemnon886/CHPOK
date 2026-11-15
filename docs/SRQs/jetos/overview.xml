@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Overview": the context in which
+  JetOS runs and its parts.
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-overview">
+  <title>Overview</title>
+
+  <section xml:id="jet-overview-context">
+    <title>System context</title>
+    <para>JetOS runs on a module, which it shares between partitions
+    as the configuration says. The partitions are the applications; the
+    ARINC 653 application executive interface that they use, and the C
+    library, are in the library of the partitions, which asks the kernel
+    for its services through system calls. The configuration of the
+    module is made when JetOS is built, and the kernel, the
+    configuration and the images of the partitions are one kernel
+    image, which a boot loader or the firmware starts.</para>
+  </section>
+
+  <section xml:id="jet-overview-parts">
+    <title>Parts of JetOS</title>
+    <itemizedlist>
+      <listitem>
+        <para>The core of the kernel (<filename>kernel/core</filename>)
+        schedules the partitions and their processes, keeps the
+        time, loads the partitions, carries messages between ports,
+        handles errors and answers system calls. It does not depend on
+        a processor or a board.</para>
+      </listitem>
+      <listitem>
+        <para>The CPU support packages
+        (<filename>kernel/csps</filename>) give the core the memory
+        spaces, the contexts of processes, the entry to the kernel from
+        system calls, interrupts and exceptions, and the access to the
+        memory of a partition, for x86_64 and for arm64.</para>
+      </listitem>
+      <listitem>
+        <para>The board support packages
+        (<filename>kernel/bsps</filename>) give the core the consoles,
+        the interrupt controller, the timer, the clocks and the reset
+        of a board.</para>
+      </listitem>
+      <listitem>
+        <para>The debugging support (<filename>kernel/debug</filename>),
+        which is present when it is configured, holds the GDB server and
+        the monitor.</para>
+      </listitem>
+      <listitem>
+        <para>The library that the kernel shares with the hypervisor
+        (<filename>common/</filename>) holds the memory routines and the
+        formatter of the output.</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+</chapter>

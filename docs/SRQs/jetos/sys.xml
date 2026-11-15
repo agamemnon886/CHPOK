@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "System calls".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-sys">
+  <title>System calls</title>
+  <para>Partitions use the services of the kernel through system calls.
+    Each is identified by a number and passes its arguments in a
+    structure in the memory of the partition.</para>
+
+  <section xml:id="SRQ_JET_SYS_001" role="requirement">
+    <title>SRQ_JET_SYS_001</title>
+    <para>JetOS shall provide the system calls that are listed in the
+      chapters of this document: the services of processes, critical
+      sections, time, ports, partitions, health monitoring, memory blocks
+      and the console, each one when the module is built to use it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The system calls are the interface between the partitions and
+        the kernel.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_002" role="requirement">
+    <title>SRQ_JET_SYS_002</title>
+    <para>JetOS shall accept a system call on x86_64 from a software
+      interrupt and on arm64 from the supervisor call instruction, with
+      the identifier of the call and the address of its arguments in
+      registers, and shall return the result of the call to the caller in
+      a register.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The two architectures differ in the instruction, not in the
+        service.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_003" role="requirement">
+    <title>SRQ_JET_SYS_003</title>
+    <para>JetOS shall return a result to the caller that tells whether
+      the call succeeded or why it failed.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Applications need to see the reason for an error.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_004" role="requirement">
+    <title>SRQ_JET_SYS_004</title>
+    <para>JetOS shall treat a system call with an unknown identifier as
+      an illegal request error of the calling partition.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A faulty partition must not harm the module.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_005" role="requirement">
+    <title>SRQ_JET_SYS_005</title>
+    <para>JetOS shall check the arguments of a system call that are
+      addresses, identifiers, names, sizes and modes before it uses them,
+      and refuse a bad one with an error.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A partition must not make the kernel misbehave with bad
+        arguments.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_006" role="requirement">
+    <title>SRQ_JET_SYS_006</title>
+    <para>JetOS shall run a system call with preemption enabled, except
+      for the code that must not be interrupted, so that the time that
+      the kernel needs for a call does not delay an interrupt for long.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The response of the module to the timer must stay short.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_007" role="requirement">
+    <title>SRQ_JET_SYS_007</title>
+    <para>JetOS shall, when it returns from a system call or from an
+      interrupt to a partition, first handle the events that the
+      partition has, and restore the state of the floating point unit of
+      the process that returns.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partition has to see what happened while it was in the
+        kernel.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_008" role="requirement">
+    <title>SRQ_JET_SYS_008</title>
+    <para>JetOS shall, when it is built to give partitions access to
+      input and output ports (x86_64 only), let a partition read and
+      write the ports in the range that the configuration gives to it,
+      and refuse any other port with a not-permitted error.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A partition may drive a device only if it is given the ports
+        of that device.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

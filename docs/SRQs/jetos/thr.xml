@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  JetOS System Requirements, chapter "Processes".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="jet-thr">
+  <title>Processes</title>
+  <para>A process (in ARINC 653 terms; thread in the code) is the unit of
+    execution inside a partition. The names of the services follow ARINC
+    653. The scheduling of the partitions is in the chapter "Scheduling".</para>
+
+  <section xml:id="SRQ_JET_THR_001" role="requirement">
+    <title>SRQ_JET_THR_001</title>
+    <para>JetOS shall create a process of a partition only while the
+      partition is not in <literal>NORMAL</literal> mode, with the
+      attributes given: its name, entry point, base priority, period,
+      time capacity, deadline and stack size; and shall refuse an invalid
+      attribute, a name that another process of the partition has, or an
+      entry point outside executable code, with an error.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>All processes exist when the partition starts to work
+        normally.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_002" role="requirement">
+    <title>SRQ_JET_THR_002</title>
+    <para>JetOS shall accept base and current priorities only from 1 to
+      239.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>This is the range of priorities of the processes of a
+        partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_003" role="requirement">
+    <title>SRQ_JET_THR_003</title>
+    <para>JetOS shall give, on request, the identifier of a process
+      identified by its name, and the name, entry point, attributes,
+      current priority and state of a process identified by its
+      identifier; the main process and the error handler shall not be
+      found by name.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Processes are found by name and then controlled by
+        identifier.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_004" role="requirement">
+    <title>SRQ_JET_THR_004</title>
+    <para>JetOS shall run in a partition, among its ready processes, the
+      one with the highest current priority, and among those of the same
+      priority the one that has been ready for longest.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>This is the ARINC 653 scheduling of processes.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_005" role="requirement">
+    <title>SRQ_JET_THR_005</title>
+    <para>JetOS shall preempt the running process as soon as a process of
+      a higher priority becomes ready, unless the partition has locked
+      preemption.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A higher-priority process responds without delay.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_006" role="requirement">
+    <title>SRQ_JET_THR_006</title>
+    <para>JetOS shall let a process: wait for a duration or until a time;
+      yield to the ready processes of its priority; suspend itself, with
+      a time-out or without; and end its own activation; and shall let a
+      duration of zero for a wait yield, and a time-out of zero for a
+      suspension do nothing.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the services of a process to give the processor
+        away.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_007" role="requirement">
+    <title>SRQ_JET_THR_007</title>
+    <para>JetOS shall refuse a request for a process to wait, with an
+      error, while the partition is locked, is not in
+      <literal>NORMAL</literal> mode, or the process is the error
+      handler.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A wait there would block the partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_008" role="requirement">
+    <title>SRQ_JET_THR_008</title>
+    <para>JetOS shall let a process suspend another process of the
+      partition, and resume a suspended process; a suspended process
+      shall be waiting, and shall not run until resumed.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>ARINC 653 lets a process control another one.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_009" role="requirement">
+    <title>SRQ_JET_THR_009</title>
+    <para>JetOS shall let a process start a stopped process after a delay
+      (none for an immediate start) and stop another process or itself; a
+      stopped process shall run again only if started; a process that is
+      in a critical section shall be stopped only after it has left it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Stopping a process inside a critical section would leave the
+        section locked for ever.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_010" role="requirement">
+    <title>SRQ_JET_THR_010</title>
+    <para>JetOS shall let a process change the current priority of a
+      process, which shall then take its place after the ready processes
+      of the new priority.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Priorities are dynamic in ARINC 653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_011" role="requirement">
+    <title>SRQ_JET_THR_011</title>
+    <para>JetOS shall, at the end of an activation of a periodic process,
+      hold the process until its next activation and move its deadline to
+      match the new activation; and shall let a process move its own
+      deadline to a time that is the present time plus a budget, an
+      infinite budget removing the deadline of an aperiodic process.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the periodic wait and the replenishment of ARINC
+        653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_012" role="requirement">
+    <title>SRQ_JET_THR_012</title>
+    <para>JetOS shall raise a deadline missed error of a process (see
+      health monitoring) when the process has not ended its activation
+      before its deadline.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The health monitoring is the means to recover from a late
+        process.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_013" role="requirement">
+    <title>SRQ_JET_THR_013</title>
+    <para>JetOS shall keep a context of its own for each process: a
+      kernel stack, a user stack, the registers, and the state of the
+      floating point unit, and shall restore it when the process runs
+      again; the floating point state of a process shall never be seen by
+      another process or partition.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A process must not see the effect of the others on its
+        registers.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

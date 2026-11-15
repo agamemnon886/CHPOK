@@ -477,7 +477,7 @@ SRQS_BUILD = out=$(DOCS_OUT)/$$d && pdf=$(DOCS_DIR)/$$d.pdf && \
 	    echo "dblatex failed: see $$out/dblatex.log"; exit 1; }; } && \
 	t1=$$(date +%s) && \
 	cp $$out/$$d.pdf $$pdf && \
-	reqs=$$(grep -c "xml:id=\"SRQ-" $$out/$$d.xml || true) && \
+	reqs=$$(grep -c "xml:id=\"SRQ_" $$out/$$d.xml || true) && \
 	pages=$$(sed -n \
 		"s/^Output written on .*pdf (\([0-9]*\) pages.*/\1/p" \
 		$$out/tex/$$d.log | tail -1) && \
