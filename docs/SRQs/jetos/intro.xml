@@ -63,8 +63,9 @@
         (<filename>kernel/bsps</filename>);</para>
       </listitem>
       <listitem>
-        <para>the library that the kernel shares with the hypervisor
-        (<filename>common/</filename>), as it is used by the
+        <para>the library and the headers that the kernel shares with
+        the hypervisor (<filename>common/</filename> and
+        <filename>include/</filename>), as they are used by the
         kernel.</para>
       </listitem>
     </itemizedlist>

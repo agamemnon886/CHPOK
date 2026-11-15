@@ -40,7 +40,8 @@
     JetOS hypervisor. The high level requirements of the functions of
     the hypervisor, which are written in the headers of the functions
     and published in the function documentation
-    (<filename>docs/hypervisor.pdf</filename>), are traced to the
+    (<filename>docs/hypervisor.pdf</filename> and
+    <filename>docs/shared.pdf</filename>), are traced to the
     requirements of this document.</para>
   </section>
 
@@ -53,6 +54,15 @@
     arm64 processors with EL2. Its configuration (the VMs, their
     images, memory, processors and serial ports) is fixed when the
     hypervisor is built.</para>
+    <para>The hypervisor consists of its core
+    (<filename>hypervisor/core</filename>), the CPU support packages of
+    the two architectures (<filename>hypervisor/csps</filename>), the
+    board support packages, which hold the devices of the board and the
+    virtual devices of the VMs (<filename>hypervisor/bsps</filename>),
+    and the library and the headers that it shares with the JetOS
+    kernel (<filename>common/</filename> and
+    <filename>include/</filename>), as they are used by the
+    hypervisor.</para>
     <para>JetOS itself (the kernel and the board support packages) is
     not in the scope of this document: its requirements are in the
     document <citetitle>JetOS System Requirements</citetitle>.</para>

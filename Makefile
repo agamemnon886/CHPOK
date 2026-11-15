@@ -120,7 +120,8 @@
 # docs/Hypervisor_SRQs.pdf from their DocBook 5 sources in docs/SRQs
 # (make docs-srqs, make docs-<name>); make clean-docs keeps docs/.
 # docs/shared.pdf documents the library that the kernel and the
-# hypervisor share (common/).
+# hypervisor share (common/ and include/). make clean no longer looks for
+# boards/ (the board support packages are in kernel/bsps).
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -541,7 +542,7 @@ clean: $(addprefix clean-,$(EXAMPLES)) clean-tests clean-benchmarks \
 	rm -rf build
 	find . -path ./.git -prune -o -type d -name __pycache__ -prune \
 		-exec rm -rf {} +
-	find boards kernel libpok syspart misc -name '.sconsign*' -delete
+	find kernel libpok syspart misc -name '.sconsign*' -delete
 	find kernel libpok syspart -name '*.o' -delete
 
 $(addprefix clean-,$(EXAMPLES)):
