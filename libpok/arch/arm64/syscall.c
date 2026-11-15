@@ -35,6 +35,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
  * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-15: the comments name kernel/csps (it
+ * was kernel/arch).
  */
 
 /**
@@ -49,7 +52,7 @@
  * @funcname `lja_do_syscall`
  *
  * @description
- * Performs a syscall. The convention (see kernel/arch/arm64/syscalls.c) is svc
+ * Performs a syscall. The convention (see kernel/csps/arm64/syscalls.c) is svc
  * \#0 with the syscall ID in x0 and the address of the arguments in x1; the
  * result is returned in x0, other registers are preserved.
  *

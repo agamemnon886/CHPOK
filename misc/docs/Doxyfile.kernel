@@ -27,6 +27,9 @@
 # types of the kernel (kernel/), built by `make docs` or `make docs-kernel`. The
 # shared settings are in misc/docs/Doxyfile.common, which also explains the
 # input.
+#
+# Modified by Kirill Brazhnikov, 2026-11-15: the board support packages,
+# now in kernel/bsps, stay in docs/boards.pdf (EXCLUDE).
 
 @INCLUDE               = misc/docs/Doxyfile.common
 
@@ -38,3 +41,5 @@ WARN_LOGFILE           = build/docs/kernel/warnings.log
 # The C files and headers of kernel/, and the groups of the types and
 # macros.
 INPUT                  = kernel misc/docs/groups.dox
+# The board support packages have their own document, docs/boards.pdf.
+EXCLUDE                = kernel/bsps

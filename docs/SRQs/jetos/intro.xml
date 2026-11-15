@@ -52,14 +52,19 @@
     <itemizedlist>
       <listitem>
         <para>the kernel (<filename>kernel/</filename>): the
-        architecture independent core, the code of the supported
-        processor architectures (x86_64 and arm64) and the support
-        library of the kernel;</para>
+        architecture independent core
+        (<filename>kernel/core</filename>), the debugging support
+        (<filename>kernel/debug</filename>), the CPU support packages
+        of the supported processor architectures, x86_64 and arm64
+        (<filename>kernel/csps</filename>), and the board support
+        packages, <literal>x86_64-qemu</literal> and
+        <literal>arm64-qemu</literal>
+        (<filename>kernel/bsps</filename>);</para>
       </listitem>
       <listitem>
-        <para>the board support packages
-        (<filename>boards/</filename>): <literal>x86_64-qemu</literal>
-        and <literal>arm64-qemu</literal>.</para>
+        <para>the library that the kernel shares with the hypervisor
+        (<filename>common/</filename>), as it is used by the
+        kernel.</para>
       </listitem>
     </itemizedlist>
     <para>The following are not part of JetOS as defined here, and

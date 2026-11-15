@@ -28,6 +28,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
  * removed (header files are not documented).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-15: the comments name kernel/csps (it
+ * was kernel/arch).
  */
 
 #ifndef JET_ASP_CSWITCH_H
@@ -38,13 +41,13 @@
 /* Opaque (kernel thread) context for switch to. */
 /*
  * The context of a kernel thread, which each architecture defines
- * (kernel/arch/<arch>/thread.h); the rest of the kernel uses it by pointer.
+ * (kernel/csps/<arch>/thread.h); the rest of the kernel uses it by pointer.
  */
 typedef struct jet_context jet_context_t;
 
 /*
  * The registers saved on an interrupt or exception, which each
- * architecture defines (kernel/arch/<arch>/include/arch/
+ * architecture defines (kernel/csps/<arch>/include/arch/
  * interrupt_frame.h).
  */
 typedef struct jet_interrupt_context interrupt_frame;

@@ -24,9 +24,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # The configuration of docs/boards.pdf, the documentation of the functions and
-# types of the board support packages (boards/), built by `make docs` or `make
-# docs-boards`. The shared settings are in misc/docs/Doxyfile.common, which also
-# explains the input.
+# types of the board support packages (kernel/bsps), built by `make docs` or
+# `make docs-boards`. The shared settings are in misc/docs/Doxyfile.common,
+# which also explains the input.
+#
+# Modified by Kirill Brazhnikov, 2026-11-15: the board support packages are
+# in kernel/bsps (they were in boards/).
 
 @INCLUDE               = misc/docs/Doxyfile.common
 
@@ -35,6 +38,6 @@ PROJECT_BRIEF          = "Functions and data types"
 OUTPUT_DIRECTORY       = build/docs/boards
 WARN_LOGFILE           = build/docs/boards/warnings.log
 
-# The C files and headers of boards/, and the groups of the types and
+# The C files and headers of kernel/bsps, and the groups of the types and
 # macros.
-INPUT                  = boards misc/docs/groups.dox
+INPUT                  = kernel/bsps misc/docs/groups.dox

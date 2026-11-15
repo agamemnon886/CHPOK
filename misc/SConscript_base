@@ -27,6 +27,9 @@
 # Modified by Kirill Brazhnikov, 2026-11-07: pok.elf is linked with
 # LINKFLAGS_ELF.
 #
+# Modified by Kirill Brazhnikov, 2026-11-15: the kernel is linked with
+# kernel/bsps/bsp.lo and common/common.lo.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import os
@@ -123,12 +126,13 @@ Default(gdb_commands)
 pok_env = env.Clone()
 
 env.Append(CPPPATH = env['KERNEL_CPPPATH'])
-# deployment.c is linked into the kernel (see boards/SConscript).
+# deployment.c is linked into the kernel (see kernel/bsps/SConscript).
 env.Append(CFLAGS = ' ' + env['CFLAGS_KERNEL'])
 
 env.Program(target = env['BUILD_DIR']+'kernel.lo', source = [
 env['POK_PATH']+'/build/'+env['BSP']+'/kernel/core.lo',
-env['POK_PATH']+'/build/'+env['BSP']+'/boards/bsp.lo',
+env['POK_PATH']+'/build/'+env['BSP']+'/kernel/bsps/bsp.lo',
+env['POK_PATH']+'/build/'+env['BSP']+'/common/common.lo',
 env['BUILD_DIR']+'deployment.c'])
 
 # there should (perhaps) also be padding to get aligned file size

@@ -38,6 +38,9 @@
  * moved here; the enum types are named with _e: ja_gdb_hw_type_e (was
  * ja_gdb_hw_type_t); the Doxygen comment of the file is removed (header files
  * are not documented).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-15: the comments name kernel/csps (it
+ * was kernel/arch).
  */
 
 #ifndef JET_ASP_GDB_H
@@ -156,8 +159,8 @@ typedef enum {
  * @description
  * Hardware breakpoint or watchpoint in a debug register, as the GDB server
  * set it; the same type on x86_64 and arm64. On x86_64
- * (kernel/arch/x86_64/gdb.c), hw_slots has one for each debug address register
- * (DR0 to DR3, JA_GDB_HW_SLOTS); on arm64 (kernel/arch/arm64/gdb.c),
+ * (kernel/csps/x86_64/gdb.c), hw_slots has one for each debug address register
+ * (DR0 to DR3, JA_GDB_HW_SLOTS); on arm64 (kernel/csps/arm64/gdb.c),
  * hw_breakpoints has one for each breakpoint register (DBGBVRn) and
  * hw_watchpoints one for each watchpoint register (DBGWVRn).
  */

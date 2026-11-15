@@ -49,7 +49,8 @@
 #   make clean-hv        # clean the hypervisor builds
 #   make docs            # build the documentation of the C functions, one
 #                        # PDF per component: docs/boards.pdf, kernel.pdf,
-#                        # libpok.pdf, syspart.pdf, hypervisor.pdf
+#                        # shared.pdf, libpok.pdf, syspart.pdf,
+#                        # hypervisor.pdf
 #                        # (misc/docs, in Docker)
 #                        # and the system requirements documents
 #                        # docs/JetOS_SRQs.pdf and Hypervisor_SRQs.pdf
@@ -118,6 +119,8 @@
 # system requirements documents docs/JetOS_SRQs.pdf and
 # docs/Hypervisor_SRQs.pdf from their DocBook 5 sources in docs/SRQs
 # (make docs-srqs, make docs-<name>); make clean-docs keeps docs/.
+# docs/shared.pdf documents the library that the kernel and the
+# hypervisor share (common/).
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -206,9 +209,10 @@ help:
 	@echo "  make hv-test         Run the hypervisor tests"
 	@echo "  make clean-hv        Clean the hypervisor builds"
 	@echo "  make docs            Build the function docs: docs/boards.pdf,"
-	@echo "                       kernel.pdf, libpok.pdf, syspart.pdf and"
-	@echo "                       hypervisor.pdf, and the system"
-	@echo "                       requirements: docs/JetOS_SRQs.pdf and"
+	@echo "                       kernel.pdf, shared.pdf, libpok.pdf,"
+	@echo "                       syspart.pdf and hypervisor.pdf, and"
+	@echo "                       the system requirements:"
+	@echo "                       docs/JetOS_SRQs.pdf and"
 	@echo "                       Hypervisor_SRQs.pdf"
 	@echo "  make docs-<name>     Build one of them (e.g. make docs-kernel)"
 	@echo "  make docs-srqs       Build the system requirements only"
@@ -382,7 +386,7 @@ docker-image:
 # itself runs in batch mode, silently), the warnings about the headers
 # (build/docs/<name>/warnings.log) and a summary. The whole output is in
 # build/docs/<name>/doxygen.log and latex.log.
-DOCS := boards kernel libpok syspart hypervisor
+DOCS := boards kernel shared libpok syspart hypervisor
 DOCS_DIR := docs
 DOCS_OUT := build/docs
 DOCS_TARGETS := $(addprefix docs-,$(DOCS))

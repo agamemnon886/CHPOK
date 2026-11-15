@@ -29,6 +29,9 @@
 # Modified by Kirill Brazhnikov, 2026-11-05: the register checks depend on
 # the architecture (x86-64 or AArch64); check_kernel_hw() is new; the
 # registers of another process of the stopped partition are checked.
+#
+# Modified by Kirill Brazhnikov, 2026-11-15: a comment names kernel/csps
+# (it was kernel/arch).
 
 import os
 import time
@@ -152,7 +155,7 @@ def check_registers_x86_64():
 
 
 def check_registers_aarch64():
-    # The partitions' memory starts at 0x100000000 (kernel/arch/arm64).
+    # The partitions' memory starts at 0x100000000 (kernel/csps/arm64).
     check("EL0", int(gdb.parse_and_eval("$cpsr")) & 0x1f == 0,
           run("p/x $cpsr"))
     sp = int(gdb.parse_and_eval("$sp"))

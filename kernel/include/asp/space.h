@@ -34,6 +34,9 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the Doxygen comment of the file is
  * removed (header files are not documented).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-15: the comments name kernel/csps (it
+ * was kernel/arch).
  */
 
 #ifndef JET_ASP_SPACE_H
@@ -147,7 +150,7 @@ jet_ustack_t ja_ustack_alloc (jet_space_id space_id, size_t stack_size);
  */
 /*
  * The floating point registers of a thread, which each architecture
- * defines (kernel/arch/<arch>/space.h); used by pointer.
+ * defines (kernel/csps/<arch>/space.h); used by pointer.
  */
 typedef struct jet_fp_store jet_fp_store_t;
 

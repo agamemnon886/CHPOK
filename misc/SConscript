@@ -29,6 +29,10 @@
 # -Wextra; assembly files get a non-executable stack note; ld isn't asked
 # to warn about RWX segments in pok.elf and part.elf (LINKFLAGS_ELF).
 #
+# Modified by Kirill Brazhnikov, 2026-11-15: the kernel's CPU and board code is
+# in kernel/csps and kernel/bsps (it was kernel/arch and boards/); builds the
+# library shared with the hypervisor, common/.
+#
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 import sys
@@ -110,8 +114,8 @@ env['ARCH'] = bsp_arch_dict[env['BSP']]
 
 env['KERNEL_CPPPATH'] = [
     env['POK_PATH']+'/kernel/include',
-    env['POK_PATH']+'/kernel/arch/' + env['ARCH'] + '/include',
-    env['POK_PATH']+'/boards/' + env['BSP'] + '/include',
+    env['POK_PATH']+'/kernel/csps/' + env['ARCH'] + '/include',
+    env['POK_PATH']+'/kernel/bsps/' + env['BSP'] + '/include',
 ]
 
 env['LIBPOK_CPPPATH'] = [
@@ -215,16 +219,20 @@ env['CFLAGS_KERNEL'] = arch_kernel_flags_dict.get(env['ARCH'], "")
 
 # ldscript for kernel.
 arch_kernel_ldscript_dict = {
-    'x86_64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/kernel.lds',
-    'arm64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/kernel.lds'
+    'x86_64': env['POK_PATH'] + '/kernel/bsps/' + env['BSP'] +
+              '/ldscripts/kernel.lds',
+    'arm64': env['POK_PATH'] + '/kernel/bsps/' + env['BSP'] +
+             '/ldscripts/kernel.lds'
 }
 
 env['LDSCRIPT_KERNEL'] = arch_kernel_ldscript_dict.get(env['ARCH'])
 
 # ldscript for partitions.
 arch_partition_ldscript_dict = {
-    'x86_64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/partition.lds',
-    'arm64': env['POK_PATH'] + '/boards/' + env['BSP'] + '/ldscripts/partition.lds'
+    'x86_64': env['POK_PATH'] + '/kernel/bsps/' + env['BSP'] +
+              '/ldscripts/partition.lds',
+    'arm64': env['POK_PATH'] + '/kernel/bsps/' + env['BSP'] +
+             '/ldscripts/partition.lds'
 }
 
 env['LDSCRIPT_PARTITION'] = arch_partition_ldscript_dict.get(env['ARCH'])
@@ -297,7 +305,10 @@ if env.GetOption('help'):
 
 Export('env')
 
-SConscript('../boards/SConscript', variant_dir = '../build/'+env['BSP']+'/boards', duplicate = 0)
+# The library that the kernel shares with the hypervisor (common/); the
+# board support packages are built by kernel/SConscript (kernel/bsps).
+SConscript('../common/SConscript',
+           variant_dir = '../build/'+env['BSP']+'/common', duplicate = 0)
 SConscript('../kernel/SConscript', variant_dir = '../build/'+env['BSP']+'/kernel', duplicate = 0)
 SConscript('../libpok/SConscript', variant_dir = '../build/'+env['BSP']+'/libpok', duplicate = 0)
 SConscript('../syspart/SConscript', variant_dir = '../build/'+env['BSP']+'/syspart', duplicate = 0)
