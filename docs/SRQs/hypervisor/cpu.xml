@@ -87,10 +87,11 @@
   <section xml:id="SRQ_HV_CPU_004" role="requirement">
     <title>SRQ_HV_CPU_004</title>
     <para>The hypervisor shall show the guest one CPU: on x86_64 by the
-      CPUID instruction, which gives the values of the host, but without
-      SVM, the local APIC and the topology, with one CPU and with the bit
-      that tells that a hypervisor is present; on arm64 by the processor
-      identity register, which reads as the number of the vCPU.</para>
+      CPUID instruction, which gives the values of the host without SVM,
+      the local APIC, x2APIC, MONITOR and the topology, with one CPU,
+      with the bit that tells that a hypervisor is present and with a
+      vendor leaf of the hypervisor; on arm64 by the processor identity
+      register, which reads as the number of the vCPU.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A guest must not try to use what the hypervisor does not give
@@ -106,11 +107,13 @@
     <title>SRQ_HV_CPU_005</title>
     <para>The hypervisor shall run a guest directly on the processor, and
       shall take control only for what the guest cannot do itself: on
-      x86_64 the intercepted instructions (port access, CPUID, model
-      specific registers, halt) and the nested page faults; on arm64 the
-      exceptions that go to exception level 2 (access to an emulated
-      device, hypervisor and secure monitor calls, and faults of the
-      stage 2 translation).</para>
+      x86_64 the physical interrupts, port access, CPUID, the model
+      specific registers, halt, a triple fault, the nested page faults,
+      and the virtualization instructions, INVLPGA, MONITOR and MWAIT,
+      for which the guest gets an invalid opcode exception; on arm64 the
+      physical interrupts, the hypervisor and secure monitor calls, the
+      aborts of the stage 2 translation, the wait instructions (which go
+      on), system errors and exceptions from 32-bit code.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The guest runs at full speed, and the hypervisor stays in
@@ -126,9 +129,10 @@
     <title>SRQ_HV_CPU_006</title>
     <para>The hypervisor shall emulate the model specific registers of a
       guest on x86_64: the extended feature register (without SVM), the
-      page attribute table, the system call registers and the segment
-      base registers work; all others read as zero and ignore writes, the
-      first access to each being reported.</para>
+      time stamp counter, the page attribute table, the system call
+      registers and the segment base registers work; all others read as
+      zero and ignore writes, and the first access to each of the first
+      16 of them is reported.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A guest can run with the registers that it uses, and nothing

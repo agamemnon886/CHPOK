@@ -85,12 +85,12 @@
 
   <section xml:id="SRQ_HV_CON_004" role="requirement">
     <title>SRQ_HV_CON_004</title>
-    <para>The hypervisor shall connect the console of a VM to the serial
-      port of the computer that the configuration gives it: the guest
-      port COM1 on x86_64 and its first PL011 on arm64, either directly,
-      if it is the same port of the computer (COM1 on x86_64; COM1 or
-      COM2 on arm64), or by repeating each access of the guest on the
-      port of the computer.</para>
+    <para>The hypervisor shall connect the console of a VM (the guest
+      port COM1 on x86_64, its first PL011 on arm64) to the serial port
+      of the computer that the configuration gives it: directly if the
+      guest can use that port itself (the host COM1 on x86_64; a PL011,
+      COM1 or COM2, on arm64), otherwise by repeating each access of the
+      guest on the port of the computer.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Each VM has a console of its own.</para>
@@ -103,15 +103,32 @@
 
   <section xml:id="SRQ_HV_CON_005" role="requirement">
     <title>SRQ_HV_CON_005</title>
-    <para>The hypervisor shall connect the GDB port of a VM, the guest
-      port COM2 on x86_64 and its second PL011 on arm64, to the serial
-      port of the computer that the configuration gives it in the same
-      way, so that the GDB server of the JetOS in the VM can be used
-      while the other VMs run; when the debugger stops a VM, only that VM
-      shall stop.</para>
+    <para>The hypervisor shall connect the GDB port of a VM (the guest
+      port COM2 on x86_64, its second PL011 on arm64) to the serial port
+      of the computer that the configuration gives it, directly if the
+      guest can use that port itself (the host COM2 on x86_64; a PL011 on
+      arm64), otherwise by repeating each access; the GDB server of the
+      JetOS in the VM can then be used while the other VMs run, and when
+      the debugger stops a VM only that VM shall stop.</para>
     <formalpara>
       <title>Rationale</title>
       <para>VMs are debugged one at a time, without stopping the others.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+  <section xml:id="SRQ_HV_CON_006" role="requirement">
+    <title>SRQ_HV_CON_006</title>
+    <para>On arm64 the hypervisor shall find the serial ports COM3 to
+      COM16 as 16550 UARTs on PCI bus 0, in the slots that the script of
+      its build gives them (slot 0x10 + n - 3 for COMn), and give each
+      one I/O space.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The virt machine has only two PL011 ports; the others are
+        PCI cards.</para>
     </formalpara>
     <formalpara>
       <title>Verification</title>

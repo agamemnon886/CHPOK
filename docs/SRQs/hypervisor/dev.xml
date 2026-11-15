@@ -39,9 +39,12 @@
     <para>On x86_64 the hypervisor shall give the guest the I/O ports of
       its devices only: the 8259A pair (0x20-0x21, 0xA0-0xA1), the 8254
       timer and port B (0x40-0x43, 0x61), the console port (COM1) and the
-      GDB port (COM2) of the VM, and the reset ports (0x64, 0xCF9); any
-      other port shall read as all ones and ignore writes, the first
-      access to each being reported on the console of the hypervisor.</para>
+      GDB port (COM2) of the VM, and the keyboard controller (0x60, 0x64)
+      and reset control (0xCF9) ports, through which the guest resets the
+      VM; any other port shall read as all ones and ignore writes, the
+      first access to each being reported on the console of the
+      hypervisor, except for the ports 0x80, 0xED and 0xCF8-0xCFF, which
+      are silent.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A guest must not drive a device that is not its own.</para>
@@ -88,11 +91,11 @@
 
   <section xml:id="SRQ_HV_DEV_004" role="requirement">
     <title>SRQ_HV_DEV_004</title>
-    <para>On arm64 the hypervisor shall emulate an access to an emulated
-      device of a guest that it can decode (an instruction that gives its
-      syndrome), shall report the first access to each register that it
-      does not emulate, and shall stop the VM for an access that it
-      cannot emulate.</para>
+    <para>On arm64 the hypervisor shall emulate an access of a guest to
+      an emulated device that it can decode (an instruction that gives
+      its syndrome); a register that it does not emulate shall read as
+      zero and ignore writes, the first access to each being reported;
+      and it shall stop the VM for an access that it cannot decode.</para>
     <formalpara>
       <title>Rationale</title>
       <para>An instruction that cannot be decoded cannot be repeated for

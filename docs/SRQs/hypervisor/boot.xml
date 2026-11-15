@@ -55,10 +55,12 @@
 
   <section xml:id="SRQ_HV_BOOT_002" role="requirement">
     <title>SRQ_HV_BOOT_002</title>
-    <para>The hypervisor shall compute the CRC-32 of its own image before
-      it does anything else, compare it with the one stored in the image
-      when it was linked, and, if they differ, print both on its console
-      and halt, with no VM and no other CPU started.</para>
+    <para>The hypervisor shall compute the CRC-32 of its own image when
+      it starts, after it has set up its console (on arm64 also its MMU,
+      from the device tree), and before it checks the processor or sets
+      up a VM; it shall compare it with the one stored in the image when
+      it was linked and, if they differ, print both on its console and
+      halt, with no VM and no other CPU started.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A corrupted image of the hypervisor must not run the VMs,

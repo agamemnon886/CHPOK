@@ -102,10 +102,10 @@
 
   <section xml:id="SRQ_HV_TMR_005" role="requirement">
     <title>SRQ_HV_TMR_005</title>
-    <para>The hypervisor shall measure, when it starts, the frequency of
-      the time stamp counter and of the local APIC timer (on x86_64), or
-      read the frequency of the counter (on arm64), and shall stop with a
-      message if it cannot measure them.</para>
+    <para>The hypervisor shall, when it starts, measure the frequencies
+      of the time stamp counter and of the local APIC timer against the
+      8254 timer and stop with a message if it cannot measure them
+      (x86_64), or read the frequency of the system counter (arm64).</para>
     <formalpara>
       <title>Rationale</title>
       <para>Delays and the rate of the tick of a guest depend on them.</para>

@@ -106,11 +106,12 @@
 
   <section xml:id="SRQ_HV_INT_005" role="requirement">
     <title>SRQ_HV_INT_005</title>
-    <para>The hypervisor shall make the interrupts of the host that it
-      needs for itself the only ones that it takes: on x86_64 the local
-      APIC timer, on arm64 the virtual timer and the maintenance
-      interrupt of the GIC; and shall ignore a spurious interrupt, and
-      treat any other interrupt or exception of its own as a fatal error.</para>
+    <para>The hypervisor shall use, for itself, only the interrupts of
+      the host that it needs: on x86_64 the local APIC timer, on arm64
+      the virtual timer and the maintenance interrupt of the GIC; it
+      shall ignore a spurious interrupt, report any other interrupt on
+      its console and go on, and treat an exception of its own as a fatal
+      error.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The hypervisor must not be disturbed by what it did not ask
