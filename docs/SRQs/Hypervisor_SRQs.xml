@@ -45,5 +45,16 @@
     </copyright>
   </info>
   <xi:include href="hypervisor/intro.xml"/>
+  <xi:include href="hypervisor/boot.xml"/>
+  <xi:include href="hypervisor/cfg.xml"/>
   <xi:include href="hypervisor/vm.xml"/>
+  <xi:include href="hypervisor/cpu.xml"/>
+  <xi:include href="hypervisor/mem.xml"/>
+  <xi:include href="hypervisor/int.xml"/>
+  <xi:include href="hypervisor/tmr.xml"/>
+  <xi:include href="hypervisor/dev.xml"/>
+  <xi:include href="hypervisor/con.xml"/>
+  <xi:include href="hypervisor/err.xml"/>
+  <xi:include href="hypervisor/lib.xml"/>
+  <xi:include href="hypervisor/gen.xml"/>
 </book>

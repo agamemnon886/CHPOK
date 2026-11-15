@@ -80,4 +80,41 @@
     verified; its rationale and its verification method (test,
     analysis or review) follow it.</para>
   </section>
+
+  <section xml:id="hv-intro-terms">
+    <title>Terms</title>
+    <variablelist>
+      <varlistentry>
+        <term>Host</term>
+        <listitem>
+          <para>The computer that the hypervisor runs on, with its
+          processors, memory and devices.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>VM, guest</term>
+        <listitem>
+          <para>A virtual machine is a computer that the hypervisor
+          makes out of a part of the host: memory, processors and
+          devices of its own. The guest is the program that runs in
+          it, a JetOS image.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>vCPU</term>
+        <listitem>
+          <para>A virtual processor of a VM, which the hypervisor runs
+          on a physical processor (CPU) of the host.</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Emulated device</term>
+        <listitem>
+          <para>A device that a guest sees, and that the hypervisor
+          imitates in software, as opposed to one that it gives to the
+          guest to use directly.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
 </chapter>

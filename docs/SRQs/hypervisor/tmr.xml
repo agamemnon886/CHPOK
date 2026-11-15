@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Time".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-tmr">
+  <title>Time</title>
+  <para>A guest keeps its own time, from the timers that the hypervisor
+    gives it.</para>
+
+  <section xml:id="SRQ_HV_TMR_001" role="requirement">
+    <title>SRQ_HV_TMR_001</title>
+    <para>On x86_64 the hypervisor shall give the guest a clock of the
+      time stamp counter, which runs without intervention and starts at 0
+      when the VM starts.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for x86_64 takes its system time from the time stamp
+        counter.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_TMR_002" role="requirement">
+    <title>SRQ_HV_TMR_002</title>
+    <para>On x86_64 the hypervisor shall emulate for each VM the 8254
+      timer with its three channels, their modes and their access modes,
+      the counter latch and the read-back command, and port B (the gate
+      of channel 2, the speaker bit, the refresh toggle and the output of
+      channel 2); and shall give the guest IRQ 0 at the rate programmed
+      for channel 0, by the timer of the local APIC, dropping the
+      interrupts that a guest has missed.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for x86_64 uses channel 0 for its tick and channel 2 to
+        measure the time stamp counter.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_TMR_003" role="requirement">
+    <title>SRQ_HV_TMR_003</title>
+    <para>On arm64 the hypervisor shall give the guest the virtual timer
+      and the virtual counter of its CPU, the counter starting at 0 when
+      the VM starts, and shall deliver the interrupt of the timer through
+      the virtual CPU interface.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for arm64 takes its system time and its tick from them.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_TMR_004" role="requirement">
+    <title>SRQ_HV_TMR_004</title>
+    <para>On arm64 the hypervisor shall emulate for each VM a PL031
+      real-time clock that gives the time of the host.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for arm64 takes its calendar time from the PL031.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_TMR_005" role="requirement">
+    <title>SRQ_HV_TMR_005</title>
+    <para>The hypervisor shall measure, when it starts, the frequency of
+      the time stamp counter and of the local APIC timer (on x86_64), or
+      read the frequency of the counter (on arm64), and shall stop with a
+      message if it cannot measure them.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Delays and the rate of the tick of a guest depend on them.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

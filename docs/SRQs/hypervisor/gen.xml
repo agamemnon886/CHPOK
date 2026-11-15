@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "General constraints".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-gen">
+  <title>General constraints</title>
+  <para>These requirements apply to the hypervisor as a whole.</para>
+
+  <section xml:id="SRQ_HV_GEN_001" role="requirement">
+    <title>SRQ_HV_GEN_001</title>
+    <para>The hypervisor shall provide the same behaviour on x86_64 and
+      on arm64 for the same configuration, except where this document
+      says otherwise.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>One configuration serves both architectures.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_GEN_002" role="requirement">
+    <title>SRQ_HV_GEN_002</title>
+    <para>The hypervisor shall run under QEMU with the software emulation
+      of the processor (TCG), on x86_64 with SVM and nested paging and on
+      arm64 with the virtualization extensions and a GICv2.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>QEMU is the target of the hypervisor.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_GEN_003" role="requirement">
+    <title>SRQ_HV_GEN_003</title>
+    <para>The hypervisor shall consist only of code under the
+      BSD-2-Clause or POK licence, and shall include nothing from the
+      JetOS kernel.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The hypervisor stays BSD-only, so the code that it shares
+        with the kernel has to be.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_GEN_004" role="requirement">
+    <title>SRQ_HV_GEN_004</title>
+    <para>The build of the hypervisor shall make, with its image, a
+      script that runs it in QEMU with the right CPUs, memory and serial
+      ports for the configuration.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A configuration is run the way that it was meant.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_GEN_005" role="requirement">
+    <title>SRQ_HV_GEN_005</title>
+    <para>The hypervisor shall be developed according to the MISRA C:2025
+      guidelines, with each deviation documented where it is made.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The coding rules are a means to the safety of the code.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+</chapter>

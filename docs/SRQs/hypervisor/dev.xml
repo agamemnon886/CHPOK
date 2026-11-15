@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Devices of a VM".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-dev">
+  <title>Devices of a VM</title>
+  <para>A VM has no devices but those that this chapter lists. An access
+    to any other device does not reach the hardware.</para>
+
+  <section xml:id="SRQ_HV_DEV_001" role="requirement">
+    <title>SRQ_HV_DEV_001</title>
+    <para>On x86_64 the hypervisor shall give the guest the I/O ports of
+      its devices only: the 8259A pair (0x20-0x21, 0xA0-0xA1), the 8254
+      timer and port B (0x40-0x43, 0x61), the console port (COM1) and the
+      GDB port (COM2) of the VM, and the reset ports (0x64, 0xCF9); any
+      other port shall read as all ones and ignore writes, the first
+      access to each being reported on the console of the hypervisor.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest must not drive a device that is not its own.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_DEV_002" role="requirement">
+    <title>SRQ_HV_DEV_002</title>
+    <para>On x86_64 the hypervisor shall give the VM no local APIC, I/O
+      APIC or PCI device.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for x86_64 works with the legacy devices alone; the
+        partitions that need PCI devices do not run in a VM.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_DEV_003" role="requirement">
+    <title>SRQ_HV_DEV_003</title>
+    <para>On arm64 the hypervisor shall give the VM the devices of the
+      QEMU virt machine that JetOS uses and no others: the GICv2 (the
+      distributor emulated, the CPU interface direct), the PL011 of the
+      console (0x09000000), the PL031 real-time clock (0x09010000) and,
+      if the VM has a GDB port, a second PL011 (0x09040000) that is
+      listed in the device tree of the VM.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the devices that the JetOS board support package
+        for arm64 uses.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_DEV_004" role="requirement">
+    <title>SRQ_HV_DEV_004</title>
+    <para>On arm64 the hypervisor shall emulate an access to an emulated
+      device of a guest that it can decode (an instruction that gives its
+      syndrome), shall report the first access to each register that it
+      does not emulate, and shall stop the VM for an access that it
+      cannot emulate.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An instruction that cannot be decoded cannot be repeated for
+        the guest.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_DEV_005" role="requirement">
+    <title>SRQ_HV_DEV_005</title>
+    <para>On arm64 the hypervisor shall answer the power state calls
+      (PSCI) that a guest makes with the hypervisor call or the secure
+      monitor call, for a VM that has one CPU: the version, the features,
+      the affinity information, the starting and the switching off of a
+      CPU, and the switching off and the reset of the VM.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest reboots and stops itself through PSCI.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

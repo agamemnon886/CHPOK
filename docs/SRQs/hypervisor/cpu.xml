@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Processors".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-cpu">
+  <title>Processors</title>
+  <para>Each VM is given physical CPUs of its own. The hypervisor runs
+    the guests with the virtualization of the processor (AMD SVM on
+    x86_64, exception level 2 on arm64) and handles what a guest cannot
+    do itself.</para>
+
+  <section xml:id="SRQ_HV_CPU_001" role="requirement">
+    <title>SRQ_HV_CPU_001</title>
+    <para>The hypervisor shall give each virtual CPU (vCPU) a physical
+      CPU of its own, in the order of the configuration, so that the VMs
+      share no CPU time, and shall need as many physical CPUs as the VMs
+      have vCPUs in all.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Spatial and temporal isolation of the VMs.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_002" role="requirement">
+    <title>SRQ_HV_CPU_002</title>
+    <para>The hypervisor shall start the physical CPUs that it needs
+      besides the one that it was started on: on x86_64 by INIT and
+      start-up interrupts, to the CPUs that the ACPI tables list; on
+      arm64 by the PSCI call CPU_ON, to the CPUs that the device tree
+      lists.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Only the boot CPU runs when the hypervisor starts.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_003" role="requirement">
+    <title>SRQ_HV_CPU_003</title>
+    <para>The hypervisor shall run the guest of the first vCPU of each VM
+      on its CPU, and shall park the other vCPUs of the VM, halting their
+      CPUs, because JetOS uses one CPU.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The CPUs are reserved for a JetOS that supports several.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_004" role="requirement">
+    <title>SRQ_HV_CPU_004</title>
+    <para>The hypervisor shall show the guest one CPU: on x86_64 by the
+      CPUID instruction, which gives the values of the host, but without
+      SVM, the local APIC and the topology, with one CPU and with the bit
+      that tells that a hypervisor is present; on arm64 by the processor
+      identity register, which reads as the number of the vCPU.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest must not try to use what the hypervisor does not give
+        it.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_005" role="requirement">
+    <title>SRQ_HV_CPU_005</title>
+    <para>The hypervisor shall run a guest directly on the processor, and
+      shall take control only for what the guest cannot do itself: on
+      x86_64 the intercepted instructions (port access, CPUID, model
+      specific registers, halt) and the nested page faults; on arm64 the
+      exceptions that go to exception level 2 (access to an emulated
+      device, hypervisor and secure monitor calls, and faults of the
+      stage 2 translation).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The guest runs at full speed, and the hypervisor stays in
+        control.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_006" role="requirement">
+    <title>SRQ_HV_CPU_006</title>
+    <para>The hypervisor shall emulate the model specific registers of a
+      guest on x86_64: the extended feature register (without SVM), the
+      page attribute table, the system call registers and the segment
+      base registers work; all others read as zero and ignore writes, the
+      first access to each being reported.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest can run with the registers that it uses, and nothing
+        else.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_007" role="requirement">
+    <title>SRQ_HV_CPU_007</title>
+    <para>The hypervisor shall halt the CPU of a stopped or parked vCPU,
+      with its interrupts off.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A CPU that has no guest to run must not disturb the others.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

@@ -81,4 +81,104 @@
       <para>Test.</para>
     </formalpara>
   </section>
+
+  <section xml:id="SRQ_HV_VM_004" role="requirement">
+    <title>SRQ_HV_VM_004</title>
+    <para>The hypervisor shall load a VM, when it starts and at each
+      reset: it shall clear the memory of the VM, copy its image and its
+      device tree (on arm64) into it, set the initial state of its
+      processor, and reset its devices.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Each start of a guest is a fresh one, so that a reset
+        recovers it.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_VM_005" role="requirement">
+    <title>SRQ_HV_VM_005</title>
+    <para>On x86_64 the hypervisor shall start the image of a VM as a
+      Multiboot boot loader does: in 32-bit protected mode with flat
+      segments, paging and interrupts off, with the Multiboot magic and
+      the address of the Multiboot information in registers, the
+      information (the sizes of the memory, a memory map, the name of the
+      boot loader) being at 0x9000.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for x86_64 is started by a Multiboot loader, and a
+        guest has to find the same environment.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_VM_006" role="requirement">
+    <title>SRQ_HV_VM_006</title>
+    <para>On arm64 the hypervisor shall start the image of a VM as QEMU
+      does: with its segments at their addresses, at its entry point at
+      exception level 1 with the MMU off and exceptions masked, and with
+      the address of the device tree of the VM, which it puts at the
+      start of its memory, in the first argument register.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for arm64 expects the environment that QEMU gives to a
+        kernel.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_VM_007" role="requirement">
+    <title>SRQ_HV_VM_007</title>
+    <para>The hypervisor shall reset a VM when its guest asks for it, by
+      writing 0xFE to port 0x64 or a reset to port 0xCF9 on x86_64, or by
+      the PSCI call SYSTEM_RESET on arm64: it shall load the VM again and
+      restart it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest operating system resets its computer in this way.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_VM_008" role="requirement">
+    <title>SRQ_HV_VM_008</title>
+    <para>The hypervisor shall stop a VM when its guest asks for the
+      power to be switched off (the PSCI calls SYSTEM_OFF and CPU_OFF on
+      arm64).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest that switches off its computer must stop.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_VM_009" role="requirement">
+    <title>SRQ_HV_VM_009</title>
+    <para>The hypervisor shall let each VM run without the knowledge of
+      the others: no VM shall see, change or stop another VM, or use the
+      CPU time of another VM.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>This is the isolation that the hypervisor is made for.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test and analysis.</para>
+    </formalpara>
+  </section>
 </chapter>

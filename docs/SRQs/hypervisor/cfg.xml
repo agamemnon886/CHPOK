@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Configuration".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-cfg">
+  <title>Configuration</title>
+  <para>The hypervisor has no run-time configuration: its VMs are
+    described once, in an XML file, and the hypervisor is built for that
+    description. The same file serves both architectures.</para>
+
+  <section xml:id="SRQ_HV_CFG_001" role="requirement">
+    <title>SRQ_HV_CFG_001</title>
+    <para>The hypervisor shall take its configuration, that is its VMs
+      (name, image, memory, CPUs, console port and GDB port) and the port
+      of its own console, from a description that is fixed when it is
+      built, and shall not change it while it runs.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A fixed configuration is what makes the behaviour
+        predictable.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CFG_002" role="requirement">
+    <title>SRQ_HV_CFG_002</title>
+    <para>The configuration shall give the hypervisor one to eight VMs;
+      each VM a name of 1 to 30 letters, digits and the characters
+      underscore, dot and hyphen, which is unique when compared without
+      regard to case; the image of a JetOS kernel built for the
+      architecture of the hypervisor; a memory size that is a multiple of
+      2 MiB and at most 1 GiB; and a number of CPUs (one if not given).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the properties of a VM that the hypervisor needs.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CFG_003" role="requirement">
+    <title>SRQ_HV_CFG_003</title>
+    <para>The hypervisor shall be built only from a configuration that is
+      consistent: an image that is for the other architecture or does not
+      fit into the memory of its VM, a serial port used twice, more than
+      16 CPUs in all on x86_64 or 8 on arm64, or VMs and hypervisor that
+      do not fit into 3 GiB of memory, shall be rejected when the
+      hypervisor is built.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A configuration error is found when the hypervisor is built,
+        not when it runs.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CFG_004" role="requirement">
+    <title>SRQ_HV_CFG_004</title>
+    <para>The configuration shall name serial ports as COM1 to COM4 on
+      x86_64 (the four ISA ports), and as COM1 and COM2 (the PL011 ports)
+      and COM3 to COM16 (16550 ports on the PCI bus) on arm64.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The ports are those of the computers that QEMU emulates.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CFG_005" role="requirement">
+    <title>SRQ_HV_CFG_005</title>
+    <para>The hypervisor shall be built as one image that holds its code,
+      its configuration, the images of the VMs and their device trees (on
+      arm64), and a CRC-32 of all of them.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The hypervisor and the VMs are loaded and checked as one.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

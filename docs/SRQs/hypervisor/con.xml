@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Consoles and serial ports".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-con">
+  <title>Consoles and serial ports</title>
+  <para>The hypervisor writes its own messages to a serial port, which is
+    its console, and connects the serial ports of the VMs to serial ports
+    of the computer.</para>
+
+  <section xml:id="SRQ_HV_CON_001" role="requirement">
+    <title>SRQ_HV_CON_001</title>
+    <para>The hypervisor shall write its messages to the serial port of
+      its console, if the configuration has one, at 38400 baud with 8
+      data bits, no parity and one stop bit on a 16550 UART, and shall
+      drop them if it has none.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An operator needs to see what the hypervisor does.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CON_002" role="requirement">
+    <title>SRQ_HV_CON_002</title>
+    <para>The hypervisor shall write each of its messages as a whole,
+      without it being mixed with the message of another CPU, with a
+      carriage return before each line feed, and shall let a CPU that
+      holds the console report a fatal error of its own.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Several CPUs print at the same time.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CON_003" role="requirement">
+    <title>SRQ_HV_CON_003</title>
+    <para>The hypervisor shall report on its console what happens to a
+      VM: its start, the reason of its stop with the main registers of
+      its vCPU, the parking of a vCPU, and the first access of its guest
+      to a port or a register that it does not give.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An operator must know why a VM stopped.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CON_004" role="requirement">
+    <title>SRQ_HV_CON_004</title>
+    <para>The hypervisor shall connect the console of a VM to the serial
+      port of the computer that the configuration gives it: the guest
+      port COM1 on x86_64 and its first PL011 on arm64, either directly,
+      if it is the same port of the computer (COM1 on x86_64; COM1 or
+      COM2 on arm64), or by repeating each access of the guest on the
+      port of the computer.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Each VM has a console of its own.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CON_005" role="requirement">
+    <title>SRQ_HV_CON_005</title>
+    <para>The hypervisor shall connect the GDB port of a VM, the guest
+      port COM2 on x86_64 and its second PL011 on arm64, to the serial
+      port of the computer that the configuration gives it in the same
+      way, so that the GDB server of the JetOS in the VM can be used
+      while the other VMs run; when the debugger stops a VM, only that VM
+      shall stop.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>VMs are debugged one at a time, without stopping the others.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Memory".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-mem">
+  <title>Memory</title>
+  <para>A guest sees a memory of its own: its RAM and the devices that
+    the hypervisor gives it.</para>
+
+  <section xml:id="SRQ_HV_MEM_001" role="requirement">
+    <title>SRQ_HV_MEM_001</title>
+    <para>The hypervisor shall map the RAM of a VM into the physical
+      address space of its guest by nested page tables on x86_64 (from
+      address 0 up to the size of the memory) and by stage 2 translation
+      tables on arm64 (from address 0x40000000), with the memory of the
+      host as its backing, and shall map nothing else, except the devices
+      that this document gives to the guest.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Address translation by the processor is what keeps a guest in
+        its region.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_MEM_002" role="requirement">
+    <title>SRQ_HV_MEM_002</title>
+    <para>The hypervisor shall stop a VM, and only that VM, whose guest
+      accesses memory outside its RAM that is not a device that the
+      hypervisor gives to it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest that touches memory that it does not have is faulty.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_MEM_003" role="requirement">
+    <title>SRQ_HV_MEM_003</title>
+    <para>The hypervisor shall give the guest on arm64 the devices that
+      the VM needs by mapping their pages as device memory, not
+      executable: the virtual interface of the interrupt controller, and
+      the registers of a UART that the guest uses directly.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Some devices are used by the guest without the intervention
+        of the hypervisor.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_MEM_004" role="requirement">
+    <title>SRQ_HV_MEM_004</title>
+    <para>The hypervisor shall write the data cache back to memory and
+      drop the instruction cache over the RAM of a VM on arm64 when it
+      loads the VM, because the guest starts with its MMU and caches off.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The guest would otherwise execute stale code.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_MEM_005" role="requirement">
+    <title>SRQ_HV_MEM_005</title>
+    <para>The hypervisor shall use, for itself, memory that it maps with
+      its own translation: with the MMU on, an identity map, on arm64.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The hypervisor itself needs a defined memory map.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+  </section>
+</chapter>

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright (C) 2026 Kirill Brazhnikov <agamemnon886@gmail.com>
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!--
+  Hypervisor System Requirements, chapter "Start-up".
+-->
+<chapter xmlns="http://docbook.org/ns/docbook" version="5.0"
+         xml:id="hv-boot">
+  <title>Start-up</title>
+  <para>These requirements cover what the hypervisor does from the moment
+    that a boot loader or the firmware hands over the computer to the
+    moment that the VMs run.</para>
+
+  <section xml:id="SRQ_HV_BOOT_001" role="requirement">
+    <title>SRQ_HV_BOOT_001</title>
+    <para>The hypervisor shall start on x86_64 when it is loaded by a
+      Multiboot boot loader on a processor with AMD SVM and nested
+      paging, and on arm64 when it is entered at exception level 2 on a
+      processor with the virtualization extensions and a GICv2 with the
+      virtualization extensions.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the processors on which a hypervisor of this kind
+        can run, and the ways in which QEMU, the target, starts it.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_002" role="requirement">
+    <title>SRQ_HV_BOOT_002</title>
+    <para>The hypervisor shall compute the CRC-32 of its own image before
+      it does anything else, compare it with the one stored in the image
+      when it was linked, and, if they differ, print both on its console
+      and halt, with no VM and no other CPU started.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A corrupted image of the hypervisor must not run the VMs,
+        whose isolation it provides.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_003" role="requirement">
+    <title>SRQ_HV_BOOT_003</title>
+    <para>The hypervisor shall check that the processor has the features
+      that it needs (SVM with nested paging not disabled by the firmware
+      on x86_64; a GICv2 with the virtualization extensions on arm64),
+      and shall stop with a message that names what is missing if it does
+      not.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A hypervisor that cannot run guests must say why.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_004" role="requirement">
+    <title>SRQ_HV_BOOT_004</title>
+    <para>The hypervisor shall stop with a message if the information
+      that it needs about the computer is missing or wrong: the size of
+      the RAM, the list of the CPUs, the description of the interrupt
+      controller or of the serial ports, or if a CPU that it starts does
+      not come online.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The hypervisor cannot guess a configuration of the computer.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_005" role="requirement">
+    <title>SRQ_HV_BOOT_005</title>
+    <para>The hypervisor shall make its checks, then set up the memory of
+      the VMs, then start the other CPUs, and then run its own vCPU on
+      the CPU that started it, and shall run no VM before its checks are
+      complete.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>No guest may run on a computer that was not checked.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_006" role="requirement">
+    <title>SRQ_HV_BOOT_006</title>
+    <para>The hypervisor shall report on its console, when it starts, the
+      number of its VMs and CPUs, the result of the check of its image,
+      the memory and timers that it found, and for each VM its memory,
+      CPUs, console port and GDB port.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The report is what an operator sees of the configuration that
+        runs.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+  </section>
+</chapter>
