@@ -33,6 +33,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/vpic.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -67,19 +75,30 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_CHIP_RESET_01}: `chip_reset()` shall reset one emulated
+ *   8259A chip: nothing requested or in service, all IRQs masked, not in
+ *   initialization.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_006}
  *
  * @llr
+ * - \llrid{LLR_VPIC_CHIP_RESET_01}: `chip_reset()` shall set, in the chip,
+ *   `irr` and `isr` to 0, `imr` to `0xFF`, `vector_base` to the argument
+ *   `vector_base`, `init_step` to `STEP_NONE`, and `single`, `icw4_needed`,
+ *   `read_isr` and `auto_eoi` to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_CHIP_RESET_01}
  *
  * @design
- * 1. Set `chip->irr` to `0U`.
- * 2. Set `chip->isr` to `0U`.
- * 3. Set `chip->imr` to `0xFFU`.
- * 4. Set `chip->vector_base` to `vector_base`.
- * 5. Set `chip->init_step` to `STEP_NONE`.
- * 6. Set `chip->single` to `false`.
- * 7. Set `chip->icw4_needed` to `false`.
- * 8. Set `chip->read_isr` to `false`.
- * 9. Set `chip->auto_eoi` to `false`.
+ * 1. Set `chip->irr` to `0U`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 2. Set `chip->isr` to `0U`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 3. Set `chip->imr` to `0xFFU`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 4. Set `chip->vector_base` to `vector_base`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 5. Set `chip->init_step` to `STEP_NONE`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 6. Set `chip->single` to `false`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 7. Set `chip->icw4_needed` to `false`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 8. Set `chip->read_isr` to `false`. \llrref{LLR_VPIC_CHIP_RESET_01}
+ * 9. Set `chip->auto_eoi` to `false`. \llrref{LLR_VPIC_CHIP_RESET_01}
  *
  * @calls
  * None.
@@ -115,14 +134,24 @@ static void chip_reset(vpic_chip_t *chip, uint8_t vector_base)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_VPIC_RESET_01}: `vpic_reset()` shall reset the emulated
+ *   8259A pair of a VM as at power-on, when the VM is loaded.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_006}
+ *   - \srqref{SRQ_HV_VM_004}
  *
  * @llr
+ * - \llrid{LLR_VPIC_VPIC_RESET_01}: `vpic_reset()` shall call `chip_reset()`
+ *   once with `pic->chip[0]` and `0x08`, and once with `pic->chip[1]` and
+ *   `0x70`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_RESET_01}
  *
  * @design
  * 1. Call `chip_reset()` with the arguments the address of `pic->chip[0]` and
- *    `0x08U`.
+ *    `0x08U`. \llrref{LLR_VPIC_VPIC_RESET_01}
  * 2. Call `chip_reset()` with the arguments the address of `pic->chip[1]` and
- *    `0x70U`.
+ *    `0x70U`. \llrref{LLR_VPIC_VPIC_RESET_01}
  *
  * @calls
  * - `chip_reset()`
@@ -155,12 +184,25 @@ void vpic_reset(vpic_t *pic)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_CHIP_OF_01}: `chip_of()` shall give the chip that a PIC
+ *   port belongs to.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_CHIP_OF_01}: If the bits `0xF0` of `port` are equal to
+ *   `PIC_SLAVE`, `chip_of()` shall return the address of `pic->chip[1]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_CHIP_OF_01}
+ * - \llrid{LLR_VPIC_CHIP_OF_02}: If the bits `0xF0` of `port` are not equal to
+ *   `PIC_SLAVE`, `chip_of()` shall return the address of `pic->chip[0]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_CHIP_OF_01}
  *
  * @design
  * 1. Return the address of `pic->chip[1]` if `(port & 0xF0U)` is equal to
  *    `PIC_SLAVE`, otherwise the address of `pic->chip[0]`.
+ *    \llrref{LLR_VPIC_CHIP_OF_01}, \llrref{LLR_VPIC_CHIP_OF_02}
  *
  * @calls
  * None.
@@ -193,15 +235,29 @@ static vpic_chip_t *chip_of(vpic_t *pic, uint16_t port)
  * | `n` | `uint32_t` | The bit being checked |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_FIRST_BIT_01}: `first_bit()` shall give the IRQ of highest
+ *   priority in an 8-bit register: its lowest set bit, or 8 for none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_FIRST_BIT_01}: If one of the bits 0 to `PIC_IRQS` minus 1
+ *   of `bits` is set, `first_bit()` shall return the number of the lowest of
+ *   them that is set.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_FIRST_BIT_01}
+ * - \llrid{LLR_VPIC_FIRST_BIT_02}: If none of the bits 0 to `PIC_IRQS` minus 1
+ *   of `bits` is set, `first_bit()` shall return `PIC_IRQS`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_FIRST_BIT_01}
  *
  * @design
- * 1. Set `n` to `0U`.
+ * 1. Set `n` to `0U`. \llrref{LLR_VPIC_FIRST_BIT_01},
+ *    \llrref{LLR_VPIC_FIRST_BIT_02}
  * 2. While `n` is less than `PIC_IRQS` and `(bits & (1U << n))` is equal to
- *    `0U`:
+ *    `0U`: \llrref{LLR_VPIC_FIRST_BIT_01}, \llrref{LLR_VPIC_FIRST_BIT_02}
  *    1. Increment `n`.
- * 3. Return `n`.
+ * 3. Return `n`. \llrref{LLR_VPIC_FIRST_BIT_01}, \llrref{LLR_VPIC_FIRST_BIT_02}
  *
  * @calls
  * None.
@@ -238,33 +294,80 @@ static uint32_t first_bit(uint8_t bits)
  * | `n` | `uint32_t` | The in-service IRQ of highest priority |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_PIC_COMMAND_01}: `pic_command()` shall handle a write to
+ *   the command port of a chip: the start of an initialization, the choice of
+ *   the register to read, or an end of interrupt (non-specific or specific).
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_PIC_COMMAND_01}: If `ICW1_INIT` is set in `value`,
+ *   `pic_command()` shall set `irr`, `isr` and `imr` of the chip to 0,
+ *   `read_isr` and `auto_eoi` to false, and `init_step` to `STEP_ICW2`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_COMMAND_01}
+ * - \llrid{LLR_VPIC_PIC_COMMAND_02}: If `ICW1_INIT` is set in `value`,
+ *   `pic_command()` shall set `single` to true if `ICW1_SINGLE` is set in
+ *   `value` and to false if it is not, and `icw4_needed` to true if `ICW1_ICW4`
+ *   is set in `value` and to false if it is not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_COMMAND_01}
+ * - \llrid{LLR_VPIC_PIC_COMMAND_03}: If `ICW1_INIT` is not set in `value`, the
+ *   bits `OCW3_MASK` of `value` are `OCW3_SELECT` and `OCW3_READ_REGISTER` is
+ *   set in `value`, `pic_command()` shall set `read_isr` to true if
+ *   `OCW3_READ_ISR` is set in `value`, and to false if it is not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_COMMAND_01}
+ * - \llrid{LLR_VPIC_PIC_COMMAND_04}: If `ICW1_INIT` is not set in `value`, the
+ *   bits `OCW3_MASK` of `value` are not `OCW3_SELECT`, the bits `OCW2_EOI_MASK`
+ *   of `value` are `OCW2_EOI` and a bit is set in `isr`, `pic_command()` shall
+ *   clear the lowest bit that is set in `isr` (`first_bit()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_COMMAND_01}
+ * - \llrid{LLR_VPIC_PIC_COMMAND_05}: If `ICW1_INIT` is not set in `value`, the
+ *   bits `OCW3_MASK` of `value` are not `OCW3_SELECT` and the bits
+ *   `OCW2_EOI_MASK` of `value` are `OCW2_EOI | OCW2_SPECIFIC`, `pic_command()`
+ *   shall clear the bit of `isr` whose number is in the bits `OCW2_LEVEL` of
+ *   `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_COMMAND_01}
+ * - \llrid{LLR_VPIC_PIC_COMMAND_06}: If `ICW1_INIT` is not set in `value`, and
+ *   the bits `OCW3_MASK` of `value` are `OCW3_SELECT` while
+ *   `OCW3_READ_REGISTER` is not set, or the bits `OCW2_EOI_MASK` of `value` are
+ *   `OCW2_EOI` while no bit is set in `isr`, or `value` is none of these
+ *   commands, `pic_command()` shall leave the chip as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_COMMAND_01}
  *
  * @design
  * 1. If `(value & ICW1_INIT)` is not equal to `0U`:
- *    1. Set `chip->irr` to `0U`.
- *    2. Set `chip->isr` to `0U`.
- *    3. Set `chip->imr` to `0U`.
- *    4. Set `chip->read_isr` to `false`.
- *    5. Set `chip->auto_eoi` to `false`.
+ *    \llrref{LLR_VPIC_PIC_COMMAND_01}, \llrref{LLR_VPIC_PIC_COMMAND_02}
+ *    1. Set `chip->irr` to `0U`. \llrref{LLR_VPIC_PIC_COMMAND_01}
+ *    2. Set `chip->isr` to `0U`. \llrref{LLR_VPIC_PIC_COMMAND_01}
+ *    3. Set `chip->imr` to `0U`. \llrref{LLR_VPIC_PIC_COMMAND_01}
+ *    4. Set `chip->read_isr` to `false`. \llrref{LLR_VPIC_PIC_COMMAND_01}
+ *    5. Set `chip->auto_eoi` to `false`. \llrref{LLR_VPIC_PIC_COMMAND_01}
  *    6. Set `chip->single` to `(value & ICW1_SINGLE) != 0U`.
+ *       \llrref{LLR_VPIC_PIC_COMMAND_02}
  *    7. Set `chip->icw4_needed` to `(value & ICW1_ICW4) != 0U`.
- *    8. Set `chip->init_step` to `STEP_ICW2`.
+ *       \llrref{LLR_VPIC_PIC_COMMAND_02}
+ *    8. Set `chip->init_step` to `STEP_ICW2`. \llrref{LLR_VPIC_PIC_COMMAND_01}
  * 2. Otherwise, if `(value & OCW3_MASK)` is equal to `OCW3_SELECT`:
+ *    \llrref{LLR_VPIC_PIC_COMMAND_03}, \llrref{LLR_VPIC_PIC_COMMAND_06}
  *    1. If `(value & OCW3_READ_REGISTER)` is not equal to `0U`:
+ *       \llrref{LLR_VPIC_PIC_COMMAND_03}
  *       1. Set `chip->read_isr` to `(value & OCW3_READ_ISR) != 0U`.
  * 3. Otherwise, if `(value & OCW2_EOI_MASK)` is equal to `OCW2_EOI`:
+ *    \llrref{LLR_VPIC_PIC_COMMAND_04}, \llrref{LLR_VPIC_PIC_COMMAND_06}
  *    1. Call `first_bit()` with the argument `chip->isr`, and store the result
  *       in `n`.
- *    2. If `n` is less than `PIC_IRQS`:
+ *    2. If `n` is less than `PIC_IRQS`: \llrref{LLR_VPIC_PIC_COMMAND_04}
  *       1. Keep only the bits `(uint8_t) ~(1U << n)` of `chip->isr`.
  * 4. Otherwise, if `(value & OCW2_EOI_MASK)` is equal to
- *    `(OCW2_EOI | OCW2_SPECIFIC)`:
+ *    `(OCW2_EOI | OCW2_SPECIFIC)`: \llrref{LLR_VPIC_PIC_COMMAND_05},
+ *    \llrref{LLR_VPIC_PIC_COMMAND_06}
  *    1. Keep only the bits `(uint8_t) ~(1U << (value & OCW2_LEVEL))` of
  *       `chip->isr`.
- * 5. Otherwise:
- *    1. Do nothing.
  *
  * @calls
  * - `first_bit()`
@@ -319,26 +422,76 @@ static void pic_command(vpic_chip_t *chip, uint8_t value)
  * | `step` | `uint8_t` | The initialization word expected |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_PIC_DATA_01}: `pic_data()` shall handle a write to the data
+ *   port of a chip: the next initialization word, or the interrupt mask.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_PIC_DATA_01}: If `init_step` of the chip is `STEP_ICW2`,
+ *   `pic_data()` shall set `vector_base` to `value` with its low 3 bits
+ *   cleared.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
+ * - \llrid{LLR_VPIC_PIC_DATA_02}: If `init_step` is `STEP_ICW2` and `single` is
+ *   false, `pic_data()` shall set `init_step` to `STEP_ICW3`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
+ * - \llrid{LLR_VPIC_PIC_DATA_03}: If `init_step` is `STEP_ICW2`, `single` is
+ *   true and `icw4_needed` is true, `pic_data()` shall set `init_step` to
+ *   `STEP_ICW4`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
+ * - \llrid{LLR_VPIC_PIC_DATA_04}: If `init_step` is `STEP_ICW2`, `single` is
+ *   true and `icw4_needed` is false, `pic_data()` shall set `init_step` to
+ *   `STEP_NONE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
+ * - \llrid{LLR_VPIC_PIC_DATA_05}: If `init_step` is `STEP_ICW3` and
+ *   `icw4_needed` is true, `pic_data()` shall set `init_step` to `STEP_ICW4`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
+ * - \llrid{LLR_VPIC_PIC_DATA_06}: If `init_step` is `STEP_ICW3` and
+ *   `icw4_needed` is false, `pic_data()` shall set `init_step` to `STEP_NONE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
+ * - \llrid{LLR_VPIC_PIC_DATA_07}: If `init_step` is `STEP_ICW4`, `pic_data()`
+ *   shall set `auto_eoi` to true if `ICW4_AUTO_EOI` is set in `value` and to
+ *   false if it is not, and `init_step` to `STEP_NONE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
+ * - \llrid{LLR_VPIC_PIC_DATA_08}: If `init_step` is none of `STEP_ICW2`,
+ *   `STEP_ICW3` and `STEP_ICW4`, `pic_data()` shall set `imr` to `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_PIC_DATA_01}
  *
  * @design
- * 1. Set `step` to `chip->init_step`.
- * 2. If `step` is equal to `STEP_ICW2`:
+ * 1. Set `step` to `chip->init_step`. \llrref{LLR_VPIC_PIC_DATA_01},
+ *    \llrref{LLR_VPIC_PIC_DATA_02}, \llrref{LLR_VPIC_PIC_DATA_03},
+ *    \llrref{LLR_VPIC_PIC_DATA_04}, \llrref{LLR_VPIC_PIC_DATA_05},
+ *    \llrref{LLR_VPIC_PIC_DATA_06}, \llrref{LLR_VPIC_PIC_DATA_07},
+ *    \llrref{LLR_VPIC_PIC_DATA_08}
+ * 2. If `step` is equal to `STEP_ICW2`: \llrref{LLR_VPIC_PIC_DATA_01},
+ *    \llrref{LLR_VPIC_PIC_DATA_02}, \llrref{LLR_VPIC_PIC_DATA_03},
+ *    \llrref{LLR_VPIC_PIC_DATA_04}
  *    1. Set `chip->vector_base` to `(uint8_t) (value & 0xF8U)`.
- *    2. If `chip->single` is false:
+ *       \llrref{LLR_VPIC_PIC_DATA_01}
+ *    2. If `chip->single` is false: \llrref{LLR_VPIC_PIC_DATA_02}
  *       1. Set `chip->init_step` to `STEP_ICW3`.
  *    3. Otherwise, if `chip->icw4_needed` is true:
+ *       \llrref{LLR_VPIC_PIC_DATA_03}
  *       1. Set `chip->init_step` to `STEP_ICW4`.
- *    4. Otherwise:
+ *    4. Otherwise: \llrref{LLR_VPIC_PIC_DATA_04}
  *       1. Set `chip->init_step` to `STEP_NONE`.
  * 3. Otherwise, if `step` is equal to `STEP_ICW3`:
+ *    \llrref{LLR_VPIC_PIC_DATA_05}, \llrref{LLR_VPIC_PIC_DATA_06}
  *    1. Set `chip->init_step` to `STEP_ICW4` if `chip->icw4_needed` is true,
  *       otherwise `STEP_NONE`.
  * 4. Otherwise, if `step` is equal to `STEP_ICW4`:
+ *    \llrref{LLR_VPIC_PIC_DATA_07}
  *    1. Set `chip->auto_eoi` to `(value & ICW4_AUTO_EOI) != 0U`.
  *    2. Set `chip->init_step` to `STEP_NONE`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_VPIC_PIC_DATA_08}
  *    1. Set `chip->imr` to `value`.
  *
  * @calls
@@ -391,15 +544,30 @@ static void pic_data(vpic_chip_t *chip, uint8_t value)
  * | `chip` | `vpic_chip_t *` | The chip of the port |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_VPIC_WRITE_01}: `vpic_write()` shall handle a write of a
+ *   guest to a PIC port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_VPIC_WRITE_01}: If bit 0 of `port` is 0, `vpic_write()`
+ *   shall call `pic_command()` once with the chip of the port (`chip_of()`) and
+ *   `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_WRITE_01}
+ * - \llrid{LLR_VPIC_VPIC_WRITE_02}: If bit 0 of `port` is 1, `vpic_write()`
+ *   shall call `pic_data()` once with the chip of the port (`chip_of()`) and
+ *   `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_WRITE_01}
  *
  * @design
  * 1. Call `chip_of()` with the arguments `pic` and `port`, and store the result
- *    in `chip`.
- * 2. If `(port & 1U)` is equal to `0U`:
+ *    in `chip`. \llrref{LLR_VPIC_VPIC_WRITE_01},
+ *    \llrref{LLR_VPIC_VPIC_WRITE_02}
+ * 2. If `(port & 1U)` is equal to `0U`: \llrref{LLR_VPIC_VPIC_WRITE_01}
  *    1. Call `pic_command()` with the arguments `chip` and `value`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_VPIC_VPIC_WRITE_02}
  *    1. Call `pic_data()` with the arguments `chip` and `value`.
  *
  * @calls
@@ -443,19 +611,46 @@ void vpic_write(vpic_t *pic, uint16_t port, uint8_t value)
  * | `value` | `uint8_t` | The value read |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_VPIC_READ_01}: `vpic_read()` shall give a guest the mask
+ *   from the data port, and the request or service register that it selected
+ *   from the command port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_VPIC_READ_01}: If the bits `0xF0` of `port` are equal to
+ *   `PIC_SLAVE`, `vpic_read()` shall read the chip `pic->chip[1]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_READ_01}
+ * - \llrid{LLR_VPIC_VPIC_READ_02}: If the bits `0xF0` of `port` are not equal
+ *   to `PIC_SLAVE`, `vpic_read()` shall read the chip `pic->chip[0]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_READ_01}
+ * - \llrid{LLR_VPIC_VPIC_READ_03}: If bit 0 of `port` is 1, `vpic_read()` shall
+ *   return `imr` of the chip.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_READ_01}
+ * - \llrid{LLR_VPIC_VPIC_READ_04}: If bit 0 of `port` is 0 and `read_isr` of
+ *   the chip is true, `vpic_read()` shall return `isr` of the chip.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_READ_01}
+ * - \llrid{LLR_VPIC_VPIC_READ_05}: If bit 0 of `port` is 0 and `read_isr` of
+ *   the chip is false, `vpic_read()` shall return `irr` of the chip.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_READ_01}
  *
  * @design
  * 1. Set `chip` to the address of `pic->chip[1]` if `(port & 0xF0U)` is equal
  *    to `PIC_SLAVE`, otherwise the address of `pic->chip[0]`.
- * 2. If `(port & 1U)` is not equal to `0U`:
+ *    \llrref{LLR_VPIC_VPIC_READ_01}, \llrref{LLR_VPIC_VPIC_READ_02}
+ * 2. If `(port & 1U)` is not equal to `0U`: \llrref{LLR_VPIC_VPIC_READ_03}
  *    1. Set `value` to `chip->imr`.
- * 3. Otherwise, if `chip->read_isr` is true:
+ * 3. Otherwise, if `chip->read_isr` is true: \llrref{LLR_VPIC_VPIC_READ_04}
  *    1. Set `value` to `chip->isr`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_VPIC_VPIC_READ_05}
  *    1. Set `value` to `chip->irr`.
- * 5. Return `value`.
+ * 5. Return `value`. \llrref{LLR_VPIC_VPIC_READ_03},
+ *    \llrref{LLR_VPIC_VPIC_READ_04}, \llrref{LLR_VPIC_VPIC_READ_05}
  *
  * @calls
  * None.
@@ -496,17 +691,34 @@ uint8_t vpic_read(const vpic_t *pic, uint16_t port)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_VPIC_RAISE_01}: `vpic_raise()` shall request an interrupt
+ *   of the emulated pair.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
+ *   - \srqref{SRQ_HV_TMR_006}
  *
  * @llr
+ * - \llrid{LLR_VPIC_VPIC_RAISE_01}: If `irq` is less than `PIC_IRQS`,
+ *   `vpic_raise()` shall set bit `irq` of `irr` of `pic->chip[0]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_RAISE_01}
+ * - \llrid{LLR_VPIC_VPIC_RAISE_02}: If `irq` is `PIC_IRQS` or more and less
+ *   than 2 times `PIC_IRQS`, `vpic_raise()` shall set bit `irq` minus
+ *   `PIC_IRQS` of `irr` of `pic->chip[1]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_RAISE_01}
+ * - \llrid{LLR_VPIC_VPIC_RAISE_03}: If `irq` is 2 times `PIC_IRQS` or more,
+ *   `vpic_raise()` shall leave both chips as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_RAISE_01}
  *
  * @design
- * 1. If `irq` is less than `PIC_IRQS`:
+ * 1. If `irq` is less than `PIC_IRQS`: \llrref{LLR_VPIC_VPIC_RAISE_01}
  *    1. Set the bits `(uint8_t) (1U << irq)` in `pic->chip[0].irr`.
  * 2. Otherwise, if `irq` is less than `(2U * PIC_IRQS)`:
+ *    \llrref{LLR_VPIC_VPIC_RAISE_02}, \llrref{LLR_VPIC_VPIC_RAISE_03}
  *    1. Set the bits `(uint8_t) (1U << (irq - PIC_IRQS))` in
  *       `pic->chip[1].irr`.
- * 3. Otherwise:
- *    1. Do nothing.
  *
  * @calls
  * None.
@@ -548,18 +760,39 @@ void vpic_raise(vpic_t *pic, uint32_t irq)
  * | `in_service` | `uint32_t` | The in-service IRQ of highest priority |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_CHIP_REQUEST_01}: `chip_request()` shall give the request
+ *   of highest priority of a chip that is unmasked and not blocked by an
+ *   interrupt in service at the same or a higher priority.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_CHIP_REQUEST_01}: If the lowest bit that is set in `irr` or
+ *   in `extra` and is not set in `imr` has a lower number than the lowest bit
+ *   that is set in `isr` (`PIC_IRQS` if no bit is set in `isr`), both found
+ *   with `first_bit()`, `chip_request()` shall return the number of that bit.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_CHIP_REQUEST_01}
+ * - \llrid{LLR_VPIC_CHIP_REQUEST_02}: If no bit is set in `irr` or in `extra`
+ *   that is not set in `imr`, or the lowest such bit has no lower number than
+ *   the lowest bit that is set in `isr`, `chip_request()` shall return
+ *   `PIC_IRQS`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_CHIP_REQUEST_01}
  *
  * @design
  * 1. Set `unmasked` to `(uint8_t) ~chip->imr`.
+ *    \llrref{LLR_VPIC_CHIP_REQUEST_01}, \llrref{LLR_VPIC_CHIP_REQUEST_02}
  * 2. Call `first_bit()` with the argument
  *    `(uint8_t) ((chip->irr | extra) & unmasked)`, and store the result in
- *    `request`.
+ *    `request`. \llrref{LLR_VPIC_CHIP_REQUEST_01},
+ *    \llrref{LLR_VPIC_CHIP_REQUEST_02}
  * 3. Call `first_bit()` with the argument `chip->isr`, and store the result in
- *    `in_service`.
+ *    `in_service`. \llrref{LLR_VPIC_CHIP_REQUEST_01},
+ *    \llrref{LLR_VPIC_CHIP_REQUEST_02}
  * 4. Return `request` if `request` is less than `in_service`, otherwise
- *    `PIC_IRQS`.
+ *    `PIC_IRQS`. \llrref{LLR_VPIC_CHIP_REQUEST_01},
+ *    \llrref{LLR_VPIC_CHIP_REQUEST_02}
  *
  * @calls
  * - `first_bit()`
@@ -598,14 +831,29 @@ static uint32_t chip_request(const vpic_chip_t *chip, uint8_t extra)
  * | `bit` | `uint8_t` | The IRQ 2 bit, or 0 |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_CASCADE_BIT_01}: `cascade_bit()` shall give the request of
+ *   IRQ 2 of the master while the slave has a request to deliver.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_CASCADE_BIT_01}: If `chip_request()` for `pic->chip[1]` and
+ *   0 returns less than `PIC_IRQS`, `cascade_bit()` shall return the value with
+ *   only bit `PIC_CASCADE_IRQ` set.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_CASCADE_BIT_01}
+ * - \llrid{LLR_VPIC_CASCADE_BIT_02}: If `chip_request()` for `pic->chip[1]` and
+ *   0 returns `PIC_IRQS`, `cascade_bit()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_CASCADE_BIT_01}
  *
  * @design
- * 1. Set `bit` to `0U`.
+ * 1. Set `bit` to `0U`. \llrref{LLR_VPIC_CASCADE_BIT_02}
  * 2. If `chip_request(&pic->chip[1], 0U)` is less than `PIC_IRQS`:
+ *    \llrref{LLR_VPIC_CASCADE_BIT_01}
  *    1. Set `bit` to `(uint8_t) (1U << PIC_CASCADE_IRQ)`.
- * 3. Return `bit`.
+ * 3. Return `bit`. \llrref{LLR_VPIC_CASCADE_BIT_01},
+ *    \llrref{LLR_VPIC_CASCADE_BIT_02}
  *
  * @calls
  * - `chip_request()`
@@ -640,11 +888,26 @@ static uint8_t cascade_bit(const vpic_t *pic)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_VPIC_PENDING_01}: `vpic_pending()` shall tell whether the
+ *   emulated pair has an interrupt to deliver to the guest.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_002}
  *
  * @llr
+ * - \llrid{LLR_VPIC_VPIC_PENDING_01}: If `chip_request()` for `pic->chip[0]`
+ *   and the result of `cascade_bit()` returns less than `PIC_IRQS`,
+ *   `vpic_pending()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_PENDING_01}
+ * - \llrid{LLR_VPIC_VPIC_PENDING_02}: If `chip_request()` for `pic->chip[0]`
+ *   and the result of `cascade_bit()` returns `PIC_IRQS`, `vpic_pending()`
+ *   shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_PENDING_01}
  *
  * @design
  * 1. Return `chip_request(&pic->chip[0], cascade_bit(pic)) < PIC_IRQS`.
+ *    \llrref{LLR_VPIC_VPIC_PENDING_01}, \llrref{LLR_VPIC_VPIC_PENDING_02}
  *
  * @calls
  * - `chip_request()`
@@ -677,13 +940,28 @@ bool vpic_pending(const vpic_t *pic)
  * | `bit` | `uint8_t` | The IRQ's bit |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_ACKNOWLEDGE_01}: `acknowledge()` shall acknowledge a
+ *   request of a chip as the processor does: it moves from the request to the
+ *   service register, unless the chip ends interrupts by itself.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_001}
  *
  * @llr
+ * - \llrid{LLR_VPIC_ACKNOWLEDGE_01}: `acknowledge()` shall clear bit `n` of
+ *   `irr` of the chip.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_ACKNOWLEDGE_01}
+ * - \llrid{LLR_VPIC_ACKNOWLEDGE_02}: If and only if `auto_eoi` of the chip is
+ *   false, `acknowledge()` shall set bit `n` of `isr` of the chip.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_ACKNOWLEDGE_01}
  *
  * @design
- * 1. Set `bit` to `(uint8_t) (1U << n)`.
+ * 1. Set `bit` to `(uint8_t) (1U << n)`. \llrref{LLR_VPIC_ACKNOWLEDGE_01},
+ *    \llrref{LLR_VPIC_ACKNOWLEDGE_02}
  * 2. Keep only the bits `(uint8_t) ~bit` of `chip->irr`.
- * 3. If `chip->auto_eoi` is false:
+ *    \llrref{LLR_VPIC_ACKNOWLEDGE_01}
+ * 3. If `chip->auto_eoi` is false: \llrref{LLR_VPIC_ACKNOWLEDGE_02}
  *    1. Set the bits `bit` in `chip->isr`.
  *
  * @calls
@@ -727,26 +1005,58 @@ static void acknowledge(vpic_chip_t *chip, uint32_t n)
  * | `m` | `uint32_t` | The slave's request |
  *
  * @hlr
+ * - \hlrid{HLR_VPIC_VPIC_NEXT_01}: `vpic_next()` shall take the interrupt that
+ *   the emulated pair delivers next and give its vector, or none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_002}
  *
  * @llr
+ * - \llrid{LLR_VPIC_VPIC_NEXT_01}: If `chip_request()` for the master
+ *   (`pic->chip[0]`) and the result of `cascade_bit()` returns `PIC_IRQS`,
+ *   `vpic_next()` shall return false, without calling `acknowledge()` or
+ *   writing at `vector`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_NEXT_01}
+ * - \llrid{LLR_VPIC_VPIC_NEXT_02}: If `chip_request()` for the master and the
+ *   result of `cascade_bit()` returns `PIC_CASCADE_IRQ`, `vpic_next()` shall
+ *   call `acknowledge()` once for the master with that IRQ and once for the
+ *   slave (`pic->chip[1]`) with the result of `chip_request()` for the slave
+ *   and 0, store the slave's `vector_base` plus that result at `vector`,
+ *   truncated to 8 bits, and return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_NEXT_01}
+ * - \llrid{LLR_VPIC_VPIC_NEXT_03}: If `chip_request()` for the master and the
+ *   result of `cascade_bit()` returns an IRQ below `PIC_IRQS` other than
+ *   `PIC_CASCADE_IRQ`, `vpic_next()` shall call `acknowledge()` once for the
+ *   master with that IRQ, store the master's `vector_base` plus the IRQ at
+ *   `vector`, truncated to 8 bits, and return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIC_VPIC_NEXT_01}
  *
  * @design
  * 1. Set `master` to the address of `pic->chip[0]`.
+ *    \llrref{LLR_VPIC_VPIC_NEXT_01}, \llrref{LLR_VPIC_VPIC_NEXT_02},
+ *    \llrref{LLR_VPIC_VPIC_NEXT_03}
  * 2. Set `slave` to the address of `pic->chip[1]`.
+ *    \llrref{LLR_VPIC_VPIC_NEXT_02}
  * 3. Call `chip_request()` with the arguments `master` and `cascade_bit(pic)`,
- *    and store the result in `n`.
- * 4. Set `found` to `n < PIC_IRQS`.
- * 5. If `found` is true:
- *    1. If `n` is equal to `PIC_CASCADE_IRQ`:
+ *    and store the result in `n`. \llrref{LLR_VPIC_VPIC_NEXT_01},
+ *    \llrref{LLR_VPIC_VPIC_NEXT_02}, \llrref{LLR_VPIC_VPIC_NEXT_03}
+ * 4. Set `found` to `n < PIC_IRQS`. \llrref{LLR_VPIC_VPIC_NEXT_01},
+ *    \llrref{LLR_VPIC_VPIC_NEXT_02}, \llrref{LLR_VPIC_VPIC_NEXT_03}
+ * 5. If `found` is true: \llrref{LLR_VPIC_VPIC_NEXT_02},
+ *    \llrref{LLR_VPIC_VPIC_NEXT_03}
+ *    1. If `n` is equal to `PIC_CASCADE_IRQ`: \llrref{LLR_VPIC_VPIC_NEXT_02}
  *       1. Call `chip_request()` with the arguments `slave` and `0U`, and store
  *          the result in `m`.
  *       2. Call `acknowledge()` with the arguments `master` and `n`.
  *       3. Call `acknowledge()` with the arguments `slave` and `m`.
  *       4. Set `*vector` to `(uint8_t) (slave->vector_base + m)`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_VPIC_VPIC_NEXT_03}
  *       1. Call `acknowledge()` with the arguments `master` and `n`.
  *       2. Set `*vector` to `(uint8_t) (master->vector_base + n)`.
- * 6. Return `found`.
+ * 6. Return `found`. \llrref{LLR_VPIC_VPIC_NEXT_01},
+ *    \llrref{LLR_VPIC_VPIC_NEXT_02}, \llrref{LLR_VPIC_VPIC_NEXT_03}
  *
  * @calls
  * - `chip_request()`

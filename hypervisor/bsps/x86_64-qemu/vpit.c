@@ -33,6 +33,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/vpit.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -67,21 +75,32 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_CHANNEL_RESET_01}: `channel_reset()` shall reset one
+ *   channel of the emulated 8254 timer: mode 0, low then high byte, no count
+ *   loaded, not counting.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_CHANNEL_RESET_01}: `channel_reset()` shall set, in the
+ *   channel, `mode` to 0, `access` to `PIT_ACCESS_WORD`, `write_msb`,
+ *   `read_msb` and `latched` to false, `written_lsb` and `latch` to 0, `reload`
+ *   to `PIT_MAX_COUNT`, `loaded` and `counting` to false, and `start_tsc` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_CHANNEL_RESET_01}
  *
  * @design
- * 1. Set `ch->mode` to `0U`.
- * 2. Set `ch->access` to `PIT_ACCESS_WORD`.
- * 3. Set `ch->write_msb` to `false`.
- * 4. Set `ch->read_msb` to `false`.
- * 5. Set `ch->latched` to `false`.
- * 6. Set `ch->written_lsb` to `0U`.
- * 7. Set `ch->latch` to `0U`.
- * 8. Set `ch->reload` to `PIT_MAX_COUNT`.
- * 9. Set `ch->loaded` to `false`.
- * 10. Set `ch->counting` to `false`.
- * 11. Set `ch->start_tsc` to `0U`.
+ * 1. Set `ch->mode` to `0U`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 2. Set `ch->access` to `PIT_ACCESS_WORD`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 3. Set `ch->write_msb` to `false`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 4. Set `ch->read_msb` to `false`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 5. Set `ch->latched` to `false`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 6. Set `ch->written_lsb` to `0U`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 7. Set `ch->latch` to `0U`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 8. Set `ch->reload` to `PIT_MAX_COUNT`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 9. Set `ch->loaded` to `false`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 10. Set `ch->counting` to `false`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
+ * 11. Set `ch->start_tsc` to `0U`. \llrref{LLR_VPIT_CHANNEL_RESET_01}
  *
  * @calls
  * None.
@@ -122,16 +141,31 @@ static void channel_reset(vpit_channel_t *ch)
  * | `i` | `uint32_t` | The index of the channel |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_VPIT_RESET_01}: `vpit_reset()` shall reset the emulated
+ *   8254 timer and port B of a VM when it is loaded, and stop the timer behind
+ *   channel 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
+ *   - \srqref{SRQ_HV_TMR_006}
+ *   - \srqref{SRQ_HV_VM_004}
  *
  * @llr
+ * - \llrid{LLR_VPIT_VPIT_RESET_01}: `vpit_reset()` shall call `channel_reset()`
+ *   once for each of the `PIT_CHANNELS` channels of `pit`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_RESET_01}
+ * - \llrid{LLR_VPIT_VPIT_RESET_02}: `vpit_reset()` shall set `gate2` and
+ *   `speaker` of `pit` to false and call `lapic_timer_stop()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_RESET_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `PIT_CHANNELS`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_VPIT_VPIT_RESET_01}
  *    1. Call `channel_reset()` with the address of `pit->channel[i]`.
- * 2. Set `pit->gate2` to `false`.
- * 3. Set `pit->speaker` to `false`.
- * 4. Call `lapic_timer_stop()`.
+ * 2. Set `pit->gate2` to `false`. \llrref{LLR_VPIT_VPIT_RESET_02}
+ * 3. Set `pit->speaker` to `false`. \llrref{LLR_VPIT_VPIT_RESET_02}
+ * 4. Call `lapic_timer_stop()`. \llrref{LLR_VPIT_VPIT_RESET_02}
  *
  * @calls
  * - `channel_reset()`
@@ -167,11 +201,25 @@ void vpit_reset(vpit_t *pit)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_PERIODIC_01}: `periodic()` shall tell whether a channel is
+ *   in a periodic mode, 2 or 3.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
+ *   - \srqref{SRQ_HV_TMR_006}
  *
  * @llr
+ * - \llrid{LLR_VPIT_PERIODIC_01}: If `mode` of the channel is 2 or 3,
+ *   `periodic()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PERIODIC_01}
+ * - \llrid{LLR_VPIT_PERIODIC_02}: If `mode` of the channel is neither 2 nor 3,
+ *   `periodic()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PERIODIC_01}
  *
  * @design
  * 1. Return `(ch->mode == 2U) || (ch->mode == 3U)`.
+ *    \llrref{LLR_VPIT_PERIODIC_01}, \llrref{LLR_VPIT_PERIODIC_02}
  *
  * @calls
  * None.
@@ -202,11 +250,27 @@ static bool periodic(const vpit_channel_t *ch)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_VPIT_TIMER_RUNNING_01}: `vpit_timer_running()` shall tell
+ *   whether channel 0 raises IRQ 0 periodically.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_006}
  *
  * @llr
+ * - \llrid{LLR_VPIT_VPIT_TIMER_RUNNING_01}: If `counting` of channel 0 is true
+ *   and `periodic()` returns true for channel 0, `vpit_timer_running()` shall
+ *   return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_TIMER_RUNNING_01}
+ * - \llrid{LLR_VPIT_VPIT_TIMER_RUNNING_02}: If `counting` of channel 0 is
+ *   false, or `periodic()` returns false for channel 0, `vpit_timer_running()`
+ *   shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_TIMER_RUNNING_01}
  *
  * @design
  * 1. Return `pit->channel[0].counting && periodic(&pit->channel[0])`.
+ *    \llrref{LLR_VPIT_VPIT_TIMER_RUNNING_01},
+ *    \llrref{LLR_VPIT_VPIT_TIMER_RUNNING_02}
  *
  * @calls
  * - `periodic()`
@@ -236,12 +300,22 @@ bool vpit_timer_running(const vpit_t *pit)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_ELAPSED_01}: `elapsed()` shall give the ticks of the 8254
+ *   timer since a channel started counting.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_ELAPSED_01}: `elapsed()` shall return the result of
+ *   `hv_tsc_to_pit_ticks()` for the result of `x86_rdtsc()` minus `start_tsc`
+ *   of the channel.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_ELAPSED_01}
  *
  * @design
  * 1. Call `hv_tsc_to_pit_ticks()` with the argument
  *    `x86_rdtsc() - ch->start_tsc`, and return its result.
+ *    \llrref{LLR_VPIT_ELAPSED_01}
  *
  * @calls
  * - `hv_tsc_to_pit_ticks()`
@@ -274,19 +348,40 @@ static uint64_t elapsed(const vpit_channel_t *ch)
  * | `count` | `uint32_t` | The count |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_CURRENT_COUNT_01}: `current_count()` shall give the present
+ *   count of a channel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_CURRENT_COUNT_01}: If `counting` of the channel is false,
+ *   `current_count()` shall return the low 16 bits of `reload`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_CURRENT_COUNT_01}
+ * - \llrid{LLR_VPIT_CURRENT_COUNT_02}: If `counting` is true and `periodic()`
+ *   returns true for the channel, `current_count()` shall return the low 16
+ *   bits of `reload` minus the remainder of the result of `elapsed()` divided
+ *   by `reload`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_CURRENT_COUNT_01}
+ * - \llrid{LLR_VPIT_CURRENT_COUNT_03}: If `counting` is true and `periodic()`
+ *   returns false for the channel, `current_count()` shall return the low 16
+ *   bits of `reload` minus the remainder of the result of `elapsed()` divided
+ *   by `PIT_MAX_COUNT`, modulo `PIT_MAX_COUNT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_CURRENT_COUNT_01}
  *
  * @design
- * 1. If `ch->counting` is false:
+ * 1. If `ch->counting` is false: \llrref{LLR_VPIT_CURRENT_COUNT_01}
  *    1. Set `count` to `ch->reload`.
- * 2. Otherwise, if `periodic(ch)` is true:
+ * 2. Otherwise, if `periodic(ch)` is true: \llrref{LLR_VPIT_CURRENT_COUNT_02}
  *    1. Set `count` to `ch->reload - (uint32_t) (elapsed(ch) % ch->reload)`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_VPIT_CURRENT_COUNT_03}
  *    1. Set `count` to
  *       `(uint32_t) ((ch->reload - (elapsed(ch) % PIT_MAX_COUNT)) %`
  *       `PIT_MAX_COUNT)`.
- * 4. Return `(uint16_t) count`.
+ * 4. Return `(uint16_t) count`. \llrref{LLR_VPIT_CURRENT_COUNT_01},
+ *    \llrref{LLR_VPIT_CURRENT_COUNT_02}, \llrref{LLR_VPIT_CURRENT_COUNT_03}
  *
  * @calls
  * - `periodic()`
@@ -331,19 +426,59 @@ static uint16_t current_count(const vpit_channel_t *ch)
  * | `out` | `bool` | The output |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_OUTPUT_01}: `output()` shall give the present output of a
+ *   channel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_OUTPUT_01}: If `counting` of the channel is false and
+ *   `mode` is not 0, `output()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_OUTPUT_01}
+ * - \llrid{LLR_VPIT_OUTPUT_02}: If `counting` is false and `mode` is 0,
+ *   `output()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_OUTPUT_01}
+ * - \llrid{LLR_VPIT_OUTPUT_03}: If `counting` is true, `mode` is 0 and the
+ *   result of `elapsed()` is `reload` or more, `output()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_OUTPUT_01}
+ * - \llrid{LLR_VPIT_OUTPUT_04}: If `counting` is true, `mode` is 0 and the
+ *   result of `elapsed()` is less than `reload`, `output()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_OUTPUT_01}
+ * - \llrid{LLR_VPIT_OUTPUT_05}: If `counting` is true, `mode` is 3 and the
+ *   remainder of the result of `elapsed()` divided by `reload` is less than
+ *   `(reload + 1) / 2`, `output()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_OUTPUT_01}
+ * - \llrid{LLR_VPIT_OUTPUT_06}: If `counting` is true, `mode` is 3 and the
+ *   remainder of the result of `elapsed()` divided by `reload` is not less than
+ *   `(reload + 1) / 2`, `output()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_OUTPUT_01}
+ * - \llrid{LLR_VPIT_OUTPUT_07}: If `counting` is true and `mode` is neither 0
+ *   nor 3, `output()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_OUTPUT_01}
  *
  * @design
- * 1. If `ch->counting` is false:
+ * 1. If `ch->counting` is false: \llrref{LLR_VPIT_OUTPUT_01},
+ *    \llrref{LLR_VPIT_OUTPUT_02}
  *    1. Set `out` to `ch->mode != 0U`.
- * 2. Otherwise, if `ch->mode` is equal to `0U`:
+ * 2. Otherwise, if `ch->mode` is equal to `0U`: \llrref{LLR_VPIT_OUTPUT_03},
+ *    \llrref{LLR_VPIT_OUTPUT_04}
  *    1. Set `out` to `elapsed(ch) >= ch->reload`.
- * 3. Otherwise, if `ch->mode` is equal to `3U`:
+ * 3. Otherwise, if `ch->mode` is equal to `3U`: \llrref{LLR_VPIT_OUTPUT_05},
+ *    \llrref{LLR_VPIT_OUTPUT_06}
  *    1. Set `out` to `(elapsed(ch) % ch->reload) < ((ch->reload + 1U) / 2U)`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_VPIT_OUTPUT_07}
  *    1. Set `out` to `true`.
- * 5. Return `out`.
+ * 5. Return `out`. \llrref{LLR_VPIT_OUTPUT_01}, \llrref{LLR_VPIT_OUTPUT_02},
+ *    \llrref{LLR_VPIT_OUTPUT_03}, \llrref{LLR_VPIT_OUTPUT_04},
+ *    \llrref{LLR_VPIT_OUTPUT_05}, \llrref{LLR_VPIT_OUTPUT_06},
+ *    \llrref{LLR_VPIT_OUTPUT_07}
  *
  * @calls
  * - `elapsed()`
@@ -385,20 +520,48 @@ static bool output(const vpit_channel_t *ch)
  * | `count` | `uint64_t` | The period in local APIC timer ticks |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_UPDATE_TIMER_01}: `update_timer()` shall give the guest IRQ
+ *   0 at the rate programmed for channel 0, by the local APIC timer of its CPU.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_006}
  *
  * @llr
+ * - \llrid{LLR_VPIT_UPDATE_TIMER_01}: If `counting` of the channel is true,
+ *   `periodic()` returns true for it and `reload` times the result of
+ *   `hv_lapic_hz()` divided by `HV_PIT_HZ` is 0, `update_timer()` shall call
+ *   `lapic_timer_periodic()` once with 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_UPDATE_TIMER_01}
+ * - \llrid{LLR_VPIT_UPDATE_TIMER_02}: If `counting` is true, `periodic()`
+ *   returns true and `reload` times the result of `hv_lapic_hz()` divided by
+ *   `HV_PIT_HZ` is more than `LAPIC_MAX_COUNT`, `update_timer()` shall call
+ *   `lapic_timer_periodic()` once with `LAPIC_MAX_COUNT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_UPDATE_TIMER_01}
+ * - \llrid{LLR_VPIT_UPDATE_TIMER_03}: If `counting` is true, `periodic()`
+ *   returns true and `reload` times the result of `hv_lapic_hz()` divided by
+ *   `HV_PIT_HZ` is from 1 to `LAPIC_MAX_COUNT`, `update_timer()` shall call
+ *   `lapic_timer_periodic()` once with that value.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_UPDATE_TIMER_01}
+ * - \llrid{LLR_VPIT_UPDATE_TIMER_04}: If `counting` of the channel is false, or
+ *   `periodic()` returns false for it, `update_timer()` shall call
+ *   `lapic_timer_stop()` once, without calling `lapic_timer_periodic()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_UPDATE_TIMER_01}
  *
  * @design
  * 1. If `ch->counting` is true and `periodic(ch)` is true:
+ *    \llrref{LLR_VPIT_UPDATE_TIMER_01}, \llrref{LLR_VPIT_UPDATE_TIMER_02},
+ *    \llrref{LLR_VPIT_UPDATE_TIMER_03}
  *    1. Set `count` to `((uint64_t) ch->reload * hv_lapic_hz()) / HV_PIT_HZ`.
- *    2. If `count` is equal to `0U`:
+ *    2. If `count` is equal to `0U`: \llrref{LLR_VPIT_UPDATE_TIMER_01}
  *       1. Set `count` to `1U`.
  *    3. Otherwise, if `count` is greater than `LAPIC_MAX_COUNT`:
+ *       \llrref{LLR_VPIT_UPDATE_TIMER_02}, \llrref{LLR_VPIT_UPDATE_TIMER_03}
  *       1. Set `count` to `LAPIC_MAX_COUNT`.
- *    4. Otherwise:
- *       1. Do nothing.
- *    5. Call `lapic_timer_periodic()` with the argument `(uint32_t) count`.
- * 2. Otherwise:
+ *    4. Call `lapic_timer_periodic()` with the argument `(uint32_t) count`.
+ * 2. Otherwise: \llrref{LLR_VPIT_UPDATE_TIMER_04}
  *    1. Call `lapic_timer_stop()`.
  *
  * @calls
@@ -446,12 +609,27 @@ static void update_timer(const vpit_channel_t *ch)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_START_01}: `start()` shall start a channel counting if its
+ *   count is loaded and its gate is on.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_START_01}: If `loaded` of the channel is true and `gate` is
+ *   true, `start()` shall set `counting` to true and `start_tsc` to the result
+ *   of `x86_rdtsc()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_START_01}
+ * - \llrid{LLR_VPIT_START_02}: If `loaded` of the channel is false, or `gate`
+ *   is false, `start()` shall set `counting` to false and leave `start_tsc` as
+ *   it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_START_01}
  *
  * @design
- * 1. Set `ch->counting` to `ch->loaded && gate`.
- * 2. If `ch->counting` is true:
+ * 1. Set `ch->counting` to `ch->loaded && gate`. \llrref{LLR_VPIT_START_01},
+ *    \llrref{LLR_VPIT_START_02}
+ * 2. If `ch->counting` is true: \llrref{LLR_VPIT_START_01}
  *    1. Call `x86_rdtsc()`, and store the result in `ch->start_tsc`.
  *
  * @calls
@@ -488,16 +666,52 @@ static void start(vpit_channel_t *ch, bool gate)
  * | `ch` | `vpit_channel_t *` | The channel |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_LOAD_01}: `load()` shall load a count into a channel, 0
+ *   meaning 65536, and start the channel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
+ * - \hlrid{HLR_VPIT_LOAD_02}: `load()` shall program the timer of the host for
+ *   a count loaded into channel 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_006}
  *
  * @llr
+ * - \llrid{LLR_VPIT_LOAD_01}: If `count` is 0, `load()` shall set `reload` of
+ *   the channel `index` of `pit` to `PIT_MAX_COUNT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_LOAD_01}
+ * - \llrid{LLR_VPIT_LOAD_02}: If `count` is not 0, `load()` shall set `reload`
+ *   of the channel `index` of `pit` to `count`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_LOAD_01}
+ * - \llrid{LLR_VPIT_LOAD_03}: `load()` shall set `loaded` of the channel to
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_LOAD_01}
+ * - \llrid{LLR_VPIT_LOAD_04}: If `index` is not 2, `load()` shall call
+ *   `start()` once with the channel and true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_LOAD_01}
+ * - \llrid{LLR_VPIT_LOAD_05}: If `index` is 2, `load()` shall call `start()`
+ *   once with the channel and `gate2` of `pit`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_LOAD_01}
+ * - \llrid{LLR_VPIT_LOAD_06}: If and only if `index` is 0, `load()` shall call
+ *   `update_timer()` once with the channel, after `start()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_LOAD_02}
  *
  * @design
  * 1. Set `ch` to the address of `pit->channel[index]`.
+ *    \llrref{LLR_VPIT_LOAD_01}, \llrref{LLR_VPIT_LOAD_02},
+ *    \llrref{LLR_VPIT_LOAD_03}, \llrref{LLR_VPIT_LOAD_04},
+ *    \llrref{LLR_VPIT_LOAD_05}, \llrref{LLR_VPIT_LOAD_06}
  * 2. Set `ch->reload` to `PIT_MAX_COUNT` if `count` is equal to `0U`, otherwise
- *    `count`.
- * 3. Set `ch->loaded` to `true`.
+ *    `count`. \llrref{LLR_VPIT_LOAD_01}, \llrref{LLR_VPIT_LOAD_02}
+ * 3. Set `ch->loaded` to `true`. \llrref{LLR_VPIT_LOAD_03}
  * 4. Call `start()` with the arguments `ch` and `(index != 2U) || pit->gate2`.
- * 5. If `index` is equal to `0U`:
+ *    \llrref{LLR_VPIT_LOAD_04}, \llrref{LLR_VPIT_LOAD_05}
+ * 5. If `index` is equal to `0U`: \llrref{LLR_VPIT_LOAD_06}
  *    1. Call `update_timer()` with the argument `ch`.
  *
  * @calls
@@ -535,11 +749,20 @@ static void load(vpit_t *pit, uint32_t index, uint32_t count)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_LATCH_01}: `latch()` shall latch the count of a channel,
+ *   unless it is latched.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_LATCH_01}: If and only if `latched` of the channel is
+ *   false, `latch()` shall set `latch` to the result of `current_count()`,
+ *   `latched` to true and `read_msb` to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_LATCH_01}
  *
  * @design
- * 1. If `ch->latched` is false:
+ * 1. If `ch->latched` is false: \llrref{LLR_VPIT_LATCH_01}
  *    1. Call `current_count()` with the argument `ch`, and store the result in
  *       `ch->latch`.
  *    2. Set `ch->latched` to `true`.
@@ -583,32 +806,94 @@ static void latch(vpit_channel_t *ch)
  * | `mode` | `uint8_t` | The operating mode (bits 3-1) |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_PIT_COMMAND_01}: `pit_command()` shall handle a write to
+ *   the command port: read-back, counter latch, or the access and mode of a
+ *   channel, which stops it until a count is written.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_PIT_COMMAND_01}: If the bits 7 to 6 of `value` are
+ *   `PIT_READ_BACK` and `READ_BACK_NO_COUNT` is not set in `value`,
+ *   `pit_command()` shall call `latch()` once for each of the `PIT_CHANNELS`
+ *   channels `i` whose bit `i` plus 1 is set in `value`, and for no other
+ *   channel.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PIT_COMMAND_01}
+ * - \llrid{LLR_VPIT_PIT_COMMAND_02}: If the bits 7 to 6 of `value` are
+ *   `PIT_READ_BACK` and `READ_BACK_NO_COUNT` is set in `value`, `pit_command()`
+ *   shall leave the channels as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PIT_COMMAND_01}
+ * - \llrid{LLR_VPIT_PIT_COMMAND_03}: If the bits 7 to 6 of `value` are not
+ *   `PIT_READ_BACK` and its bits 5 to 4 are `PIT_ACCESS_LATCH`, `pit_command()`
+ *   shall call `latch()` once for the channel whose number is in the bits 7
+ *   to 6.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PIT_COMMAND_01}
+ * - \llrid{LLR_VPIT_PIT_COMMAND_04}: If the bits 7 to 6 of `value` are not
+ *   `PIT_READ_BACK`, its bits 5 to 4 are not `PIT_ACCESS_LATCH` and its bits 3
+ *   to 1 are more than 5, `pit_command()` shall set `mode` of the channel whose
+ *   number is in the bits 7 to 6 to the bits 3 to 1 minus 4.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PIT_COMMAND_01}
+ * - \llrid{LLR_VPIT_PIT_COMMAND_05}: If the bits 7 to 6 of `value` are not
+ *   `PIT_READ_BACK`, its bits 5 to 4 are not `PIT_ACCESS_LATCH` and its bits 3
+ *   to 1 are 5 or less, `pit_command()` shall set `mode` of the channel whose
+ *   number is in the bits 7 to 6 to the bits 3 to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PIT_COMMAND_01}
+ * - \llrid{LLR_VPIT_PIT_COMMAND_06}: If the bits 7 to 6 of `value` are not
+ *   `PIT_READ_BACK` and its bits 5 to 4 are not `PIT_ACCESS_LATCH`,
+ *   `pit_command()` shall set `access` of the channel whose number is in the
+ *   bits 7 to 6 to the bits 5 to 4, and its `write_msb`, `read_msb`, `latched`,
+ *   `loaded` and `counting` to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PIT_COMMAND_01}
+ * - \llrid{LLR_VPIT_PIT_COMMAND_07}: If and only if the bits 7 to 6 of `value`
+ *   are 0 and its bits 5 to 4 are not `PIT_ACCESS_LATCH`, `pit_command()` shall
+ *   call `update_timer()` once with channel 0, after it has changed the
+ *   channel.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_PIT_COMMAND_01}
  *
  * @design
- * 1. Set `index` to `(uint32_t) value >> 6`.
+ * 1. Set `index` to `(uint32_t) value >> 6`. \llrref{LLR_VPIT_PIT_COMMAND_01},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_02}, \llrref{LLR_VPIT_PIT_COMMAND_03},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_04}, \llrref{LLR_VPIT_PIT_COMMAND_05},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_06}, \llrref{LLR_VPIT_PIT_COMMAND_07}
  * 2. Set `access` to `((uint32_t) value >> 4) & 3U`.
- * 3. If `index` is equal to `PIT_READ_BACK`:
+ *    \llrref{LLR_VPIT_PIT_COMMAND_03}, \llrref{LLR_VPIT_PIT_COMMAND_04},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_05}, \llrref{LLR_VPIT_PIT_COMMAND_06},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_07}
+ * 3. If `index` is equal to `PIT_READ_BACK`: \llrref{LLR_VPIT_PIT_COMMAND_01},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_02}
  *    1. If `(value & READ_BACK_NO_COUNT)` is equal to `0U`:
+ *       \llrref{LLR_VPIT_PIT_COMMAND_01}
  *       1. Set `i` to `0U`; then while `i` is less than `PIT_CHANNELS`, repeat
  *          (after each pass: increment `i`):
  *          1. If `(value & (2U << i))` is not equal to `0U`:
  *             1. Call `latch()` with the address of `pit->channel[i]`.
  * 4. Otherwise, if `access` is equal to `PIT_ACCESS_LATCH`:
+ *    \llrref{LLR_VPIT_PIT_COMMAND_03}
  *    1. Call `latch()` with the address of `pit->channel[index]`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_VPIT_PIT_COMMAND_04},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_05}, \llrref{LLR_VPIT_PIT_COMMAND_06},
+ *    \llrref{LLR_VPIT_PIT_COMMAND_07}
  *    1. Set `ch` to the address of `pit->channel[index]`.
  *    2. Set `mode` to `(uint8_t) (((uint32_t) value >> 1) & 7U)`.
+ *       \llrref{LLR_VPIT_PIT_COMMAND_04}, \llrref{LLR_VPIT_PIT_COMMAND_05}
  *    3. Set `ch->mode` to `(uint8_t) (mode - 4U)` if `mode` is greater than
- *       `5U`, otherwise `mode`.
+ *       `5U`, otherwise `mode`. \llrref{LLR_VPIT_PIT_COMMAND_04},
+ *       \llrref{LLR_VPIT_PIT_COMMAND_05}
  *    4. Set `ch->access` to `(uint8_t) access`.
- *    5. Set `ch->write_msb` to `false`.
- *    6. Set `ch->read_msb` to `false`.
- *    7. Set `ch->latched` to `false`.
- *    8. Set `ch->loaded` to `false`.
- *    9. Set `ch->counting` to `false`.
- *    10. If `index` is equal to `0U`:
+ *       \llrref{LLR_VPIT_PIT_COMMAND_06}
+ *    5. Set `ch->write_msb` to `false`. \llrref{LLR_VPIT_PIT_COMMAND_06}
+ *    6. Set `ch->read_msb` to `false`. \llrref{LLR_VPIT_PIT_COMMAND_06}
+ *    7. Set `ch->latched` to `false`. \llrref{LLR_VPIT_PIT_COMMAND_06}
+ *    8. Set `ch->loaded` to `false`. \llrref{LLR_VPIT_PIT_COMMAND_06}
+ *    9. Set `ch->counting` to `false`. \llrref{LLR_VPIT_PIT_COMMAND_06}
+ *    10. If `index` is equal to `0U`: \llrref{LLR_VPIT_PIT_COMMAND_07}
  *        1. Call `update_timer()` with the argument `ch`.
  *
  * @calls
@@ -673,20 +958,51 @@ static void pit_command(vpit_t *pit, uint8_t value)
  * | `ch` | `vpit_channel_t *` | The channel |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_WRITE_COUNT_01}: `write_count()` shall write a byte of the
+ *   count of a channel as its access mode says: low only, high only, or low
+ *   then high.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_WRITE_COUNT_01}: If `access` of the channel `index` is
+ *   `PIT_ACCESS_LSB`, `write_count()` shall call `load()` once with `pit`,
+ *   `index` and `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_WRITE_COUNT_01}
+ * - \llrid{LLR_VPIT_WRITE_COUNT_02}: If `access` of the channel is
+ *   `PIT_ACCESS_MSB`, `write_count()` shall call `load()` once with `pit`,
+ *   `index` and `value` times 256.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_WRITE_COUNT_01}
+ * - \llrid{LLR_VPIT_WRITE_COUNT_03}: If `access` of the channel is neither
+ *   `PIT_ACCESS_LSB` nor `PIT_ACCESS_MSB` and `write_msb` is false,
+ *   `write_count()` shall set `written_lsb` to `value` and `write_msb` to true,
+ *   without calling `load()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_WRITE_COUNT_01}
+ * - \llrid{LLR_VPIT_WRITE_COUNT_04}: If `access` of the channel is neither
+ *   `PIT_ACCESS_LSB` nor `PIT_ACCESS_MSB` and `write_msb` is true,
+ *   `write_count()` shall set `write_msb` to false and call `load()` once with
+ *   `pit`, `index` and `written_lsb` plus `value` times 256.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_WRITE_COUNT_01}
  *
  * @design
  * 1. Set `ch` to the address of `pit->channel[index]`.
+ *    \llrref{LLR_VPIT_WRITE_COUNT_01}, \llrref{LLR_VPIT_WRITE_COUNT_02},
+ *    \llrref{LLR_VPIT_WRITE_COUNT_03}, \llrref{LLR_VPIT_WRITE_COUNT_04}
  * 2. If `ch->access` is equal to `PIT_ACCESS_LSB`:
+ *    \llrref{LLR_VPIT_WRITE_COUNT_01}
  *    1. Call `load()` with the arguments `pit`, `index` and `value`.
  * 3. Otherwise, if `ch->access` is equal to `PIT_ACCESS_MSB`:
+ *    \llrref{LLR_VPIT_WRITE_COUNT_02}
  *    1. Call `load()` with the arguments `pit`, `index` and
  *       `(uint32_t) value << 8`.
- * 4. Otherwise, if `ch->write_msb` is false:
+ * 4. Otherwise, if `ch->write_msb` is false: \llrref{LLR_VPIT_WRITE_COUNT_03}
  *    1. Set `ch->written_lsb` to `value`.
  *    2. Set `ch->write_msb` to `true`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_VPIT_WRITE_COUNT_04}
  *    1. Set `ch->write_msb` to `false`.
  *    2. Call `load()` with the arguments `pit`, `index` and
  *       `(uint32_t) ch->written_lsb | ((uint32_t) value << 8)`.
@@ -736,26 +1052,65 @@ static void write_count(vpit_t *pit, uint32_t index, uint8_t value)
  * | `value` | `uint8_t` | The byte read |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_READ_COUNT_01}: `read_count()` shall give a byte of the
+ *   latched or present count of a channel as its access mode says.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_READ_COUNT_01}: If `latched` of the channel is true,
+ *   `read_count()` shall take `latch` as the count.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_READ_COUNT_01}
+ * - \llrid{LLR_VPIT_READ_COUNT_02}: If `latched` of the channel is false,
+ *   `read_count()` shall take the result of `current_count()` as the count.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_READ_COUNT_01}
+ * - \llrid{LLR_VPIT_READ_COUNT_03}: If `access` of the channel is
+ *   `PIT_ACCESS_LSB`, `read_count()` shall return the low byte of the count and
+ *   set `latched` to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_READ_COUNT_01}
+ * - \llrid{LLR_VPIT_READ_COUNT_04}: If `access` of the channel is
+ *   `PIT_ACCESS_MSB`, `read_count()` shall return the high byte of the count
+ *   and set `latched` to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_READ_COUNT_01}
+ * - \llrid{LLR_VPIT_READ_COUNT_05}: If `access` of the channel is neither
+ *   `PIT_ACCESS_LSB` nor `PIT_ACCESS_MSB` and `read_msb` is false,
+ *   `read_count()` shall return the low byte of the count and set `read_msb` to
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_READ_COUNT_01}
+ * - \llrid{LLR_VPIT_READ_COUNT_06}: If `access` of the channel is neither
+ *   `PIT_ACCESS_LSB` nor `PIT_ACCESS_MSB` and `read_msb` is true,
+ *   `read_count()` shall return the high byte of the count and set `read_msb`
+ *   and `latched` to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_READ_COUNT_01}
  *
  * @design
  * 1. Set `count` to `ch->latch` if `ch->latched` is true, otherwise
- *    `current_count(ch)`.
+ *    `current_count(ch)`. \llrref{LLR_VPIT_READ_COUNT_01},
+ *    \llrref{LLR_VPIT_READ_COUNT_02}
  * 2. If `ch->access` is equal to `PIT_ACCESS_LSB`:
+ *    \llrref{LLR_VPIT_READ_COUNT_03}
  *    1. Set `value` to `(uint8_t) count`.
  *    2. Set `ch->latched` to `false`.
  * 3. Otherwise, if `ch->access` is equal to `PIT_ACCESS_MSB`:
+ *    \llrref{LLR_VPIT_READ_COUNT_04}
  *    1. Set `value` to `(uint8_t) (count >> 8)`.
  *    2. Set `ch->latched` to `false`.
- * 4. Otherwise, if `ch->read_msb` is false:
+ * 4. Otherwise, if `ch->read_msb` is false: \llrref{LLR_VPIT_READ_COUNT_05}
  *    1. Set `value` to `(uint8_t) count`.
  *    2. Set `ch->read_msb` to `true`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_VPIT_READ_COUNT_06}
  *    1. Set `value` to `(uint8_t) (count >> 8)`.
  *    2. Set `ch->read_msb` to `false`.
  *    3. Set `ch->latched` to `false`.
- * 6. Return `value`.
+ * 6. Return `value`. \llrref{LLR_VPIT_READ_COUNT_03},
+ *    \llrref{LLR_VPIT_READ_COUNT_04}, \llrref{LLR_VPIT_READ_COUNT_05},
+ *    \llrref{LLR_VPIT_READ_COUNT_06}
  *
  * @calls
  * - `current_count()`
@@ -802,13 +1157,26 @@ static uint8_t read_count(vpit_channel_t *ch)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_VPIT_WRITE_01}: `vpit_write()` shall handle a write of a
+ *   guest to a port of the timer.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_VPIT_WRITE_01}: If `port` is `PIT_COMMAND`, `vpit_write()`
+ *   shall call `pit_command()` once with `pit` and `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_WRITE_01}
+ * - \llrid{LLR_VPIT_VPIT_WRITE_02}: If `port` is not `PIT_COMMAND`,
+ *   `vpit_write()` shall call `write_count()` once with `pit`, `port` minus
+ *   `PIT_CHANNEL0` and `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_WRITE_01}
  *
  * @design
- * 1. If `port` is equal to `PIT_COMMAND`:
+ * 1. If `port` is equal to `PIT_COMMAND`: \llrref{LLR_VPIT_VPIT_WRITE_01}
  *    1. Call `pit_command()` with the arguments `pit` and `value`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_VPIT_VPIT_WRITE_02}
  *    1. Call `write_count()` with the arguments `pit`,
  *       `(uint32_t) port - PIT_CHANNEL0` and `value`.
  *
@@ -848,16 +1216,30 @@ void vpit_write(vpit_t *pit, uint16_t port, uint8_t value)
  * | `value` | `uint8_t` | The value read |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_VPIT_READ_01}: `vpit_read()` shall handle a read of a guest
+ *   from a port of the timer.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_VPIT_READ_01}: If `port` is `PIT_COMMAND`, `vpit_read()`
+ *   shall return `0xFF`, without calling `read_count()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_READ_01}
+ * - \llrid{LLR_VPIT_VPIT_READ_02}: If `port` is not `PIT_COMMAND`,
+ *   `vpit_read()` shall return the result of `read_count()` for the channel
+ *   `port` minus `PIT_CHANNEL0` of `pit`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_READ_01}
  *
  * @design
- * 1. Set `value` to `0xFFU`.
- * 2. If `port` is not equal to `PIT_COMMAND`:
+ * 1. Set `value` to `0xFFU`. \llrref{LLR_VPIT_VPIT_READ_01}
+ * 2. If `port` is not equal to `PIT_COMMAND`: \llrref{LLR_VPIT_VPIT_READ_02}
  *    1. Call `read_count()` with the address of
  *       `pit->channel[(uint32_t) port - PIT_CHANNEL0]`, and store the result in
  *       `value`.
- * 3. Return `value`.
+ * 3. Return `value`. \llrref{LLR_VPIT_VPIT_READ_01},
+ *    \llrref{LLR_VPIT_VPIT_READ_02}
  *
  * @calls
  * - `read_count()`
@@ -895,20 +1277,51 @@ uint8_t vpit_read(vpit_t *pit, uint16_t port)
  * | `ch` | `vpit_channel_t *` | Channel 2 |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_VPIT_WRITE_PORT_B_01}: `vpit_write_port_b()` shall handle a
+ *   write of a guest to port B: the gate of channel 2 and the speaker bit.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_VPIT_WRITE_PORT_B_01}: `vpit_write_port_b()` shall set
+ *   `speaker` of `pit` to true if `PORT_B_SPEAKER` is set in `value` and to
+ *   false if it is not, and, after it has handled channel 2, `gate2` to true if
+ *   `PORT_B_GATE2` is set in `value` and to false if it is not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_WRITE_PORT_B_01}
+ * - \llrid{LLR_VPIT_VPIT_WRITE_PORT_B_02}: If `PORT_B_GATE2` is set in `value`
+ *   and `gate2` of `pit` is false, `vpit_write_port_b()` shall call `start()`
+ *   once with channel 2 and true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_WRITE_PORT_B_01}
+ * - \llrid{LLR_VPIT_VPIT_WRITE_PORT_B_03}: If `PORT_B_GATE2` is not set in
+ *   `value`, `vpit_write_port_b()` shall set `counting` of channel 2 to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_WRITE_PORT_B_01}
+ * - \llrid{LLR_VPIT_VPIT_WRITE_PORT_B_04}: If `PORT_B_GATE2` is set in `value`
+ *   and `gate2` of `pit` is true, `vpit_write_port_b()` shall leave channel 2
+ *   as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_WRITE_PORT_B_01}
  *
  * @design
  * 1. Set `gate` to `(value & PORT_B_GATE2) != 0U`.
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_01},
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_02},
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_03},
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_04}
  * 2. Set `ch` to the address of `pit->channel[2]`.
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_02},
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_03}
  * 3. Set `pit->speaker` to `(value & PORT_B_SPEAKER) != 0U`.
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_01}
  * 4. If `gate` is true and `pit->gate2` is false:
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_02}
  *    1. Call `start()` with the arguments `ch` and `true`.
- * 5. Otherwise, if `gate` is false:
+ * 5. Otherwise, if `gate` is false: \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_03},
+ *    \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_04}
  *    1. Set `ch->counting` to `false`.
- * 6. Otherwise:
- *    1. Do nothing.
- * 7. Set `pit->gate2` to `gate`.
+ * 6. Set `pit->gate2` to `gate`. \llrref{LLR_VPIT_VPIT_WRITE_PORT_B_01}
  *
  * @calls
  * - `start()`
@@ -953,22 +1366,59 @@ void vpit_write_port_b(vpit_t *pit, uint8_t value)
  * | `now` | `uint64_t` | The time in PIT ticks |
  *
  * @hlr
+ * - \hlrid{HLR_VPIT_VPIT_READ_PORT_B_01}: `vpit_read_port_b()` shall give a
+ *   guest port B: the gate and speaker bits, the refresh toggle and the output
+ *   of channel 2.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_002}
  *
  * @llr
+ * - \llrid{LLR_VPIT_VPIT_READ_PORT_B_01}: If and only if `gate2` of `pit` is
+ *   true, `vpit_read_port_b()` shall set `PORT_B_GATE2` in the value that it
+ *   returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_READ_PORT_B_01}
+ * - \llrid{LLR_VPIT_VPIT_READ_PORT_B_02}: If and only if `speaker` of `pit` is
+ *   true, `vpit_read_port_b()` shall set `PORT_B_SPEAKER` in the value that it
+ *   returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_READ_PORT_B_01}
+ * - \llrid{LLR_VPIT_VPIT_READ_PORT_B_03}: If and only if the result of
+ *   `hv_tsc_to_pit_ticks()` for the result of `x86_rdtsc()`, divided by
+ *   `REFRESH_PIT_TICKS`, is odd, `vpit_read_port_b()` shall set
+ *   `PORT_B_REFRESH` in the value that it returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_READ_PORT_B_01}
+ * - \llrid{LLR_VPIT_VPIT_READ_PORT_B_04}: If and only if `output()` returns
+ *   true for channel 2, `vpit_read_port_b()` shall set `PORT_B_OUT2` in the
+ *   value that it returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_READ_PORT_B_01}
+ * - \llrid{LLR_VPIT_VPIT_READ_PORT_B_05}: `vpit_read_port_b()` shall return 0
+ *   in the bits other than `PORT_B_GATE2`, `PORT_B_SPEAKER`, `PORT_B_REFRESH`
+ *   and `PORT_B_OUT2`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VPIT_VPIT_READ_PORT_B_01}
  *
  * @design
- * 1. Set `value` to `0U`.
+ * 1. Set `value` to `0U`. \llrref{LLR_VPIT_VPIT_READ_PORT_B_05}
  * 2. Call `hv_tsc_to_pit_ticks()` with the argument `x86_rdtsc()`, and store
- *    the result in `now`.
- * 3. If `pit->gate2` is true:
+ *    the result in `now`. \llrref{LLR_VPIT_VPIT_READ_PORT_B_03}
+ * 3. If `pit->gate2` is true: \llrref{LLR_VPIT_VPIT_READ_PORT_B_01}
  *    1. Set the bits `PORT_B_GATE2` in `value`.
- * 4. If `pit->speaker` is true:
+ * 4. If `pit->speaker` is true: \llrref{LLR_VPIT_VPIT_READ_PORT_B_02}
  *    1. Set the bits `PORT_B_SPEAKER` in `value`.
  * 5. If `((now / REFRESH_PIT_TICKS) % 2U)` is not equal to `0U`:
+ *    \llrref{LLR_VPIT_VPIT_READ_PORT_B_03}
  *    1. Set the bits `PORT_B_REFRESH` in `value`.
  * 6. If `output(&pit->channel[2])` is true:
+ *    \llrref{LLR_VPIT_VPIT_READ_PORT_B_04}
  *    1. Set the bits `PORT_B_OUT2` in `value`.
- * 7. Return `value`.
+ * 7. Return `value`. \llrref{LLR_VPIT_VPIT_READ_PORT_B_01},
+ *    \llrref{LLR_VPIT_VPIT_READ_PORT_B_02},
+ *    \llrref{LLR_VPIT_VPIT_READ_PORT_B_03},
+ *    \llrref{LLR_VPIT_VPIT_READ_PORT_B_04},
+ *    \llrref{LLR_VPIT_VPIT_READ_PORT_B_05}
  *
  * @calls
  * - `hv_tsc_to_pit_ticks()`

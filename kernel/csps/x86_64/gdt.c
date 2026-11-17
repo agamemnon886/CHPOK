@@ -34,6 +34,14 @@
  * describes it, and an initialized one is set in a step.
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/x86_64/gdt.c (the CPU support packages are in kernel/csps).
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -71,11 +79,20 @@ static tss_t pok_tss __attribute__((aligned(16)));
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDT_CPU_LOAD_GDT_01}: `cpu_load_gdt()` shall load the global
+ *   descriptor table register.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_002}
+ *   - \srqref{SRQ_JET_MEM_012}
  *
  * @llr
+ * - \llrid{LLR_GDT_CPU_LOAD_GDT_01}: `cpu_load_gdt()` shall execute the
+ *   instruction `lgdt` once with the descriptor at `desc`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDT_CPU_LOAD_GDT_01}
  *
  * @design
- * 1. Execute the assembly code `lgdt %0`.
+ * 1. Execute the assembly code `lgdt %0`. \llrref{LLR_GDT_CPU_LOAD_GDT_01}
  *
  * @calls
  * None.
@@ -112,11 +129,20 @@ static void cpu_load_gdt(const sysdesc_t* desc)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDT_CPU_LOAD_TASK_REGISTER_01}: `cpu_load_task_register()` shall
+ *   load the task register.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_012}
  *
  * @llr
+ * - \llrid{LLR_GDT_CPU_LOAD_TASK_REGISTER_01}: `cpu_load_task_register()` shall
+ *   execute the instruction `ltr` once with `selector`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDT_CPU_LOAD_TASK_REGISTER_01}
  *
  * @design
  * 1. Execute the assembly code `ltr %%w0`.
+ *    \llrref{LLR_GDT_CPU_LOAD_TASK_REGISTER_01}
  *
  * @calls
  * None.
@@ -147,23 +173,45 @@ static void cpu_load_task_register(uint16_t selector)
  * | `sysdesc` | `sysdesc_t` | The GDT's limit and base |
  *
  * @hlr
+ * - \hlrid{HLR_GDT_JA_GDT_INIT_01}: `ja_gdt_init()` shall set up the task
+ *   state, without an I/O permission bitmap, so that interrupts from user mode
+ *   switch to a kernel stack, and load the descriptor table and the task
+ *   register.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_012}
+ *   - \srqref{SRQ_JET_INT_001}
  *
  * @llr
+ * - \llrid{LLR_GDT_JA_GDT_INIT_01}: `ja_gdt_init()` shall set every byte of
+ *   `pok_tss` to 0 with `memset()` and its `iomap_base` to the size of
+ *   `pok_tss`, set `ja_gdt[GDT_TSS / 8]` to the low half of the 64-bit system
+ *   descriptor of `pok_tss` (the limit: its size minus 1; the base: its
+ *   address; the type `0x89`) and `ja_gdt[(GDT_TSS / 8) + 1]` to the bits 63 to
+ *   32 of its address, call `cpu_load_gdt()` with a descriptor whose limit is
+ *   `(7 * 8) - 1` and whose base is the address of `ja_gdt`, and then
+ *   `cpu_load_task_register()` with `GDT_TSS`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDT_JA_GDT_INIT_01}
  *
  * @design
- * 1. Set `base` to `(uint64_t)&pok_tss`.
- * 2. Set `limit` to `sizeof(pok_tss) - 1U`.
+ * 1. Set `base` to `(uint64_t)&pok_tss`. \llrref{LLR_GDT_JA_GDT_INIT_01}
+ * 2. Set `limit` to `sizeof(pok_tss) - 1U`. \llrref{LLR_GDT_JA_GDT_INIT_01}
  * 3. Call `memset()` with the arguments the address of `pok_tss`, `0` and
- *    `sizeof(pok_tss)`.
+ *    `sizeof(pok_tss)`. \llrref{LLR_GDT_JA_GDT_INIT_01}
  * 4. Set `pok_tss.iomap_base` to `sizeof(pok_tss)`.
+ *    \llrref{LLR_GDT_JA_GDT_INIT_01}
  * 5. Set `ja_gdt[GDT_TSS / 8]` to
  *    `(limit & 0xffffU) | ((base & 0xffffffU) << 16) | (0x89ULL << 40) |`
  *    `(((limit >> 16) & 0xfU) << 48) | (((base >> 24) & 0xffU) << 56)`.
+ *    \llrref{LLR_GDT_JA_GDT_INIT_01}
  * 6. Set `ja_gdt[(GDT_TSS / 8) + 1]` to `base >> 32`.
- * 7. Set `sysdesc.limit` to `(7 * 8) - 1`.
- * 8. Set `sysdesc.base` to `(uint64_t)ja_gdt`.
+ *    \llrref{LLR_GDT_JA_GDT_INIT_01}
+ * 7. Set `sysdesc.limit` to `(7 * 8) - 1`. \llrref{LLR_GDT_JA_GDT_INIT_01}
+ * 8. Set `sysdesc.base` to `(uint64_t)ja_gdt`. \llrref{LLR_GDT_JA_GDT_INIT_01}
  * 9. Call `cpu_load_gdt()` with the address of `sysdesc`.
+ *    \llrref{LLR_GDT_JA_GDT_INIT_01}
  * 10. Call `cpu_load_task_register()` with the argument `GDT_TSS`.
+ *     \llrref{LLR_GDT_JA_GDT_INIT_01}
  *
  * @calls
  * - `memset()`
@@ -217,11 +265,20 @@ void ja_gdt_init(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDT_JA_TSS_SET_RSP0_01}: `ja_tss_set_rsp0()` shall set the
+ *   kernel stack that the next interrupt from user mode uses.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_001}
+ *   - \srqref{SRQ_JET_THR_023}
  *
  * @llr
+ * - \llrid{LLR_GDT_JA_TSS_SET_RSP0_01}: `ja_tss_set_rsp0()` shall set
+ *   `pok_tss.rsp0` to `rsp0`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDT_JA_TSS_SET_RSP0_01}
  *
  * @design
- * 1. Set `pok_tss.rsp0` to `rsp0`.
+ * 1. Set `pok_tss.rsp0` to `rsp0`. \llrref{LLR_GDT_JA_TSS_SET_RSP0_01}
  *
  * @calls
  * None.

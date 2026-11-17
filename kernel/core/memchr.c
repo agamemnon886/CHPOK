@@ -13,6 +13,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/memchr.c
  * (kernel/libc is split up: the routines only the kernel uses are in
  * kernel/core).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -47,16 +55,32 @@
  * | `p` | `const unsigned char *` | The memory, as bytes |
  *
  * @hlr
+ * - \hlrid{HLR_MEMCHR_MEMCHR_01}: `memchr()` shall give the address of the
+ *   first of `n` bytes of a block that has the value `c` (converted to
+ *   `unsigned char`), or NULL if none has.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_MEMCHR_MEMCHR_01}: If one of the first `n` bytes at `s` is equal
+ *   to `c` converted to `unsigned char`, `memchr()` shall return the address of
+ *   the first such byte.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMCHR_MEMCHR_01}
+ * - \llrid{LLR_MEMCHR_MEMCHR_02}: If none of the first `n` bytes at `s` is
+ *   equal to `c` converted to `unsigned char`, `memchr()` shall return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMCHR_MEMCHR_01}
  *
  * @design
- * 1. Set `p` to `s`.
+ * 1. Set `p` to `s`. \llrref{LLR_MEMCHR_MEMCHR_01},
+ *    \llrref{LLR_MEMCHR_MEMCHR_02}
  * 2. Set `i` to `0U`; then while `i` is less than `n`, repeat (after each pass:
- *    increment `i`):
- *    1. If `(unsigned char)c` is equal to `p[i]`:
+ *    increment `i`): \llrref{LLR_MEMCHR_MEMCHR_01},
+ *    \llrref{LLR_MEMCHR_MEMCHR_02}
+ *    1. If `(unsigned char)c` is equal to `p[i]`: \llrref{LLR_MEMCHR_MEMCHR_01}
  *       1. Return `(void *)&p[i]`.
- * 3. Return `NULL`.
+ * 3. Return `NULL`. \llrref{LLR_MEMCHR_MEMCHR_02}
  *
  * @calls
  * None.

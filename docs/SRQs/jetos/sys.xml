@@ -36,7 +36,7 @@
     structure in the memory of the partition.</para>
 
   <section xml:id="SRQ_JET_SYS_001" role="requirement">
-    <title>SRQ_JET_SYS_001</title>
+    <title><phrase role="srq">SRQ_JET_SYS_001</phrase></title>
     <para>JetOS shall provide the system calls that are listed in the
       chapters of this document: the services of processes, critical
       sections, time, ports, partitions, health monitoring, memory blocks
@@ -50,15 +50,18 @@
       <title>Verification</title>
       <para>Review.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYS_002" role="requirement">
-    <title>SRQ_JET_SYS_002</title>
+    <title><phrase role="srq">SRQ_JET_SYS_002</phrase></title>
     <para>JetOS shall accept a system call on x86_64 from a software
-      interrupt and on arm64 from the supervisor call instruction, with
-      the identifier of the call and the address of its arguments in
-      registers, and shall return the result of the call to the caller in
-      a register.</para>
+    interrupt and on arm64 from the supervisor call instruction, with
+    the identifier of the call and the address of its arguments in
+    registers.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The two architectures differ in the instruction, not in the
@@ -68,10 +71,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01
+        HLR_SYSCALLS_ARM64_PROCESS_SYSCALL_01
+        HLR_SYSCALL_POK_CORE_SYSCALL_01
+        HLR_INTERRUPT_IDT_SET_GATE_01
+        HLR_INTERRUPT_JA_IDT_INIT_01
+        HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01
+        HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYS_009" role="requirement">
+    <title><phrase role="srq">SRQ_JET_SYS_009</phrase></title>
+    <para>JetOS shall return the result of a system call to the caller
+    in a register.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The two architectures differ in the instruction, not in the
+        service.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALLS_ARM64_PROCESS_SYSCALL_01
+        HLR_SYSCALL_POK_CORE_SYSCALL_01
+        HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYS_003" role="requirement">
-    <title>SRQ_JET_SYS_003</title>
+    <title><phrase role="srq">SRQ_JET_SYS_003</phrase></title>
     <para>JetOS shall return a result to the caller that tells whether
       the call succeeded or why it failed.</para>
     <formalpara>
@@ -82,10 +116,16 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALLS_ARM64_PROCESS_SYSCALL_01
+        HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_01
+        HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYS_004" role="requirement">
-    <title>SRQ_JET_SYS_004</title>
+    <title><phrase role="srq">SRQ_JET_SYS_004</phrase></title>
     <para>JetOS shall treat a system call with an unknown identifier as
       an illegal request error of the calling partition.</para>
     <formalpara>
@@ -96,10 +136,14 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYS_005" role="requirement">
-    <title>SRQ_JET_SYS_005</title>
+    <title><phrase role="srq">SRQ_JET_SYS_005</phrase></title>
     <para>JetOS shall check the arguments of a system call that are
       addresses, identifiers, names, sizes and modes before it uses them,
       and refuse a bad one with an error.</para>
@@ -112,10 +156,38 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALLS_ARM64_PROCESS_SYSCALL_02
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_APPLICATION_ERROR_03
+        HLR_ERROR_ARINC_POK_ERROR_REPORT_APPLICATION_MESSAGE_02
+        HLR_ERROR_ARINC_POK_ERROR_GET_02
+        HLR_PORT_GET_PORT_QUEUING_01
+        HLR_PORT_POK_PORT_QUEUING_RECEIVE_04
+        HLR_PORT_POK_PORT_QUEUING_SEND_04
+        HLR_PORT_POK_PORT_QUEUING_STATUS_02
+        HLR_PORT_POK_PORT_QUEUING_CLEAR_02
+        HLR_PORT_GET_PORT_SAMPLING_01
+        HLR_PORT_POK_PORT_SAMPLING_WRITE_02
+        HLR_PORT_POK_PORT_SAMPLING_READ_03
+        HLR_PORT_POK_PORT_SAMPLING_STATUS_02
+        HLR_PORT_POK_PORT_SAMPLING_CHECK_02
+        HLR_THREAD_GET_THREAD_BY_ID_01
+        HLR_THREAD_POK_THREAD_DELAYED_START_02
+        HLR_THREAD_POK_THREAD_START_02
+        HLR_THREAD_POK_THREAD_GET_STATUS_02
+        HLR_THREAD_POK_THREAD_SET_PRIORITY_02
+        HLR_THREAD_POK_THREAD_RESUME_02
+        HLR_THREAD_POK_THREAD_SUSPEND_TARGET_02
+        HLR_THREAD_POK_THREAD_STOP_TARGET_04
+        HLR_UACCESS_POK_COPY_NAME_TO_USER_01
+        HLR_GDBSERVER_IN_HEX_01
+        HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYS_006" role="requirement">
-    <title>SRQ_JET_SYS_006</title>
+    <title><phrase role="srq">SRQ_JET_SYS_006</phrase></title>
     <para>JetOS shall run a system call with preemption enabled, except
       for the code that must not be interrupted, so that the time that
       the kernel needs for a call does not delay an interrupt for long.</para>
@@ -127,10 +199,14 @@
       <title>Verification</title>
       <para>Analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALL_UNPROTECTED_SYSCALL_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYS_007" role="requirement">
-    <title>SRQ_JET_SYS_007</title>
+    <title><phrase role="srq">SRQ_JET_SYS_007</phrase></title>
     <para>JetOS shall, when it returns from a system call or from an
       interrupt to a partition, first handle the events that the
       partition has, and restore the state of the floating point unit of
@@ -144,10 +220,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_RETURN_USER_01
+        HLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01
+        HLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01
+        HLR_SCHED_POK_PARTITION_RETURN_USER_01
+        HLR_SYSCALL_UNPROTECTED_SYSCALL_02
+        HLR_INTERRUPT_JA_INTERRUPT_HANDLER_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYS_008" role="requirement">
-    <title>SRQ_JET_SYS_008</title>
+    <title><phrase role="srq">SRQ_JET_SYS_008</phrase></title>
     <para>JetOS shall, when it is built to give partitions access to
       input and output ports (x86_64 only), let a partition read and
       write the ports in the range that the configuration gives to it,
@@ -160,6 +245,10 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_04</para>
     </formalpara>
   </section>
 </chapter>

@@ -37,12 +37,11 @@
     when they have to wait or to wake up another process.</para>
 
   <section xml:id="SRQ_JET_SYNC_001" role="requirement">
-    <title>SRQ_JET_SYNC_001</title>
+    <title><phrase role="srq">SRQ_JET_SYNC_001</phrase></title>
     <para>JetOS shall, when a process wants to enter a critical section
-      that another process of its partition owns, run the owner until it
-      has left the section, so that the processes do not wait for each
-      other for ever, and shall give the processor back to the highest
-      priority process after that.</para>
+    that another process of its partition owns, run the owner until it
+    has left the section, so that the processes do not wait for each
+    other for ever.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The owner inherits the urgency of the waiting process, which
@@ -52,13 +51,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_SELECT_THREAD_03
+        HLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01
+        HLR_THREAD_ASSERT_THREAD_ID_01
+        HLR_THREAD_JET_MSECTION_ENTER_HELPER_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYNC_006" role="requirement">
+    <title><phrase role="srq">SRQ_JET_SYNC_006</phrase></title>
+    <para>JetOS shall give the processor back to the highest priority
+    process of the partition when the owner of a critical section has
+    left it for a process that wanted to enter it.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The owner runs in place of the waiting process only for as
+      long as it holds the section.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_SELECT_THREAD_03
+        HLR_SCHED_ARINC_JET_RESCHED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYNC_002" role="requirement">
-    <title>SRQ_JET_SYNC_002</title>
+    <title><phrase role="srq">SRQ_JET_SYNC_002</phrase></title>
     <para>JetOS shall let the owner of a critical section release it and
-      wait, with a time-out, until another process of the partition wakes
-      it up, and shall make it enter the section again when it wakes up.</para>
+    wait, with a time-out, until another process of the partition wakes
+    it up.</para>
     <formalpara>
       <title>Rationale</title>
       <para>This is the wait of a process on a condition that another one
@@ -68,10 +95,33 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_JET_MSECTION_WAIT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_SYNC_007" role="requirement">
+    <title><phrase role="srq">SRQ_JET_SYNC_007</phrase></title>
+    <para>JetOS shall make the owner of a critical section that waited
+    in it enter the section again when it wakes up.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>This is the wait of a process on a condition that another one
+        changes inside the section.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_JET_MSECTION_WAIT_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYNC_003" role="requirement">
-    <title>SRQ_JET_SYNC_003</title>
+    <title><phrase role="srq">SRQ_JET_SYNC_003</phrase></title>
     <para>JetOS shall let the owner of a critical section wake up one or
       all of the processes that wait on it, and tell how many there are.</para>
     <formalpara>
@@ -82,10 +132,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_JET_MSECTION_NOTIFY_01
+        HLR_THREAD_MSECTION_WQ_DEL_01
+        HLR_THREAD_JET_MSECTION_WQ_NOTIFY_01
+        HLR_THREAD_JET_MSECTION_WQ_SIZE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYNC_004" role="requirement">
-    <title>SRQ_JET_SYNC_004</title>
+    <title><phrase role="srq">SRQ_JET_SYNC_004</phrase></title>
     <para>JetOS shall let a partition ask the kernel to choose the
       process to run again after a change that it made in its own memory,
       such as leaving a critical section.</para>
@@ -98,10 +155,14 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_JET_RESCHED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SYNC_005" role="requirement">
-    <title>SRQ_JET_SYNC_005</title>
+    <title><phrase role="srq">SRQ_JET_SYNC_005</phrase></title>
     <para>JetOS shall delay the stop of a process that is in a critical
       section until it leaves it, and let the process that asked for the
       stop wait meanwhile.</para>
@@ -112,6 +173,14 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_SELECT_THREAD_02
+        HLR_SCHED_ARINC_JET_RESCHED_02
+        HLR_THREAD_POK_THREAD_STOP_TARGET_02
+        HLR_THREAD_POK_THREAD_STOP_TARGET_03
+        HLR_THREAD_JET_MSECTION_WAIT_03</para>
     </formalpara>
   </section>
 </chapter>

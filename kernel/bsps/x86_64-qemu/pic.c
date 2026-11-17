@@ -32,6 +32,12 @@
  * boards/x86_64-qemu/pic.c (the board support packages are in kernel/bsps);
  * the function headers follow outb() and inb(), which call x86_outb() and
  * x86_inb().
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -66,20 +72,48 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PIC_POK_PIC_INIT_01}: `pok_pic_init()` shall initialize the two
+ *   8259 interrupt controllers so that IRQs 0 to 7 come as vectors 32 to 39 and
+ *   8 to 15 as 40 to 47, the slave cascaded on IRQ 2, with every IRQ masked but
+ *   the cascade.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BSP_002}
+ *   - \srqref{SRQ_JET_INT_001}
+ *   - \srqref{SRQ_JET_INT_006}
  *
  * @llr
+ * - \llrid{LLR_PIC_POK_PIC_INIT_01}: `pok_pic_init()` shall write with
+ *   `outb()`, in this order, `PIC_MASTER_ICW1` to `PIC_MASTER_BASE`,
+ *   `PIC_SLAVE_ICW1` to `PIC_SLAVE_BASE`, then `PIC_MASTER_ICW2` to
+ *   `PIC_MASTER_BASE + 1`, `PIC_SLAVE_ICW2` to `PIC_SLAVE_BASE + 1`,
+ *   `PIC_MASTER_ICW3` to `PIC_MASTER_BASE + 1`, `PIC_SLAVE_ICW3` to
+ *   `PIC_SLAVE_BASE + 1`, `PIC_MASTER_ICW4` to `PIC_MASTER_BASE + 1`,
+ *   `PIC_SLAVE_ICW4` to `PIC_SLAVE_BASE + 1`, and then the masks `0xfb` to
+ *   `PIC_MASTER_BASE + 1` and `0xff` to `PIC_SLAVE_BASE + 1`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_INIT_01}
  *
  * @design
  * 1. Use the macro `outb (PIC_MASTER_BASE, PIC_MASTER_ICW1)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 2. Use the macro `outb (PIC_SLAVE_BASE, PIC_SLAVE_ICW1)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 3. Use the macro `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW2)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 4. Use the macro `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW2)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 5. Use the macro `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW3)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 6. Use the macro `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW3)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 7. Use the macro `outb (PIC_MASTER_BASE + 1, PIC_MASTER_ICW4)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 8. Use the macro `outb (PIC_SLAVE_BASE + 1, PIC_SLAVE_ICW4)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 9. Use the macro `outb (PIC_MASTER_BASE + 1, 0xfb)`.
+ *    \llrref{LLR_PIC_POK_PIC_INIT_01}
  * 10. Use the macro `outb (PIC_SLAVE_BASE + 1, 0xff)`.
+ *     \llrref{LLR_PIC_POK_PIC_INIT_01}
  *
  * @calls
  * - `x86_outb()`
@@ -125,21 +159,41 @@ void pok_pic_init (void)
  * | `mask` | `uint8_t` | The interrupt mask read from the controller |
  *
  * @hlr
+ * - \hlrid{HLR_PIC_POK_PIC_MASK_01}: `pok_pic_mask()` shall mask one IRQ line
+ *   of the interrupt controllers, and refuse an IRQ above 15.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_006}
  *
  * @llr
+ * - \llrid{LLR_PIC_POK_PIC_MASK_01}: If `irq` is greater than 15,
+ *   `pok_pic_mask()` shall return `POK_ERRNO_EINVAL` without reading or writing
+ *   a port.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_MASK_01}
+ * - \llrid{LLR_PIC_POK_PIC_MASK_02}: If `irq` is less than 8, `pok_pic_mask()`
+ *   shall read the byte at `PIC_MASTER_BASE + 1` with `inb()`, write it back
+ *   with `outb()` with its bit `irq` set, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_MASK_01}
+ * - \llrid{LLR_PIC_POK_PIC_MASK_03}: If `irq` is from 8 to 15, `pok_pic_mask()`
+ *   shall read the byte at `PIC_SLAVE_BASE + 1` with `inb()`, write it back
+ *   with `outb()` with its bit `irq` minus 8 set, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_MASK_01}
  *
  * @design
- * 1. If `irq` is greater than `15U`:
+ * 1. If `irq` is greater than `15U`: \llrref{LLR_PIC_POK_PIC_MASK_01}
  *    1. Return `(POK_ERRNO_EINVAL)`.
- * 2. If `irq` is less than `8U`:
+ * 2. If `irq` is less than `8U`: \llrref{LLR_PIC_POK_PIC_MASK_02}
  *    1. Set `mask` to `inb (PIC_MASTER_BASE + 1)`.
  *    2. Use the macro
  *       `outb (PIC_MASTER_BASE + 1, (uint8_t) (mask | (1U << irq)))`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_PIC_POK_PIC_MASK_03}
  *    1. Set `mask` to `inb (PIC_SLAVE_BASE + 1)`.
  *    2. Use the macro
  *       `outb (PIC_SLAVE_BASE + 1, (uint8_t) (mask | (1U << (irq - 8U))))`.
- * 4. Return `(POK_ERRNO_OK)`.
+ * 4. Return `(POK_ERRNO_OK)`. \llrref{LLR_PIC_POK_PIC_MASK_02},
+ *    \llrref{LLR_PIC_POK_PIC_MASK_03}
  *
  * @calls
  * - `x86_inb()`
@@ -190,21 +244,43 @@ int32_t pok_pic_mask (uint8_t irq)
  * | `mask` | `uint8_t` | The interrupt mask read from the controller |
  *
  * @hlr
+ * - \hlrid{HLR_PIC_POK_PIC_UNMASK_01}: `pok_pic_unmask()` shall unmask one IRQ
+ *   line of the interrupt controllers, and refuse an IRQ above 15.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_006}
  *
  * @llr
+ * - \llrid{LLR_PIC_POK_PIC_UNMASK_01}: If `irq` is greater than 15,
+ *   `pok_pic_unmask()` shall return `POK_ERRNO_EINVAL` without reading or
+ *   writing a port.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_UNMASK_01}
+ * - \llrid{LLR_PIC_POK_PIC_UNMASK_02}: If `irq` is less than 8,
+ *   `pok_pic_unmask()` shall read the byte at `PIC_MASTER_BASE + 1` with
+ *   `inb()`, write it back with `outb()` with its bit `irq` cleared, and return
+ *   `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_UNMASK_01}
+ * - \llrid{LLR_PIC_POK_PIC_UNMASK_03}: If `irq` is from 8 to 15,
+ *   `pok_pic_unmask()` shall read the byte at `PIC_SLAVE_BASE + 1` with
+ *   `inb()`, write it back with `outb()` with its bit `irq` minus 8 cleared,
+ *   and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_UNMASK_01}
  *
  * @design
- * 1. If `irq` is greater than `15U`:
+ * 1. If `irq` is greater than `15U`: \llrref{LLR_PIC_POK_PIC_UNMASK_01}
  *    1. Return `(POK_ERRNO_EINVAL)`.
- * 2. If `irq` is less than `8U`:
+ * 2. If `irq` is less than `8U`: \llrref{LLR_PIC_POK_PIC_UNMASK_02}
  *    1. Set `mask` to `inb(PIC_MASTER_BASE + 1)`.
  *    2. Use the macro
  *       `outb(PIC_MASTER_BASE + 1, (uint8_t) (mask & ~(1U << irq)))`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_PIC_POK_PIC_UNMASK_03}
  *    1. Set `mask` to `inb(PIC_SLAVE_BASE + 1)`.
  *    2. Use the macro
  *       `outb(PIC_SLAVE_BASE + 1, (uint8_t) (mask & ~(1U << (irq - 8U))))`.
- * 4. Return `(POK_ERRNO_OK)`.
+ * 4. Return `(POK_ERRNO_OK)`. \llrref{LLR_PIC_POK_PIC_UNMASK_02},
+ *    \llrref{LLR_PIC_POK_PIC_UNMASK_03}
  *
  * @calls
  * - `x86_inb()`
@@ -251,13 +327,26 @@ int32_t pok_pic_unmask(uint8_t irq)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PIC_POK_PIC_EOI_01}: `pok_pic_eoi()` shall acknowledge an
+ *   interrupt at the interrupt controllers, so that they deliver the next one.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_005}
  *
  * @llr
+ * - \llrid{LLR_PIC_POK_PIC_EOI_01}: If and only if `irq` is 8 or more,
+ *   `pok_pic_eoi()` shall first write `0x20` to `PIC_SLAVE_BASE` with `outb()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_EOI_01}
+ * - \llrid{LLR_PIC_POK_PIC_EOI_02}: `pok_pic_eoi()` shall write `0x20` to
+ *   `PIC_MASTER_BASE` with `outb()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIC_POK_PIC_EOI_01}
  *
  * @design
- * 1. If `irq` is greater than or equal to `8U`:
+ * 1. If `irq` is greater than or equal to `8U`: \llrref{LLR_PIC_POK_PIC_EOI_01}
  *    1. Use the macro `outb (PIC_SLAVE_BASE, 0x20)`.
  * 2. Use the macro `outb (PIC_MASTER_BASE, 0x20)`.
+ *    \llrref{LLR_PIC_POK_PIC_EOI_02}
  *
  * @calls
  * - `x86_outb()`

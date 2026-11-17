@@ -36,13 +36,11 @@
     653. The scheduling of the partitions is in the chapter "Scheduling".</para>
 
   <section xml:id="SRQ_JET_THR_001" role="requirement">
-    <title>SRQ_JET_THR_001</title>
+    <title><phrase role="srq">SRQ_JET_THR_001</phrase></title>
     <para>JetOS shall create a process of a partition only while the
-      partition is not in <literal>NORMAL</literal> mode, with the
-      attributes given: its name, entry point, base priority, period,
-      time capacity, deadline and stack size; and shall refuse an invalid
-      attribute, a name that another process of the partition has, or an
-      entry point outside executable code, with an error.</para>
+    partition is not in <literal>NORMAL</literal> mode, with the
+    attributes given: its name, entry point, base priority, period, time
+    capacity, deadline and stack size.</para>
     <formalpara>
       <title>Rationale</title>
       <para>All processes exist when the partition starts to work
@@ -52,10 +50,35 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_CREATE_01
+        HLR_THREAD_INTERNAL_THREAD_CREATE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_014" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_014</phrase></title>
+    <para>JetOS shall refuse with an error a request to create a process
+    with an invalid attribute, a name that another process of the
+    partition has, or an entry point outside executable code.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A process must not start with attributes that the kernel
+      cannot honour.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_CREATE_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_002" role="requirement">
-    <title>SRQ_JET_THR_002</title>
+    <title><phrase role="srq">SRQ_JET_THR_002</phrase></title>
     <para>JetOS shall accept base and current priorities only from 1 to
       239.</para>
     <formalpara>
@@ -67,15 +90,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_CREATE_02
+        HLR_THREAD_POK_THREAD_SET_PRIORITY_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_003" role="requirement">
-    <title>SRQ_JET_THR_003</title>
+    <title><phrase role="srq">SRQ_JET_THR_003</phrase></title>
     <para>JetOS shall give, on request, the identifier of a process
-      identified by its name, and the name, entry point, attributes,
-      current priority and state of a process identified by its
-      identifier; the main process and the error handler shall not be
-      found by name.</para>
+    identified by its name, and the name, entry point, attributes,
+    current priority and state of a process identified by its
+    identifier.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Processes are found by name and then controlled by
@@ -85,10 +112,37 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_FIND_THREAD_01
+        HLR_THREAD_GET_THREAD_BY_ID_01
+        HLR_THREAD_POK_THREAD_GET_STATUS_01
+        HLR_THREAD_POK_THREAD_FIND_01
+        HLR_UACCESS_POK_COPY_NAME_TO_USER_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_015" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_015</phrase></title>
+    <para>JetOS shall not find the main process and the error handler by
+    name.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The main process and the error handler are not processes
+      that the application created.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_FIND_THREAD_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_004" role="requirement">
-    <title>SRQ_JET_THR_004</title>
+    <title><phrase role="srq">SRQ_JET_THR_004</phrase></title>
     <para>JetOS shall run in a partition, among its ready processes, the
       one with the highest current priority, and among those of the same
       priority the one that has been ready for longest.</para>
@@ -100,10 +154,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_SELECT_THREAD_01
+        HLR_SCHED_ARINC_SCHED_ARINC_02
+        HLR_SCHED_ARINC_POK_SCHED_LOCAL_INVALIDATE_01
+        HLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_01
+        HLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01
+        HLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_005" role="requirement">
-    <title>SRQ_JET_THR_005</title>
+    <title><phrase role="srq">SRQ_JET_THR_005</phrase></title>
     <para>JetOS shall preempt the running process as soon as a process of
       a higher priority becomes ready, unless the partition has locked
       preemption.</para>
@@ -115,15 +178,18 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_SCHED_ARINC_02
+        HLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_006" role="requirement">
-    <title>SRQ_JET_THR_006</title>
-    <para>JetOS shall let a process: wait for a duration or until a time;
-      yield to the ready processes of its priority; suspend itself, with
-      a time-out or without; and end its own activation; and shall let a
-      duration of zero for a wait yield, and a time-out of zero for a
-      suspension do nothing.</para>
+    <title><phrase role="srq">SRQ_JET_THR_006</phrase></title>
+    <para>JetOS shall let a process wait for a duration or until a time,
+    yield to the ready processes of its priority, suspend itself with a
+    time-out or without, and end its own activation.</para>
     <formalpara>
       <title>Rationale</title>
       <para>These are the services of a process to give the processor
@@ -133,10 +199,64 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_SLEEP_01
+        HLR_THREAD_POK_THREAD_SLEEP_UNTIL_01
+        HLR_THREAD_POK_THREAD_YIELD_01
+        HLR_THREAD_POK_THREAD_SUSPEND_01
+        HLR_THREAD_INTERNAL_THREAD_YIELD_01
+        HLR_THREAD_INTERNAL_THREAD_WAIT_01
+        HLR_THREAD_INTERNAL_THREAD_WAKE_UP_01
+        HLR_THREAD_INTERNAL_THREAD_WAKE_UP_02
+        HLR_THREAD_INTERNAL_THREAD_WAIT_TIMED_01
+        HLR_THREAD_INTERNAL_THREAD_SUSPEND_01
+        HLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01
+        HLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_016" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_016</phrase></title>
+    <para>JetOS shall make a process that waits for a duration of zero
+    yield to the ready processes of its priority.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the services of a process to give the processor
+        away.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_SLEEP_01
+        HLR_THREAD_INTERNAL_THREAD_YIELD_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_017" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_017</phrase></title>
+    <para>JetOS shall do nothing for a suspension of a process with a
+    time-out of zero.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the services of a process to give the processor
+        away.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_SUSPEND_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_007" role="requirement">
-    <title>SRQ_JET_THR_007</title>
+    <title><phrase role="srq">SRQ_JET_THR_007</phrase></title>
     <para>JetOS shall refuse a request for a process to wait, with an
       error, while the partition is locked, is not in
       <literal>NORMAL</literal> mode, or the process is the error
@@ -149,13 +269,23 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PORT_POK_PORT_QUEUING_RECEIVE_04
+        HLR_PORT_POK_PORT_QUEUING_SEND_04
+        HLR_THREAD_POK_THREAD_SLEEP_02
+        HLR_THREAD_POK_THREAD_SLEEP_UNTIL_02
+        HLR_THREAD_POK_THREAD_SUSPEND_02
+        HLR_THREAD_POK_SCHED_END_PERIOD_03
+        HLR_THREAD_JET_MSECTION_WAIT_03
+        HLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_008" role="requirement">
-    <title>SRQ_JET_THR_008</title>
+    <title><phrase role="srq">SRQ_JET_THR_008</phrase></title>
     <para>JetOS shall let a process suspend another process of the
-      partition, and resume a suspended process; a suspended process
-      shall be waiting, and shall not run until resumed.</para>
+    partition, and resume a suspended process.</para>
     <formalpara>
       <title>Rationale</title>
       <para>ARINC 653 lets a process control another one.</para>
@@ -164,14 +294,68 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_RESUME_01
+        HLR_THREAD_POK_THREAD_SUSPEND_TARGET_01
+        HLR_THREAD_INTERNAL_THREAD_SUSPEND_01
+        HLR_THREAD_INTERNAL_THREAD_RESUME_01
+        HLR_THREAD_INTERNAL_THREAD_RESUME_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_018" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_018</phrase></title>
+    <para>JetOS shall keep a suspended process waiting, without running
+    it, until it is resumed.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>ARINC 653 lets a process control another one.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_INTERNAL_THREAD_SUSPEND_01
+        HLR_THREAD_INTERNAL_THREAD_RESUME_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_009" role="requirement">
-    <title>SRQ_JET_THR_009</title>
-    <para>JetOS shall let a process start a stopped process after a delay
-      (none for an immediate start) and stop another process or itself; a
-      stopped process shall run again only if started; a process that is
-      in a critical section shall be stopped only after it has left it.</para>
+    <title><phrase role="srq">SRQ_JET_THR_009</phrase></title>
+    <para>JetOS shall let a process start a stopped process after a
+    delay (none for an immediate start) and stop another process or
+    itself.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>ARINC 653 lets a process control the life of another
+      one.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_THREAD_DELAYED_START_INTERNAL_01
+        HLR_THREAD_THREAD_DELAYED_START_INTERNAL_02
+        HLR_THREAD_POK_THREAD_DELAYED_START_01
+        HLR_THREAD_POK_THREAD_START_01
+        HLR_THREAD_POK_THREAD_STOP_TARGET_01
+        HLR_THREAD_POK_THREAD_STOP_01
+        HLR_THREAD_INTERNAL_THREAD_STOP_01
+        HLR_THREAD_INTERNAL_THREAD_STOP_02
+        HLR_THREAD_INTERNAL_THREAD_STOP_03
+        HLR_THREAD_INTERNAL_THREAD_START_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_019" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_019</phrase></title>
+    <para>JetOS shall run a stopped process again only after it is
+    started.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Stopping a process inside a critical section would leave the
@@ -181,13 +365,38 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_INTERNAL_THREAD_STOP_01
+        HLR_THREAD_INTERNAL_THREAD_STOP_02
+        HLR_THREAD_INTERNAL_THREAD_START_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_020" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_020</phrase></title>
+    <para>JetOS shall stop a process that is in a critical section only
+    after it has left the section.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Stopping a process inside a critical section would leave the
+      section locked for ever.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_JET_RESCHED_02
+        HLR_THREAD_POK_THREAD_STOP_TARGET_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_010" role="requirement">
-    <title>SRQ_JET_THR_010</title>
+    <title><phrase role="srq">SRQ_JET_THR_010</phrase></title>
     <para>JetOS shall let a process change the current priority of a
-      process, which shall then take its place after the ready processes
-      of the new priority.</para>
+    process.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Priorities are dynamic in ARINC 653.</para>
@@ -196,15 +405,36 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_SET_PRIORITY_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_021" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_021</phrase></title>
+    <para>JetOS shall put a process whose current priority is changed
+    after the ready processes of its new priority.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Priorities are dynamic in ARINC 653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_THREAD_SET_PRIORITY_01
+        HLR_THREAD_INTERNAL_THREAD_YIELD_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_011" role="requirement">
-    <title>SRQ_JET_THR_011</title>
-    <para>JetOS shall, at the end of an activation of a periodic process,
-      hold the process until its next activation and move its deadline to
-      match the new activation; and shall let a process move its own
-      deadline to a time that is the present time plus a budget, an
-      infinite budget removing the deadline of an aperiodic process.</para>
+    <title><phrase role="srq">SRQ_JET_THR_011</phrase></title>
+    <para>JetOS shall, at the end of an activation of a periodic
+    process, hold the process until its next activation and move its
+    deadline to match the new activation.</para>
     <formalpara>
       <title>Rationale</title>
       <para>These are the periodic wait and the replenishment of ARINC
@@ -214,10 +444,39 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_THREAD_DELAYED_START_INTERNAL_04
+        HLR_THREAD_POK_SCHED_END_PERIOD_01
+        HLR_THREAD_POK_SCHED_END_PERIOD_02
+        HLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_022" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_022</phrase></title>
+    <para>JetOS shall let a process move its own deadline to a time that
+    is the present time plus a budget, an infinite budget removing the
+    deadline of an aperiodic process.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the periodic wait and the replenishment of ARINC
+        653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_THREAD_POK_SCHED_REPLENISH_01
+        HLR_THREAD_POK_SCHED_REPLENISH_02
+        HLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_012" role="requirement">
-    <title>SRQ_JET_THR_012</title>
+    <title><phrase role="srq">SRQ_JET_THR_012</phrase></title>
     <para>JetOS shall raise a deadline missed error of a process (see
       health monitoring) when the process has not ended its activation
       before its deadline.</para>
@@ -230,15 +489,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_POK_THREAD_EMIT_DEADLINE_MISSED_01
+        HLR_THREAD_THREAD_DELAYED_START_INTERNAL_05
+        HLR_THREAD_INTERNAL_THREAD_DEADLINE_OCCURED_01
+        HLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_THR_013" role="requirement">
-    <title>SRQ_JET_THR_013</title>
+    <title><phrase role="srq">SRQ_JET_THR_013</phrase></title>
     <para>JetOS shall keep a context of its own for each process: a
-      kernel stack, a user stack, the registers, and the state of the
-      floating point unit, and shall restore it when the process runs
-      again; the floating point state of a process shall never be seen by
-      another process or partition.</para>
+    kernel stack, a user stack, the registers, and the state of the
+    floating point unit.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A process must not see the effect of the others on its
@@ -247,6 +511,72 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ALLOC_ARM64_POK_STACK_ALLOC_01
+        HLR_SPACE_ARM64_JA_USER_SPACE_JUMP_01
+        HLR_SPACE_ARM64_JA_ALLOC_FP_STORE_01
+        HLR_THREAD_ARM64_JA_CONTEXT_INIT_01
+        HLR_PARTITION_ARINC_THREAD_INIT_01
+        HLR_SCHED_POK_PARTITION_JUMP_USER_01
+        HLR_SCHED_ARINC_THREAD_START_FUNC_01
+        HLR_SCHED_ARINC_SCHED_ARINC_05
+        HLR_ALLOC_X86_64_POK_STACK_ALLOC_01
+        HLR_SPACE_X86_64_JA_USER_SPACE_JUMP_01
+        HLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01
+        HLR_SPACE_JA_FP_SAVE_01
+        HLR_THREAD_X86_64_JA_CONTEXT_INIT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_023" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_023</phrase></title>
+    <para>JetOS shall restore the context of a process when the process
+    runs again.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A process must not see the effect of the others on its
+        registers.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_RETURN_USER_01
+        HLR_SCHED_POK_PARTITION_RETURN_USER_01
+        HLR_SCHED_POK_PARTITION_RETURN_USER_FP_01
+        HLR_SCHED_ARINC_SCHED_ARINC_05
+        HLR_GDT_JA_TSS_SET_RSP0_01
+        HLR_INTERRUPT_JA_INTERRUPT_HANDLER_02
+        HLR_SPACE_JA_FP_RESTORE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_THR_024" role="requirement">
+    <title><phrase role="srq">SRQ_JET_THR_024</phrase></title>
+    <para>JetOS shall never let a process or a partition see the
+    floating point state of another process.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The floating point registers may hold data of another
+      partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_RETURN_USER_01
+        HLR_SCHED_POK_PARTITION_RETURN_USER_01
+        HLR_SCHED_POK_PARTITION_RETURN_USER_FP_01
+        HLR_SCHED_POK_PARTITION_JUMP_USER_01
+        HLR_INTERRUPT_JA_INTERRUPT_HANDLER_02
+        HLR_SPACE_JA_FP_SAVE_01
+        HLR_SPACE_JA_FP_INIT_01</para>
     </formalpara>
   </section>
 </chapter>

@@ -22,6 +22,12 @@
  * (kernel/libc is split up: this file is in the library shared with the
  * hypervisor); moved from common/ to kernel/core, because only the kernel uses
  * it and it depends on the kernel's configuration.
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -63,25 +69,55 @@
  * | `result` | `int` | The result |
  *
  * @hlr
+ * - \hlrid{HLR_STRCMP_COMPARE_01}: `compare()` shall compare two strings, up to
+ *   a number of characters, and give 0 if they are equal, -1 if the first one
+ *   comes first and 1 otherwise.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_STRCMP_COMPARE_01}: If, at the first index less than `size` at
+ *   which the characters of `s1` and `s2` differ or are both `'\0'`, they
+ *   differ and the one of `s1` is less, `compare()` shall return -1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRCMP_COMPARE_01}
+ * - \llrid{LLR_STRCMP_COMPARE_02}: If, at the first index less than `size` at
+ *   which the characters of `s1` and `s2` differ or are both `'\0'`, they
+ *   differ and the one of `s1` is greater, `compare()` shall return 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRCMP_COMPARE_01}
+ * - \llrid{LLR_STRCMP_COMPARE_03}: If, at the first index less than `size` at
+ *   which the characters of `s1` and `s2` differ or are both `'\0'`, they are
+ *   both `'\0'`, or there is no such index less than `size`, `compare()` shall
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRCMP_COMPARE_01}
  *
  * @design
- * 1. Set `i` to `0U`.
- * 2. Set `result` to `0`.
- * 3. Set `done` to `false`.
+ * 1. Set `i` to `0U`. \llrref{LLR_STRCMP_COMPARE_01},
+ *    \llrref{LLR_STRCMP_COMPARE_02}, \llrref{LLR_STRCMP_COMPARE_03}
+ * 2. Set `result` to `0`. \llrref{LLR_STRCMP_COMPARE_01},
+ *    \llrref{LLR_STRCMP_COMPARE_02}, \llrref{LLR_STRCMP_COMPARE_03}
+ * 3. Set `done` to `false`. \llrref{LLR_STRCMP_COMPARE_01},
+ *    \llrref{LLR_STRCMP_COMPARE_02}, \llrref{LLR_STRCMP_COMPARE_03}
  * 4. While `done` is false and `i` is less than `size`:
+ *    \llrref{LLR_STRCMP_COMPARE_01}, \llrref{LLR_STRCMP_COMPARE_02},
+ *    \llrref{LLR_STRCMP_COMPARE_03}
  *    1. If `s1[i]` is equal to `'\0'` and `s2[i]` is equal to `'\0'`:
+ *       \llrref{LLR_STRCMP_COMPARE_03}
  *       1. Set `done` to `true`.
  *    2. Otherwise, if `s1[i]` is less than `s2[i]`:
+ *       \llrref{LLR_STRCMP_COMPARE_01}
  *       1. Set `result` to `-1`.
  *       2. Set `done` to `true`.
  *    3. Otherwise, if `s1[i]` is greater than `s2[i]`:
+ *       \llrref{LLR_STRCMP_COMPARE_02}
  *       1. Set `result` to `1`.
  *       2. Set `done` to `true`.
  *    4. Otherwise:
  *       1. Increment `i`.
- * 5. Return `result`.
+ * 5. Return `result`. \llrref{LLR_STRCMP_COMPARE_01},
+ *    \llrref{LLR_STRCMP_COMPARE_02}, \llrref{LLR_STRCMP_COMPARE_03}
  *
  * @calls
  * None.
@@ -137,12 +173,20 @@ static int compare(const char *s1, const char *s2, size_t size)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_STRCMP_STRCMP_01}: `strcmp()` shall compare two whole strings,
+ *   giving 0, -1 or 1 as `compare()` does.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_STRCMP_STRCMP_01}: `strcmp()` shall return the result of
+ *   `compare()` with the size `SIZE_MAX`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRCMP_STRCMP_01}
  *
  * @design
  * 1. Call `compare()` with the arguments `s1`, `s2` and `SIZE_MAX`, and return
- *    its result.
+ *    its result. \llrref{LLR_STRCMP_STRCMP_01}
  *
  * @calls
  * - `compare()`
@@ -180,12 +224,20 @@ int strcmp (const char *s1,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_STRCMP_STRNCMP_01}: `strncmp()` shall compare two strings up to
+ *   a number of characters, giving 0, -1 or 1 as `compare()` does.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_STRCMP_STRNCMP_01}: `strncmp()` shall return the result of
+ *   `compare()` with `size`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRCMP_STRNCMP_01}
  *
  * @design
  * 1. Call `compare()` with the arguments `s1`, `s2` and `size`, and return its
- *    result.
+ *    result. \llrref{LLR_STRCMP_STRNCMP_01}
  *
  * @calls
  * - `compare()`

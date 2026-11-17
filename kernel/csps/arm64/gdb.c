@@ -42,6 +42,16 @@
  * kernel/arch/arm64/gdb.c (the CPU support packages are in kernel/csps); the
  * comments name the new paths; sysreg.h is include/csps/arm64/cpu/sysreg.h,
  * shared with the hypervisor.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -112,11 +122,21 @@ const uint8_t ja_gdb_breakpoint_insn[JA_GDB_BREAKPOINT_SIZE] = {
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_DEBUG_MASK_01}: `cpu_debug_mask()` shall mask the debug
+ *   exceptions at exception level 1.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_DEBUG_MASK_01}: `cpu_debug_mask()` shall execute the
+ *   instruction `msr daifset, #8` once, which sets the D bit of DAIF.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_DEBUG_MASK_01}
  *
  * @design
  * 1. Execute the assembly code `msr daifset, #8`.
+ *    \llrref{LLR_GDB_CPU_DEBUG_MASK_01}
  *
  * @calls
  * None.
@@ -139,11 +159,21 @@ static void cpu_debug_mask(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_DEBUG_UNMASK_01}: `cpu_debug_unmask()` shall unmask the
+ *   debug exceptions at exception level 1.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_DEBUG_UNMASK_01}: `cpu_debug_unmask()` shall execute the
+ *   instruction `msr daifclr, #8` once, which clears the D bit of DAIF.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_DEBUG_UNMASK_01}
  *
  * @design
  * 1. Execute the assembly code `msr daifclr, #8`.
+ *    \llrref{LLR_GDB_CPU_DEBUG_UNMASK_01}
  *
  * @calls
  * None.
@@ -168,11 +198,25 @@ static void cpu_debug_unmask(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_DEBUG_MASKED_01}: `cpu_debug_masked()` shall tell
+ *   whether the debug exceptions are masked.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_DEBUG_MASKED_01}: If `DAIF_D` is set in DAIF
+ *   (`read_sysreg()`), `cpu_debug_masked()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_DEBUG_MASKED_01}
+ * - \llrid{LLR_GDB_CPU_DEBUG_MASKED_02}: If `DAIF_D` is not set in DAIF
+ *   (`read_sysreg()`), `cpu_debug_masked()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_DEBUG_MASKED_01}
  *
  * @design
  * 1. Return `(read_sysreg(daif) & DAIF_D) != 0U`.
+ *    \llrref{LLR_GDB_CPU_DEBUG_MASKED_01}, \llrref{LLR_GDB_CPU_DEBUG_MASKED_02}
  *
  * @calls
  * None.
@@ -202,13 +246,22 @@ static pok_bool_t cpu_debug_masked(void)
  * | `mdscr` | `uint64_t` | MDSCR_EL1 |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_MDSCR_SET_01}: `cpu_mdscr_set()` shall set bits of the
+ *   debug system control register.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_MDSCR_SET_01}: `cpu_mdscr_set()` shall write the value
+ *   of MDSCR_EL1 back with `bits` set (`read_sysreg()`, `write_sysreg()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_MDSCR_SET_01}
  *
  * @design
- * 1. Set `mdscr` to `read_sysreg(mdscr_el1)`.
+ * 1. Set `mdscr` to `read_sysreg(mdscr_el1)`. \llrref{LLR_GDB_CPU_MDSCR_SET_01}
  * 2. Use the macro `write_sysreg()` with the arguments `mdscr_el1` and
- *    `mdscr | bits`.
+ *    `mdscr | bits`. \llrref{LLR_GDB_CPU_MDSCR_SET_01}
  *
  * @calls
  * None.
@@ -240,13 +293,24 @@ static void cpu_mdscr_set(uint64_t bits)
  * | `mdscr` | `uint64_t` | MDSCR_EL1 |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_MDSCR_CLEAR_01}: `cpu_mdscr_clear()` shall clear bits of
+ *   the debug system control register.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_MDSCR_CLEAR_01}: `cpu_mdscr_clear()` shall write the
+ *   value of MDSCR_EL1 back with `bits` cleared (`read_sysreg()`,
+ *   `write_sysreg()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_MDSCR_CLEAR_01}
  *
  * @design
  * 1. Set `mdscr` to `read_sysreg(mdscr_el1)`.
+ *    \llrref{LLR_GDB_CPU_MDSCR_CLEAR_01}
  * 2. Use the macro `write_sysreg()` with the arguments `mdscr_el1` and
- *    `mdscr & ~bits`.
+ *    `mdscr & ~bits`. \llrref{LLR_GDB_CPU_MDSCR_CLEAR_01}
  *
  * @calls
  * None.
@@ -271,11 +335,20 @@ static void cpu_mdscr_clear(uint64_t bits)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_OS_LOCK_CLEAR_01}: `cpu_os_lock_clear()` shall clear the
+ *   OS lock, which blocks the debug exceptions after reset.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_OS_LOCK_CLEAR_01}: `cpu_os_lock_clear()` shall execute
+ *   the instruction `msr oslar_el1, xzr` once, which writes 0 to OSLAR_EL1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_OS_LOCK_CLEAR_01}
  *
  * @design
  * 1. Execute the assembly code `msr oslar_el1, xzr`.
+ *    \llrref{LLR_GDB_CPU_OS_LOCK_CLEAR_01}
  *
  * @calls
  * None.
@@ -303,11 +376,20 @@ static void cpu_os_lock_clear(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_DCACHE_CLEAN_01}: `cpu_dcache_clean()` shall clean the
+ *   data cache line of an address to the point of unification.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_DCACHE_CLEAN_01}: `cpu_dcache_clean()` shall execute the
+ *   instruction `dc cvau` once with `addr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_DCACHE_CLEAN_01}
  *
  * @design
  * 1. Execute the assembly code `dc cvau, %0`.
+ *    \llrref{LLR_GDB_CPU_DCACHE_CLEAN_01}
  *
  * @calls
  * None.
@@ -330,11 +412,21 @@ static void cpu_dcache_clean(uintptr_t addr)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_CPU_ICACHE_INVALIDATE_01}: `cpu_icache_invalidate()` shall
+ *   invalidate the instruction cache once the data caches are clean.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_CPU_ICACHE_INVALIDATE_01}: `cpu_icache_invalidate()` shall
+ *   execute, in this order, the instructions `dsb ish`, `ic iallu`, `dsb ish`
+ *   and `isb`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_CPU_ICACHE_INVALIDATE_01}
  *
  * @design
  * 1. Execute the assembly code `dsb ish; ic iallu; dsb ish; isb`.
+ *    \llrref{LLR_GDB_CPU_ICACHE_INVALIDATE_01}
  *
  * @calls
  * None.
@@ -365,12 +457,29 @@ static void cpu_icache_invalidate(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_HW_BREAKPOINT_WRITE_01}: `hw_breakpoint_write()` shall write
+ *   one of the six pairs of breakpoint registers, with the control disabled
+ *   while the address changes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_HW_BREAKPOINT_WRITE_01}: If `n` is from 0 to 5,
+ *   `hw_breakpoint_write()` shall write with `write_sysreg()`, in this order, 0
+ *   to the breakpoint control register `n` (DBGBCR0_EL1 to DBGBCR5_EL1),
+ *   `value` to the breakpoint value register `n` (DBGBVR0_EL1 to DBGBVR5_EL1)
+ *   and `control` to the breakpoint control register `n`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_BREAKPOINT_WRITE_01}
+ * - \llrid{LLR_GDB_HW_BREAKPOINT_WRITE_02}: If `n` is greater than 5,
+ *   `hw_breakpoint_write()` shall write no register.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_BREAKPOINT_WRITE_01}
  *
  * @design
- * 1. Depending on `n`:
- *    1. Case `0U`:
+ * 1. Depending on `n`: \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_01},
+ *    \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_02}
+ *    1. Case `0U`: \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgbcr0_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgbvr0_el1` and
@@ -378,7 +487,7 @@ static void cpu_icache_invalidate(void)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgbcr0_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    2. Case `1U`:
+ *    2. Case `1U`: \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgbcr1_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgbvr1_el1` and
@@ -386,7 +495,7 @@ static void cpu_icache_invalidate(void)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgbcr1_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    3. Case `2U`:
+ *    3. Case `2U`: \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgbcr2_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgbvr2_el1` and
@@ -394,7 +503,7 @@ static void cpu_icache_invalidate(void)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgbcr2_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    4. Case `3U`:
+ *    4. Case `3U`: \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgbcr3_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgbvr3_el1` and
@@ -402,7 +511,7 @@ static void cpu_icache_invalidate(void)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgbcr3_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    5. Case `4U`:
+ *    5. Case `4U`: \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgbcr4_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgbvr4_el1` and
@@ -410,7 +519,7 @@ static void cpu_icache_invalidate(void)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgbcr4_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    6. Case `5U`:
+ *    6. Case `5U`: \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgbcr5_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgbvr5_el1` and
@@ -418,7 +527,7 @@ static void cpu_icache_invalidate(void)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgbcr5_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    7. Otherwise (default):
+ *    7. Otherwise (default): \llrref{LLR_GDB_HW_BREAKPOINT_WRITE_02}
  *       1. Leave the switch.
  *
  * @calls
@@ -485,12 +594,29 @@ static void hw_breakpoint_write(uint32_t n, uint64_t value, uint64_t control)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_HW_WATCHPOINT_WRITE_01}: `hw_watchpoint_write()` shall write
+ *   one of the four pairs of watchpoint registers, with the control disabled
+ *   while the address changes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_HW_WATCHPOINT_WRITE_01}: If `n` is from 0 to 3,
+ *   `hw_watchpoint_write()` shall write with `write_sysreg()`, in this order, 0
+ *   to the watchpoint control register `n` (DBGWCR0_EL1 to DBGWCR3_EL1),
+ *   `value` to the watchpoint value register `n` (DBGWVR0_EL1 to DBGWVR3_EL1)
+ *   and `control` to the watchpoint control register `n`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_WATCHPOINT_WRITE_01}
+ * - \llrid{LLR_GDB_HW_WATCHPOINT_WRITE_02}: If `n` is greater than 3,
+ *   `hw_watchpoint_write()` shall write no register.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_WATCHPOINT_WRITE_01}
  *
  * @design
- * 1. Depending on `n`:
- *    1. Case `0U`:
+ * 1. Depending on `n`: \llrref{LLR_GDB_HW_WATCHPOINT_WRITE_01},
+ *    \llrref{LLR_GDB_HW_WATCHPOINT_WRITE_02}
+ *    1. Case `0U`: \llrref{LLR_GDB_HW_WATCHPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgwcr0_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgwvr0_el1` and
@@ -498,7 +624,7 @@ static void hw_breakpoint_write(uint32_t n, uint64_t value, uint64_t control)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgwcr0_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    2. Case `1U`:
+ *    2. Case `1U`: \llrref{LLR_GDB_HW_WATCHPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgwcr1_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgwvr1_el1` and
@@ -506,7 +632,7 @@ static void hw_breakpoint_write(uint32_t n, uint64_t value, uint64_t control)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgwcr1_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    3. Case `2U`:
+ *    3. Case `2U`: \llrref{LLR_GDB_HW_WATCHPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgwcr2_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgwvr2_el1` and
@@ -514,7 +640,7 @@ static void hw_breakpoint_write(uint32_t n, uint64_t value, uint64_t control)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgwcr2_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    4. Case `3U`:
+ *    4. Case `3U`: \llrref{LLR_GDB_HW_WATCHPOINT_WRITE_01}
  *       1. Use the macro `write_sysreg()` with the arguments `dbgwcr3_el1` and
  *          `0U`.
  *       2. Use the macro `write_sysreg()` with the arguments `dbgwvr3_el1` and
@@ -522,7 +648,7 @@ static void hw_breakpoint_write(uint32_t n, uint64_t value, uint64_t control)
  *       3. Use the macro `write_sysreg()` with the arguments `dbgwcr3_el1` and
  *          `control`.
  *       4. Leave the switch.
- *    5. Otherwise (default):
+ *    5. Otherwise (default): \llrref{LLR_GDB_HW_WATCHPOINT_WRITE_02}
  *       1. Leave the switch.
  *
  * @calls
@@ -580,12 +706,20 @@ static void hw_watchpoint_write(uint32_t n, uint64_t value, uint64_t control)
  * | `i` | `size_t` | The index of the byte |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_PUT_LE_01}: `put_le()` shall store the low bytes of a
+ *   value in little-endian order, the order of the registers in the protocol.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_PUT_LE_01}: `put_le()` shall store the bits `8 * i +
+ *   7` to `8 * i` of `value` at `out[i]`, for each `i` less than `size`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_PUT_LE_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `size`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_GDB_ARM64_PUT_LE_01}
  *    1. Set `out[i]` to `(uint8_t)(value >> (8U * i))`.
  *
  * @calls
@@ -624,15 +758,24 @@ static void put_le(uint64_t value, size_t size, uint8_t* out)
  * | `value` | `uint64_t` | The value |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_GET_LE_01}: `get_le()` shall give the value of bytes
+ *   in little-endian order.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_GET_LE_01}: `get_le()` shall return the value whose
+ *   bits `8 * i + 7` to `8 * i` are `in[offset + i]`, for each `i` less than
+ *   `size`, and whose other bits are 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_GET_LE_01}
  *
  * @design
- * 1. Set `value` to `0U`.
+ * 1. Set `value` to `0U`. \llrref{LLR_GDB_ARM64_GET_LE_01}
  * 2. Set `i` to `0U`; then while `i` is less than `size`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_GDB_ARM64_GET_LE_01}
  *    1. Set the bits `(uint64_t)in[offset + i] << (8U * i)` in `value`.
- * 3. Return `value`.
+ * 3. Return `value`. \llrref{LLR_GDB_ARM64_GET_LE_01}
  *
  * @calls
  * None.
@@ -672,21 +815,57 @@ static uint64_t get_le(const uint8_t* in, size_t offset, size_t size)
  * | `size` | `size_t` | The size |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}: `ja_gdb_register_size()`
+ *   shall give the size of each register that the debugger knows: 8 bytes for
+ *   x0 to x30, SP and PC, 4 for CPSR, FPSR and FPCR, 16 for v0 to v31, and 0
+ *   for no such register.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}: If `regno` is not greater
+ *   than `REG_PC`, `ja_gdb_register_size()` shall return 8.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_02}: If `regno` is `REG_CPSR`,
+ *   `ja_gdb_register_size()` shall return 4.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_03}: If `regno` is greater than
+ *   `REG_PC`, is not `REG_CPSR` and is not greater than `REG_V31`,
+ *   `ja_gdb_register_size()` shall return 16.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_04}: If `regno` is greater than
+ *   `REG_V31` and is not greater than `REG_FPCR`, `ja_gdb_register_size()`
+ *   shall return 4.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_05}: If `regno` is greater than
+ *   `REG_FPCR`, `ja_gdb_register_size()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}
  *
  * @design
  * 1. If `regno` is less than or equal to `REG_PC`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01}
  *    1. Set `size` to `8U`.
  * 2. Otherwise, if `regno` is equal to `REG_CPSR`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_02}
  *    1. Set `size` to `4U`.
  * 3. Otherwise, if `regno` is less than or equal to `REG_V31`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_03}
  *    1. Set `size` to `16U`.
  * 4. Otherwise, if `regno` is less than or equal to `REG_FPCR`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_04}
  *    1. Set `size` to `4U`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_05}
  *    1. Set `size` to `0U`.
- * 6. Return `size`.
+ * 6. Return `size`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_04},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SIZE_05}
  *
  * @calls
  * None.
@@ -730,11 +909,26 @@ size_t ja_gdb_register_size(uint32_t regno)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_CONTEXT_IS_USER_01}: `ja_gdb_context_is_user()`
+ *   shall tell whether a context runs at exception level 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_CONTEXT_IS_USER_01}: If the bits `SPSR_M_MASK`
+ *   of `spsr` of `ctx` are 0, `ja_gdb_context_is_user()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_CONTEXT_IS_USER_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_CONTEXT_IS_USER_02}: If the bits `SPSR_M_MASK`
+ *   of `spsr` of `ctx` are not 0, `ja_gdb_context_is_user()` shall return
+ *   false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_CONTEXT_IS_USER_01}
  *
  * @design
  * 1. Return `(ctx->spsr & SPSR_M_MASK) == 0U`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_CONTEXT_IS_USER_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_CONTEXT_IS_USER_02}
  *
  * @calls
  * None.
@@ -769,20 +963,58 @@ pok_bool_t ja_gdb_context_is_user(const interrupt_frame* ctx)
  * | `value` | `uint64_t` | The value |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_FRAME_REGISTER_GET_01}: `frame_register_get()` shall
+ *   give an integer register, up to CPSR, from an exception frame: SP is SP_EL0
+ *   for user code and the address after the frame for kernel code; the step bit
+ *   of CPSR is not shown.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_GET_01}: If `regno` is less than 31,
+ *   `frame_register_get()` shall return `x[regno]` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_GET_02}: If `regno` is `REG_SP` and
+ *   `ja_gdb_context_is_user()` returns true for `frame`, `frame_register_get()`
+ *   shall return `sp_el0` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_GET_03}: If `regno` is `REG_SP` and
+ *   `ja_gdb_context_is_user()` returns false for `frame`,
+ *   `frame_register_get()` shall return the address that follows the frame
+ *   (`frame` plus the size of the frame).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_GET_04}: If `regno` is `REG_PC`,
+ *   `frame_register_get()` shall return `elr` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_GET_05}: If `regno` is not less than 31
+ *   and is neither `REG_SP` nor `REG_PC`, `frame_register_get()` shall return
+ *   `spsr` of `frame` with `SPSR_SS` cleared.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_GET_01}
  *
  * @design
  * 1. If `regno` is less than `31U`:
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_01}
  *    1. Set `value` to `frame->x[regno]`.
  * 2. Otherwise, if `regno` is equal to `REG_SP`:
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_02},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_03}
  *    1. Set `value` to `ja_gdb_context_is_user(frame) ? frame->sp_el0 :`
  *       `((uint64_t)(uintptr_t)frame + sizeof(*frame))`.
  * 3. Otherwise, if `regno` is equal to `REG_PC`:
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_04}
  *    1. Set `value` to `frame->elr`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_05}
  *    1. Set `value` to `frame->spsr & ~SPSR_SS`.
- * 5. Return `value`.
+ * 5. Return `value`. \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_01},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_02},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_03},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_04},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_GET_05}
  *
  * @calls
  * - `ja_gdb_context_is_user()`
@@ -839,27 +1071,78 @@ static uint64_t frame_register_get(const interrupt_frame* frame,
  * | `written` | `pok_bool_t` | Whether it was set |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_FRAME_REGISTER_SET_01}: `frame_register_set()` shall
+ *   set an integer register, up to CPSR, in an exception frame, changing only
+ *   the condition flags of CPSR, and tell whether it could.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_SET_01}: If `regno` is less than 31,
+ *   `frame_register_set()` shall set `x[regno]` of `frame` to `value` and
+ *   return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_SET_02}: If `regno` is `REG_SP` and
+ *   `ja_gdb_context_is_user()` returns true for `frame`, `frame_register_set()`
+ *   shall set `sp_el0` of `frame` to `value` and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_SET_03}: If `regno` is `REG_SP` and
+ *   `ja_gdb_context_is_user()` returns false for `frame`,
+ *   `frame_register_set()` shall return `FALSE` and leave `frame` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_SET_04}: If `regno` is `REG_PC` and
+ *   `value` is a multiple of `JA_GDB_BREAKPOINT_SIZE`, `frame_register_set()`
+ *   shall set `elr` of `frame` to `value` and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_SET_05}: If `regno` is `REG_PC` and
+ *   `value` is not a multiple of `JA_GDB_BREAKPOINT_SIZE`,
+ *   `frame_register_set()` shall return `FALSE` and leave `frame` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_FRAME_REGISTER_SET_06}: If `regno` is not less than 31
+ *   and is neither `REG_SP` nor `REG_PC`, `frame_register_set()` shall set the
+ *   bits `SPSR_NZCV` of `spsr` of `frame` to those of `value`, leave its other
+ *   bits as they are, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FRAME_REGISTER_SET_01}
  *
  * @design
- * 1. Set `written` to `TRUE`.
+ * 1. Set `written` to `TRUE`. \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_01},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_02},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_04},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_06}
  * 2. If `regno` is less than `31U`:
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_01}
  *    1. Set `frame->x[regno]` to `value`.
  * 3. Otherwise, if `regno` is equal to `REG_SP`:
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_02},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_03}
  *    1. If `ja_gdb_context_is_user(frame)` is true:
+ *       \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_02}
  *       1. Set `frame->sp_el0` to `value`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_03}
  *       1. Set `written` to `FALSE`.
  * 4. Otherwise, if `regno` is equal to `REG_PC`:
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_04},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_05}
  *    1. If `(value % JA_GDB_BREAKPOINT_SIZE)` is equal to `0U`:
+ *       \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_04}
  *       1. Set `frame->elr` to `value`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_05}
  *       1. Set `written` to `FALSE`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_06}
  *    1. Set `frame->spsr` to
  *       `(frame->spsr & ~SPSR_NZCV) | (value & SPSR_NZCV)`.
- * 6. Return `written`.
+ * 6. Return `written`. \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_01},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_02},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_03},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_04},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_05},
+ *    \llrref{LLR_GDB_ARM64_FRAME_REGISTER_SET_06}
  *
  * @calls
  * - `ja_gdb_context_is_user()`
@@ -919,18 +1202,41 @@ static pok_bool_t frame_register_set(interrupt_frame* frame, uint32_t regno,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_FP_REGISTER_GET_01}: `fp_register_get()` shall give a
+ *   floating point register, from v0 on, from a store of the floating point
+ *   state.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_FP_REGISTER_GET_01}: If `regno` is not greater than
+ *   `REG_V31`, `fp_register_get()` shall store with `put_le()` `q[regno -
+ *   REG_V0][0]` of `fp` as 8 bytes at `value` and `q[regno - REG_V0][1]` of
+ *   `fp` as 8 bytes at `value + 8`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FP_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_FP_REGISTER_GET_02}: If `regno` is `REG_FPSR`,
+ *   `fp_register_get()` shall store with `put_le()` `fpsr` of `fp` as 4 bytes
+ *   at `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FP_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_FP_REGISTER_GET_03}: If `regno` is greater than
+ *   `REG_V31` and is not `REG_FPSR`, `fp_register_get()` shall store with
+ *   `put_le()` `fpcr` of `fp` as 4 bytes at `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FP_REGISTER_GET_01}
  *
  * @design
  * 1. If `regno` is less than or equal to `REG_V31`:
+ *    \llrref{LLR_GDB_ARM64_FP_REGISTER_GET_01}
  *    1. Call `put_le()` with the arguments `fp->q[regno - REG_V0][0]`, `8U` and
  *       `value`.
  *    2. Call `put_le()` with the arguments `fp->q[regno - REG_V0][1]`, `8U` and
  *       the address of `value[8]`.
  * 2. Otherwise, if `regno` is equal to `REG_FPSR`:
+ *    \llrref{LLR_GDB_ARM64_FP_REGISTER_GET_02}
  *    1. Call `put_le()` with the arguments `fp->fpsr`, `4U` and `value`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_GDB_ARM64_FP_REGISTER_GET_03}
  *    1. Call `put_le()` with the arguments `fp->fpcr`, `4U` and `value`.
  *
  * @calls
@@ -975,18 +1281,42 @@ static void fp_register_get(const jet_fp_store_t* fp, uint32_t regno,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_FP_REGISTER_SET_01}: `fp_register_set()` shall write a
+ *   floating point register, from v0 on, into a store of the floating point
+ *   state, without the undefined bits of FPSR and FPCR.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_FP_REGISTER_SET_01}: If `regno` is not greater than
+ *   `REG_V31`, `fp_register_set()` shall set `q[regno - REG_V0][0]` of `fp` to
+ *   the value of the 8 bytes at `value` and `q[regno - REG_V0][1]` of `fp` to
+ *   the value of the 8 bytes at `value + 8` (`get_le()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FP_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_FP_REGISTER_SET_02}: If `regno` is `REG_FPSR`,
+ *   `fp_register_set()` shall set `fpsr` of `fp` to the value of the 4 bytes at
+ *   `value` (`get_le()`), ANDed with `FPSR_MASK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FP_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_FP_REGISTER_SET_03}: If `regno` is greater than
+ *   `REG_V31` and is not `REG_FPSR`, `fp_register_set()` shall set `fpcr` of
+ *   `fp` to the value of the 4 bytes at `value` (`get_le()`), ANDed with
+ *   `FPCR_MASK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_FP_REGISTER_SET_01}
  *
  * @design
  * 1. If `regno` is less than or equal to `REG_V31`:
+ *    \llrref{LLR_GDB_ARM64_FP_REGISTER_SET_01}
  *    1. Call `get_le()` with the arguments `value`, `0U` and `8U`, and store
  *       the result in `fp->q[regno - REG_V0][0]`.
  *    2. Call `get_le()` with the arguments `value`, `8U` and `8U`, and store
  *       the result in `fp->q[regno - REG_V0][1]`.
  * 2. Otherwise, if `regno` is equal to `REG_FPSR`:
+ *    \llrref{LLR_GDB_ARM64_FP_REGISTER_SET_02}
  *    1. Set `fp->fpsr` to `get_le(value, 0U, 4U) & FPSR_MASK`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_GDB_ARM64_FP_REGISTER_SET_03}
  *    1. Set `fp->fpcr` to `get_le(value, 0U, 4U) & FPCR_MASK`.
  *
  * @calls
@@ -1037,24 +1367,64 @@ static void fp_register_set(jet_fp_store_t* fp, uint32_t regno,
  * | `size` | `size_t` | Its size |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}: `ja_gdb_register_get()` shall
+ *   give a register of a thread to the debugger: from its exception frame up to
+ *   CPSR, or from its floating point store, and tell whether it is available.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}: If `regno` is not greater
+ *   than `REG_CPSR` and `ctx` is not NULL, `ja_gdb_register_get()` shall store
+ *   at `value` with `put_le()` the result of `frame_register_get()` for `ctx`
+ *   and `regno`, in the number of bytes that `ja_gdb_register_size()` gives for
+ *   `regno`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_02}: If `regno` is not greater
+ *   than `REG_CPSR` and `ctx` is NULL, `ja_gdb_register_get()` shall return
+ *   `FALSE` without writing at `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_03}: If `regno` is greater than
+ *   `REG_CPSR`, `fp` is not NULL and the size that `ja_gdb_register_size()`
+ *   gives for `regno` is not 0, `ja_gdb_register_get()` shall call
+ *   `fp_register_get()` once with `fp`, `regno` and `value`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_04}: If `regno` is greater than
+ *   `REG_CPSR`, and `fp` is NULL or the size that `ja_gdb_register_size()`
+ *   gives for `regno` is 0, `ja_gdb_register_get()` shall return `FALSE`
+ *   without calling `fp_register_get()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}
  *
  * @design
- * 1. Set `available` to `FALSE`.
+ * 1. Set `available` to `FALSE`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_04}
  * 2. Call `ja_gdb_register_size()` with the argument `regno`, and store the
- *    result in `size`.
+ *    result in `size`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_04}
  * 3. If `regno` is less than or equal to `REG_CPSR`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_02}
  *    1. If `ctx` is not NULL:
  *       1. Call `put_le()` with the arguments `frame_register_get(ctx, regno)`,
- *          `size` and `value`.
+ *          `size` and `value`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}
  *       2. Set `available` to `TRUE`.
+ *          \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_01}
  * 4. Otherwise, if `fp` is not NULL and `size` is not equal to `0U`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_04}
  *    1. Call `fp_register_get()` with the arguments `fp`, `regno` and `value`.
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_03}
  *    2. Set `available` to `TRUE`.
- * 5. Otherwise:
- *    1. Do nothing.
- * 6. Return `available`.
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_03}
+ * 5. Return `available`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_GET_04}
  *
  * @calls
  * - `ja_gdb_register_size()`
@@ -1116,23 +1486,62 @@ pok_bool_t ja_gdb_register_get(const interrupt_frame* ctx,
  * | `written` | `pok_bool_t` | Whether it was written |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_REGISTER_SET_01}: `ja_gdb_register_set()` shall
+ *   write a register of a thread from the debugger: into its exception frame up
+ *   to CPSR, or into its floating point store, and tell whether it did.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_01}: If `regno` is not greater
+ *   than `REG_CPSR` and `ctx` is not NULL, `ja_gdb_register_set()` shall return
+ *   the result of `frame_register_set()` for `ctx`, `regno` and the value of
+ *   the bytes at `value` (`get_le()`, in the number of bytes that
+ *   `ja_gdb_register_size()` gives for `regno`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_02}: If `regno` is not greater
+ *   than `REG_CPSR` and `ctx` is NULL, `ja_gdb_register_set()` shall return
+ *   `FALSE` without calling `frame_register_set()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_03}: If `regno` is greater than
+ *   `REG_CPSR`, `fp` is not NULL and the size that `ja_gdb_register_size()`
+ *   gives for `regno` is not 0, `ja_gdb_register_set()` shall call
+ *   `fp_register_set()` once with `fp`, `regno` and `value`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SET_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_04}: If `regno` is greater than
+ *   `REG_CPSR`, and `fp` is NULL or the size that `ja_gdb_register_size()`
+ *   gives for `regno` is 0, `ja_gdb_register_set()` shall return `FALSE`
+ *   without calling `fp_register_set()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_REGISTER_SET_01}
  *
  * @design
- * 1. Set `written` to `FALSE`.
+ * 1. Set `written` to `FALSE`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_04}
  * 2. Call `ja_gdb_register_size()` with the argument `regno`, and store the
- *    result in `size`.
+ *    result in `size`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_04}
  * 3. If `regno` is less than or equal to `REG_CPSR`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_02}
  *    1. If `ctx` is not NULL:
  *       1. Call `frame_register_set()` with the arguments `ctx`, `regno` and
  *          `get_le(value, 0U, size)`, and store the result in `written`.
+ *          \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_01}
  * 4. Otherwise, if `fp` is not NULL and `size` is not equal to `0U`:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_04}
  *    1. Call `fp_register_set()` with the arguments `fp`, `regno` and `value`.
- *    2. Set `written` to `TRUE`.
- * 5. Otherwise:
- *    1. Do nothing.
- * 6. Return `written`.
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_03}
+ *    2. Set `written` to `TRUE`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_03}
+ * 5. Return `written`. \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_REGISTER_SET_04}
  *
  * @calls
  * - `ja_gdb_register_size()`
@@ -1185,11 +1594,19 @@ pok_bool_t ja_gdb_register_set(interrupt_frame* ctx,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_PC_GET_01}: `ja_gdb_pc_get()` shall give the
+ *   program counter of a context.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_PC_GET_01}: `ja_gdb_pc_get()` shall return
+ *   `elr` of `ctx`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_PC_GET_01}
  *
  * @design
- * 1. Return `ctx->elr`.
+ * 1. Return `ctx->elr`. \llrref{LLR_GDB_ARM64_JA_GDB_PC_GET_01}
  *
  * @calls
  * None.
@@ -1218,11 +1635,19 @@ uintptr_t ja_gdb_pc_get(const interrupt_frame* ctx)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_PC_SET_01}: `ja_gdb_pc_set()` shall set the
+ *   program counter of a context.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_PC_SET_01}: `ja_gdb_pc_set()` shall set `elr`
+ *   of `ctx` to `pc`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_PC_SET_01}
  *
  * @design
- * 1. Set `ctx->elr` to `pc`.
+ * 1. Set `ctx->elr` to `pc`. \llrref{LLR_GDB_ARM64_JA_GDB_PC_SET_01}
  *
  * @calls
  * None.
@@ -1257,17 +1682,33 @@ void ja_gdb_pc_set(interrupt_frame* ctx, uintptr_t pc)
  * | `p` | `uintptr_t` | The address of a line |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}: `ja_gdb_sync_icache()` shall
+ *   make code that the debugger wrote visible to the instruction fetch.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}: `ja_gdb_sync_icache()` shall
+ *   call `cpu_dcache_clean()` with the address of each cache line from the line
+ *   of `addr` up to, but not including, `addr` plus `size`, where the size of a
+ *   line is 4 shifted left by the bits 19 to 16 of CTR_EL0, and then call
+ *   `cpu_icache_invalidate()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}
  *
  * @design
  * 1. Set `ctr` to `read_sysreg(ctr_el0)`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}
  * 2. Set `line` to `(uintptr_t)4U << ((ctr >> 16) & 0xFU)`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}
  * 3. Set `end` to `(uintptr_t)addr + size`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}
  * 4. Set `p` to `(uintptr_t)addr & ~(line - 1U)`; then while `p` is less than
  *    `end`, repeat (after each pass: add `line` to `p`):
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}
  *    1. Call `cpu_dcache_clean()` with the argument `p`.
  * 5. Call `cpu_icache_invalidate()`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_SYNC_ICACHE_01}
  *
  * @calls
  * - `cpu_dcache_clean()`
@@ -1321,17 +1762,39 @@ static uint64_t step_saved = 0U;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_SINGLE_STEP_01}: `ja_gdb_single_step()` shall
+ *   ask for, or cancel, a single step of a context, which starts when the
+ *   exception handler returns to it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_01}: If `enable` is true,
+ *   `ja_gdb_single_step()` shall set `SPSR_SS` in `spsr` of `ctx`, and set
+ *   `step_state` to `STEP_REQUESTED` and `step_frame` to `ctx`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_SINGLE_STEP_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_02}: If `enable` is false,
+ *   `ja_gdb_single_step()` shall clear `SPSR_SS` in `spsr` of `ctx`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_SINGLE_STEP_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_03}: If `enable` is false,
+ *   `ja_gdb_single_step()` shall set `step_state` to `STEP_NONE` if and only if
+ *   `step_frame` is `ctx`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_SINGLE_STEP_01}
  *
  * @design
- * 1. If `enable` is true:
+ * 1. If `enable` is true: \llrref{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_01}
  *    1. Set the bits `SPSR_SS` in `ctx->spsr`.
  *    2. Set `step_state` to `STEP_REQUESTED`.
  *    3. Set `step_frame` to `ctx`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_03}
  *    1. Keep only the bits `~SPSR_SS` of `ctx->spsr`.
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_02}
  *    2. If `step_frame` is equal to `ctx`:
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_SINGLE_STEP_03}
  *       1. Set `step_state` to `STEP_NONE`.
  *
  * @calls
@@ -1381,20 +1844,50 @@ void ja_gdb_single_step(interrupt_frame* ctx,
  * | `insn` | `uint32_t` | The instruction |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_INSN_CHANGES_MASK_01}: `insn_changes_mask()` shall tell
+ *   whether the instruction at the program counter of a kernel context changes
+ *   the interrupt mask or waits for an interrupt, assuming it does if it cannot
+ *   be read.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_INSN_CHANGES_MASK_01}: If `ja_addr_to_gdb_ro()` returns NULL
+ *   for `elr` of `ctx`, 4 and the space 0, `insn_changes_mask()` shall return
+ *   `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_INSN_CHANGES_MASK_01}
+ * - \llrid{LLR_GDB_INSN_CHANGES_MASK_02}: If `ja_addr_to_gdb_ro()` returns an
+ *   address and the instruction there (the value of its 4 bytes, `get_le()`) is
+ *   `INSN_WFI`, `INSN_WFE` or `INSN_ERET`, or its bits `INSN_MSR_DAIFIMM_MASK`
+ *   are `INSN_MSR_DAIFIMM`, or its bits `INSN_MSR_DAIF_MASK` are
+ *   `INSN_MSR_DAIF`, `insn_changes_mask()` shall return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_INSN_CHANGES_MASK_01}
+ * - \llrid{LLR_GDB_INSN_CHANGES_MASK_03}: If `ja_addr_to_gdb_ro()` returns an
+ *   address and the instruction there is none of `INSN_WFI`, `INSN_WFE` and
+ *   `INSN_ERET`, its bits `INSN_MSR_DAIFIMM_MASK` are not `INSN_MSR_DAIFIMM`
+ *   and its bits `INSN_MSR_DAIF_MASK` are not `INSN_MSR_DAIF`,
+ *   `insn_changes_mask()` shall return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_INSN_CHANGES_MASK_01}
  *
  * @design
  * 1. Call `ja_addr_to_gdb_ro()` with the arguments `ctx->elr`, `4U` and `0U`,
- *    and store the result in `code`.
- * 2. Set `changes` to `TRUE`.
- * 3. If `code` is not NULL:
+ *    and store the result in `code`. \llrref{LLR_GDB_INSN_CHANGES_MASK_01},
+ *    \llrref{LLR_GDB_INSN_CHANGES_MASK_02},
+ *    \llrref{LLR_GDB_INSN_CHANGES_MASK_03}
+ * 2. Set `changes` to `TRUE`. \llrref{LLR_GDB_INSN_CHANGES_MASK_01}
+ * 3. If `code` is not NULL: \llrref{LLR_GDB_INSN_CHANGES_MASK_02},
+ *    \llrref{LLR_GDB_INSN_CHANGES_MASK_03}
  *    1. Set `insn` to `(uint32_t)get_le(code, 0U, 4U)`.
  *    2. Set `changes` to
  *       `(insn == INSN_WFI) || (insn == INSN_WFE) || (insn == INSN_ERET) ||`
  *       `((insn & INSN_MSR_DAIFIMM_MASK) == INSN_MSR_DAIFIMM) || ((insn &`
  *       `INSN_MSR_DAIF_MASK) == INSN_MSR_DAIF)`.
- * 4. Return `changes`.
+ * 4. Return `changes`. \llrref{LLR_GDB_INSN_CHANGES_MASK_01},
+ *    \llrref{LLR_GDB_INSN_CHANGES_MASK_02},
+ *    \llrref{LLR_GDB_INSN_CHANGES_MASK_03}
  *
  * @calls
  * - `ja_addr_to_gdb_ro()`
@@ -1454,27 +1947,77 @@ static pok_bool_t insn_changes_mask(const interrupt_frame* ctx)
  * | `set` | `uint64_t` | The SPSR_EL1 bits to set |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_STEP_WINDOW_OPEN_01}: `step_window_open()` shall prepare the
+ *   return to a context that steps: interrupts masked for the stepped
+ *   instruction unless it changes the mask itself, and debug exceptions
+ *   unmasked in the kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_STEP_WINDOW_OPEN_01}: If `ja_gdb_context_is_user()` returns
+ *   true for `frame`, `step_window_open()` shall set `SPSR_I` in `spsr` of
+ *   `frame` and leave `SPSR_D` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_WINDOW_OPEN_01}
+ * - \llrid{LLR_GDB_STEP_WINDOW_OPEN_02}: If `ja_gdb_context_is_user()` returns
+ *   false and `insn_changes_mask()` returns false for `frame`,
+ *   `step_window_open()` shall set `SPSR_I` and clear `SPSR_D` in `spsr` of
+ *   `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_WINDOW_OPEN_01}
+ * - \llrid{LLR_GDB_STEP_WINDOW_OPEN_03}: If `ja_gdb_context_is_user()` returns
+ *   false and `insn_changes_mask()` returns true for `frame`,
+ *   `step_window_open()` shall clear `SPSR_D` in `spsr` of `frame` and leave
+ *   `SPSR_I` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_WINDOW_OPEN_01}
+ * - \llrid{LLR_GDB_STEP_WINDOW_OPEN_04}: `step_window_open()` shall set
+ *   `step_changed` to the bits of `spsr` of `frame` whose value this changes,
+ *   and `step_saved` to the values that these bits had before.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_WINDOW_OPEN_01}
+ * - \llrid{LLR_GDB_STEP_WINDOW_OPEN_05}: If `first` is true,
+ *   `step_window_open()` shall set `SPSR_SS` in `spsr` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_WINDOW_OPEN_01}
+ * - \llrid{LLR_GDB_STEP_WINDOW_OPEN_06}: If `first` is false,
+ *   `step_window_open()` shall clear `SPSR_SS` in `spsr` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_WINDOW_OPEN_01}
+ * - \llrid{LLR_GDB_STEP_WINDOW_OPEN_07}: `step_window_open()` shall then call
+ *   `cpu_mdscr_set()` once with `MDSCR_SS` and set `step_state` to
+ *   `STEP_RUNNING`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_WINDOW_OPEN_01}
  *
  * @design
- * 1. Set `set` to `0U`.
- * 2. Set `clear` to `0U`.
+ * 1. Set `set` to `0U`. \llrref{LLR_GDB_STEP_WINDOW_OPEN_01},
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_02}, \llrref{LLR_GDB_STEP_WINDOW_OPEN_03}
+ * 2. Set `clear` to `0U`. \llrref{LLR_GDB_STEP_WINDOW_OPEN_01},
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_02}, \llrref{LLR_GDB_STEP_WINDOW_OPEN_03}
  * 3. If `ja_gdb_context_is_user(frame)` is true:
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_01}
  *    1. Set `set` to `SPSR_I`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_GDB_STEP_WINDOW_OPEN_02},
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_03}
  *    1. Set `clear` to `SPSR_D`.
  *    2. If `insn_changes_mask(frame)` is false:
- *       1. Set `set` to `SPSR_I`.
+ *       1. Set `set` to `SPSR_I`. \llrref{LLR_GDB_STEP_WINDOW_OPEN_02}
  * 5. Set `step_changed` to `(set & ~frame->spsr) | (clear & frame->spsr)`.
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_04}
  * 6. Set `step_saved` to `frame->spsr & step_changed`.
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_04}
  * 7. Set `frame->spsr` to `(frame->spsr | set) & ~clear`.
- * 8. If `first` is true:
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_01},
+ *    \llrref{LLR_GDB_STEP_WINDOW_OPEN_02}, \llrref{LLR_GDB_STEP_WINDOW_OPEN_03}
+ * 8. If `first` is true: \llrref{LLR_GDB_STEP_WINDOW_OPEN_05}
  *    1. Set the bits `SPSR_SS` in `frame->spsr`.
- * 9. Otherwise:
+ * 9. Otherwise: \llrref{LLR_GDB_STEP_WINDOW_OPEN_06}
  *    1. Keep only the bits `~SPSR_SS` of `frame->spsr`.
  * 10. Call `cpu_mdscr_set()` with the argument `MDSCR_SS`.
- * 11. Set `step_state` to `STEP_RUNNING`.
+ *     \llrref{LLR_GDB_STEP_WINDOW_OPEN_07}
+ * 11. Set `step_state` to `STEP_RUNNING`. \llrref{LLR_GDB_STEP_WINDOW_OPEN_07}
  *
  * @calls
  * - `ja_gdb_context_is_user()`
@@ -1537,11 +2080,24 @@ static void step_window_open(interrupt_frame* frame, pok_bool_t first)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_JA_GDB_EXCEPTION_ENTER_01}: `ja_gdb_exception_enter()` shall
+ *   end the window of a step at the first exception after the return to the
+ *   stepped context, restoring the bits changed for the step.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_JA_GDB_EXCEPTION_ENTER_01}: If and only if `step_state` is
+ *   `STEP_RUNNING`, `ja_gdb_exception_enter()` shall call `cpu_mdscr_clear()`
+ *   once with `MDSCR_SS`, set the bits `step_changed` of `spsr` of `frame` back
+ *   to `step_saved`, and set `step_state` to `STEP_RETURNING` and `step_frame`
+ *   to `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_EXCEPTION_ENTER_01}
  *
  * @design
  * 1. If `step_state` is equal to `STEP_RUNNING`:
+ *    \llrref{LLR_GDB_JA_GDB_EXCEPTION_ENTER_01}
  *    1. Call `cpu_mdscr_clear()` with the argument `MDSCR_SS`.
  *    2. Set `frame->spsr` to `(frame->spsr & ~step_changed) | step_saved`.
  *    3. Set `step_state` to `STEP_RETURNING`.
@@ -1584,12 +2140,23 @@ void ja_gdb_exception_enter(interrupt_frame* frame)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_JA_GDB_USER_JUMP_01}: `ja_gdb_user_jump()` shall cancel a
+ *   step that a thread had begun when the thread starts again in user mode.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_JA_GDB_USER_JUMP_01}: If and only if `step_state` is
+ *   `STEP_RETURNING` and `step_frame` is the frame at the top of the stack
+ *   (`stack_kernel` minus the size of `interrupt_frame`), `ja_gdb_user_jump()`
+ *   shall set `step_state` to `STEP_NONE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_USER_JUMP_01}
  *
  * @design
  * 1. If `step_state` is equal to `STEP_RETURNING` and `(uintptr_t)step_frame`
  *    is equal to `(stack_kernel - sizeof(interrupt_frame))`:
+ *    \llrref{LLR_GDB_JA_GDB_USER_JUMP_01}
  *    1. Set `step_state` to `STEP_NONE`.
  *
  * @calls
@@ -1623,11 +2190,20 @@ void ja_gdb_user_jump(jet_stack_t stack_kernel)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_JA_GDB_EXCEPTION_UNMASK_01}: `ja_gdb_exception_unmask()`
+ *   shall unmask the debug exceptions in an exception handler that is not the
+ *   debugger's.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_JA_GDB_EXCEPTION_UNMASK_01}: `ja_gdb_exception_unmask()`
+ *   shall call `cpu_debug_unmask()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_EXCEPTION_UNMASK_01}
  *
  * @design
- * 1. Call `cpu_debug_unmask()`.
+ * 1. Call `cpu_debug_unmask()`. \llrref{LLR_GDB_JA_GDB_EXCEPTION_UNMASK_01}
  *
  * @calls
  * - `cpu_debug_unmask()`
@@ -1660,16 +2236,38 @@ void ja_gdb_exception_unmask(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_JA_GDB_EXCEPTION_LEAVE_01}: `ja_gdb_exception_leave()` shall
+ *   mask the debug exceptions when an exception handler returns, and open the
+ *   window of a step if the return is to the stepped context.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_JA_GDB_EXCEPTION_LEAVE_01}: `ja_gdb_exception_leave()` shall
+ *   call `cpu_debug_mask()` once, before anything else.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_EXCEPTION_LEAVE_01}
+ * - \llrid{LLR_GDB_JA_GDB_EXCEPTION_LEAVE_02}: If `step_state` is
+ *   `STEP_REQUESTED` or `STEP_RETURNING`, and `frame` is `step_frame`,
+ *   `ja_gdb_exception_leave()` shall call `step_window_open()` once with
+ *   `frame` and whether `step_state` is `STEP_REQUESTED`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_EXCEPTION_LEAVE_01}
+ * - \llrid{LLR_GDB_JA_GDB_EXCEPTION_LEAVE_03}: If `step_state` is neither
+ *   `STEP_REQUESTED` nor `STEP_RETURNING`, or `frame` is not `step_frame`,
+ *   `ja_gdb_exception_leave()` shall clear `SPSR_SS` in `spsr` of `frame`,
+ *   without calling `step_window_open()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_EXCEPTION_LEAVE_01}
  *
  * @design
- * 1. Call `cpu_debug_mask()`.
+ * 1. Call `cpu_debug_mask()`. \llrref{LLR_GDB_JA_GDB_EXCEPTION_LEAVE_01}
  * 2. If (`step_state` is equal to `STEP_REQUESTED` or `step_state` is equal to
  *    `STEP_RETURNING`) and `frame` is equal to `step_frame`:
+ *    \llrref{LLR_GDB_JA_GDB_EXCEPTION_LEAVE_02}
  *    1. Call `step_window_open()` with the arguments `frame` and
  *       `step_state == STEP_REQUESTED`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_GDB_JA_GDB_EXCEPTION_LEAVE_03}
  *    1. Keep only the bits `~SPSR_SS` of `frame->spsr`.
  *
  * @calls
@@ -1722,28 +2320,62 @@ static uint32_t hw_watchpoints_n = 0U;
  * | `watchpoints` | `uint32_t` | The number of watchpoint registers |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_JA_GDB_INIT_01}: `ja_gdb_init()` shall initialize the debug
+ *   support at boot: the number of breakpoint and watchpoint registers, none of
+ *   them set, debug exceptions enabled in the kernel and unmasked.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
+ *   - \srqref{SRQ_JET_BOOT_002}
  *
  * @llr
+ * - \llrid{LLR_GDB_JA_GDB_INIT_01}: `ja_gdb_init()` shall set
+ *   `hw_breakpoints_n` to the bits 15 to 12 of ID_AA64DFR0_EL1 plus 1 if that
+ *   number is less than `JA_GDB_HW_BREAKPOINTS`, and to `JA_GDB_HW_BREAKPOINTS`
+ *   if it is not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_INIT_01}
+ * - \llrid{LLR_GDB_JA_GDB_INIT_02}: `ja_gdb_init()` shall set
+ *   `hw_watchpoints_n` to the bits 23 to 20 of ID_AA64DFR0_EL1 plus 1 if that
+ *   number is less than `JA_GDB_HW_WATCHPOINTS`, and to `JA_GDB_HW_WATCHPOINTS`
+ *   if it is not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_INIT_01}
+ * - \llrid{LLR_GDB_JA_GDB_INIT_03}: `ja_gdb_init()` shall then write
+ *   `MDSCR_KDE` to MDSCR_EL1 (`write_sysreg()`), call `hw_breakpoint_write()`
+ *   with `i`, 0 and 0 for each `i` less than `hw_breakpoints_n`, and call
+ *   `hw_watchpoint_write()` with `i`, 0 and 0 for each `i` less than
+ *   `hw_watchpoints_n`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_INIT_01}
+ * - \llrid{LLR_GDB_JA_GDB_INIT_04}: `ja_gdb_init()` shall then call, in this
+ *   order, `cpu_os_lock_clear()`, `isb()` and `cpu_debug_unmask()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_INIT_01}
  *
  * @design
  * 1. Set `dfr0` to `read_sysreg(id_aa64dfr0_el1)`.
+ *    \llrref{LLR_GDB_JA_GDB_INIT_01}, \llrref{LLR_GDB_JA_GDB_INIT_02}
  * 2. Set `breakpoints` to `(uint32_t)((dfr0 >> 12) & 0xFU) + 1U`.
+ *    \llrref{LLR_GDB_JA_GDB_INIT_01}
  * 3. Set `watchpoints` to `(uint32_t)((dfr0 >> 20) & 0xFU) + 1U`.
+ *    \llrref{LLR_GDB_JA_GDB_INIT_02}
  * 4. Set `hw_breakpoints_n` to `breakpoints` if `breakpoints` is less than
  *    `JA_GDB_HW_BREAKPOINTS`, otherwise `JA_GDB_HW_BREAKPOINTS`.
+ *    \llrref{LLR_GDB_JA_GDB_INIT_01}
  * 5. Set `hw_watchpoints_n` to `watchpoints` if `watchpoints` is less than
  *    `JA_GDB_HW_WATCHPOINTS`, otherwise `JA_GDB_HW_WATCHPOINTS`.
+ *    \llrref{LLR_GDB_JA_GDB_INIT_02}
  * 6. Use the macro `write_sysreg()` with the arguments `mdscr_el1` and
- *    `MDSCR_KDE`.
+ *    `MDSCR_KDE`. \llrref{LLR_GDB_JA_GDB_INIT_03}
  * 7. Set `i` to `0U`; then while `i` is less than `hw_breakpoints_n`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDB_JA_GDB_INIT_03}
  *    1. Call `hw_breakpoint_write()` with the arguments `i`, `0U` and `0U`.
  * 8. Set `i` to `0U`; then while `i` is less than `hw_watchpoints_n`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDB_JA_GDB_INIT_03}
  *    1. Call `hw_watchpoint_write()` with the arguments `i`, `0U` and `0U`.
- * 9. Call `cpu_os_lock_clear()`.
- * 10. Call `isb()`.
- * 11. Call `cpu_debug_unmask()`.
+ * 9. Call `cpu_os_lock_clear()`. \llrref{LLR_GDB_JA_GDB_INIT_04}
+ * 10. Call `isb()`. \llrref{LLR_GDB_JA_GDB_INIT_04}
+ * 11. Call `cpu_debug_unmask()`. \llrref{LLR_GDB_JA_GDB_INIT_04}
  *
  * @calls
  * - `hw_breakpoint_write()`
@@ -1809,17 +2441,32 @@ void ja_gdb_init(void)
  * | `slots` | `hw_slot_t *` | The slots |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_HW_SLOTS_OF_01}: `hw_slots_of()` shall give the slots of a
+ *   type: the breakpoints or the watchpoints, with their number.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_HW_SLOTS_OF_01}: If `type` is `JA_GDB_HW_EXEC`,
+ *   `hw_slots_of()` shall return `hw_breakpoints` and store `hw_breakpoints_n`
+ *   at `count`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_SLOTS_OF_01}
+ * - \llrid{LLR_GDB_HW_SLOTS_OF_02}: If `type` is not `JA_GDB_HW_EXEC`,
+ *   `hw_slots_of()` shall return `hw_watchpoints` and store `hw_watchpoints_n`
+ *   at `count`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_SLOTS_OF_01}
  *
  * @design
- * 1. If `type` is equal to `JA_GDB_HW_EXEC`:
+ * 1. If `type` is equal to `JA_GDB_HW_EXEC`: \llrref{LLR_GDB_HW_SLOTS_OF_01}
  *    1. Set `slots` to `hw_breakpoints`.
  *    2. Set `*count` to `hw_breakpoints_n`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDB_HW_SLOTS_OF_02}
  *    1. Set `slots` to `hw_watchpoints`.
  *    2. Set `*count` to `hw_watchpoints_n`.
- * 3. Return `slots`.
+ * 3. Return `slots`. \llrref{LLR_GDB_HW_SLOTS_OF_01},
+ *    \llrref{LLR_GDB_HW_SLOTS_OF_02}
  *
  * @calls
  * None.
@@ -1867,19 +2514,50 @@ static hw_slot_t* hw_slots_of(ja_gdb_hw_type_e type, uint32_t* count)
  * | `supported` | `pok_bool_t` | Whether it is supported |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_HW_AREA_SUPPORTED_01}: `hw_area_supported()` shall
+ *   tell whether the debug registers can watch an area: 4 aligned bytes for an
+ *   instruction breakpoint, and 1, 2, 4 or 8 aligned bytes for a watchpoint.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_HW_AREA_SUPPORTED_01}: If `type` is `JA_GDB_HW_EXEC`,
+ *   `len` is `JA_GDB_BREAKPOINT_SIZE` and `addr` is a multiple of
+ *   `JA_GDB_BREAKPOINT_SIZE`, `hw_area_supported()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_AREA_SUPPORTED_01}
+ * - \llrid{LLR_GDB_ARM64_HW_AREA_SUPPORTED_02}: If `type` is `JA_GDB_HW_EXEC`,
+ *   and `len` is not `JA_GDB_BREAKPOINT_SIZE` or `addr` is not a multiple of
+ *   `JA_GDB_BREAKPOINT_SIZE`, `hw_area_supported()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_AREA_SUPPORTED_01}
+ * - \llrid{LLR_GDB_ARM64_HW_AREA_SUPPORTED_03}: If `type` is not
+ *   `JA_GDB_HW_EXEC`, `len` is 1, 2, 4 or 8, and `addr` is a multiple of `len`,
+ *   `hw_area_supported()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_AREA_SUPPORTED_01}
+ * - \llrid{LLR_GDB_ARM64_HW_AREA_SUPPORTED_04}: If `type` is not
+ *   `JA_GDB_HW_EXEC`, and `len` is none of 1, 2, 4 and 8 or `addr` is not a
+ *   multiple of `len`, `hw_area_supported()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_AREA_SUPPORTED_01}
  *
  * @design
  * 1. If `type` is equal to `JA_GDB_HW_EXEC`:
+ *    \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_01},
+ *    \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_02}
  *    1. Set `supported` to
  *       `(len == JA_GDB_BREAKPOINT_SIZE) && ((addr % JA_GDB_BREAKPOINT_SIZE)`
  *       `== 0U)`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_03},
+ *    \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_04}
  *    1. Set `supported` to
  *       `((len == 1U) || (len == 2U) || (len == 4U) || (len == 8U)) && ((addr`
  *       `% len) == 0U)`.
- * 3. Return `supported`.
+ * 3. Return `supported`. \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_01},
+ *    \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_02},
+ *    \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_03},
+ *    \llrref{LLR_GDB_ARM64_HW_AREA_SUPPORTED_04}
  *
  * @calls
  * None.
@@ -1925,13 +2603,28 @@ static pok_bool_t hw_area_supported(ja_gdb_hw_type_e type,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_HW_SLOT_IS_01}: `hw_slot_is()` shall tell whether a
+ *   slot holds a given hardware breakpoint or watchpoint.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_HW_SLOT_IS_01}: If `used` of `slot` is true and its
+ *   `type`, `addr`, `len` and `space_id` are equal to the arguments of the same
+ *   names, `hw_slot_is()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_SLOT_IS_01}
+ * - \llrid{LLR_GDB_ARM64_HW_SLOT_IS_02}: If `used` of `slot` is false, or its
+ *   `type`, its `addr`, its `len` or its `space_id` differs from the argument
+ *   of the same name, `hw_slot_is()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_SLOT_IS_01}
  *
  * @design
  * 1. Return
  *    `slot->used && (slot->type == type) && (slot->addr == addr) && (slot->len`
  *    `== len) && (slot->space_id == space_id)`.
+ *    \llrref{LLR_GDB_ARM64_HW_SLOT_IS_01}, \llrref{LLR_GDB_ARM64_HW_SLOT_IS_02}
  *
  * @calls
  * None.
@@ -1973,28 +2666,83 @@ static pok_bool_t hw_slot_is(const hw_slot_t* slot,
  * | `slots` | `hw_slot_t *` | The slots of the type |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_HW_INSERT_01}: `ja_gdb_hw_insert()` shall
+ *   insert a hardware breakpoint or watchpoint that the debug registers support
+ *   into a free slot of its kind, keep one that exists, and tell whether it is
+ *   in place.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_INSERT_01}: If `hw_area_supported()` returns
+ *   false for `type`, `addr` and `len`, `ja_gdb_hw_insert()` shall return
+ *   `FALSE` and leave the slots as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_INSERT_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_INSERT_02}: If `hw_area_supported()` returns
+ *   true and `hw_slot_is()` returns true for one of the slots that
+ *   `hw_slots_of()` gives for `type` and `type`, `addr`, `len` and `space_id`,
+ *   `ja_gdb_hw_insert()` shall return `TRUE` and leave the slots as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_INSERT_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03}: If `hw_area_supported()` returns
+ *   true, `hw_slot_is()` returns false for every slot that `hw_slots_of()`
+ *   gives for `type`, and `used` of one of these slots is false,
+ *   `ja_gdb_hw_insert()` shall set, in the first such slot, `used` to `TRUE`
+ *   and `type`, `addr`, `len` and `space_id` to the arguments of the same
+ *   names, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_INSERT_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_INSERT_04}: If `hw_area_supported()` returns
+ *   true, `hw_slot_is()` returns false for every slot that `hw_slots_of()`
+ *   gives for `type`, and `used` of every one of these slots is true,
+ *   `ja_gdb_hw_insert()` shall return `FALSE` and leave the slots as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_INSERT_01}
  *
  * @design
- * 1. Set `inserted` to `FALSE`.
+ * 1. Set `inserted` to `FALSE`. \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_04}
  * 2. Call `hw_slots_of()` with the arguments `type` and the address of `count`,
  *    and store the result in `slots`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_04}
  * 3. If `hw_area_supported(type, addr, len)` is true:
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_04}
  *    1. Set `i` to `0U`; then while `i` is less than `count`, repeat (after
- *       each pass: increment `i`):
+ *       each pass: increment `i`): \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_02},
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03},
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_04}
  *       1. If `hw_slot_is(&slots[i], type, addr, len, space_id)` is true:
+ *          \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_02}
  *          1. Set `inserted` to `TRUE`.
  *    2. Set `i` to `0U`; then while `i` is less than `count` and `inserted` is
  *       false, repeat (after each pass: increment `i`):
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03},
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_04}
  *       1. If `slots[i].used` is false:
  *          1. Set `slots[i].used` to `TRUE`.
+ *             \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03}
  *          2. Set `slots[i].type` to `type`.
+ *             \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03}
  *          3. Set `slots[i].addr` to `addr`.
+ *             \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03}
  *          4. Set `slots[i].len` to `len`.
+ *             \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03}
  *          5. Set `slots[i].space_id` to `space_id`.
+ *             \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03}
  *          6. Set `inserted` to `TRUE`.
- * 4. Return `inserted`.
+ *             \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03}
+ * 4. Return `inserted`. \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_INSERT_04}
  *
  * @calls
  * - `hw_slots_of()`
@@ -2062,19 +2810,48 @@ pok_bool_t ja_gdb_hw_insert(ja_gdb_hw_type_e type, uintptr_t addr,
  * | `slots` | `hw_slot_t *` | The slots of the type |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_HW_REMOVE_01}: `ja_gdb_hw_remove()` shall
+ *   remove a hardware breakpoint or watchpoint and tell whether there was one.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_01}: For each of the slots that
+ *   `hw_slots_of()` gives for `type` for which `hw_slot_is()` returns true with
+ *   `type`, `addr`, `len` and `space_id`, `ja_gdb_hw_remove()` shall set `used`
+ *   to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_REMOVE_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_02}: If `hw_slot_is()` returns true
+ *   for at least one of the slots that `hw_slots_of()` gives for `type`,
+ *   `ja_gdb_hw_remove()` shall return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_REMOVE_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_03}: If `hw_slot_is()` returns false
+ *   for every slot that `hw_slots_of()` gives for `type`, `ja_gdb_hw_remove()`
+ *   shall return `FALSE` and leave the slots as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_REMOVE_01}
  *
  * @design
- * 1. Set `removed` to `FALSE`.
+ * 1. Set `removed` to `FALSE`. \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_03}
  * 2. Call `hw_slots_of()` with the arguments `type` and the address of `count`,
  *    and store the result in `slots`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_03}
  * 3. Set `i` to `0U`; then while `i` is less than `count`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_03}
  *    1. If `hw_slot_is(&slots[i], type, addr, len, space_id)` is true:
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_01},
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_02}
  *       1. Set `slots[i].used` to `FALSE`.
  *       2. Set `removed` to `TRUE`.
- * 4. Return `removed`.
+ * 4. Return `removed`. \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_03}
  *
  * @calls
  * - `hw_slots_of()`
@@ -2117,15 +2894,27 @@ pok_bool_t ja_gdb_hw_remove(ja_gdb_hw_type_e type, uintptr_t addr,
  * | `i` | `uint32_t` | The index of a slot |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_HW_REMOVE_ALL_01}: `ja_gdb_hw_remove_all()`
+ *   shall remove every hardware breakpoint and watchpoint.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_015}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_ALL_01}: `ja_gdb_hw_remove_all()`
+ *   shall set `used` of each of the `JA_GDB_HW_BREAKPOINTS` elements of
+ *   `hw_breakpoints` and of each of the `JA_GDB_HW_WATCHPOINTS` elements of
+ *   `hw_watchpoints` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_REMOVE_ALL_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `JA_GDB_HW_BREAKPOINTS`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_ALL_01}
  *    1. Set `hw_breakpoints[i].used` to `FALSE`.
  * 2. Set `i` to `0U`; then while `i` is less than `JA_GDB_HW_WATCHPOINTS`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_REMOVE_ALL_01}
  *    1. Set `hw_watchpoints[i].used` to `FALSE`.
  *
  * @calls
@@ -2165,12 +2954,27 @@ void ja_gdb_hw_remove_all(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_HW_SLOT_ENABLED_01}: `hw_slot_enabled()` shall tell whether
+ *   a slot is in effect for a space: one of the kernel or of that space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_HW_SLOT_ENABLED_01}: If `used` of `slot` is true and its
+ *   `space_id` is 0 or is equal to `space_id`, `hw_slot_enabled()` shall return
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_SLOT_ENABLED_01}
+ * - \llrid{LLR_GDB_HW_SLOT_ENABLED_02}: If `used` of `slot` is false, or its
+ *   `space_id` is neither 0 nor equal to `space_id`, `hw_slot_enabled()` shall
+ *   return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_SLOT_ENABLED_01}
  *
  * @design
  * 1. Return
  *    `slot->used && ((slot->space_id == 0U) || (slot->space_id == space_id))`.
+ *    \llrref{LLR_GDB_HW_SLOT_ENABLED_01}, \llrref{LLR_GDB_HW_SLOT_ENABLED_02}
  *
  * @calls
  * None.
@@ -2205,13 +3009,29 @@ static pok_bool_t hw_slot_enabled(const hw_slot_t* slot,
  * | `pmc` | `uint64_t` | The exception level |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_HW_BREAKPOINT_CONTROL_01}: `hw_breakpoint_control()` shall
+ *   give the control value of a breakpoint: enabled, at exception level 1 for
+ *   the kernel or 0 for a space, on its 4 bytes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_HW_BREAKPOINT_CONTROL_01}: If `space_id` of `slot` is 0,
+ *   `hw_breakpoint_control()` shall return `BCR_E | BCR_PMC_EL1 | BCR_BAS_ALL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_BREAKPOINT_CONTROL_01}
+ * - \llrid{LLR_GDB_HW_BREAKPOINT_CONTROL_02}: If `space_id` of `slot` is not 0,
+ *   `hw_breakpoint_control()` shall return `BCR_E | BCR_PMC_EL0 | BCR_BAS_ALL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_BREAKPOINT_CONTROL_01}
  *
  * @design
  * 1. Set `pmc` to `BCR_PMC_EL1` if `slot->space_id` is equal to `0U`, otherwise
- *    `BCR_PMC_EL0`.
+ *    `BCR_PMC_EL0`. \llrref{LLR_GDB_HW_BREAKPOINT_CONTROL_01},
+ *    \llrref{LLR_GDB_HW_BREAKPOINT_CONTROL_02}
  * 2. Return `BCR_E | pmc | BCR_BAS_ALL`.
+ *    \llrref{LLR_GDB_HW_BREAKPOINT_CONTROL_01},
+ *    \llrref{LLR_GDB_HW_BREAKPOINT_CONTROL_02}
  *
  * @calls
  * None.
@@ -2248,25 +3068,57 @@ static uint64_t hw_breakpoint_control(const hw_slot_t* slot)
  * | `pac` | `uint64_t` | The exception level |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_HW_WATCHPOINT_CONTROL_01}: `hw_watchpoint_control()` shall
+ *   give the control value of a watchpoint: enabled, at exception level 1 or 0,
+ *   for stores, loads or both, on its bytes of the double word.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_HW_WATCHPOINT_CONTROL_01}: `hw_watchpoint_control()` shall
+ *   return `WCR_E` with the privilege field, the access field and, at
+ *   `WCR_BAS_SHIFT`, the byte mask: as many 1 bits as `len` of `slot`, shifted
+ *   left by the low 3 bits of its `addr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_WATCHPOINT_CONTROL_01}
+ * - \llrid{LLR_GDB_HW_WATCHPOINT_CONTROL_02}: `hw_watchpoint_control()` shall
+ *   take as the privilege field `WCR_PAC_EL1` if `space_id` of `slot` is 0, and
+ *   `WCR_PAC_EL0` if it is not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_WATCHPOINT_CONTROL_01}
+ * - \llrid{LLR_GDB_HW_WATCHPOINT_CONTROL_03}: If `type` of `slot` is
+ *   `JA_GDB_HW_WRITE` or `JA_GDB_HW_READ`, `hw_watchpoint_control()` shall take
+ *   `WCR_LSC_STORE` or `WCR_LSC_LOAD`, in this order, as the access field.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_WATCHPOINT_CONTROL_01}
+ * - \llrid{LLR_GDB_HW_WATCHPOINT_CONTROL_04}: If `type` of `slot` is neither
+ *   `JA_GDB_HW_WRITE` nor `JA_GDB_HW_READ`, `hw_watchpoint_control()` shall
+ *   take `WCR_LSC_STORE | WCR_LSC_LOAD` as the access field.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_WATCHPOINT_CONTROL_01}
  *
  * @design
  * 1. Set `pac` to `WCR_PAC_EL1` if `slot->space_id` is equal to `0U`, otherwise
- *    `WCR_PAC_EL0`.
+ *    `WCR_PAC_EL0`. \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_02}
  * 2. Set `bytes` to `((uint64_t)1U << slot->len) - 1U`.
- * 3. Depending on `slot->type`:
- *    1. Case `JA_GDB_HW_WRITE`:
+ *    \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_01}
+ * 3. Depending on `slot->type`: \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_03},
+ *    \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_04}
+ *    1. Case `JA_GDB_HW_WRITE`: \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_03}
  *       1. Set `lsc` to `WCR_LSC_STORE`.
  *       2. Leave the switch.
- *    2. Case `JA_GDB_HW_READ`:
+ *    2. Case `JA_GDB_HW_READ`: \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_03}
  *       1. Set `lsc` to `WCR_LSC_LOAD`.
  *       2. Leave the switch.
- *    3. Otherwise (default):
+ *    3. Otherwise (default): \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_04}
  *       1. Set `lsc` to `WCR_LSC_STORE | WCR_LSC_LOAD`.
  *       2. Leave the switch.
  * 4. Return
  *    `WCR_E | pac | lsc | ((bytes << (slot->addr & 7U)) << WCR_BAS_SHIFT)`.
+ *    \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_01},
+ *    \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_02},
+ *    \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_03},
+ *    \llrref{LLR_GDB_HW_WATCHPOINT_CONTROL_04}
  *
  * @calls
  * None.
@@ -2312,18 +3164,38 @@ static uint64_t hw_watchpoint_control(const hw_slot_t* slot)
  * | `i` | `uint32_t` | The index of a slot |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_HW_ANY_USED_01}: `hw_any_used()` shall tell whether any
+ *   hardware breakpoint or watchpoint is set.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_HW_ANY_USED_01}: If `used` is true for one of the first
+ *   `hw_breakpoints_n` elements of `hw_breakpoints` or for one of the first
+ *   `hw_watchpoints_n` elements of `hw_watchpoints`, `hw_any_used()` shall
+ *   return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_ANY_USED_01}
+ * - \llrid{LLR_GDB_HW_ANY_USED_02}: If `used` is false for all of the first
+ *   `hw_breakpoints_n` elements of `hw_breakpoints` and all of the first
+ *   `hw_watchpoints_n` elements of `hw_watchpoints`, `hw_any_used()` shall
+ *   return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_HW_ANY_USED_01}
  *
  * @design
- * 1. Set `any` to `FALSE`.
+ * 1. Set `any` to `FALSE`. \llrref{LLR_GDB_HW_ANY_USED_01},
+ *    \llrref{LLR_GDB_HW_ANY_USED_02}
  * 2. Set `i` to `0U`; then while `i` is less than `hw_breakpoints_n`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDB_HW_ANY_USED_01},
+ *    \llrref{LLR_GDB_HW_ANY_USED_02}
  *    1. Set `any` to `any || hw_breakpoints[i].used`.
  * 3. Set `i` to `0U`; then while `i` is less than `hw_watchpoints_n`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDB_HW_ANY_USED_01},
+ *    \llrref{LLR_GDB_HW_ANY_USED_02}
  *    1. Set `any` to `any || hw_watchpoints[i].used`.
- * 4. Return `any`.
+ * 4. Return `any`. \llrref{LLR_GDB_HW_ANY_USED_01},
+ *    \llrref{LLR_GDB_HW_ANY_USED_02}
  *
  * @calls
  * None.
@@ -2377,16 +3249,69 @@ static pok_bool_t hw_any_used(void)
  * | `was_masked` | `pok_bool_t` | Whether debug exceptions were masked |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_JA_GDB_HW_PROGRAM_01}: `ja_gdb_hw_program()` shall put into
+ *   the debug registers the breakpoints and watchpoints of the kernel and of a
+ *   space only, and enable the debug exceptions only if one is in effect.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_JA_GDB_HW_PROGRAM_01}: If `hw_enabled` is false and
+ *   `hw_any_used()` returns false, `ja_gdb_hw_program()` shall return without
+ *   writing a register.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_HW_PROGRAM_01}
+ * - \llrid{LLR_GDB_JA_GDB_HW_PROGRAM_02}: If `hw_enabled` is true or
+ *   `hw_any_used()` returns true, `ja_gdb_hw_program()` shall call
+ *   `cpu_debug_mask()` and then `hw_breakpoint_write()` with `i`, `addr` of
+ *   `hw_breakpoints[i]` and its control for each `i` less than
+ *   `hw_breakpoints_n`, and `hw_watchpoint_write()` with `i`, `addr` of
+ *   `hw_watchpoints[i]` with its low 3 bits cleared and its control for each
+ *   `i` less than `hw_watchpoints_n`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_HW_PROGRAM_01}
+ * - \llrid{LLR_GDB_JA_GDB_HW_PROGRAM_03}: `ja_gdb_hw_program()` shall take as
+ *   the control of a slot the result of `hw_breakpoint_control()` or
+ *   `hw_watchpoint_control()` for the slot if `hw_slot_enabled()` returns true
+ *   for the slot and `space_id`, and 0 if it returns false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_HW_PROGRAM_01}
+ * - \llrid{LLR_GDB_JA_GDB_HW_PROGRAM_04}: If `hw_slot_enabled()` returned true
+ *   for at least one slot, `ja_gdb_hw_program()` shall then call
+ *   `cpu_mdscr_set()` once with `MDSCR_MDE`, call `isb()` and set `hw_enabled`
+ *   to true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_HW_PROGRAM_01}
+ * - \llrid{LLR_GDB_JA_GDB_HW_PROGRAM_05}: If `hw_slot_enabled()` returned false
+ *   for every slot, `ja_gdb_hw_program()` shall then call `cpu_mdscr_clear()`
+ *   once with `MDSCR_MDE`, call `isb()` and set `hw_enabled` to false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_HW_PROGRAM_01}
+ * - \llrid{LLR_GDB_JA_GDB_HW_PROGRAM_06}: If and only if `cpu_debug_masked()`
+ *   returned false before the call of `cpu_debug_mask()`, `ja_gdb_hw_program()`
+ *   shall call `cpu_debug_unmask()` at the end.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_JA_GDB_HW_PROGRAM_01}
  *
  * @design
  * 1. If `hw_enabled` is true or `hw_any_used()` is true:
+ *    \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_01},
+ *    \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_02},
+ *    \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_03},
+ *    \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_04},
+ *    \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_05},
+ *    \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_06}
  *    1. Call `cpu_debug_masked()`, and store the result in `was_masked`.
- *    2. Set `enabled` to `FALSE`.
- *    3. Call `cpu_debug_mask()`.
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_06}
+ *    2. Set `enabled` to `FALSE`. \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_04},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_05}
+ *    3. Call `cpu_debug_mask()`. \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_02}
  *    4. Set `i` to `0U`; then while `i` is less than `hw_breakpoints_n`, repeat
  *       (after each pass: increment `i`):
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_02},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_03},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_04},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_05}
  *       1. Set `slot` to the address of `hw_breakpoints[i]`.
  *       2. Call `hw_slot_enabled()` with the arguments `slot` and `space_id`,
  *          and store the result in `on`.
@@ -2395,6 +3320,10 @@ static pok_bool_t hw_any_used(void)
  *       4. Set `enabled` to `enabled || on`.
  *    5. Set `i` to `0U`; then while `i` is less than `hw_watchpoints_n`, repeat
  *       (after each pass: increment `i`):
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_02},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_03},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_04},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_05}
  *       1. Set `slot` to the address of `hw_watchpoints[i]`.
  *       2. Call `hw_slot_enabled()` with the arguments `slot` and `space_id`,
  *          and store the result in `on`.
@@ -2402,13 +3331,15 @@ static pok_bool_t hw_any_used(void)
  *          `slot->addr & ~(uint64_t)7U` and `hw_watchpoint_control(slot)` if
  *          `on` is true, otherwise `0U`.
  *       4. Set `enabled` to `enabled || on`.
- *    6. If `enabled` is true:
+ *    6. If `enabled` is true: \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_04}
  *       1. Call `cpu_mdscr_set()` with the argument `MDSCR_MDE`.
- *    7. Otherwise:
+ *    7. Otherwise: \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_05}
  *       1. Call `cpu_mdscr_clear()` with the argument `MDSCR_MDE`.
- *    8. Call `isb()`.
- *    9. Set `hw_enabled` to `enabled`.
- *    10. If `was_masked` is false:
+ *    8. Call `isb()`. \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_04},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_05}
+ *    9. Set `hw_enabled` to `enabled`. \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_04},
+ *       \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_05}
+ *    10. If `was_masked` is false: \llrref{LLR_GDB_JA_GDB_HW_PROGRAM_06}
  *        1. Call `cpu_debug_unmask()`.
  *
  * @calls
@@ -2485,11 +3416,20 @@ void ja_gdb_hw_program(jet_space_id space_id)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_HW_ENTER_01}: `ja_gdb_hw_enter()` shall leave
+ *   the debug registers as they are when the GDB server runs, which it does
+ *   with debug exceptions masked.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_ENTER_01}: `ja_gdb_hw_enter()` shall return
+ *   without reading or writing a register.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_ENTER_01}
  *
  * @design
- * 1. Do nothing.
+ * 1. Do nothing. \llrref{LLR_GDB_ARM64_JA_GDB_HW_ENTER_01}
  *
  * @calls
  * None.
@@ -2512,11 +3452,21 @@ void ja_gdb_hw_enter(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_HW_LEAVE_01}: `ja_gdb_hw_leave()` shall put the
+ *   breakpoints and watchpoints of the current space into the debug registers
+ *   when the module resumes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_HW_LEAVE_01}: `ja_gdb_hw_leave()` shall call
+ *   `ja_gdb_hw_program()` once with the result of `ja_space_get_current()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_HW_LEAVE_01}
  *
  * @design
  * 1. Call `ja_gdb_hw_program()` with the argument `ja_space_get_current()`.
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_HW_LEAVE_01}
  *
  * @calls
  * - `ja_gdb_hw_program()`
@@ -2549,24 +3499,41 @@ void ja_gdb_hw_leave(void)
  * | `reason` | `jet_gdb_stop_reason_e` | The stop reason |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_HW_STOP_REASON_01}: `hw_stop_reason()` shall give the
+ *   stop reason of a type of hardware breakpoint or watchpoint.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_HW_STOP_REASON_01}: If `type` is `JA_GDB_HW_EXEC`,
+ *   `JA_GDB_HW_WRITE` or `JA_GDB_HW_READ`, `hw_stop_reason()` shall return
+ *   `JET_GDB_STOP_HW_BREAKPOINT`, `JET_GDB_STOP_WATCH` or
+ *   `JET_GDB_STOP_RWATCH`, in this order.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_STOP_REASON_01}
+ * - \llrid{LLR_GDB_ARM64_HW_STOP_REASON_02}: If `type` is none of
+ *   `JA_GDB_HW_EXEC`, `JA_GDB_HW_WRITE` and `JA_GDB_HW_READ`,
+ *   `hw_stop_reason()` shall return `JET_GDB_STOP_AWATCH`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_HW_STOP_REASON_01}
  *
  * @design
- * 1. Depending on `type`:
- *    1. Case `JA_GDB_HW_EXEC`:
+ * 1. Depending on `type`: \llrref{LLR_GDB_ARM64_HW_STOP_REASON_01},
+ *    \llrref{LLR_GDB_ARM64_HW_STOP_REASON_02}
+ *    1. Case `JA_GDB_HW_EXEC`: \llrref{LLR_GDB_ARM64_HW_STOP_REASON_01}
  *       1. Set `reason` to `JET_GDB_STOP_HW_BREAKPOINT`.
  *       2. Leave the switch.
- *    2. Case `JA_GDB_HW_WRITE`:
+ *    2. Case `JA_GDB_HW_WRITE`: \llrref{LLR_GDB_ARM64_HW_STOP_REASON_01}
  *       1. Set `reason` to `JET_GDB_STOP_WATCH`.
  *       2. Leave the switch.
- *    3. Case `JA_GDB_HW_READ`:
+ *    3. Case `JA_GDB_HW_READ`: \llrref{LLR_GDB_ARM64_HW_STOP_REASON_01}
  *       1. Set `reason` to `JET_GDB_STOP_RWATCH`.
  *       2. Leave the switch.
- *    4. Otherwise (default):
+ *    4. Otherwise (default): \llrref{LLR_GDB_ARM64_HW_STOP_REASON_02}
  *       1. Set `reason` to `JET_GDB_STOP_AWATCH`.
  *       2. Leave the switch.
- * 2. Return `reason`.
+ * 2. Return `reason`. \llrref{LLR_GDB_ARM64_HW_STOP_REASON_01},
+ *    \llrref{LLR_GDB_ARM64_HW_STOP_REASON_02}
  *
  * @calls
  * None.
@@ -2601,11 +3568,19 @@ static jet_gdb_stop_reason_e hw_stop_reason(ja_gdb_hw_type_e type)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_POK_TRAP_ADDR_01}: `pok_trap_addr()` shall give the
+ *   address of the trap by which the GDB partition asks to stop the module.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_POK_TRAP_ADDR_01}: `pok_trap_addr()` shall return the
+ *   address of `pok_trap()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_POK_TRAP_ADDR_01}
  *
  * @design
- * 1. Return `(uintptr_t)&pok_trap`.
+ * 1. Return `(uintptr_t)&pok_trap`. \llrref{LLR_GDB_ARM64_POK_TRAP_ADDR_01}
  *
  * @calls
  * None.
@@ -2639,11 +3614,25 @@ static uintptr_t pok_trap_addr(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_TRAP_SPACE_01}: `trap_space()` shall give the memory
+ *   space of the code that trapped: the current space for user code and 0 for
+ *   the kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_TRAP_SPACE_01}: If `from_user` is true, `trap_space()`
+ *   shall return the result of `ja_space_get_current()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_TRAP_SPACE_01}
+ * - \llrid{LLR_GDB_ARM64_TRAP_SPACE_02}: If `from_user` is false,
+ *   `trap_space()` shall return 0 without calling `ja_space_get_current()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_TRAP_SPACE_01}
  *
  * @design
  * 1. Return `ja_space_get_current()` if `from_user` is true, otherwise `0U`.
+ *    \llrref{LLR_GDB_ARM64_TRAP_SPACE_01}, \llrref{LLR_GDB_ARM64_TRAP_SPACE_02}
  *
  * @calls
  * - `ja_space_get_current()`
@@ -2679,26 +3668,66 @@ static jet_space_id trap_space(pok_bool_t from_user)
  * | `pc` | `uintptr_t` | The address of the brk |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_BRK_TRAP_01}: `brk_trap()` shall handle the breakpoint
+ *   instruction: a request of the GDB partition, a software breakpoint of the
+ *   debugger, or a breakpoint of the program itself (the debugger going on
+ *   after it); and tell whether the debugger handled it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_BRK_TRAP_01}: If `from_user` is false and the address of the
+ *   trap (`elr` of `frame`) is the result of `pok_trap_addr()`, `brk_trap()`
+ *   shall add `JA_GDB_BREAKPOINT_SIZE` to `elr` of `frame` and return the
+ *   result of `jet_gdb_trap()` for `frame`, `JET_GDB_STOP_REQUEST` and the
+ *   address of the trap.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_BRK_TRAP_01}
+ * - \llrid{LLR_GDB_BRK_TRAP_02}: If `from_user` is true or the address of the
+ *   trap is not the result of `pok_trap_addr()`, and `jet_gdb_is_breakpoint()`
+ *   returns true for the result of `trap_space()` for `from_user` and the
+ *   address of the trap, `brk_trap()` shall return the result of
+ *   `jet_gdb_trap()` for `frame`, `JET_GDB_STOP_SW_BREAKPOINT` and the address
+ *   of the trap, leaving `elr` of `frame` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_BRK_TRAP_01}
+ * - \llrid{LLR_GDB_BRK_TRAP_03}: If `from_user` is true or the address of the
+ *   trap is not the result of `pok_trap_addr()`, and `jet_gdb_is_breakpoint()`
+ *   returns false for the result of `trap_space()` for `from_user` and the
+ *   address of the trap, `brk_trap()` shall add `JA_GDB_BREAKPOINT_SIZE` to
+ *   `elr` of `frame` and return the result of `jet_gdb_trap()` for `frame`,
+ *   `JET_GDB_STOP_TRAP` and the address of the trap.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_BRK_TRAP_01}
+ * - \llrid{LLR_GDB_BRK_TRAP_04}: If and only if that `jet_gdb_trap()` for
+ *   `JET_GDB_STOP_TRAP` returns false, `brk_trap()` shall set `elr` of `frame`
+ *   back to the address of the trap.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_BRK_TRAP_01}
  *
  * @design
- * 1. Set `pc` to `frame->elr`.
+ * 1. Set `pc` to `frame->elr`. \llrref{LLR_GDB_BRK_TRAP_01},
+ *    \llrref{LLR_GDB_BRK_TRAP_02}, \llrref{LLR_GDB_BRK_TRAP_03},
+ *    \llrref{LLR_GDB_BRK_TRAP_04}
  * 2. If `from_user` is false and `pc` is equal to `pok_trap_addr()`:
+ *    \llrref{LLR_GDB_BRK_TRAP_01}
  *    1. Set `frame->elr` to `pc + JA_GDB_BREAKPOINT_SIZE`.
  *    2. Call `jet_gdb_trap()` with the arguments `frame`,
  *       `JET_GDB_STOP_REQUEST` and `pc`, and store the result in `handled`.
  * 3. Otherwise, if `jet_gdb_is_breakpoint(trap_space(from_user), pc)` is true:
+ *    \llrref{LLR_GDB_BRK_TRAP_02}
  *    1. Call `jet_gdb_trap()` with the arguments `frame`,
  *       `JET_GDB_STOP_SW_BREAKPOINT` and `pc`, and store the result in
  *       `handled`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_GDB_BRK_TRAP_03}, \llrref{LLR_GDB_BRK_TRAP_04}
  *    1. Set `frame->elr` to `pc + JA_GDB_BREAKPOINT_SIZE`.
  *    2. Call `jet_gdb_trap()` with the arguments `frame`, `JET_GDB_STOP_TRAP`
  *       and `pc`, and store the result in `handled`.
- *    3. If `handled` is false:
+ *    3. If `handled` is false: \llrref{LLR_GDB_BRK_TRAP_04}
  *       1. Set `frame->elr` to `pc`.
- * 5. Return `handled`.
+ * 5. Return `handled`. \llrref{LLR_GDB_BRK_TRAP_01},
+ *    \llrref{LLR_GDB_BRK_TRAP_02}, \llrref{LLR_GDB_BRK_TRAP_03}
  *
  * @calls
  * - `pok_trap_addr()`
@@ -2757,14 +3786,24 @@ static pok_bool_t brk_trap(interrupt_frame* frame, pok_bool_t from_user)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_STEP_TRAP_01}: `step_trap()` shall end a single step at its
+ *   exception and stop the module.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_STEP_TRAP_01}: `step_trap()` shall set `step_state` to
+ *   `STEP_NONE`, clear `SPSR_SS` in `spsr` of `frame`, and return the result of
+ *   `jet_gdb_trap()` for `frame`, `JET_GDB_STOP_STEP` and `elr` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_STEP_TRAP_01}
  *
  * @design
- * 1. Set `step_state` to `STEP_NONE`.
+ * 1. Set `step_state` to `STEP_NONE`. \llrref{LLR_GDB_STEP_TRAP_01}
  * 2. Keep only the bits `~SPSR_SS` of `frame->spsr`.
+ *    \llrref{LLR_GDB_STEP_TRAP_01}
  * 3. Call `jet_gdb_trap()` with the arguments `frame`, `JET_GDB_STOP_STEP` and
- *    `frame->elr`, and return its result.
+ *    `frame->elr`, and return its result. \llrref{LLR_GDB_STEP_TRAP_01}
  *
  * @calls
  * - `jet_gdb_trap()`
@@ -2807,22 +3846,48 @@ static pok_bool_t step_trap(interrupt_frame* frame)
  * | `space_id` | `jet_space_id` | The space of the code |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_BREAKPOINT_TRAP_01}: `breakpoint_trap()` shall stop
+ *   the module at a hardware breakpoint of the kernel or of the partition that
+ *   trapped.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_BREAKPOINT_TRAP_01}: `breakpoint_trap()` shall call
+ *   `jet_gdb_trap()` with `frame`, `JET_GDB_STOP_HW_BREAKPOINT` and `addr` for
+ *   the elements of `hw_breakpoints` (the first `hw_breakpoints_n`, in their
+ *   order) whose `used` is true, whose `space_id` is the result of
+ *   `trap_space()` for `from_user` and whose `addr` is `elr` of `frame`, until
+ *   a call returns true, and return the result of the last call.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_BREAKPOINT_TRAP_01}
+ * - \llrid{LLR_GDB_ARM64_BREAKPOINT_TRAP_02}: If every one of the first
+ *   `hw_breakpoints_n` elements of `hw_breakpoints` has `used` false, or a
+ *   `space_id` other than the result of `trap_space()`, or an `addr` other than
+ *   `elr` of `frame`, `breakpoint_trap()` shall return `FALSE` without calling
+ *   `jet_gdb_trap()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_BREAKPOINT_TRAP_01}
  *
  * @design
  * 1. Call `trap_space()` with the argument `from_user`, and store the result in
- *    `space_id`.
- * 2. Set `handled` to `FALSE`.
+ *    `space_id`. \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_02}
+ * 2. Set `handled` to `FALSE`. \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_02}
  * 3. Set `i` to `0U`; then while `i` is less than `hw_breakpoints_n` and
  *    `handled` is false, repeat (after each pass: increment `i`):
+ *    \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_02}
  *    1. Set `slot` to the address of `hw_breakpoints[i]`.
  *    2. If `slot->used` is true and `slot->space_id` is equal to `space_id` and
  *       `slot->addr` is equal to `frame->elr`:
+ *       \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_01}
  *       1. Call `jet_gdb_trap()` with the arguments `frame`,
  *          `JET_GDB_STOP_HW_BREAKPOINT` and `slot->addr`, and store the result
  *          in `handled`.
- * 4. Return `handled`.
+ * 4. Return `handled`. \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_ARM64_BREAKPOINT_TRAP_02}
  *
  * @calls
  * - `trap_space()`
@@ -2874,18 +3939,35 @@ static pok_bool_t breakpoint_trap(interrupt_frame* frame,
  * | `result` | `uint64_t` | The distance |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_DISTANCE_01}: `distance()` shall give the distance of an
+ *   address from an area, 0 inside it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_DISTANCE_01}: If `addr` is less than `start`, `distance()`
+ *   shall return `start` minus `addr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_DISTANCE_01}
+ * - \llrid{LLR_GDB_DISTANCE_02}: If `addr` is not less than `start` plus `len`,
+ *   `distance()` shall return `addr` minus `start` minus `len` plus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_DISTANCE_01}
+ * - \llrid{LLR_GDB_DISTANCE_03}: If `addr` is not less than `start` and is less
+ *   than `start` plus `len`, `distance()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_DISTANCE_01}
  *
  * @design
- * 1. Set `result` to `0U`.
- * 2. If `addr` is less than `start`:
+ * 1. Set `result` to `0U`. \llrref{LLR_GDB_DISTANCE_03}
+ * 2. If `addr` is less than `start`: \llrref{LLR_GDB_DISTANCE_01}
  *    1. Set `result` to `start - addr`.
  * 3. Otherwise, if `addr` is greater than or equal to `(start + len)`:
+ *    \llrref{LLR_GDB_DISTANCE_02}, \llrref{LLR_GDB_DISTANCE_03}
  *    1. Set `result` to `addr - (start + len) + 1U`.
- * 4. Otherwise:
- *    1. Do nothing.
- * 5. Return `result`.
+ *       \llrref{LLR_GDB_DISTANCE_02}
+ * 4. Return `result`. \llrref{LLR_GDB_DISTANCE_01},
+ *    \llrref{LLR_GDB_DISTANCE_02}, \llrref{LLR_GDB_DISTANCE_03}
  *
  * @calls
  * None.
@@ -2940,30 +4022,60 @@ static uint64_t distance(uint64_t addr, uint64_t start, uint64_t len)
  * | `space_id` | `jet_space_id` | The space of the code |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_WATCHPOINT_TRAP_01}: `watchpoint_trap()` shall stop the
+ *   module at a hardware watchpoint of the kernel or of the partition that
+ *   trapped: the one closest to the address of the fault, as the processor does
+ *   not tell which one matched.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDB_WATCHPOINT_TRAP_01}: Among the first `hw_watchpoints_n`
+ *   elements of `hw_watchpoints` whose `used` is true and whose `space_id` is
+ *   the result of `trap_space()` for `from_user`, `watchpoint_trap()` shall
+ *   take the one for which the result of `distance()` for FAR_EL1, its `addr`
+ *   and its `len` is the smallest (the first one of them if several have that
+ *   distance), and return the result of `jet_gdb_trap()` for `frame`, the
+ *   result of `hw_stop_reason()` for its `type` and its `addr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_WATCHPOINT_TRAP_01}
+ * - \llrid{LLR_GDB_WATCHPOINT_TRAP_02}: If every one of the first
+ *   `hw_watchpoints_n` elements of `hw_watchpoints` has `used` false or a
+ *   `space_id` other than the result of `trap_space()`, `watchpoint_trap()`
+ *   shall return `FALSE` without calling `jet_gdb_trap()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_WATCHPOINT_TRAP_01}
  *
  * @design
  * 1. Call `trap_space()` with the argument `from_user`, and store the result in
- *    `space_id`.
+ *    `space_id`. \llrref{LLR_GDB_WATCHPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
  * 2. Set `fault_addr` to `read_sysreg(far_el1)`.
- * 3. Set `found` to `NULL`.
- * 4. Set `found_distance` to `0U`.
- * 5. Set `handled` to `FALSE`.
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_01}, \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
+ * 3. Set `found` to `NULL`. \llrref{LLR_GDB_WATCHPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
+ * 4. Set `found_distance` to `0U`. \llrref{LLR_GDB_WATCHPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
+ * 5. Set `handled` to `FALSE`. \llrref{LLR_GDB_WATCHPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
  * 6. Set `i` to `0U`; then while `i` is less than `hw_watchpoints_n`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDB_WATCHPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
  *    1. Set `slot` to the address of `hw_watchpoints[i]`.
  *    2. If `slot->used` is true and `slot->space_id` is equal to `space_id`:
+ *       \llrref{LLR_GDB_WATCHPOINT_TRAP_01}
  *       1. Call `distance()` with the arguments `fault_addr`, `slot->addr` and
  *          `slot->len`, and store the result in `d`.
  *       2. If `found` is NULL or `d` is less than `found_distance`:
  *          1. Set `found` to `slot`.
  *          2. Set `found_distance` to `d`.
- * 7. If `found` is not NULL:
+ * 7. If `found` is not NULL: \llrref{LLR_GDB_WATCHPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
  *    1. Call `jet_gdb_trap()` with the arguments `frame`,
  *       `hw_stop_reason(found->type)` and `found->addr`, and store the result
- *       in `handled`.
- * 8. Return `handled`.
+ *       in `handled`. \llrref{LLR_GDB_WATCHPOINT_TRAP_01}
+ * 8. Return `handled`. \llrref{LLR_GDB_WATCHPOINT_TRAP_01},
+ *    \llrref{LLR_GDB_WATCHPOINT_TRAP_02}
  *
  * @calls
  * - `trap_space()`
@@ -3031,31 +4143,74 @@ static pok_bool_t watchpoint_trap(interrupt_frame* frame,
  * | `handled` | `pok_bool_t` | Whether GDB handled it |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_ARM64_JA_GDB_TRAP_01}: `ja_gdb_trap()` shall handle a debug
+ *   exception: a breakpoint instruction, a software step, a hardware breakpoint
+ *   or a watchpoint, and tell whether the debugger handled it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_TRAP_01}: If `ec` is `EC_BRK64`,
+ *   `ja_gdb_trap()` shall return the result of `brk_trap()` for `frame` and
+ *   `from_user`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_TRAP_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_TRAP_02}: If `ec` is `EC_STEP_LOWER` or
+ *   `EC_STEP_CUR`, `ja_gdb_trap()` shall return the result of `step_trap()` for
+ *   `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_TRAP_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_TRAP_03}: If `ec` is `EC_BREAKPOINT_LOWER` or
+ *   `EC_BREAKPOINT_CUR`, `ja_gdb_trap()` shall return the result of
+ *   `breakpoint_trap()` for `frame` and `from_user`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_TRAP_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_TRAP_04}: If `ec` is `EC_WATCHPOINT_LOWER` or
+ *   `EC_WATCHPOINT_CUR`, `ja_gdb_trap()` shall return the result of
+ *   `watchpoint_trap()` for `frame` and `from_user`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_TRAP_01}
+ * - \llrid{LLR_GDB_ARM64_JA_GDB_TRAP_05}: If `ec` is none of `EC_BRK64`,
+ *   `EC_STEP_LOWER`, `EC_STEP_CUR`, `EC_BREAKPOINT_LOWER`, `EC_BREAKPOINT_CUR`,
+ *   `EC_WATCHPOINT_LOWER` and `EC_WATCHPOINT_CUR`, `ja_gdb_trap()` shall return
+ *   `FALSE` without calling a trap function.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_ARM64_JA_GDB_TRAP_01}
  *
  * @design
- * 1. Depending on `ec`:
- *    1. Case `EC_BRK64`:
+ * 1. Depending on `ec`: \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_04},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_05}
+ *    1. Case `EC_BRK64`: \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_01}
  *       1. Call `brk_trap()` with the arguments `frame` and `from_user`, and
  *          store the result in `handled`.
  *       2. Leave the switch.
  *    2. Case `EC_STEP_LOWER` or `EC_STEP_CUR`:
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_02}
  *       1. Call `step_trap()` with the argument `frame`, and store the result
  *          in `handled`.
  *       2. Leave the switch.
  *    3. Case `EC_BREAKPOINT_LOWER` or `EC_BREAKPOINT_CUR`:
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_03}
  *       1. Call `breakpoint_trap()` with the arguments `frame` and `from_user`,
  *          and store the result in `handled`.
  *       2. Leave the switch.
  *    4. Case `EC_WATCHPOINT_LOWER` or `EC_WATCHPOINT_CUR`:
+ *       \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_04}
  *       1. Call `watchpoint_trap()` with the arguments `frame` and `from_user`,
  *          and store the result in `handled`.
  *       2. Leave the switch.
- *    5. Otherwise (default):
+ *    5. Otherwise (default): \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_05}
  *       1. Set `handled` to `FALSE`.
  *       2. Leave the switch.
- * 2. Return `handled`.
+ * 2. Return `handled`. \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_01},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_02},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_03},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_04},
+ *    \llrref{LLR_GDB_ARM64_JA_GDB_TRAP_05}
  *
  * @calls
  * - `brk_trap()`

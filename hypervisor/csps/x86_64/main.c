@@ -38,6 +38,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/main.c (the code of the processor architecture is in
  * hypervisor/csps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -66,12 +74,21 @@ static uint8_t cpu_of_apic_id[APIC_IDS];
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_X86_64_HV_HALT_FOREVER_01}: `hv_halt_forever()` shall halt
+ *   the calling CPU for good, with interrupts disabled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_007}
+ *   - \srqref{SRQ_HV_ERR_003}
  *
  * @llr
+ * - \llrid{LLR_MAIN_X86_64_HV_HALT_FOREVER_01}: `hv_halt_forever()` shall call
+ *   `x86_cli()` once and then `x86_hlt()` again and again, without returning.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_HALT_FOREVER_01}
  *
  * @design
- * 1. Call `x86_cli()`.
- * 2. While `true` is true:
+ * 1. Call `x86_cli()`. \llrref{LLR_MAIN_X86_64_HV_HALT_FOREVER_01}
+ * 2. While `true` is true: \llrref{LLR_MAIN_X86_64_HV_HALT_FOREVER_01}
  *    1. Call `x86_hlt()`.
  *
  * @calls
@@ -101,11 +118,21 @@ void hv_halt_forever(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_X86_64_HV_ARCH_CPU_ID_01}: `hv_arch_cpu_id()` shall give
+ *   the hardware number of the calling CPU.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_001}
+ *   - \srqref{SRQ_HV_ERR_003}
  *
  * @llr
+ * - \llrid{LLR_MAIN_X86_64_HV_ARCH_CPU_ID_01}: `hv_arch_cpu_id()` shall return
+ *   `lapic_id()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_ARCH_CPU_ID_01}
  *
  * @design
  * 1. Call `lapic_id()`, and return its result.
+ *    \llrref{LLR_MAIN_X86_64_HV_ARCH_CPU_ID_01}
  *
  * @calls
  * - `lapic_id()`
@@ -137,16 +164,35 @@ uint32_t hv_arch_cpu_id(void)
  * | `index` | `uint32_t` | The index of the CPU |
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_X86_64_HV_THIS_CPU_01}: `hv_this_cpu()` shall give the CPU
+ *   structure of the calling CPU, the first one before the CPUs are known.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_001}
  *
  * @llr
+ * - \llrid{LLR_MAIN_X86_64_HV_THIS_CPU_01}: If the result of `lapic_id()` is
+ *   less than `APIC_IDS` and the element of `cpu_of_apic_id` for it is not 0,
+ *   `hv_this_cpu()` shall return the address of the element of `hv_cpus` whose
+ *   index is that element minus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_THIS_CPU_01}
+ * - \llrid{LLR_MAIN_X86_64_HV_THIS_CPU_02}: If the result of `lapic_id()` is
+ *   `APIC_IDS` or more, or the element of `cpu_of_apic_id` for it is 0,
+ *   `hv_this_cpu()` shall return the address of `hv_cpus[0]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_THIS_CPU_01}
  *
  * @design
  * 1. Call `lapic_id()`, and store the result in `id`.
- * 2. Set `index` to `0U`.
+ *    \llrref{LLR_MAIN_X86_64_HV_THIS_CPU_01},
+ *    \llrref{LLR_MAIN_X86_64_HV_THIS_CPU_02}
+ * 2. Set `index` to `0U`. \llrref{LLR_MAIN_X86_64_HV_THIS_CPU_02}
  * 3. If `id` is less than `APIC_IDS` and `cpu_of_apic_id[id]` is not equal to
- *    `0U`:
+ *    `0U`: \llrref{LLR_MAIN_X86_64_HV_THIS_CPU_01}
  *    1. Set `index` to `(uint32_t) cpu_of_apic_id[id] - 1U`.
  * 4. Return the address of `hv_cpus[index]`.
+ *    \llrref{LLR_MAIN_X86_64_HV_THIS_CPU_01},
+ *    \llrref{LLR_MAIN_X86_64_HV_THIS_CPU_02}
  *
  * @calls
  * - `lapic_id()`
@@ -186,12 +232,21 @@ hv_cpu_t *hv_this_cpu(void)
  * | `p` | `const volatile uint32_t *` | The field |
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_READ_MBI32_01}: `read_mbi32()` shall read a 32-bit field of
+ *   the Multiboot information that the boot loader gave.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_MAIN_READ_MBI32_01}: `read_mbi32()` shall return the 32-bit
+ *   value at the address `mbi` plus `offset`, read once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_READ_MBI32_01}
  *
  * @design
  * 1. Set `p` to `(const volatile uint32_t *) ((uintptr_t) mbi + offset)`.
- * 2. Return the value at `p`.
+ *    \llrref{LLR_MAIN_READ_MBI32_01}
+ * 2. Return the value at `p`. \llrref{LLR_MAIN_READ_MBI32_01}
  *
  * @calls
  * None.
@@ -230,17 +285,38 @@ static uint32_t read_mbi32(uint32_t mbi, uint32_t offset)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_RAM_END_OF_01}: `ram_end_of()` shall give the end of the
+ *   RAM from the Multiboot information, and stop the hypervisor if the boot
+ *   loader gave no memory size.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_MAIN_RAM_END_OF_01}: If `mbi` is 0, `ram_end_of()` shall call
+ *   `hv_fatal()` with `"the boot loader gave no memory size"`, without reading
+ *   the Multiboot information.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_RAM_END_OF_01}
+ * - \llrid{LLR_MAIN_RAM_END_OF_02}: If `mbi` is not 0 and `MBI_FLAG_MEM` is not
+ *   set in the field `MBI_FLAGS` (`read_mbi32()`), `ram_end_of()` shall call
+ *   `hv_fatal()` with `"the boot loader gave no memory size"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_RAM_END_OF_01}
+ * - \llrid{LLR_MAIN_RAM_END_OF_03}: If `mbi` is not 0 and `MBI_FLAG_MEM` is set
+ *   in the field `MBI_FLAGS`, `ram_end_of()` shall return `MBI_UPPER_MEM_START`
+ *   plus 1024 times the field `MBI_MEM_UPPER`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_RAM_END_OF_01}
  *
  * @design
  * 1. If `mbi` is equal to `0U` or `(read_mbi32(mbi, MBI_FLAGS) & MBI_FLAG_MEM)`
- *    is equal to `0U`:
+ *    is equal to `0U`: \llrref{LLR_MAIN_RAM_END_OF_01},
+ *    \llrref{LLR_MAIN_RAM_END_OF_02}
  *    1. Call `hv_fatal()` with the argument
  *       `"the boot loader gave no memory size"`.
  * 2. Return
  *    `MBI_UPPER_MEM_START + ((uint64_t) read_mbi32(mbi, MBI_MEM_UPPER) *`
- *    `1024U)`.
+ *    `1024U)`. \llrref{LLR_MAIN_RAM_END_OF_03}
  *
  * @calls
  * - `read_mbi32()`
@@ -283,22 +359,52 @@ static uint64_t ram_end_of(uint32_t mbi)
  * | `i` | `uint32_t` | The index in madt_ids |
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_X86_64_FIND_CPUS_01}: `find_cpus()` shall list the local
+ *   APIC IDs of the physical CPUs: the boot CPU first, then the other enabled
+ *   CPUs of the ACPI tables.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_MAIN_X86_64_FIND_CPUS_01}: `find_cpus()` shall store the result
+ *   of `lapic_id()` in `apic_ids[0]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_FIND_CPUS_01}
+ * - \llrid{LLR_MAIN_X86_64_FIND_CPUS_02}: If one of the IDs that
+ *   `acpi_find_cpus()` gives, for at most `HV_MAX_CPUS` CPUs, is not the result
+ *   of `lapic_id()` and is less than `APIC_IDS`, `find_cpus()` shall store it
+ *   in the next free element of `apic_ids`, in the order given.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_FIND_CPUS_01}
+ * - \llrid{LLR_MAIN_X86_64_FIND_CPUS_03}: If one of the IDs that
+ *   `acpi_find_cpus()` gives is the result of `lapic_id()`, or is `APIC_IDS` or
+ *   more, `find_cpus()` shall not store it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_FIND_CPUS_01}
+ * - \llrid{LLR_MAIN_X86_64_FIND_CPUS_04}: `find_cpus()` shall return the number
+ *   of elements of `apic_ids` that it stored.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_FIND_CPUS_01}
  *
  * @design
  * 1. Call `acpi_find_cpus()` with the arguments `madt_ids` and `HV_MAX_CPUS`,
- *    and store the result in `found`.
+ *    and store the result in `found`. \llrref{LLR_MAIN_X86_64_FIND_CPUS_02},
+ *    \llrref{LLR_MAIN_X86_64_FIND_CPUS_03}
  * 2. Call `lapic_id()`, and store the result in `bsp`.
- * 3. Set `count` to `1U`.
- * 4. Set `apic_ids[0]` to `bsp`.
+ *    \llrref{LLR_MAIN_X86_64_FIND_CPUS_01},
+ *    \llrref{LLR_MAIN_X86_64_FIND_CPUS_02},
+ *    \llrref{LLR_MAIN_X86_64_FIND_CPUS_03}
+ * 3. Set `count` to `1U`. \llrref{LLR_MAIN_X86_64_FIND_CPUS_04}
+ * 4. Set `apic_ids[0]` to `bsp`. \llrref{LLR_MAIN_X86_64_FIND_CPUS_01}
  * 5. Set `i` to `0U`; then while `i` is less than `found`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_MAIN_X86_64_FIND_CPUS_02},
+ *    \llrref{LLR_MAIN_X86_64_FIND_CPUS_03}
  *    1. If `madt_ids[i]` is not equal to `bsp` and `madt_ids[i]` is less than
  *       `APIC_IDS`:
  *       1. Set `apic_ids[count]` to `madt_ids[i]`.
  *       2. Increment `count`.
- * 6. Return `count`.
+ * 6. Return `count`. \llrref{LLR_MAIN_X86_64_FIND_CPUS_04}
  *
  * @calls
  * - `acpi_find_cpus()`
@@ -355,51 +461,125 @@ static uint32_t find_cpus(uint32_t apic_ids[HV_MAX_CPUS])
  * | `i` | `uint32_t` | The index of a CPU |
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_X86_64_HV_MAIN_01}: `hv_main()` shall start the hypervisor
+ *   on the boot CPU: set up the console and report, check the image, set up its
+ *   interrupts, check the processor, measure the timers, find the RAM and the
+ *   CPUs, set up the VMs, start the other CPUs and run its own vCPU, in this
+ *   order.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_002}
+ *   - \srqref{SRQ_HV_BOOT_005}
+ *   - \srqref{SRQ_HV_BOOT_009}
+ *   - \srqref{SRQ_HV_BOOT_006}
+ *   - \srqref{SRQ_HV_BOOT_001}
+ * - \hlrid{HLR_MAIN_X86_64_HV_MAIN_02}: `hv_main()` shall stop with a message
+ *   if the processor has no SVM with nested paging.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_008}
+ * - \hlrid{HLR_MAIN_X86_64_HV_MAIN_03}: `hv_main()` shall stop with a message
+ *   if the configuration needs no or too many CPUs, or more CPUs than the
+ *   computer has.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
+ *   - \srqref{SRQ_HV_CPU_008}
+ *   - \srqref{SRQ_HV_CFG_003}
  *
  * @llr
+ * - \llrid{LLR_MAIN_X86_64_HV_MAIN_01}: `hv_main()` shall, in this order, call
+ *   `hv_console_init()` with `hv_console_port`, `hv_printf()` with `"\n[hv]
+ *   JetOS hypervisor: %%u VM(s), %%u CPU(s)\n"`, `hv_nb_vms` and the result of
+ *   `hv_cpus_needed()`, and then `hv_image_check()`, `lapic_init_base()`,
+ *   `hv_idt_init()`, `hv_idt_load()`, `hv_legacy_pic_disable()` and
+ *   `lapic_init_cpu()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_MAIN_01}
+ * - \llrid{LLR_MAIN_X86_64_HV_MAIN_02}: If `svm_supported()` returns false,
+ *   `hv_main()` shall call `hv_fatal()` with `"AMD SVM with nested paging is
+ *   needed (QEMU: -cpu qemu64,+svm,+npt)"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_MAIN_02}
+ * - \llrid{LLR_MAIN_X86_64_HV_MAIN_03}: If `svm_supported()` returns true,
+ *   `hv_main()` shall, in this order, call `svm_init()` and `hv_timing_init()`,
+ *   call `hv_printf()` with `"[hv] TSC %%lu kHz, local APIC timer %%lu kHz\n"`
+ *   and the results of `hv_tsc_hz()` and `hv_lapic_hz()` divided by 1000, and
+ *   call `hv_printf()` with `"[hv] %%lu MiB of RAM, %%u CPU(s)\n"`, the result
+ *   of `ram_end_of()` for `mbi` shifted right by 20 and the result of
+ *   `find_cpus()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_MAIN_01}
+ * - \llrid{LLR_MAIN_X86_64_HV_MAIN_04}: If the result of `hv_cpus_needed()` is
+ *   0 or more than `HV_MAX_CPUS`, `hv_main()` shall call `hv_fatal()` with
+ *   `"bad number of CPUs in the configuration"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_MAIN_03}
+ * - \llrid{LLR_MAIN_X86_64_HV_MAIN_05}: If the result of `hv_cpus_needed()` is
+ *   from 1 to `HV_MAX_CPUS` and the result of `find_cpus()` is less than it,
+ *   `hv_main()` shall call `hv_printf()` with `"[hv] the VMs need %%u CPUs
+ *   (QEMU: -smp %%u)\n"` and the number needed twice, and then `hv_fatal()`
+ *   with `"not enough CPUs"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_MAIN_03}
+ * - \llrid{LLR_MAIN_X86_64_HV_MAIN_06}: If the result of `hv_cpus_needed()` is
+ *   from 1 to `HV_MAX_CPUS` and is not more than the result of `find_cpus()`,
+ *   `hv_main()` shall call `hv_assign_cpus()` with the IDs found, set the
+ *   element of `cpu_of_apic_id` for the ID of each of the `hv_nb_cpus` CPUs to
+ *   its index plus 1, and call, in this order, `hv_vms_init()` with 0 and the
+ *   end of the RAM, `hv_smp_start()` with `hv_nb_cpus` and the IDs, and
+ *   `hv_cpu_main()` with `hv_cpus[0]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_MAIN_01}
  *
  * @design
  * 1. Call `hv_cpus_needed()`, and store the result in `needed`.
+ *    \llrref{LLR_MAIN_X86_64_HV_MAIN_01}, \llrref{LLR_MAIN_X86_64_HV_MAIN_04},
+ *    \llrref{LLR_MAIN_X86_64_HV_MAIN_05}, \llrref{LLR_MAIN_X86_64_HV_MAIN_06}
  * 2. Call `hv_console_init()` with the argument `hv_console_port`.
+ *    \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
  * 3. Call `hv_printf()` with the arguments
  *    `"\n[hv] JetOS hypervisor: %%u VM(s), %%u CPU(s)\n"`, `hv_nb_vms` and
- *    `needed`.
- * 4. Call `hv_image_check()`.
- * 5. Call `lapic_init_base()`.
- * 6. Call `hv_idt_init()`.
- * 7. Call `hv_idt_load()`.
- * 8. Call `hv_legacy_pic_disable()`.
- * 9. Call `lapic_init_cpu()`.
- * 10. If `svm_supported()` is false:
+ *    `needed`. \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
+ * 4. Call `hv_image_check()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
+ * 5. Call `lapic_init_base()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
+ * 6. Call `hv_idt_init()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
+ * 7. Call `hv_idt_load()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
+ * 8. Call `hv_legacy_pic_disable()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
+ * 9. Call `lapic_init_cpu()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_01}
+ * 10. If `svm_supported()` is false: \llrref{LLR_MAIN_X86_64_HV_MAIN_02}
  *     1. Call `hv_fatal()` with the argument
  *        `"AMD SVM with nested paging is needed "`
  *        `"(QEMU: -cpu qemu64,+svm,+npt)"`.
- * 11. Call `svm_init()`.
- * 12. Call `hv_timing_init()`.
+ * 11. Call `svm_init()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_03}
+ * 12. Call `hv_timing_init()`. \llrref{LLR_MAIN_X86_64_HV_MAIN_03}
  * 13. Call `hv_printf()` with the arguments
  *     `"[hv] TSC %%lu kHz, local APIC timer %%lu kHz\n"`, `hv_tsc_hz() / 1000U`
- *     and `hv_lapic_hz() / 1000U`.
+ *     and `hv_lapic_hz() / 1000U`. \llrref{LLR_MAIN_X86_64_HV_MAIN_03}
  * 14. Call `ram_end_of()` with the argument `mbi`, and store the result in
- *     `ram_end`.
+ *     `ram_end`. \llrref{LLR_MAIN_X86_64_HV_MAIN_03}
  * 15. Call `find_cpus()` with the argument `apic_ids`, and store the result in
- *     `available`.
+ *     `available`. \llrref{LLR_MAIN_X86_64_HV_MAIN_03}
  * 16. Call `hv_printf()` with the arguments
  *     `"[hv] %%lu MiB of RAM, %%u CPU(s)\n"`, `ram_end >> 20` and `available`.
+ *     \llrref{LLR_MAIN_X86_64_HV_MAIN_03}
  * 17. If `needed` is equal to `0U` or `needed` is greater than `HV_MAX_CPUS`:
+ *     \llrref{LLR_MAIN_X86_64_HV_MAIN_04}
  *     1. Call `hv_fatal()` with the argument
  *        `"bad number of CPUs in the configuration"`.
- * 18. If `available` is less than `needed`:
+ * 18. If `available` is less than `needed`: \llrref{LLR_MAIN_X86_64_HV_MAIN_05}
  *     1. Call `hv_printf()` with the arguments
  *        `"[hv] the VMs need %%u CPUs (QEMU: -smp %%u)\n"`, `needed` and
  *        `needed`.
  *     2. Call `hv_fatal()` with the argument `"not enough CPUs"`.
  * 19. Call `hv_assign_cpus()` with the argument `apic_ids`.
+ *     \llrref{LLR_MAIN_X86_64_HV_MAIN_06}
  * 20. Set `i` to `0U`; then while `i` is less than `hv_nb_cpus`, repeat (after
- *     each pass: increment `i`):
+ *     each pass: increment `i`): \llrref{LLR_MAIN_X86_64_HV_MAIN_06}
  *     1. Set `cpu_of_apic_id[apic_ids[i]]` to `(uint8_t) (i + 1U)`.
  * 21. Call `hv_vms_init()` with the arguments `0U` and `ram_end`.
+ *     \llrref{LLR_MAIN_X86_64_HV_MAIN_06}
  * 22. Call `hv_smp_start()` with the arguments `hv_nb_cpus` and `apic_ids`.
+ *     \llrref{LLR_MAIN_X86_64_HV_MAIN_06}
  * 23. Call `hv_cpu_main()` with the address of `hv_cpus[0]`.
+ *     \llrref{LLR_MAIN_X86_64_HV_MAIN_06}
  *
  * @calls
  * - `hv_cpus_needed()`
@@ -504,16 +684,30 @@ void hv_main(uint32_t mbi)
  * | `cpu` | `hv_cpu_t *` | This CPU |
  *
  * @hlr
+ * - \hlrid{HLR_MAIN_X86_64_HV_AP_MAIN_01}: `hv_ap_main()` shall start another
+ *   CPU: its interrupts and local APIC, tell the boot CPU that it runs, and run
+ *   its vCPU.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
+ *   - \srqref{SRQ_HV_CPU_003}
+ *   - \srqref{SRQ_HV_CPU_009}
  *
  * @llr
+ * - \llrid{LLR_MAIN_X86_64_HV_AP_MAIN_01}: `hv_ap_main()` shall, in this order,
+ *   call `hv_idt_load()`, `lapic_init_cpu()` and `x86_barrier()`, set `online`
+ *   of `hv_cpus[index]` to 1 and call `hv_cpu_main()` with `hv_cpus[index]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MAIN_X86_64_HV_AP_MAIN_01}
  *
  * @design
  * 1. Set `cpu` to the address of `hv_cpus[index]`.
- * 2. Call `hv_idt_load()`.
- * 3. Call `lapic_init_cpu()`.
- * 4. Call `x86_barrier()`.
- * 5. Set `cpu->online` to `1U`.
+ *    \llrref{LLR_MAIN_X86_64_HV_AP_MAIN_01}
+ * 2. Call `hv_idt_load()`. \llrref{LLR_MAIN_X86_64_HV_AP_MAIN_01}
+ * 3. Call `lapic_init_cpu()`. \llrref{LLR_MAIN_X86_64_HV_AP_MAIN_01}
+ * 4. Call `x86_barrier()`. \llrref{LLR_MAIN_X86_64_HV_AP_MAIN_01}
+ * 5. Set `cpu->online` to `1U`. \llrref{LLR_MAIN_X86_64_HV_AP_MAIN_01}
  * 6. Call `hv_cpu_main()` with the argument `cpu`.
+ *    \llrref{LLR_MAIN_X86_64_HV_AP_MAIN_01}
  *
  * @calls
  * - `hv_idt_load()`

@@ -42,6 +42,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
  * pok_ret_e (was pok_ret_t).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -91,14 +101,27 @@
  * | `thread_current` | `pok_thread_t *` | The current thread |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_THREAD_START_FUNC_01}: `thread_start_func()` shall
+ *   start the current process in user mode at its entry point, with its user
+ *   stack.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_013}
+ *   - \srqref{SRQ_JET_MEM_008}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_THREAD_START_FUNC_01}: `thread_start_func()` shall
+ *   call `pok_partition_jump_user()` with the entry, the user stack address and
+ *   the kernel stack of the current thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_THREAD_START_FUNC_01}
  *
  * @design
  * 1. Set `thread_current` to `current_thread`.
+ *    \llrref{LLR_SCHED_ARINC_THREAD_START_FUNC_01}
  * 2. Call `pok_partition_jump_user()` with the arguments
  *    `thread_current->entry`, `thread_current->init_stack_addr` and
  *    `thread_current->initial_sp`.
+ *    \llrref{LLR_SCHED_ARINC_THREAD_START_FUNC_01}
  *
  * @calls
  * - `pok_partition_jump_user()`
@@ -132,25 +155,62 @@ static void thread_start_func(void)
  * | `thread_main` | `pok_thread_t *` | The main thread |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_SCHED_ARINC_START_01}: `sched_arinc_start()` shall
+ *   run the main process of a partition that starts, with the preemption of the
+ *   partition locked (lock level 1, held by the main process).
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_013}
+ * - \hlrid{HLR_SCHED_ARINC_SCHED_ARINC_START_02}: `sched_arinc_start()` shall
+ *   show the main process as the current process in the area that the kernel
+ *   shares with the partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_009}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_START_01}: `sched_arinc_start()` shall
+ *   clear the idle context and the main thread's saved user context, set the
+ *   lock level to 1 with the main thread as the locking thread, make the main
+ *   thread runnable and current, and make its FP store the current one.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_START_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_START_02}: `sched_arinc_start()` shall
+ *   store `POK_PARTITION_ARINC_MAIN_THREAD_ID` as the current thread in the
+ *   shared data.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_START_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_START_03}: `sched_arinc_start()` shall
+ *   restart the main thread's context on its kernel stack in
+ *   `thread_start_func()` with `ja_context_restart_and_save()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_START_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 2. Set `part->idle_sp` to `NULL`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 3. Set `thread_main` to the address of
  *    `part->threads[POK_PARTITION_ARINC_MAIN_THREAD_ID]`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 4. Set `thread_main->entry_sp_user` to `NULL`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 5. Set `part->lock_level` to `1`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 6. Set `part->thread_locked` to `thread_main`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 7. Set `thread_main->state` to `POK_STATE_RUNNABLE`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 8. Set `part->thread_current` to `thread_main`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 9. Set `part->kshd->current_thread_id` to
  *    `POK_PARTITION_ARINC_MAIN_THREAD_ID`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_02}
  * 10. Set `part->base_part.fp_store_current` to `thread_main->fp_store`.
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_01}
  * 11. Call `ja_context_restart_and_save()` with the arguments
  *     `thread_main->initial_sp`, the address of `thread_start_func` and the
  *     address of `thread_main->sp`.
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_START_03}
  *
  * @calls
  * - `ja_context_restart_and_save()`
@@ -204,28 +264,74 @@ void sched_arinc_start(void)
  * | `t` | `pok_thread_t *` | The thread woken up |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}: `port_queuing_fired()` shall
+ *   wake the processes that wait on a queuing port of the current partition
+ *   when the other end of the channel made it possible: for a destination port
+ *   while messages can be received, for a source port while messages can be
+ *   sent.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_013}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}: If `direction` of
+ *   `port_queuing` is `POK_PORT_DIRECTION_IN`, `port_queuing_fired()` shall,
+ *   while `pok_thread_wq_is_empty()` returns false for `waiters` of the port
+ *   and `pok_channel_queuing_r_get_message()` returns a message for `channel`
+ *   of the port (and `TRUE`), call `pok_thread_wq_wake_up()` with the waiters
+ *   and then `port_queuing_receive()` with the port and the thread that it
+ *   returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}
+ * - \llrid{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_02}: If `direction` is
+ *   `POK_PORT_DIRECTION_IN` and `pok_thread_wq_is_empty()` returns true or
+ *   `pok_channel_queuing_r_get_message()` returns NULL, `port_queuing_fired()`
+ *   shall stop without waking a thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}
+ * - \llrid{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_03}: If `direction` is not
+ *   `POK_PORT_DIRECTION_IN`, `port_queuing_fired()` shall, while
+ *   `pok_thread_wq_is_empty()` returns false for the waiters and
+ *   `pok_channel_queuing_s_get_message()` returns a message for the channel
+ *   (and `TRUE`), call `pok_thread_wq_wake_up()` with the waiters and then
+ *   `port_queuing_send()` with the port and the thread that it returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}
+ * - \llrid{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_04}: If `direction` is not
+ *   `POK_PORT_DIRECTION_IN` and `pok_thread_wq_is_empty()` returns true or
+ *   `pok_channel_queuing_s_get_message()` returns NULL, `port_queuing_fired()`
+ *   shall stop without waking a thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}
  *
  * @design
  * 1. If `port_queuing->direction` is equal to `POK_PORT_DIRECTION_IN`:
+ *    \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_01},
+ *    \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_02}
  *    1. While `pok_thread_wq_is_empty(&port_queuing->waiters)` is false:
+ *       \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_01},
+ *       \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_02}
  *       1. If `(pok_channel_queuing_r_get_message(port_queuing->channel,`
  *          `&message_size, TRUE))` is NULL:
+ *          \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_02}
  *          1. Leave the loop.
  *       2. Call `pok_thread_wq_wake_up()` with the address of
  *          `port_queuing->waiters`, and store the result in `t`.
+ *          \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}
  *       3. Call `port_queuing_receive()` with the arguments `port_queuing` and
- *          `t`.
- * 2. Otherwise:
+ *          `t`. \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_01}
+ * 2. Otherwise: \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_03},
+ *    \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_04}
  *    1. While `pok_thread_wq_is_empty(&port_queuing->waiters)` is false:
+ *       \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_03},
+ *       \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_04}
  *       1. If `pok_channel_queuing_s_get_message(port_queuing->channel, TRUE)`
- *          is NULL:
+ *          is NULL: \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_04}
  *          1. Leave the loop.
  *       2. Call `pok_thread_wq_wake_up()` with the address of
  *          `port_queuing->waiters`, and store the result in `t`.
+ *          \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_03}
  *       3. Call `port_queuing_send()` with the arguments `port_queuing` and
- *          `t`.
+ *          `t`. \llrref{LLR_SCHED_ARINC_PORT_QUEUING_FIRED_03}
  *
  * @calls
  * - `pok_thread_wq_is_empty()`
@@ -286,12 +392,23 @@ static void port_queuing_fired(pok_port_queuing_t* port_queuing)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_DO_NOTHING_FUNC_01}: `do_nothing_func()` shall let
+ *   the partition idle, with local preemption enabled so that events wake it,
+ *   when none of its processes can run.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_007}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_DO_NOTHING_FUNC_01}: `do_nothing_func()` shall call
+ *   `pok_preemption_local_enable()` and then `ja_inf_loop()`, which does not
+ *   return.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_DO_NOTHING_FUNC_01}
  *
  * @design
  * 1. Call `pok_preemption_local_enable()`.
- * 2. Call `ja_inf_loop()`.
+ *    \llrref{LLR_SCHED_ARINC_DO_NOTHING_FUNC_01}
+ * 2. Call `ja_inf_loop()`. \llrref{LLR_SCHED_ARINC_DO_NOTHING_FUNC_01}
  *
  * @calls
  * - `pok_preemption_local_enable()`
@@ -334,49 +451,141 @@ static void do_nothing_func(void)
  * | `waiting_section` | `msection_t *` | The msection being entered |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_SELECT_THREAD_01}: `select_thread()` shall make the
+ *   process that the scheduler selected run, or none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_004}
+ * - \hlrid{HLR_SCHED_ARINC_SELECT_THREAD_02}: `select_thread()` shall run, in
+ *   place of a process that waits for the stop of another one, the process that
+ *   it waits for.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYNC_005}
+ * - \hlrid{HLR_SCHED_ARINC_SELECT_THREAD_03}: `select_thread()` shall run, in
+ *   place of a process that enters a critical section owned by another process,
+ *   the owner, and give the section to the entering process when it is free.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYNC_001}
+ *   - \srqref{SRQ_JET_SYNC_006}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_01}: `select_thread()` shall set
+ *   `thread_selected` of the partition (`current_partition_arinc`) to
+ *   `selected_thread`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_01}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_02}: If and only if `waiting_section`
+ *   of the partition is not NULL at entry, `select_thread()` shall set its
+ *   `msection_kernel_flags` to 0 and `waiting_section` to NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_01}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_03}: If `selected_thread` is NULL,
+ *   `select_thread()` shall return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_01}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_04}: If `donate_target` of
+ *   `relations_stop` of `selected_thread` is not NULL, `select_thread()` shall
+ *   take that target as the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_02}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_05}: If `donate_target` of
+ *   `relations_stop` of `selected_thread` is NULL, `select_thread()` shall take
+ *   `selected_thread` as the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_02}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_06}: If `msection_entering` of the
+ *   thread is not NULL and the `owner` of that section is `JET_THREAD_ID_NONE`
+ *   or the index of the thread in `threads` of the partition, `select_thread()`
+ *   shall set the `owner` to the index of the thread and `msection_entering` of
+ *   the thread to NULL, and follow no further owner.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_03}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_07}: If `msection_entering` of the
+ *   thread is not NULL and the `owner` of that section is the index of another
+ *   thread, `select_thread()` shall take that thread (`threads` plus `owner`)
+ *   in place of the thread, set `waiting_section` of the partition to the
+ *   section, and go on in the same way with `msection_entering` of the new
+ *   thread while it is not NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_03}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_08}: If `msection_entering` of the
+ *   thread first taken is NULL, `select_thread()` shall change the owner of no
+ *   section.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_03}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_09}: If and only if `waiting_section`
+ *   of the partition is then not NULL, `select_thread()` shall set its
+ *   `msection_kernel_flags` to `MSECTION_KERNEL_FLAG_RESCHED_AFTER_LEAVE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_03}
+ * - \llrid{LLR_SCHED_ARINC_SELECT_THREAD_10}: `select_thread()` shall return
+ *   the thread taken last.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_01}
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_02}
+ *   - \hlrref{HLR_SCHED_ARINC_SELECT_THREAD_03}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_01},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_02},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_03},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_04},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_05},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_06},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_08},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_09},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_10}
  * 2. Set `part->thread_selected` to `selected_thread`.
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_01}
  * 3. If `part->waiting_section` is not NULL:
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_02}
  *    1. Set `part->waiting_section->msection_kernel_flags` to `0`.
  *    2. Set `part->waiting_section` to `NULL`.
- * 4. If `selected_thread` is NULL:
+ * 4. If `selected_thread` is NULL: \llrref{LLR_SCHED_ARINC_SELECT_THREAD_03}
  *    1. Return `NULL`.
  * 5. Set `new_thread` to `selected_thread`.
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_04},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_05}
  * 6. If `new_thread->relations_stop.donate_target` is not NULL:
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_04},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_05}
  *    1. Set `new_thread` to `new_thread->relations_stop.donate_target`.
+ *       \llrref{LLR_SCHED_ARINC_SELECT_THREAD_04}
  * 7. Set `waiting_section` to `new_thread->msection_entering`.
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_06},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_08}
  * 8. If `waiting_section` is not NULL:
- *    1. Set `n_attempts` to `5`.
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_06},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07},
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_08}
+ *    1. Set `n_attempts` to `5`. \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07}
  *    2. Repeat the following while `waiting_section` is not NULL (at least
- *       once):
+ *       once): \llrref{LLR_SCHED_ARINC_SELECT_THREAD_06},
+ *       \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07}
  *       1. Set `owner` to `waiting_section->owner`.
  *       2. If `owner` is equal to `JET_THREAD_ID_NONE` or `owner` is equal to
  *          `(new_thread - part->threads)`:
+ *          \llrref{LLR_SCHED_ARINC_SELECT_THREAD_06}
  *          1. Set `waiting_section->owner` to `(new_thread - part->threads)`.
  *          2. Set `new_thread->msection_entering` to `NULL`.
  *          3. Leave the loop.
- *       3. Check that `owner < part->nthreads_used` holds (assert_os: stop
- *          otherwise).
- *       4. Check that `owner > POK_PARTITION_ARINC_MAIN_THREAD_ID` holds
- *          (assert_os: stop otherwise).
- *       5. Set `new_thread` to `part->threads + owner`.
- *       6. Check that `new_thread->state == POK_STATE_RUNNABLE` holds
- *          (assert_os: stop otherwise).
- *       7. Set `part->waiting_section` to `waiting_section`.
- *       8. Set `waiting_section` to `new_thread->msection_entering`.
- *       9. Check that `n_attempts != 0` holds (assert: stop otherwise).
- *       10. Decrement `n_attempts`.
+ *       3. Set `new_thread` to `part->threads + owner`.
+ *          \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07}
+ *       4. Set `part->waiting_section` to `waiting_section`.
+ *          \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07}
+ *       5. Set `waiting_section` to `new_thread->msection_entering`.
+ *          \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07}
+ *       6. Decrement `n_attempts`. \llrref{LLR_SCHED_ARINC_SELECT_THREAD_07}
  * 9. If `part->waiting_section` is not NULL:
+ *    \llrref{LLR_SCHED_ARINC_SELECT_THREAD_09}
  *    1. Set `part->waiting_section->msection_kernel_flags` to
  *       `MSECTION_KERNEL_FLAG_RESCHED_AFTER_LEAVE`.
- * 10. Return `new_thread`.
+ * 10. Return `new_thread`. \llrref{LLR_SCHED_ARINC_SELECT_THREAD_10}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 static pok_thread_t* select_thread(pok_thread_t* selected_thread)
 {
@@ -471,110 +680,356 @@ static pok_thread_t* select_thread(pok_thread_t* selected_thread)
  * | `timer_new` | `pok_time_t` | The time of the next delayed event |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_SCHED_ARINC_01}: `sched_arinc()` shall handle the
+ *   events of the current partition: its delayed events whose time has come and
+ *   the events of its queuing ports, and set the timer of the partition to the
+ *   time of its next delayed event.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_005}
+ *   - \srqref{SRQ_JET_TIME_008}
+ * - \hlrid{HLR_SCHED_ARINC_SCHED_ARINC_02}: `sched_arinc()` shall, when asked
+ *   to choose again, run the first eligible process (the highest priority, the
+ *   longest ready) of the partition in `NORMAL` mode, the process that holds
+ *   the lock while preemption is locked, and the main process in an
+ *   initialization mode.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_004}
+ *   - \srqref{SRQ_JET_THR_005}
+ *   - \srqref{SRQ_JET_PART_017}
+ * - \hlrid{HLR_SCHED_ARINC_SCHED_ARINC_03}: `sched_arinc()` shall run the error
+ *   handler before any other process while it runs or errors wait for it,
+ *   starting it afresh when errors wait.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_HM_005}
+ * - \hlrid{HLR_SCHED_ARINC_SCHED_ARINC_04}: `sched_arinc()` shall run the idle
+ *   context of the partition when no process can run.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_007}
+ * - \hlrid{HLR_SCHED_ARINC_SCHED_ARINC_05}: `sched_arinc()` shall switch from
+ *   the context of the old process to that of the new one, keeping each one's
+ *   context, user registers and floating point store.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_013}
+ *   - \srqref{SRQ_JET_THR_023}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_01}: If `flag_test_and_reset()` returns
+ *   true for `is_event` of the partition (`current_partition_arinc`),
+ *   `sched_arinc()` shall take the events of the partition with
+ *   `pok_partition_get_event()` until it returns false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_02}: For an event of the type
+ *   `JET_PARTITION_EVENT_TYPE_TIMER`, `sched_arinc()` shall call
+ *   `delayed_event_queue_check()` with the delayed events of the partition
+ *   (`partition_delayed_events`) and the result of `jet_system_time()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_03}: For an event of the type
+ *   `JET_PARTITION_EVENT_TYPE_PORT_SEND_AVAILABLE` or
+ *   `JET_PARTITION_EVENT_TYPE_PORT_RECEIVE_AVAILABLE`, `sched_arinc()` shall
+ *   call `port_queuing_fired()` with the element `handler_id` of the event of
+ *   `ports_queuing` of the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_04}: For an event of another type,
+ *   `sched_arinc()` shall call `pok_assertion_fail()` (`unreachable()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_05}: If `flag_test_and_reset()` returns
+ *   false for `is_event`, `sched_arinc()` shall not call
+ *   `pok_partition_get_event()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_06}: `sched_arinc()` shall then call
+ *   `pok_partition_set_timer()` with the base partition and the result of
+ *   `delayed_event_queue_get_check_time()` for the delayed events.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_07}: If that time is not 0 and the
+ *   result of `jet_system_time()` is not less than it, `sched_arinc()` shall
+ *   call `delayed_event_queue_check()` with the delayed events and that result,
+ *   and then handle the events and the timer again.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_08}: If that time is 0, or the result of
+ *   `jet_system_time()` is less than it, `sched_arinc()` shall go on without
+ *   handling the events and the timer again.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_01}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_09}: If `flag_test_and_reset()` then
+ *   returns false for `sched_local_recheck_needed` of the partition,
+ *   `sched_arinc()` shall return without choosing a thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_10}: `sched_arinc()` shall set
+ *   `is_error_handler` of the base partition to `FALSE` before it chooses a
+ *   thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_03}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_11}: If `mode` of the partition is not
+ *   `POK_PARTITION_MODE_NORMAL` and `state` of the main thread
+ *   (`threads[POK_PARTITION_ARINC_MAIN_THREAD_ID]`) is not `POK_STATE_STOPPED`,
+ *   `sched_arinc()` shall choose the main thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_12}: If `mode` of the partition is not
+ *   `POK_PARTITION_MODE_NORMAL` and `state` of the main thread is
+ *   `POK_STATE_STOPPED`, `sched_arinc()` shall choose no thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_13}: With `POK_NEEDS_ERROR_HANDLING`, if
+ *   `mode` is `POK_PARTITION_MODE_NORMAL`, `thread_error` of the partition is
+ *   not NULL and its `state` is not `POK_STATE_STOPPED`, `sched_arinc()` shall
+ *   choose `thread_error` and set `is_error_handler` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_03}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_14}: With `POK_NEEDS_ERROR_HANDLING`, if
+ *   `mode` is `POK_PARTITION_MODE_NORMAL`, `thread_error` is NULL or stopped,
+ *   and `list_empty()` returns false for `error_list` of the partition,
+ *   `sched_arinc()` shall set `priority` of `thread_error` to its
+ *   `base_priority`, its `sp` to NULL and its `state` to `POK_STATE_RUNNABLE`,
+ *   set `is_error_handler` to `TRUE`, and choose `thread_error`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_03}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_15}: If `mode` is
+ *   `POK_PARTITION_MODE_NORMAL`, the error thread is not chosen as above and
+ *   `lock_level` of the partition is not 0, `sched_arinc()` shall choose
+ *   `thread_locked` of the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_16}: If `mode` is
+ *   `POK_PARTITION_MODE_NORMAL`, the error thread is not chosen, `lock_level`
+ *   is 0 and `list_empty()` returns false for `eligible_threads` of the
+ *   partition, `sched_arinc()` shall choose the first thread of
+ *   `eligible_threads`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_17}: If `mode` is
+ *   `POK_PARTITION_MODE_NORMAL`, the error thread is not chosen, `lock_level`
+ *   is 0 and `list_empty()` returns true for `eligible_threads`,
+ *   `sched_arinc()` shall choose no thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_18}: `sched_arinc()` shall call
+ *   `select_thread()` once with the thread chosen (or NULL) and take its result
+ *   as the new thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_02}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_19}: If the new thread is
+ *   `thread_current` of the partition, and it is NULL or its `sp` is not NULL,
+ *   `sched_arinc()` shall return without a context switch.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_03}
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_20}: If the new thread is
+ *   `thread_current`, is not NULL and its `sp` is NULL, `sched_arinc()` shall
+ *   set its `entry_sp_user` to NULL (with `POK_NEEDS_GDB`) and call
+ *   `ja_context_restart_and_save()` with its `initial_sp`, `thread_start_func`
+ *   and the address of its `sp`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_03}
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_21}: `sched_arinc()` shall set
+ *   `thread_current` of the partition to the new thread, and
+ *   `current_thread_id` of the shared data of the partition (`kshd`) to the
+ *   index of the new thread if and only if it is not NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_22}: If the new thread is not NULL and
+ *   its `sp` is NULL, `sched_arinc()` shall set its `sp` to the result of
+ *   `ja_context_init()` for its `initial_sp` and `thread_start_func`, and take
+ *   that as the new context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_23}: If the new thread is not NULL and
+ *   its `sp` is not NULL, `sched_arinc()` shall take its `sp` as the new
+ *   context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_24}: If the new thread is NULL and
+ *   `idle_sp` of the partition is NULL, `sched_arinc()` shall set `idle_sp` to
+ *   the result of `ja_context_init()` for `initial_sp` of the base partition
+ *   and `do_nothing_func`, and take that as the new context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_04}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_25}: If the new thread is NULL and
+ *   `idle_sp` of the partition is not NULL, `sched_arinc()` shall take
+ *   `idle_sp` as the new context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_04}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_26}: With `POK_NEEDS_GDB`, if and only
+ *   if the old thread (`thread_current` before the choice) is not NULL and
+ *   `entry_sp_user` of the base partition is not NULL, `sched_arinc()` shall
+ *   set `entry_sp_user` of the old thread to it and `entry_sp_user` of the base
+ *   partition to NULL, before the switch.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_27}: If and only if the new thread is
+ *   not NULL, `sched_arinc()` shall set `fp_store_current` of the base
+ *   partition to `fp_store` of the new thread, before the switch.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_28}: If the context saved for the old
+ *   thread (its `sp`, or `idle_sp` of the partition if there was no old thread)
+ *   is not NULL, `sched_arinc()` shall call `ja_context_switch()` with the
+ *   address of that saved context and the new context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
+ * - \llrid{LLR_SCHED_ARINC_SCHED_ARINC_29}: If the context saved for the old
+ *   thread is NULL, `sched_arinc()` shall call `ja_context_jump()` with the new
+ *   context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_SCHED_ARINC_05}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_01},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_06},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_09},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_10},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_21}
  * 2. Repeat the following while `recheck` is true (at least once):
- *    1. Set `recheck` to `FALSE`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_01},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_02},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_03},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_04},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_05},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_06},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_07},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_08}
+ *    1. Set `recheck` to `FALSE`. \llrref{LLR_SCHED_ARINC_SCHED_ARINC_07},
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_08}
  *    2. If `flag_test_and_reset(&part->base_part.is_event)` is true:
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_01},
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_05}
  *       1. While `pok_partition_get_event(&event)` is true:
+ *          \llrref{LLR_SCHED_ARINC_SCHED_ARINC_01}
  *          1. Depending on `event.event_type`:
+ *             \llrref{LLR_SCHED_ARINC_SCHED_ARINC_02},
+ *             \llrref{LLR_SCHED_ARINC_SCHED_ARINC_03},
+ *             \llrref{LLR_SCHED_ARINC_SCHED_ARINC_04}
  *             1. Case `JET_PARTITION_EVENT_TYPE_TIMER`:
+ *                \llrref{LLR_SCHED_ARINC_SCHED_ARINC_02}
  *                1. Call `delayed_event_queue_check()` with the arguments the
  *                   address of `part->partition_delayed_events` and
  *                   `jet_system_time()`.
  *                2. Leave the switch.
  *             2. Case `JET_PARTITION_EVENT_TYPE_PORT_SEND_AVAILABLE` or
  *                `JET_PARTITION_EVENT_TYPE_PORT_RECEIVE_AVAILABLE`:
+ *                \llrref{LLR_SCHED_ARINC_SCHED_ARINC_03}
  *                1. Call `port_queuing_fired()` with the address of
  *                   `part->ports_queuing[event.handler_id]`.
  *                2. Leave the switch.
- *             3. Otherwise (default):
+ *             3. Otherwise (default): \llrref{LLR_SCHED_ARINC_SCHED_ARINC_04}
  *                1. Use the macro `unreachable()`.
  *    3. Call `delayed_event_queue_get_check_time()` with the address of
  *       `part->partition_delayed_events`, and store the result in `timer_new`.
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_06}
  *    4. Call `pok_partition_set_timer()` with the arguments the address of
  *       `part->base_part` and `timer_new`.
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_06}
  *    5. If `timer_new` is not equal to `0`:
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_07},
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_08}
  *       1. Set `time_now` to `jet_system_time()`.
  *       2. If `time_now` is greater than or equal to `timer_new`:
  *          1. Call `delayed_event_queue_check()` with the arguments the address
  *             of `part->partition_delayed_events` and `time_now`.
- *          2. Set `recheck` to `TRUE`.
+ *             \llrref{LLR_SCHED_ARINC_SCHED_ARINC_07}
+ *          2. Set `recheck` to `TRUE`. \llrref{LLR_SCHED_ARINC_SCHED_ARINC_07}
  * 3. If `flag_test_and_reset(&part->sched_local_recheck_needed)` is false:
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_09}
  *    1. Return.
  * 4. Set `part->base_part.is_error_handler` to `FALSE`.
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_10}
  * 5. Set `old_thread` to `part->thread_current`.
- * 6. Check that `part->mode != POK_PARTITION_MODE_IDLE` holds (assert: stop
- *    otherwise).
- * 7. If `part->mode` is not equal to `POK_PARTITION_MODE_NORMAL`:
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_21},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_26},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_28},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_29}
+ * 6. If `part->mode` is not equal to `POK_PARTITION_MODE_NORMAL`:
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_11},
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_12}
  *    1. Set `new_thread` to the address of
  *       `part->threads[POK_PARTITION_ARINC_MAIN_THREAD_ID]`.
  *    2. If `new_thread->state` is equal to `POK_STATE_STOPPED`:
+ *       \llrref{LLR_SCHED_ARINC_SCHED_ARINC_12}
  *       1. Set `new_thread` to `NULL`.
- * 8. Otherwise, if `part->thread_error` is not NULL and
+ * 7. Otherwise, if `part->thread_error` is not NULL and
  *    `part->thread_error->state` is not equal to `POK_STATE_STOPPED`:
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_13}
  *    1. Set `new_thread` to `part->thread_error`.
  *    2. Set `part->base_part.is_error_handler` to `TRUE`.
- * 9. Otherwise, if `list_empty(&part->error_list)` is false:
+ * 8. Otherwise, if `list_empty(&part->error_list)` is false:
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_14}
  *    1. Set `new_thread` to `part->thread_error`.
  *    2. Set `new_thread->priority` to `new_thread->base_priority`.
  *    3. Set `new_thread->sp` to `NULL`.
  *    4. Set `new_thread->state` to `POK_STATE_RUNNABLE`.
  *    5. Set `part->base_part.is_error_handler` to `TRUE`.
- * 10. Otherwise, if `part->lock_level` is not equal to `0U`:
- *     1. Set `new_thread` to `part->thread_locked`.
- * 11. Otherwise, if `list_empty(&part->eligible_threads)` is false:
+ * 9. Otherwise, if `part->lock_level` is not equal to `0U`:
+ *    \llrref{LLR_SCHED_ARINC_SCHED_ARINC_15}
+ *    1. Set `new_thread` to `part->thread_locked`.
+ * 10. Otherwise, if `list_empty(&part->eligible_threads)` is false:
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_16}
  *     1. Set `new_thread` to
  *        `list_first_entry(&part->eligible_threads, pok_thread_t,`
  *        `eligible_elem)`.
- * 12. Otherwise:
+ * 11. Otherwise: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_17}
  *     1. Set `new_thread` to `NULL`.
- * 13. Call `select_thread()` with the argument `new_thread`, and store the
- *     result in `new_thread`.
- * 14. If `new_thread` is equal to `old_thread`:
- *     1. If `new_thread` is NULL:
+ * 12. Call `select_thread()` with the argument `new_thread`, and store the
+ *     result in `new_thread`. \llrref{LLR_SCHED_ARINC_SCHED_ARINC_18}
+ * 13. If `new_thread` is equal to `old_thread`:
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_19},
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_20}
+ *     1. If `new_thread` is NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_19}
  *        1. Return.
  *     2. If `new_thread->sp` is not NULL:
+ *        \llrref{LLR_SCHED_ARINC_SCHED_ARINC_19}
  *        1. Return.
- *     3. Check that `new_thread == part->thread_error` holds (assert: stop
- *        otherwise).
- *     4. Set `new_thread->entry_sp_user` to `NULL`.
- *     5. Call `ja_context_restart_and_save()` with the arguments
+ *     3. Set `new_thread->entry_sp_user` to `NULL`.
+ *        \llrref{LLR_SCHED_ARINC_SCHED_ARINC_20}
+ *     4. Call `ja_context_restart_and_save()` with the arguments
  *        `new_thread->initial_sp`, the address of `thread_start_func` and the
- *        address of `new_thread->sp`.
- * 15. Set `part->thread_current` to `new_thread`.
- * 16. If `new_thread` is not NULL:
+ *        address of `new_thread->sp`. \llrref{LLR_SCHED_ARINC_SCHED_ARINC_20}
+ * 14. Set `part->thread_current` to `new_thread`.
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_21}
+ * 15. If `new_thread` is not NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_21}
  *     1. Set `part->kshd->current_thread_id` to `new_thread - part->threads`.
- * 17. Set `old_sp` to the address of `old_thread->sp` if `old_thread` is not
+ * 16. Set `old_sp` to the address of `old_thread->sp` if `old_thread` is not
  *     NULL, otherwise the address of `part->idle_sp`.
- * 18. If `new_thread` is not NULL:
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_28},
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_29}
+ * 17. If `new_thread` is not NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_22},
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_23}
  *     1. Set `new_sp` to `new_thread->sp`.
- *     2. If `new_sp` is NULL:
+ *     2. If `new_sp` is NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_22}
  *        1. Call `ja_context_init()` with the arguments
  *           `new_thread->initial_sp` and the address of `thread_start_func`,
  *           and store the result in `new_sp`.
  *        2. Set `new_thread->sp` to `new_sp`.
- * 19. Otherwise:
+ * 18. Otherwise: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_24},
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_25}
  *     1. Set `new_sp` to `part->idle_sp`.
- *     2. If `new_sp` is NULL:
+ *     2. If `new_sp` is NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_24}
  *        1. Call `ja_context_init()` with the arguments
  *           `part->base_part.initial_sp` and the address of `do_nothing_func`,
  *           and store the result in `new_sp`.
  *        2. Set `part->idle_sp` to `new_sp`.
- * 20. If the value at `old_sp` is NULL:
- *     1. Set `old_sp` to `NULL`.
- * 21. If `old_thread` is not NULL and `part->base_part.entry_sp_user` is not
- *     NULL:
+ * 19. If the value at `old_sp` is NULL:
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_28},
+ *     \llrref{LLR_SCHED_ARINC_SCHED_ARINC_29}
+ *     1. Set `old_sp` to `NULL`. \llrref{LLR_SCHED_ARINC_SCHED_ARINC_29}
+ * 20. If `old_thread` is not NULL and `part->base_part.entry_sp_user` is not
+ *     NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_26}
  *     1. Set `old_thread->entry_sp_user` to `part->base_part.entry_sp_user`.
  *     2. Set `part->base_part.entry_sp_user` to `NULL`.
- * 22. If `new_thread` is not NULL:
+ * 21. If `new_thread` is not NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_27}
  *     1. Set `part->base_part.fp_store_current` to `new_thread->fp_store`.
- * 23. If `old_sp` is not NULL:
+ * 22. If `old_sp` is not NULL: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_28}
  *     1. Call `ja_context_switch()` with the arguments `old_sp` and `new_sp`.
- * 24. Otherwise:
+ * 23. Otherwise: \llrref{LLR_SCHED_ARINC_SCHED_ARINC_29}
  *     1. Call `ja_context_jump()` with the argument `new_sp`.
  *
  * @calls
@@ -819,17 +1274,28 @@ static void sched_arinc(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_DISABLE_01}:
+ *   `pok_preemption_local_disable()` shall disable the local preemption of the
+ *   current partition (its scheduler and the handling of its events), which
+ *   must be enabled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_017}
+ *   - \srqref{SRQ_JET_SCHED_005}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_DISABLE_01}:
+ *   `pok_preemption_local_disable()` shall set `preempt_local_disabled` of the
+ *   base partition of `current_partition_arinc` (`flag_set()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_DISABLE_01}
  *
  * @design
- * 1. Check that `!current_partition_arinc->base_part.preempt_local_disabled`
- *    holds (assert: stop otherwise).
- * 2. Use the macro `flag_set()` with the argument
+ * 1. Use the macro `flag_set()` with the argument
  *    `current_partition_arinc->base_part.preempt_local_disabled`.
+ *    \llrref{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_DISABLE_01}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 void pok_preemption_local_disable(void)
 {
@@ -856,18 +1322,42 @@ void pok_preemption_local_disable(void)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01}:
+ *   `pok_preemption_local_enable()` shall enable the local preemption of the
+ *   current partition after it has run its scheduler, and run the scheduler
+ *   again for each event that arrives meanwhile.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_017}
+ *   - \srqref{SRQ_JET_SCHED_005}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01}:
+ *   `pok_preemption_local_enable()` shall call `sched_arinc()` and `barrier()`,
+ *   and then clear `preempt_local_disabled` of the base partition of
+ *   `current_partition_arinc` (`flag_reset()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01}
+ * - \llrid{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_02}: While `is_event` of
+ *   the base partition, read once (`ACCESS_ONCE()`), is true,
+ *   `pok_preemption_local_enable()` shall set `preempt_local_disabled`
+ *   (`flag_set()`), call `sched_arinc()` and `barrier()`, and clear
+ *   `preempt_local_disabled` again.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
- * 2. Check that `part->base_part.preempt_local_disabled` holds (assert: stop
- *    otherwise).
- * 3. Call `sched_arinc()`.
- * 4. Execute the assembly code `barrier()`.
- * 5. Use the macro `flag_reset()` with the argument
+ *    \llrref{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01},
+ *    \llrref{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_02}
+ * 2. Call `sched_arinc()`.
+ *    \llrref{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01}
+ * 3. Execute the assembly code `barrier()`.
+ *    \llrref{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01}
+ * 4. Use the macro `flag_reset()` with the argument
  *    `part->base_part.preempt_local_disabled`.
- * 6. While `ACCESS_ONCE(part->base_part.is_event)` holds:
+ *    \llrref{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01}
+ * 5. While `ACCESS_ONCE(part->base_part.is_event)` holds:
+ *    \llrref{LLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_02}
  *    1. Use the macro `flag_set()` with the argument
  *       `part->base_part.preempt_local_disabled`.
  *    2. Call `sched_arinc()`.
@@ -876,7 +1366,6 @@ void pok_preemption_local_disable(void)
  *       `current_partition_arinc->base_part.preempt_local_disabled`.
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `sched_arinc()`
  */
 void pok_preemption_local_enable(void)
@@ -926,26 +1415,55 @@ void pok_preemption_local_enable(void)
  * | `tshd_current` | `jet_thread_shared_data_t *` | Its shared data |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01}:
+ *   `pok_sched_arinc_on_event()` shall handle the events of an ARINC 653
+ *   partition, taking into account the critical section that its current
+ *   process is entering.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_005}
+ *   - \srqref{SRQ_JET_SYNC_001}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01}: If `thread_current` of
+ *   the partition is not NULL and `msection_entering` of its shared data
+ *   (`kshd->tshd` plus its index) is not NULL, `pok_sched_arinc_on_event()`
+ *   shall set `msection_entering` of the thread to the result of
+ *   `jet_user_to_kernel_typed()` for it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01}
+ * - \llrid{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_02}: If `thread_current` of
+ *   the partition is NULL, or `msection_entering` of its shared data is NULL,
+ *   `pok_sched_arinc_on_event()` shall leave `msection_entering` of the thread
+ *   as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01}
+ * - \llrid{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_03}:
+ *   `pok_sched_arinc_on_event()` shall then call `sched_arinc()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01},
+ *    \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_02}
  * 2. Set `thread_current` to `part->thread_current`.
+ *    \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01},
+ *    \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_02}
  * 3. If `thread_current` is not NULL:
+ *    \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01},
+ *    \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_02}
  *    1. Set `tshd_current` to
  *       `part->kshd->tshd + (thread_current - part->threads)`.
  *    2. If `tshd_current->msection_entering` is not NULL:
  *       1. Set `msection_entering` to
  *          `jet_user_to_kernel_typed(tshd_current->msection_entering)`.
- *       2. Check that `msection_entering != NULL` holds (assert_os: stop
- *          otherwise).
- *       3. Set `thread_current->msection_entering` to `msection_entering`.
- * 4. Call `sched_arinc()`.
+ *          \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01}
+ *       2. Set `thread_current->msection_entering` to `msection_entering`.
+ *          \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01}
+ * 4. Call `sched_arinc()`. \llrref{LLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_03}
  *
  * @calls
  * - `jet_user_to_kernel()`
- * - `pok_assertion_fail()`
  * - `sched_arinc()`
  */
 void pok_sched_arinc_on_event(void)
@@ -987,12 +1505,23 @@ void pok_sched_arinc_on_event(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_POK_SCHED_LOCAL_INVALIDATE_01}:
+ *   `pok_sched_local_invalidate()` shall make the scheduler of the current
+ *   partition choose the process to run again.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_004}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_POK_SCHED_LOCAL_INVALIDATE_01}:
+ *   `pok_sched_local_invalidate()` shall set the flag
+ *   `sched_local_recheck_needed` of the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_POK_SCHED_LOCAL_INVALIDATE_01}
  *
  * @design
  * 1. Use the macro `flag_set()` with the argument
  *    `current_partition_arinc->sched_local_recheck_needed`.
+ *    \llrref{LLR_SCHED_ARINC_POK_SCHED_LOCAL_INVALIDATE_01}
  *
  * @calls
  * None.
@@ -1027,35 +1556,100 @@ void pok_sched_local_invalidate(void)
  * | `tshd_current` | `jet_thread_shared_data_t *` | Its shared data |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_ARINC_JET_RESCHED_01}: `jet_resched()` shall let the
+ *   current partition ask the kernel to choose the process to run again after
+ *   it left a critical section that another process waited for.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYNC_004}
+ *   - \srqref{SRQ_JET_SYNC_006}
+ * - \hlrid{HLR_SCHED_ARINC_JET_RESCHED_02}: `jet_resched()` shall complete the
+ *   stop of the current process when it has left its last critical section, and
+ *   the stops of the processes that waited for it, and let them run again.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYNC_005}
+ *   - \srqref{SRQ_JET_THR_020}
  *
  * @llr
+ * - \llrid{LLR_SCHED_ARINC_JET_RESCHED_01}: `jet_resched()` shall call
+ *   `pok_preemption_local_disable()` first and `pok_preemption_local_enable()`
+ *   at the end, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_JET_RESCHED_01}
+ * - \llrid{LLR_SCHED_ARINC_JET_RESCHED_02}: If and only if `waiting_section` of
+ *   the partition is not NULL and its `owner` is `JET_THREAD_ID_NONE`,
+ *   `jet_resched()` shall call `pok_sched_local_invalidate()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_JET_RESCHED_01}
+ * - \llrid{LLR_SCHED_ARINC_JET_RESCHED_03}: If `first_donator` of
+ *   `relations_stop` of `thread_current` is not NULL and `msection_count` of
+ *   its shared data is 0, `jet_resched()` shall set `first_donator` to NULL,
+ *   call `thread_stop()` with `thread_current`, and then, for each donator of
+ *   its list (from the first one on, following `next_donator`), set
+ *   `donate_target` and `next_donator` of the donator to NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_JET_RESCHED_02}
+ * - \llrid{LLR_SCHED_ARINC_JET_RESCHED_04}: For such a donator that is
+ *   `thread_selected` of the partition, `jet_resched()` shall call
+ *   `pok_sched_local_invalidate()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_JET_RESCHED_02}
+ * - \llrid{LLR_SCHED_ARINC_JET_RESCHED_05}: For such a donator whose
+ *   `first_donator` is not NULL, `jet_resched()` shall set its `first_donator`
+ *   to NULL and call `thread_stop()` with it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_JET_RESCHED_02}
+ * - \llrid{LLR_SCHED_ARINC_JET_RESCHED_06}: If `first_donator` of
+ *   `thread_current` is NULL or `msection_count` of its shared data is not 0,
+ *   `jet_resched()` shall call `thread_stop()` for no thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_ARINC_JET_RESCHED_02}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_01},
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_02},
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_03},
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_06}
  * 2. Set `thread_current` to `part->thread_current`.
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_03},
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_06}
  * 3. Set `tshd_current` to
  *    `part->kshd->tshd + (thread_current - part->threads)`.
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_03},
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_06}
  * 4. Call `pok_preemption_local_disable()`.
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_01}
  * 5. If `part->waiting_section` is not NULL and `part->waiting_section->owner`
- *    is equal to `JET_THREAD_ID_NONE`:
+ *    is equal to `JET_THREAD_ID_NONE`: \llrref{LLR_SCHED_ARINC_JET_RESCHED_02}
  *    1. Call `pok_sched_local_invalidate()`.
  * 6. If `thread_current->relations_stop.first_donator` is not NULL and
  *    `tshd_current->msection_count` is equal to `0U`:
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_03},
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_06}
  *    1. Set `donator` to `thread_current->relations_stop.first_donator`.
+ *       \llrref{LLR_SCHED_ARINC_JET_RESCHED_03}
  *    2. Set `thread_current->relations_stop.first_donator` to `NULL`.
+ *       \llrref{LLR_SCHED_ARINC_JET_RESCHED_03}
  *    3. Call `thread_stop()` with the argument `thread_current`.
+ *       \llrref{LLR_SCHED_ARINC_JET_RESCHED_03}
  *    4. Repeat the following while `donator` is not NULL (at least once):
+ *       \llrref{LLR_SCHED_ARINC_JET_RESCHED_03},
+ *       \llrref{LLR_SCHED_ARINC_JET_RESCHED_04},
+ *       \llrref{LLR_SCHED_ARINC_JET_RESCHED_05}
  *       1. Set `donator->relations_stop.donate_target` to `NULL`.
  *       2. If `donator` is equal to `part->thread_selected`:
+ *          \llrref{LLR_SCHED_ARINC_JET_RESCHED_04}
  *          1. Call `pok_sched_local_invalidate()`.
  *       3. Set `next_donator` to `donator->relations_stop.next_donator`.
  *       4. If `donator->relations_stop.first_donator` is not NULL:
+ *          \llrref{LLR_SCHED_ARINC_JET_RESCHED_05}
  *          1. Set `donator->relations_stop.first_donator` to `NULL`.
  *          2. Call `thread_stop()` with the argument `donator`.
  *       5. Set `donator->relations_stop.next_donator` to `NULL`.
  *       6. Set `donator` to `next_donator`.
  * 7. Call `pok_preemption_local_enable()`.
- * 8. Return `POK_ERRNO_OK`.
+ *    \llrref{LLR_SCHED_ARINC_JET_RESCHED_01}
+ * 8. Return `POK_ERRNO_OK`. \llrref{LLR_SCHED_ARINC_JET_RESCHED_01}
  *
  * @calls
  * - `pok_preemption_local_disable()`

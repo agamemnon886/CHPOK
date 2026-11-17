@@ -36,7 +36,7 @@
     moment that the VMs run.</para>
 
   <section xml:id="SRQ_HV_BOOT_001" role="requirement">
-    <title>SRQ_HV_BOOT_001</title>
+    <title><phrase role="srq">SRQ_HV_BOOT_001</phrase></title>
     <para>The hypervisor shall start on x86_64 when it is loaded by a
       Multiboot boot loader on a processor with AMD SVM and nested
       paging, and on arm64 when it is entered at exception level 2 on a
@@ -51,16 +51,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_01
+        HLR_MAIN_X86_64_HV_MAIN_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_BOOT_002" role="requirement">
-    <title>SRQ_HV_BOOT_002</title>
+    <title><phrase role="srq">SRQ_HV_BOOT_002</phrase></title>
     <para>The hypervisor shall compute the CRC-32 of its own image when
-      it starts, after it has set up its console (on arm64 also its MMU,
-      from the device tree), and before it checks the processor or sets
-      up a VM; it shall compare it with the one stored in the image when
-      it was linked and, if they differ, print both on its console and
-      halt, with no VM and no other CPU started.</para>
+    it starts, after it has set up its console (on arm64 also its MMU,
+    from the device tree), and before it checks the processor or sets up
+    a VM.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A corrupted image of the hypervisor must not run the VMs,
@@ -70,15 +73,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_01
+        HLR_CRC_HV_IMAGE_CHECK_01
+        HLR_MAIN_X86_64_HV_MAIN_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_007" role="requirement">
+    <title><phrase role="srq">SRQ_HV_BOOT_007</phrase></title>
+    <para>The hypervisor shall compare the CRC-32 of its image with the
+    one stored in the image when it was linked and, if they differ,
+    print both on its console and halt, with no VM and no other CPU
+    started.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A corrupted image of the hypervisor must not run the VMs,
+        whose isolation it provides.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CRC_HV_IMAGE_CHECK_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_BOOT_003" role="requirement">
-    <title>SRQ_HV_BOOT_003</title>
+    <title><phrase role="srq">SRQ_HV_BOOT_003</phrase></title>
     <para>The hypervisor shall check that the processor has the features
-      that it needs (SVM with nested paging not disabled by the firmware
-      on x86_64; a GICv2 with the virtualization extensions on arm64),
-      and shall stop with a message that names what is missing if it does
-      not.</para>
+    that it needs: SVM with nested paging not disabled by the firmware
+    on x86_64, and a GICv2 with the virtualization extensions on
+    arm64.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A hypervisor that cannot run guests must say why.</para>
@@ -87,10 +116,38 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_CHECK_GIC_01
+        HLR_FDT_VALUE_HAS_STRING_01
+        HLR_FDT_USE_PROPERTY_01
+        HLR_SVM_SVM_SUPPORTED_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_008" role="requirement">
+    <title><phrase role="srq">SRQ_HV_BOOT_008</phrase></title>
+    <para>The hypervisor shall stop with a message that names the
+    missing feature if the processor does not have the features that it
+    needs.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A hypervisor that cannot run guests must say why.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_CHECK_GIC_01
+        HLR_MAIN_X86_64_HV_MAIN_02
+        HLR_SVM_SVM_SUPPORTED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_BOOT_004" role="requirement">
-    <title>SRQ_HV_BOOT_004</title>
+    <title><phrase role="srq">SRQ_HV_BOOT_004</phrase></title>
     <para>The hypervisor shall stop with a message if the information
       that it needs about the computer is missing or wrong: the size of
       the RAM, the list of the CPUs, the description of the interrupt
@@ -104,14 +161,34 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_02
+        HLR_SMP_ARM64_WAIT_ONLINE_01
+        HLR_SMP_ARM64_HV_SMP_START_02
+        HLR_FDT_BE32_01
+        HLR_FDT_ALIGN4_01
+        HLR_FDT_NAME_IS_01
+        HLR_FDT_PROP_IS_01
+        HLR_FDT_CELLS_VALUE_01
+        HLR_FDT_NODE_KIND_01
+        HLR_FDT_USE_PROPERTY_01
+        HLR_FDT_FDT_READ_01
+        HLR_ACPI_ACPI_FIND_CPUS_02
+        HLR_MAIN_READ_MBI32_01
+        HLR_MAIN_RAM_END_OF_01
+        HLR_MAIN_X86_64_FIND_CPUS_01
+        HLR_MAIN_X86_64_HV_MAIN_03
+        HLR_SMP_X86_64_WAIT_ONLINE_01
+        HLR_SMP_X86_64_HV_SMP_START_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_BOOT_005" role="requirement">
-    <title>SRQ_HV_BOOT_005</title>
-    <para>The hypervisor shall make its checks, then set up the memory of
-      the VMs, then start the other CPUs, and then run its own vCPU on
-      the CPU that started it, and shall run no VM before its checks are
-      complete.</para>
+    <title><phrase role="srq">SRQ_HV_BOOT_005</phrase></title>
+    <para>The hypervisor shall make its checks, then set up the memory
+    of the VMs, then start the other CPUs, and then run its own vCPU on
+    the CPU that started it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>No guest may run on a computer that was not checked.</para>
@@ -120,10 +197,34 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_01
+        HLR_MAIN_X86_64_HV_MAIN_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_BOOT_009" role="requirement">
+    <title><phrase role="srq">SRQ_HV_BOOT_009</phrase></title>
+    <para>The hypervisor shall run no VM before its checks are
+    complete.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>No guest may run on a computer that was not checked.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_01
+        HLR_MAIN_X86_64_HV_MAIN_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_BOOT_006" role="requirement">
-    <title>SRQ_HV_BOOT_006</title>
+    <title><phrase role="srq">SRQ_HV_BOOT_006</phrase></title>
     <para>The hypervisor shall report on its console, when it starts, the
       number of its VMs and CPUs, the result of the check of its image,
       the memory and timers that it found, and for each VM its memory,
@@ -136,6 +237,16 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_01
+        HLR_GIC_GIC_LIST_REGISTERS_01
+        HLR_UART_ARM64_HV_PORT_NAME_01
+        HLR_UART_X86_64_HV_PORT_NAME_01
+        HLR_CRC_HV_IMAGE_CHECK_02
+        HLR_VM_HV_VMS_INIT_04
+        HLR_MAIN_X86_64_HV_MAIN_01</para>
     </formalpara>
   </section>
 </chapter>

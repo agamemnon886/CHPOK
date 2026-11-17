@@ -57,6 +57,7 @@
 #                        # (docs/SRQs, DocBook 5)
 #   make docs-<name>     # build docs/<name>.pdf only (e.g. make docs-kernel)
 #   make docs-srqs       # build the system requirements documents only
+#   make docs-trace      # check the traceability SRQ - HLR - LLR
 #   make clean-docs      # remove the documentation build and the PDFs
 #   make help            # show this help
 #
@@ -122,6 +123,14 @@
 # docs/shared.pdf documents the library that the kernel and the
 # hypervisor share (common/ and include/). make clean no longer looks for
 # boards/ (the board support packages are in kernel/bsps).
+#
+# Modified by Kirill Brazhnikov, 2026-11-16: make docs-trace (also run by make
+# docs) checks the traceability between the system requirements and the high
+# and low level requirements in the function headers; every function and every
+# SRQ must be covered (TRACE_STRICT=1), except the SRQs marked "Not
+# applicable"; and that every step of @design is linked to an LLR of its
+# function (itself or through an enclosing step) and every LLR to a step. The
+# SRQ books get the list of the HLRs and their documents, for the links.
 
 POK_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 export POK_PATH
@@ -217,6 +226,8 @@ help:
 	@echo "                       Hypervisor_SRQs.pdf"
 	@echo "  make docs-<name>     Build one of them (e.g. make docs-kernel)"
 	@echo "  make docs-srqs       Build the system requirements only"
+	@echo "  make docs-trace      Check the traceability of the"
+	@echo "                       requirements"
 	@echo "  make clean-docs      Remove the documentation build and PDFs"
 	@echo "  make help            Show this help"
 	@echo ""
@@ -458,7 +469,10 @@ DOCS_BUILD = out=$(DOCS_OUT)/$$d && pdf=$(DOCS_DIR)/$$d.pdf && \
 # builds them before the function documentation, make docs-srqs only
 # them and make docs-<name> one of them. The output of dblatex is in
 # build/docs/<name>/dblatex.log and its LaTeX files in
-# build/docs/<name>/tex.
+# build/docs/<name>/tex. build/docs/<name>/hlrdocs.xml lists each HLR of
+# the C files of TRACE_DIRS with the document that has it (kernel/bsps:
+# boards, the rest of kernel/: kernel, common/: shared, hypervisor/:
+# hypervisor), for the links of the Traceability fields (srqs.xsl).
 SRQS := JetOS_SRQs Hypervisor_SRQs
 SRQS_DIR := $(DOCS_DIR)/SRQs
 SRQS_RNG ?= /usr/share/xml/docbook/schema/rng/5.0/docbook.rng
@@ -471,8 +485,19 @@ SRQS_BUILD = out=$(DOCS_OUT)/$$d && pdf=$(DOCS_DIR)/$$d.pdf && \
 	echo "== xmllint: $$src, DocBook 5 ($(SRQS_RNG))" && \
 	xmllint --xinclude --noout --relaxng $(SRQS_RNG) $$src && \
 	xmllint --xinclude --output $$out/$$d.xml $$src && \
+	{ echo "<hlrs>"; \
+	  grep -rHo --include="*.c" "\\\\hlrid{HLR_[A-Z0-9_]*}" \
+		$(TRACE_DIRS) | sed \
+		-e "s,^kernel/bsps/[^:]*:,boards ," \
+		-e "s,^kernel/[^:]*:,kernel ," \
+		-e "s,^common/[^:]*:,shared ," \
+		-e "s,^hypervisor/[^:]*:,hypervisor ," \
+		-e "s,.hlrid{\(HLR_[A-Z0-9_]*\)}$$,\1," \
+		-e "s,^\([a-z]*\) \(.*\)$$,<h id=\"\2\" d=\"\1\"/>,"; \
+	  echo "</hlrs>"; } > $$out/hlrdocs.xml && \
 	echo "== dblatex $$out/$$d.xml (pdflatex, several passes)" && \
 	{ dblatex -d --tmpdir=$$out/tex -p misc/docs/srqs.xsl \
+		-P jetos.hlrdocs=$$PWD/$$out/hlrdocs.xml \
 		-o $$out/$$d.pdf $$out/$$d.xml > $$out/dblatex.log 2>&1 || \
 	  { tail -20 $$out/dblatex.log; \
 	    echo "dblatex failed: see $$out/dblatex.log"; exit 1; }; } && \
@@ -490,6 +515,165 @@ SRQS_BUILD = out=$(DOCS_OUT)/$$d && pdf=$(DOCS_DIR)/$$d.pdf && \
 	printf "  %-24s %5s pages, %4s requirements\n" \
 		$$pdf $$pages $$reqs > $$out/summary.txt
 
+# Requirements traceability (README.md, "Requirements traceability"):
+# make docs-trace reads the @hlr and @llr fields of the function headers in
+# TRACE_DIRS and the Traceability fields of the SRQs in docs/SRQs, and
+# fails if: an SRQ, HLR or LLR identifier is defined twice; an SRQ has no
+# Traceability field; an HLR traces to no SRQ or to one that doesn't exist
+# (SRQ_JET_* from kernel/, SRQ_HV_* from hypervisor/, either from common/);
+# an LLR traces to no HLR or to one of another function; an HLR has no
+# LLR; a step of @design is linked (\llrref, by itself or by a step that
+# encloses it) to no LLR or to an LLR of another function; an LLR is linked
+# to no step; or the Traceability fields and the HLRs' "Traces to:"
+# disagree. The
+# functions without requirements and the SRQs without HLRs are listed in
+# build/docs/trace/trace.txt and are errors too with TRACE_STRICT=1 (the
+# default); an SRQ whose Traceability is "Not applicable" (a constraint on
+# the whole software) needs no HLR, and must have none.
+# It runs on the host (find, awk, sort, comm) and is part of make docs.
+TRACE_DIRS := kernel common hypervisor
+TRACE_OUT := $(DOCS_OUT)/trace
+TRACE_STRICT ?= 1
+
+# The headers: one record per line (FUNC file name covered, HLR id file,
+# LLR id file, HT hlr srq, LT llr hlr, ERR message).
+define TRACE_HEADERS_AWK
+function err(m) { print "ERR " FILENAME ":" FNR ": " m }
+function end_item() {
+	if (item != "" && ntr == 0) { err(item " traces to nothing") }
+	item = ""; ntr = 0; intr = 0
+}
+function end_step(cov) {
+	if (step == "") { return }
+	cov = (pcov || nref > 0) ? 1 : 0
+	if (nl > 0) {
+		print "STEP", cov
+		if (!cov) {
+			err(fn ": step " step " of the design is linked to " \
+			    "no LLR")
+		}
+	}
+	sind[++sn] = sindent; scov[sn] = cov; snum[sn] = num; step = ""
+}
+function end_block(i) {
+	end_item(); end_step()
+	for (i = 1; i <= nh; i++) {
+		if (!(hl[i] in lcount)) { err(hl[i] " has no LLR") }
+	}
+	for (i = 1; i <= nl; i++) {
+		if (!(ll[i] in lused)) {
+			err(ll[i] " is linked to no step of the design")
+		}
+	}
+	if (fn != "") { print "FUNC", FILENAME, fn, (nh > 0) ? 1 : 0 }
+	inblk = 0; sect = ""; fn = ""; nh = 0; nl = 0; sn = 0
+}
+/^\/\*\*/ { inblk = ($$0 !~ /\*\//); sect = ""; fn = ""; nh = 0; nl = 0;
+	sn = 0; step = ""; item = ""; ntr = 0; blk++; next }
+!inblk { next }
+/\*\// { end_block(); next }
+/^ \* @funcname/ { fn = $$3; gsub(/`/, "", fn) }
+/^ \* @hlr/ { end_item(); sect = "H"; next }
+/^ \* @llr/ { end_item(); sect = "L"; next }
+/^ \* @design/ { end_item(); sect = "D"; sn = 0; step = ""; next }
+/^ \* @/ { end_item(); end_step(); sect = ""; next }
+sect == "" { next }
+sect == "D" {
+	line = $$0
+	if (match(line, /^ \* +[0-9]+\. /)) {
+		end_step()
+		num = substr(line, 4, RLENGTH - 5); sub(/^ +/, "", num)
+		match(line, /^ \* +/); sindent = RLENGTH
+		while (sn > 0 && sind[sn] >= sindent) { sn-- }
+		pcov = (sn > 0) ? scov[sn] : 0
+		step = ""
+		for (i = 1; i <= sn; i++) { step = step snum[i] "." }
+		step = step num; nref = 0
+	}
+	while (match(line, /\\llrref\{[A-Z0-9_]+\}/)) {
+		t = substr(line, RSTART + 8, RLENGTH - 9)
+		line = substr(line, RSTART + RLENGTH)
+		if (step == "") {
+			err(t " is linked outside a step of the design")
+		} else if (!(t in lblk) || lblk[t] != blk) {
+			err(fn ": step " step " is linked to " t \
+			    ", not an LLR of this function")
+		} else {
+			lused[t] = 1; nref++
+		}
+	}
+	next
+}
+{
+	line = $$0
+	if (match(line, /^ \* - \\[hl]lrid\{[HL]LR_[A-Z0-9_]+\}:/)) {
+		end_item()
+		item = substr(line, 13, RLENGTH - 14)
+		if (substr(item, 1, 1) != sect) {
+			err(item " is in the wrong field")
+		}
+		if (substr(line, 7, 3) != tolower(substr(item, 1, 3))) {
+			err(item " is written with the wrong command")
+		}
+		print substr(item, 1, 3), item, FILENAME
+		if (sect == "H") { hl[++nh] = item; hblk[item] = blk }
+		if (sect == "L") { ll[++nl] = item; lblk[item] = blk }
+		line = substr(line, RSTART + RLENGTH)
+	}
+	if (item == "") {
+		if (line ~ /[^ *]/) { err("text outside a requirement") }
+		next
+	}
+	p = index(line, "Traces to:")
+	if (p > 0) { intr = 1; line = substr(line, p + 10) }
+	if (!intr) { next }
+	while (match(line, /\\(srq|hlr|llr)ref\{[A-Z0-9_]+\}/)) {
+		t = substr(line, RSTART + 8, RLENGTH - 9)
+		if (substr(line, RSTART + 1, 3) != tolower(substr(t, 1, 3))) {
+			err(t " is written with the wrong command")
+		}
+		line = substr(line, RSTART + RLENGTH)
+		ntr++
+		if (sect == "H") {
+			if ((FILENAME ~ /^kernel\// && t !~ /^SRQ_JET_/) ||
+			    (FILENAME ~ /^hypervisor\// && t !~ /^SRQ_HV_/) ||
+			    t !~ /^SRQ_/) {
+				err(item " traces to " t ", not an SRQ of " \
+				    "this program")
+			}
+			print "HT", item, t
+		} else if (!(t in hblk) || hblk[t] != blk) {
+			err(item " traces to " t ", not an HLR of this " \
+			    "function")
+		} else {
+			lcount[t]++
+			print "LT", item, t
+		}
+	}
+}
+endef
+export TRACE_HEADERS_AWK
+
+# The SRQs: SRQ id file, TF id (a Traceability field), ST srq hlr, NA id
+# (a Traceability that is "Not applicable").
+define TRACE_SRQS_AWK
+/xml:id="SRQ_/ {
+	match($$0, /SRQ_[A-Z0-9_]+/); cur = substr($$0, RSTART, RLENGTH)
+	print "SRQ", cur, FILENAME; tr = 0
+}
+/<title>Traceability<\/title>/ { print "TF", cur; tr = 1; next }
+tr {
+	if ($$0 ~ /<para>Not applicable/) { print "NA", cur }
+	line = $$0
+	while (match(line, /HLR_[A-Z0-9_]+/)) {
+		print "ST", cur, substr(line, RSTART, RLENGTH)
+		line = substr(line, RSTART + RLENGTH)
+	}
+	if ($$0 ~ /<\/para>/) { tr = 0 }
+}
+endef
+export TRACE_SRQS_AWK
+
 ifdef NATIVE
 DOCS_RUN = cd "$(POK_PATH)" &&
 DOCS_DOCKER_IMAGE :=
@@ -501,7 +685,8 @@ DOCS_RUN = $(DOCKER) run --rm \
 DOCS_DOCKER_IMAGE := docker-image
 endif
 
-.PHONY: docs docs-srqs clean-docs $(DOCS_TARGETS) $(SRQS_TARGETS)
+.PHONY: docs docs-srqs docs-trace clean-docs $(DOCS_TARGETS) \
+	$(SRQS_TARGETS)
 
 docs: $(DOCS_DOCKER_IMAGE)
 	@$(DOCS_RUN) sh -c 'for d in $(SRQS); do { $(SRQS_BUILD); } || exit 1; \
@@ -510,6 +695,7 @@ docs: $(DOCS_DOCKER_IMAGE)
 		done; echo "==== Documents"; \
 		for d in $(SRQS) $(DOCS); do \
 			cat $(DOCS_OUT)/$$d/summary.txt; done'
+	@$(MAKE) --no-print-directory docs-trace
 
 docs-srqs: $(DOCS_DOCKER_IMAGE)
 	@$(DOCS_RUN) sh -c 'for d in $(SRQS); do { $(SRQS_BUILD); } || exit 1; \
@@ -521,6 +707,74 @@ $(DOCS_TARGETS): docs-%: $(DOCS_DOCKER_IMAGE)
 
 $(SRQS_TARGETS): docs-%: $(DOCS_DOCKER_IMAGE)
 	@$(DOCS_RUN) sh -c 'd=$*; $(SRQS_BUILD)'
+
+docs-trace:
+	@set -e; o=$(TRACE_OUT); mkdir -p $$o; \
+	find $(TRACE_DIRS) -name '*.c' | LC_ALL=C sort | \
+		xargs awk "$$TRACE_HEADERS_AWK" > $$o/headers.txt; \
+	awk "$$TRACE_SRQS_AWK" $(SRQS_DIR)/*/*.xml > $$o/srqs.txt; \
+	cd $$o; \
+	{ grep '^ERR ' headers.txt || true; } | cut -c5- > errors.txt; \
+	awk '$$1 == "SRQ" { print $$2 }' srqs.txt | LC_ALL=C sort \
+		> srq-ids.txt; \
+	awk '$$1 == "TF" { print $$2 }' srqs.txt | LC_ALL=C sort > tf-ids.txt; \
+	awk '$$1 == "HLR" || $$1 == "LLR" { print $$2 }' headers.txt | \
+		LC_ALL=C sort > req-ids.txt; \
+	uniq -d srq-ids.txt | sed 's/$$/ is defined twice/' >> errors.txt; \
+	uniq -d req-ids.txt | sed 's/$$/ is defined twice/' >> errors.txt; \
+	uniq -d tf-ids.txt | sed 's/$$/ has two Traceability fields/' \
+		>> errors.txt; \
+	LC_ALL=C comm -23 srq-ids.txt tf-ids.txt | \
+		sed 's/$$/ has no Traceability field/' >> errors.txt; \
+	awk '$$1 == "HT" { print $$3, $$2 }' headers.txt | LC_ALL=C sort -u \
+		> pairs-headers.txt; \
+	awk '$$1 == "ST" { print $$2, $$3 }' srqs.txt | LC_ALL=C sort -u \
+		> pairs-srqs.txt; \
+	cut -d" " -f1 pairs-headers.txt | LC_ALL=C sort -u | \
+		LC_ALL=C comm -23 - srq-ids.txt | \
+		sed 's/$$/ is traced to, but no such SRQ exists/' \
+		>> errors.txt; \
+	LC_ALL=C comm -23 pairs-headers.txt pairs-srqs.txt | \
+		awk '{ print $$2 " traces to " $$1 \
+			", whose Traceability does not list it" }' \
+		>> errors.txt; \
+	LC_ALL=C comm -13 pairs-headers.txt pairs-srqs.txt | \
+		awk '{ print $$1 " lists " $$2 \
+			" in Traceability, which does not trace to it" }' \
+		>> errors.txt; \
+	awk '$$1 == "FUNC" && $$4 == 0 { print $$2 ": " $$3 }' headers.txt \
+		> uncovered.txt; \
+	awk '$$1 == "NA" { print $$2 }' srqs.txt | LC_ALL=C sort -u \
+		> na-ids.txt; \
+	cut -d" " -f1 pairs-headers.txt | LC_ALL=C sort -u | \
+		LC_ALL=C comm -12 - na-ids.txt | \
+		sed 's/$$/ is "Not applicable", but HLRs trace to it/' \
+		>> errors.txt; \
+	{ cut -d" " -f1 pairs-srqs.txt; cat na-ids.txt; } | LC_ALL=C sort -u | \
+		LC_ALL=C comm -13 - srq-ids.txt > srqs-without-hlr.txt; \
+	funcs=$$(grep -c '^FUNC ' headers.txt || true); \
+	covered=$$(grep -c '^FUNC .* 1$$' headers.txt || true); \
+	{ echo "SRQs: $$(wc -l < srq-ids.txt | tr -d ' '), without HLRs:" \
+		"$$(wc -l < srqs-without-hlr.txt | tr -d ' ')"; \
+	  echo "HLRs: $$(grep -c '^HLR ' headers.txt || true)," \
+		"LLRs: $$(grep -c '^LLR ' headers.txt || true)"; \
+	  echo "Functions with requirements: $$covered of $$funcs"; \
+	  echo "Design steps: $$(grep -c '^STEP ' headers.txt || true)," \
+		"linked to LLRs: $$(grep -c '^STEP 1$$' headers.txt || true)"; \
+	  echo "Errors: $$(wc -l < errors.txt | tr -d ' ')"; \
+	  cat errors.txt; \
+	  echo "== Functions without requirements"; cat uncovered.txt; \
+	  echo "== SRQs without HLRs"; cat srqs-without-hlr.txt; \
+	} > trace.txt; \
+	echo "==== Traceability ($(TRACE_OUT)/trace.txt)"; \
+	sed -n 1,5p trace.txt; cat errors.txt; \
+	test ! -s errors.txt; \
+	if [ "$(TRACE_STRICT)" = 1 ]; then \
+		{ test ! -s uncovered.txt && \
+		  test ! -s srqs-without-hlr.txt; } || \
+		{ echo "TRACE_STRICT: functions or SRQs are not covered"; \
+		  exit 1; }; \
+	fi
 
 # docs/ also holds the sources of the system requirements (docs/SRQs),
 # so only the PDFs are removed.

@@ -33,6 +33,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/arm64/thread.c (the CPU support packages are in kernel/csps);
  * sysreg.h is include/csps/arm64/cpu/sysreg.h, shared with the hypervisor.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -79,17 +87,35 @@
  * | `ctx` | `jet_context_t *` | The context |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_ARM64_JA_CONTEXT_INIT_01}: `ja_context_init()` shall
+ *   create the context of a new kernel thread at the top of its stack, so that
+ *   switching to it calls the entry, with the interrupt mask that the processor
+ *   has now.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_013}
  *
  * @llr
+ * - \llrid{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}: `ja_context_init()` shall set
+ *   every byte of a context (`jet_context_t`) that ends at `sp` to 0 with
+ *   `memset()`, set its `daif` to the value of DAIF (`read_sysreg()`), its `fp`
+ *   to 0, its `x19_x28[0]` to `entry` and its `lr` to the address of
+ *   `ja_kernel_thread`, and return its address (`sp` minus its size).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
  *
  * @design
  * 1. Set `ctx` to `(jet_context_t*)(sp - sizeof(*ctx))`.
+ *    \llrref{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
  * 2. Call `memset()` with the arguments `ctx`, `0` and `sizeof (*ctx)`.
+ *    \llrref{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
  * 3. Set `ctx->daif` to `read_sysreg(daif)`.
- * 4. Set `ctx->fp` to `0`.
+ *    \llrref{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
+ * 4. Set `ctx->fp` to `0`. \llrref{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
  * 5. Set `ctx->x19_x28[0]` to `(uint64_t)entry`.
+ *    \llrref{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
  * 6. Set `ctx->lr` to `(uint64_t)ja_kernel_thread`.
- * 7. Return `ctx`.
+ *    \llrref{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
+ * 7. Return `ctx`. \llrref{LLR_THREAD_ARM64_JA_CONTEXT_INIT_01}
  *
  * @calls
  * - `memset()`

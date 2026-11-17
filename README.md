@@ -576,16 +576,22 @@ library and the mathematical library) and the system partitions
                                  # documentation
     make docs-srqs               # the two requirements documents only
     make docs-JetOS_SRQs         # one of them
+    make docs-trace              # the traceability check only
 
 A document is a `<book>` that includes its chapters with XInclude, one
 file per chapter. A requirement is a section of its chapter, whose
 `xml:id` and title are its identifier, `SRQ_JET_<AREA>_<NNN>` (JetOS) or
 `SRQ_HV_<AREA>_<NNN>` (the hypervisor), where the area is that of the
-chapter; an identifier is never changed, nor used again:
+chapter; an identifier is never changed, nor used again. A requirement
+states one behaviour with exactly one "shall"; a requirement with two is
+split into two, the first keeping the identifier and the second getting
+the next free number of the area, and the HLRs that traced to it trace
+to the part that they implement:
 
-    <section xml:id="SRQ_JET_TIME_001" role="requirement">
-      <title>SRQ_JET_TIME_001</title>
-      <para>JetOS shall ... .</para>
+    <section xml:id="SRQ_JET_TIME_002" role="requirement">
+      <title><phrase role="srq">SRQ_JET_TIME_002</phrase></title>
+      <para>JetOS shall give the system time to a partition that asks for
+      the time of the real-time clock.</para>
       <formalpara>
         <title>Rationale</title>
         <para>...</para>
@@ -593,6 +599,11 @@ chapter; an identifier is never changed, nor used again:
       <formalpara>
         <title>Verification</title>
         <para>Test.</para>
+      </formalpara>
+      <formalpara>
+        <title>Traceability</title>
+        <para>HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_03
+          HLR_TIME_POK_CLOCK_GETTIME_01</para>
       </formalpara>
     </section>
 
@@ -603,6 +614,95 @@ image (with `NATIVE=1`: the host's `xmllint` and `dblatex`, and
 `SRQS_RNG=<path>` for the schema, `docbook.rng`). It shows the number of
 requirements, the pages and the overfull lines of each document; the
 output of `dblatex` is in `build/docs/<name>/dblatex.log`.
+
+### Requirements traceability
+
+The system requirements are refined into high level requirements (HLRs)
+and low level requirements (LLRs), which are written in the `@hlr` and
+`@llr` fields of the headers of the functions that implement them (see
+"Function documentation"):
+
+- Each HLR and each LLR has exactly one "shall", as each SRQ has: a
+  requirement with two is split into two requirements, each with its
+  own identifier and traces.
+- An HLR states what a function shall do, seen from its callers, and
+  traces to one or more SRQs of its program (`SRQ_JET_*` from `kernel/`,
+  `SRQ_HV_*` from `hypervisor/`, either from `common/`).
+- An LLR states how the function does it, close to its code, and traces
+  to one or more HLRs of the same function. The LLRs are written for the
+  tests of DO-178C software level A: each LLR is covered by test cases
+  of its own, which together reach every statement, decision and
+  condition of the code. So an LLR states one behaviour, a condition and
+  the response to it, in terms that a test can observe (the value
+  returned, the object written and its value, the function called, its
+  arguments and how many times):
+  - A branch of the code (an `if`, an `else`, a `case`) with a response
+    of its own has an LLR of its own, which names every condition that
+    leads to it, each operand of a `&&` or `||` included ("If `is_in` is
+    true and `size` is 1, ..."); an "otherwise" is written out ("`size`
+    is neither 1 nor 2").
+  - A check that stops the software (a fatal error, `unreachable()`)
+    has an LLR of its own.
+  - Code that compiles to nothing has no LLR and no step in `@design`:
+    `assert()` and `assert_os()` (the requirements and the design
+    describe the code as it is built with `NDEBUG`), `(void) x;` for an
+    unused parameter, and an empty branch (`else { }`). The case of an
+    empty branch still has an LLR, which says what is left as it is,
+    linked to the step of its `if`: a test of the condition being false
+    needs it.
+  - A loop is one LLR (its tests take no, one and several rounds); the
+    branches inside it have theirs.
+  - Code without branches is one LLR that states every call and every
+    value stored, or several if it does unrelated things.
+  - A lookup (a `switch` or a chain of `if`s that gives each key its
+    value in the same way) is one LLR that lists the keys and their
+    values; what it does for another key is another LLR.
+- Every HLR has at least one LLR.
+- Every step of `@design` is linked to the LLRs that it implements,
+  with `\llrref{LLR_...}` at the end of the step (several separated by
+  commas). A step inside an `if`, a loop or a `switch` is linked to the
+  LLRs of the steps that enclose it too, so a link on the step of a loop
+  covers every step inside it; such a step adds its own links only where
+  they are more precise. Every LLR is linked to at least one step, so
+  that the trace from the code to the LLRs goes both ways.
+- The `Traceability` field of each SRQ lists, by hand, the HLRs that
+  trace to it, so that the trace goes both ways: SRQ to HLR in the
+  requirements document, HLR to SRQ and LLR to HLR in the function
+  documentation.
+- Every function has HLRs and LLRs, and every SRQ has HLRs, except an
+  SRQ that is a constraint on the whole software (the same behaviour on
+  both architectures, the coding rules, the licence, the build): its
+  `Traceability` is `Not applicable: ...`, and no HLR traces to it. It
+  is verified by its verification method (analysis, review or test) of
+  the whole software.
+
+Identifiers use underscores: `HLR_<FILE>_<FUNCTION>_<NN>` and
+`LLR_<FILE>_<FUNCTION>_<NN>`, where `<FILE>` is the name of the C file
+without `.c` and `<FUNCTION>` the name of the function, both in
+capitals, and `<NN>` numbers the HLRs (and the LLRs) of the function
+from 01 (`HLR_TIME_POK_CLOCK_GETTIME_01` for `pok_clock_gettime()` in
+`kernel/core/time.c`). A file and a function whose names are the same
+on both architectures (`ja_space_switch()` in
+`kernel/csps/x86_64/space.c` and `kernel/csps/arm64/space.c`) have the
+architecture after the name of the file:
+`HLR_SPACE_X86_64_JA_SPACE_SWITCH_01` and
+`HLR_SPACE_ARM64_JA_SPACE_SWITCH_01`. An identifier changes only with
+the name of its function or file (and then in the `Traceability` of its
+SRQs too), and the number of a removed requirement is not used again.
+
+`make docs-trace` (also run by `make docs`) checks the trace with `find`,
+`awk`, `sort` and `comm` on the host, and fails if an identifier is
+defined twice, an SRQ has no `Traceability` field, an HLR traces to no
+SRQ or to one that doesn't exist or belongs to the other program, an LLR
+traces to no HLR or to an HLR of another function, an HLR has no LLR, a
+step of `@design` is linked to no LLR (by itself or by a step that
+encloses it) or to an LLR of another function, an LLR is linked to no
+step, the `Traceability` fields and the HLRs disagree, an SRQ that is `Not
+applicable` has HLRs, or a function has no requirements or an SRQ no
+HLRs. It writes the counts, the errors, the functions without
+requirements and the SRQs without HLRs to `build/docs/trace/trace.txt`.
+`make docs-trace TRACE_STRICT=0` only reports the last two (for work in
+progress).
 
 ## Function documentation
 
@@ -734,21 +834,39 @@ A header has these fields, in this order:
      * | `k_val` | `pok_time_t *` | Kernel address of val, or NULL |
      *
      * @hlr
+     * - \hlrid{HLR_TIME_POK_CLOCK_GETTIME_01}: `pok_clock_gettime()`
+     *   shall store the system time at the partition address `val` for
+     *   the clock `CLOCK_REALTIME` and return `POK_ERRNO_OK`.
+     *   <br>Traces to:
+     *   - \srqref{SRQ_JET_TIME_002}
+     * - ...
      *
      * @llr
+     * - \llrid{LLR_TIME_POK_CLOCK_GETTIME_02}: If
+     *   `jet_user_to_kernel_typed()` returns an address for `val` and
+     *   `clk_id` is `CLOCK_REALTIME`, `pok_clock_gettime()` shall write
+     *   the result of `jet_system_time()` at that address and return
+     *   `POK_ERRNO_OK`.
+     *   <br>Traces to:
+     *   - \hlrref{HLR_TIME_POK_CLOCK_GETTIME_01}
+     * - ...
      *
      * @design
      * 1. Set `k_val` to `jet_user_to_kernel_typed(val)`.
-     * 2. If `k_val` is NULL:
+     *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_01},
+     *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_02},
+     *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_03}
+     * 2. If `k_val` is NULL: \llrref{LLR_TIME_POK_CLOCK_GETTIME_01}
      *    1. Return `POK_ERRNO_EFAULT`.
-     * 3. Depending on `clk_id`:
-     *    1. Case `CLOCK_REALTIME`:
+     * 3. Depending on `clk_id`: \llrref{LLR_TIME_POK_CLOCK_GETTIME_02},
+     *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_03}
+     *    1. Case `CLOCK_REALTIME`: \llrref{LLR_TIME_POK_CLOCK_GETTIME_02}
      *       1. Set `*k_val` to `jet_system_time()`.
      *       2. Leave the switch.
-     *    2. Otherwise (default):
+     *    2. Otherwise (default): \llrref{LLR_TIME_POK_CLOCK_GETTIME_03}
      *       1. Set `*k_val` to `-1`.
      *       2. Return `POK_ERRNO_EINVAL`.
-     * 4. Return `POK_ERRNO_OK`.
+     * 4. Return `POK_ERRNO_OK`. \llrref{LLR_TIME_POK_CLOCK_GETTIME_02}
      *
      * @calls
      * - `jet_user_to_kernel()`
@@ -773,10 +891,46 @@ The fields:
   body (`static` ones too, with `static` in the type, but not temporaries
   declared inside a macro). Each is a table of the names, types and
   descriptions, or `None.`.
-- `@hlr` and `@llr` (high and low level requirements) are empty for now.
+- `@hlr` and `@llr`: the high and low level requirements of the function
+  (see "Requirements traceability"), a list with one item per
+  requirement. Its identifier opens the item,
+  `` - \hlrid{HLR_TIME_POK_CLOCK_GETTIME_01}: ``; `<br>Traces to:` ends
+  the item, on a line of its own, followed by a nested list with one
+  item per parent,
+  `` - \srqref{SRQ_JET_TIME_002} `` (an LLR's parent:
+  `` - \hlrref{HLR_TIME_POK_CLOCK_GETTIME_01} ``). The commands
+  (`misc/docs/Doxyfile.common`) write an identifier in bold code font,
+  in its color: an SRQ dark red, an HLR dark green, an LLR magenta.
+  `\hlrid` and `\llrid` also make the identifier a named destination
+  of the PDF; `\hlrref` links to the HLR in the same document, and
+  `\srqref` to the SRQ in its book (`JetOS_SRQs.pdf` or
+  `Hypervisor_SRQs.pdf`). The `Traceability` of an SRQ in `docs/SRQs`
+  lists the identifiers of its HLRs, one per line, which the SRQ books
+  show one per line, in dark green, each a link to the HLR in the
+  function documentation (`kernel.pdf`, `boards.pdf`, `shared.pdf` or
+  `hypervisor.pdf`: `make` finds the document of each HLR from the C
+  file that defines it, see `misc/docs/srqs.xsl`); the identifiers in
+  the titles of the SRQs (`<phrase role="srq">`) are dark red. The
+  links between documents name a file in the same directory, so they
+  work while the PDFs stay together in `docs/`, in a viewer that follows
+  links to other files (Adobe Acrobat Reader, Okular, Evince). Every
+  function in `kernel`, `common` and `hypervisor` has both fields
+  (`make docs-trace` checks it); in the other components they are empty
+  (`None.` in the PDF).
 - `@design`: every statement of the code, in words and in its order (see
-  below). The statements inside an `if`, a loop or a `switch` are the
-  nested items of its item; the PDF numbers them 4.1., 4.2.1., ...
+  below), except the code that compiles to nothing: `assert()` and
+  `assert_os()` (as with `NDEBUG`), `(void) x;` and an empty branch have
+  no step (an `else` with an empty body is left out with its
+  "Otherwise:"; a function whose body is empty keeps the one step "Do
+  nothing."). The statements inside an `if`, a loop or a `switch` are
+  the nested items of its item; the PDF numbers them 4.1., 4.2.1., ...
+  A step ends with the LLRs that it implements,
+  `\llrref{LLR_TIME_POK_CLOCK_GETTIME_01}` (magenta links to them, see
+  "Requirements traceability"), unless a step that encloses it has
+  them:
+
+      * 2. If `k_val` is NULL: \llrref{LLR_TIME_POK_CLOCK_GETTIME_01}
+      *    1. Return `POK_ERRNO_EFAULT`.
 - `@calls`: the functions the body calls, including through macros, one
   `` - `name()` `` per line, in the order of their first call. A call
   through a function pointer is written `` - `expression()` (indirect) ``.
@@ -797,10 +951,11 @@ The design describes each statement with these phrases (code in code font,
   arguments `a`, `b` and `c`.", followed by ", and store the result in
   `x`." or ", and return its result." when it does; "Call the function
   `p->f` ..." through a pointer; "Evaluate `e`." for another expression;
-  "Use the macro `M`." and "Check that `c` holds (`assert_os`: stop
-  otherwise)." for macros;
-- "Return `v`.", "Return.", "Mark `x` as not used.", "Do nothing.",
-  "Execute the assembly code ...", "Go to the label `L`.", "Label `L`:";
+  "Use the macro `M`." for a macro (`assert()` and `assert_os()` have no
+  step);
+- "Return `v`.", "Return.", "Do nothing." (only for a function with an
+  empty body), "Execute the assembly code ...", "Go to the label `L`.",
+  "Label `L`:";
 - conditions: "If ...:", "Otherwise, if ...:", "Otherwise:", where a
   condition is "`a` is equal to `b`" (is not equal to, is greater than,
   is less than, is greater than or equal to, is less than or equal to),

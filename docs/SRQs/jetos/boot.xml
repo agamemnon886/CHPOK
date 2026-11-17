@@ -36,7 +36,7 @@
     first partition runs.</para>
 
   <section xml:id="SRQ_JET_BOOT_001" role="requirement">
-    <title>SRQ_JET_BOOT_001</title>
+    <title><phrase role="srq">SRQ_JET_BOOT_001</phrase></title>
     <para>JetOS shall start on x86_64 when it is loaded by a Multiboot
       boot loader, and on arm64 when it is entered at exception level 1
       or 2.</para>
@@ -49,10 +49,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ARCH_ARM64_POK_ARCH_INIT_02
+        HLR_ARCH_X86_64_POK_ARCH_INIT_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BOOT_002" role="requirement">
-    <title>SRQ_JET_BOOT_002</title>
+    <title><phrase role="srq">SRQ_JET_BOOT_002</phrase></title>
     <para>JetOS shall initialize, before the first partition runs: the
       processor, the board (the consoles, the interrupt controller, the
       timer and the calendar clock), the memory spaces of the partitions,
@@ -67,10 +72,23 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_ARM64_JA_BSP_INIT_01
+        HLR_BSP_X86_64_JA_BSP_INIT_01
+        HLR_ARCH_ARM64_POK_ARCH_INIT_01
+        HLR_GDB_JA_GDB_INIT_01
+        HLR_BOOT_JET_BOOT_01
+        HLR_CHANNEL_POK_CHANNELS_INIT_ALL_01
+        HLR_PARTITION_ARINC_POK_PARTITION_ARINC_INIT_01
+        HLR_PARTITION_ARINC_POK_PARTITION_ARINC_INIT_ALL_01
+        HLR_SCHED_POK_SCHED_INIT_01
+        HLR_ARCH_X86_64_POK_ARCH_INIT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BOOT_003" role="requirement">
-    <title>SRQ_JET_BOOT_003</title>
+    <title><phrase role="srq">SRQ_JET_BOOT_003</phrase></title>
     <para>JetOS shall start the consoles first, so that an error found
       during the rest of the start-up can be reported.</para>
     <formalpara>
@@ -82,13 +100,22 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_ARM64_JA_BSP_INIT_01
+        HLR_BSP_X86_64_JA_BSP_INIT_01
+        HLR_CONS_IOSTREAM_INIT_COMMON_01
+        HLR_CONS_IOSTREAM_INIT_MAIN_01
+        HLR_CONS_IOSTREAM_INIT_DEBUG_01
+        HLR_ARCH_ARM64_POK_ARCH_INIT_01
+        HLR_CONS_JET_CONSOLE_INIT_ALL_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BOOT_004" role="requirement">
-    <title>SRQ_JET_BOOT_004</title>
+    <title><phrase role="srq">SRQ_JET_BOOT_004</phrase></title>
     <para>JetOS shall start the schedule at the first slot of a major
-      frame at the end of its initialization, and its start-up code shall
-      not return.</para>
+    frame at the end of its initialization.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The module runs the partitions for as long as it is powered;
@@ -98,13 +125,38 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BOOT_JET_BOOT_02
+        HLR_SCHED_POK_SCHED_RESTART_01
+        HLR_SCHED_POK_SCHED_START_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BOOT_007" role="requirement">
+    <title><phrase role="srq">SRQ_JET_BOOT_007</phrase></title>
+    <para>JetOS shall not return from its start-up code.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The module runs the partitions for as long as it is powered;
+        there is nothing to return to.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BOOT_JET_BOOT_02
+        HLR_SCHED_POK_SCHED_RESTART_01
+        HLR_SCHED_POK_SCHED_START_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BOOT_005" role="requirement">
-    <title>SRQ_JET_BOOT_005</title>
+    <title><phrase role="srq">SRQ_JET_BOOT_005</phrase></title>
     <para>JetOS shall report a fatal error found during start-up (for
-      example an invalid memory block) on the main console and shall then
-      stop the module.</para>
+    example an invalid memory block) on the main console.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Health monitoring needs partitions, which do not exist yet at
@@ -114,10 +166,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_MEMORY_BLOCKS_INIT_02
+        HLR_SPACE_ARM64_JA_SPACE_INIT_03
+        HLR_DEBUG_POK_FATAL_01
+        HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02
+        HLR_SPACE_X86_64_JA_SPACE_INIT_03</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BOOT_008" role="requirement">
+    <title><phrase role="srq">SRQ_JET_BOOT_008</phrase></title>
+    <para>JetOS shall stop the module after it has reported a fatal
+    error found during start-up.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Health monitoring needs partitions, which do not exist yet at
+        that point.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_MEMORY_BLOCKS_INIT_02
+        HLR_SPACE_ARM64_JA_SPACE_INIT_03
+        HLR_DEBUG_POK_FATAL_02
+        HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02
+        HLR_SPACE_X86_64_JA_SPACE_INIT_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BOOT_006" role="requirement">
-    <title>SRQ_JET_BOOT_006</title>
+    <title><phrase role="srq">SRQ_JET_BOOT_006</phrase></title>
     <para>JetOS shall run the application's main function directly, with
       no partitions, when it is built for a module with no partitions
       configured.</para>
@@ -130,6 +213,10 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BOOT_JET_BOOT_03</para>
     </formalpara>
   </section>
 </chapter>

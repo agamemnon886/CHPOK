@@ -36,12 +36,12 @@
     host to a guest, except as this chapter says.</para>
 
   <section xml:id="SRQ_HV_INT_001" role="requirement">
-    <title>SRQ_HV_INT_001</title>
+    <title><phrase role="srq">SRQ_HV_INT_001</phrase></title>
     <para>On x86_64 the hypervisor shall emulate for each VM a pair of
-      8259A interrupt controllers, programmed by the guest through their
-      ports (initialization and operation command words, interrupt masks,
-      priorities, end of interrupt, cascade through IRQ 2, reading of the
-      request and service registers), and shall reset it with the VM.</para>
+    8259A interrupt controllers, programmed by the guest through their
+    ports (initialization and operation command words, interrupt masks,
+    priorities, end of interrupt, cascade through IRQ 2, reading of the
+    request and service registers).</para>
     <formalpara>
       <title>Rationale</title>
       <para>JetOS for x86_64 drives the 8259A pair.</para>
@@ -50,15 +50,47 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VPIC_CHIP_OF_01
+        HLR_VPIC_FIRST_BIT_01
+        HLR_VPIC_PIC_COMMAND_01
+        HLR_VPIC_PIC_DATA_01
+        HLR_VPIC_VPIC_WRITE_01
+        HLR_VPIC_VPIC_READ_01
+        HLR_VPIC_VPIC_RAISE_01
+        HLR_VPIC_CHIP_REQUEST_01
+        HLR_VPIC_CASCADE_BIT_01
+        HLR_VPIC_ACKNOWLEDGE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_INT_006" role="requirement">
+    <title><phrase role="srq">SRQ_HV_INT_006</phrase></title>
+    <para>On x86_64 the hypervisor shall reset the emulated 8259A pair
+    of a VM when it loads the VM.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Each start of a guest finds its interrupt controllers as at
+      power-on.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VPIC_CHIP_RESET_01
+        HLR_VPIC_VPIC_RESET_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_INT_002" role="requirement">
-    <title>SRQ_HV_INT_002</title>
+    <title><phrase role="srq">SRQ_HV_INT_002</phrase></title>
     <para>On x86_64 the hypervisor shall deliver an interrupt of the
-      emulated controller to the guest when the guest can take it, that
-      is when its interrupt flag is set and it is not in the shadow of an
-      instruction, and shall let a guest that has halted with interrupts
-      enabled wait for one.</para>
+    emulated controller to the guest when the guest can take it, that is
+    when its interrupt flag is set and it is not in the shadow of an
+    instruction.</para>
     <formalpara>
       <title>Rationale</title>
       <para>An interrupt must not interrupt what the guest does not
@@ -68,14 +100,39 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VPIC_VPIC_PENDING_01
+        HLR_VPIC_VPIC_NEXT_01
+        HLR_SVM_INJECT_INTERRUPT_01
+        HLR_SVM_INTERRUPT_READY_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_INT_007" role="requirement">
+    <title><phrase role="srq">SRQ_HV_INT_007</phrase></title>
+    <para>On x86_64 the hypervisor shall let a guest that has halted
+    with interrupts enabled wait for an interrupt.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest halts to wait for its next interrupt.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SVM_INTERRUPT_READY_01
+        HLR_SVM_HANDLE_HLT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_INT_003" role="requirement">
-    <title>SRQ_HV_INT_003</title>
+    <title><phrase role="srq">SRQ_HV_INT_003</phrase></title>
     <para>On arm64 the hypervisor shall emulate for each VM the
-      distributor of a GICv2 for the interrupts 0 to 31 and one CPU, and
-      shall give the guest the CPU interface of the host through the
-      virtual CPU interface of the processor.</para>
+    distributor of a GICv2 for the interrupts 0 to 31 and one
+    CPU.</para>
     <formalpara>
       <title>Rationale</title>
       <para>JetOS for arm64 drives a GICv2, and needs the interrupt of
@@ -85,15 +142,50 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_GIC_GIC_HOST_IIDR_01
+        HLR_VGICD_VGICD_RESET_01
+        HLR_VGICD_IN_01
+        HLR_VGICD_PRIORITY_WORD_01
+        HLR_VGICD_READ_WORD_01
+        HLR_VGICD_WRITE_WORD_01
+        HLR_VGICD_VGICD_ACCESS_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_INT_008" role="requirement">
+    <title><phrase role="srq">SRQ_HV_INT_008</phrase></title>
+    <para>On arm64 the hypervisor shall give the guest the CPU interface
+    of the host through the virtual CPU interface of the
+    processor.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for arm64 drives a GICv2, and needs the interrupt of
+        its timer.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_STAGE2_STAGE2_BUILD_02
+        HLR_GIC_GIC_READ32_01
+        HLR_GIC_GIC_WRITE32_01
+        HLR_GIC_GIC_WRITE8_01
+        HLR_GIC_GIC_GICV_BASE_01
+        HLR_GIC_GIC_INIT_CPU_02
+        HLR_GIC_GIC_VCPU_RESET_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_INT_004" role="requirement">
-    <title>SRQ_HV_INT_004</title>
+    <title><phrase role="srq">SRQ_HV_INT_004</phrase></title>
     <para>On arm64 the hypervisor shall give the guest the interrupt of
-      its virtual timer when the guest's distributor is on and the
-      interrupt is enabled in it, with the priority that the guest gave
-      it, shall take it back if the guest disables it before it was
-      taken, and shall deliver each interrupt of the timer once.</para>
+    its virtual timer when the guest's distributor is on and the
+    interrupt is enabled in it, with the priority that the guest gave
+    it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The guest must see the tick as its own, once.</para>
@@ -102,16 +194,60 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_GIC_GIC_UPDATE_01
+        HLR_GIC_GIC_HANDLE_IRQ_01
+        HLR_VGICD_VGICD_TIMER_ENABLED_01
+        HLR_VGICD_VGICD_TIMER_PRIORITY_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_INT_009" role="requirement">
+    <title><phrase role="srq">SRQ_HV_INT_009</phrase></title>
+    <para>On arm64 the hypervisor shall take back the interrupt of the
+    virtual timer from the guest if the guest disables it before it was
+    taken.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest must not take an interrupt that it has
+      disabled.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_GIC_GIC_UPDATE_01
+        HLR_VGICD_VGICD_TIMER_ENABLED_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_INT_010" role="requirement">
+    <title><phrase role="srq">SRQ_HV_INT_010</phrase></title>
+    <para>On arm64 the hypervisor shall deliver each interrupt of the
+    virtual timer to the guest once.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The guest must see the tick as its own, once.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_GIC_MAINTENANCE_01
+        HLR_GIC_GIC_HANDLE_IRQ_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_INT_005" role="requirement">
-    <title>SRQ_HV_INT_005</title>
+    <title><phrase role="srq">SRQ_HV_INT_005</phrase></title>
     <para>The hypervisor shall use, for itself, only the interrupts of
-      the host that it needs: on x86_64 the local APIC timer, on arm64
-      the virtual timer and the maintenance interrupt of the GIC; it
-      shall ignore a spurious interrupt, report any other interrupt on
-      its console and go on, and treat an exception of its own as a fatal
-      error.</para>
+    the host that it needs: on x86_64 the local APIC timer, on arm64 the
+    virtual timer and the maintenance interrupt of the GIC.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The hypervisor must not be disturbed by what it did not ask
@@ -120,6 +256,63 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_GIC_GIC_INIT_01
+        HLR_GIC_GIC_INIT_CPU_01
+        HLR_PIT_HV_LEGACY_PIC_DISABLE_01
+        HLR_IDT_HV_INTERRUPT_01
+        HLR_LAPIC_LAPIC_READ_01
+        HLR_LAPIC_LAPIC_WRITE_01
+        HLR_LAPIC_LAPIC_INIT_BASE_01
+        HLR_LAPIC_LAPIC_INIT_CPU_01
+        HLR_LAPIC_LAPIC_EOI_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_INT_011" role="requirement">
+    <title><phrase role="srq">SRQ_HV_INT_011</phrase></title>
+    <para>The hypervisor shall ignore a spurious interrupt, and report
+    any other interrupt that it does not use on its console and go
+    on.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The hypervisor must not be disturbed by what it did not ask
+        for.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VCPU_HANDLE_EXIT_01
+        HLR_GIC_GIC_HANDLE_IRQ_02
+        HLR_IDT_HV_IDT_INIT_01
+        HLR_IDT_HV_IDT_LOAD_01
+        HLR_IDT_HV_INTERRUPT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_INT_012" role="requirement">
+    <title><phrase role="srq">SRQ_HV_INT_012</phrase></title>
+    <para>The hypervisor shall treat an exception of its own as a fatal
+    error.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An exception in the hypervisor means that it can no longer
+      guarantee the isolation of the VMs.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_HV_EL2_EXCEPTION_01
+        HLR_IDT_HV_IDT_INIT_01
+        HLR_IDT_HV_IDT_LOAD_01</para>
     </formalpara>
   </section>
 </chapter>

@@ -33,6 +33,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/mmu.c (the code of the processor architecture is in
  * hypervisor/csps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -71,26 +75,49 @@ hv_mmu_regs_t hv_el2_mmu;
  * | `i` | `uint32_t` | The index of an entry |
  *
  * @hlr
+ * - \hlrid{HLR_MMU_HV_MMU_INIT_01}: `hv_mmu_init()` shall build the identity
+ *   map of the hypervisor at exception level 2, of the devices, the RAM and the
+ *   high PCI configuration space, and turn the MMU on.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_MEM_005}
  *
  * @llr
+ * - \llrid{LLR_MMU_HV_MMU_INIT_01}: `hv_mmu_init()` shall set the `L1_ENTRIES`
+ *   entries of the level 1 table to 0, then entry `GIB_DEVICES` to the address
+ *   of its GiB with `DESC_DEVICE`, each entry from `GIB_RAM_FIRST` to
+ *   `GIB_RAM_LAST` to the address of its GiB with `DESC_NORMAL`, and entry
+ *   `GIB_HIGH_ECAM` to the address of its GiB with `DESC_DEVICE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MMU_HV_MMU_INIT_01}
+ * - \llrid{LLR_MMU_HV_MMU_INIT_02}: `hv_mmu_init()` shall set `mair`, `tcr`,
+ *   `ttbr0` and `sctlr` of `hv_el2_mmu` to `MAIR_VALUE`, `TCR_VALUE`, the
+ *   address of the level 1 table and `SCTLR_VALUE`, and then call, in this
+ *   order, `arm64_dsb_ish()` and `hv_mmu_enable()` with `hv_el2_mmu`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MMU_HV_MMU_INIT_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `L1_ENTRIES`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_MMU_HV_MMU_INIT_01}
  *    1. Set `el2_l1[i]` to `0U`.
  * 2. Set `el2_l1[GIB_DEVICES]` to
  *    `((uint64_t) GIB_DEVICES << L1_SHIFT) | DESC_DEVICE`.
+ *    \llrref{LLR_MMU_HV_MMU_INIT_01}
  * 3. Set `i` to `GIB_RAM_FIRST`; then while `i` is less than or equal to
  *    `GIB_RAM_LAST`, repeat (after each pass: increment `i`):
+ *    \llrref{LLR_MMU_HV_MMU_INIT_01}
  *    1. Set `el2_l1[i]` to `((uint64_t) i << L1_SHIFT) | DESC_NORMAL`.
  * 4. Set `el2_l1[GIB_HIGH_ECAM]` to
  *    `((uint64_t) GIB_HIGH_ECAM << L1_SHIFT) | DESC_DEVICE`.
- * 5. Set `hv_el2_mmu.mair` to `MAIR_VALUE`.
- * 6. Set `hv_el2_mmu.tcr` to `TCR_VALUE`.
+ *    \llrref{LLR_MMU_HV_MMU_INIT_01}
+ * 5. Set `hv_el2_mmu.mair` to `MAIR_VALUE`. \llrref{LLR_MMU_HV_MMU_INIT_02}
+ * 6. Set `hv_el2_mmu.tcr` to `TCR_VALUE`. \llrref{LLR_MMU_HV_MMU_INIT_02}
  * 7. Set `hv_el2_mmu.ttbr0` to `(uint64_t) (uintptr_t) el2_l1`.
- * 8. Set `hv_el2_mmu.sctlr` to `SCTLR_VALUE`.
- * 9. Call `arm64_dsb_ish()`.
+ *    \llrref{LLR_MMU_HV_MMU_INIT_02}
+ * 8. Set `hv_el2_mmu.sctlr` to `SCTLR_VALUE`. \llrref{LLR_MMU_HV_MMU_INIT_02}
+ * 9. Call `arm64_dsb_ish()`. \llrref{LLR_MMU_HV_MMU_INIT_02}
  * 10. Call `hv_mmu_enable()` with the address of `hv_el2_mmu`.
+ *     \llrref{LLR_MMU_HV_MMU_INIT_02}
  *
  * @calls
  * - `arm64_dsb_ish()`

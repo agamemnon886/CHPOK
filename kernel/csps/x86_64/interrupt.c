@@ -46,6 +46,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/x86_64/interrupt.c (the CPU support packages are in
  * kernel/csps).
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
@@ -93,11 +101,20 @@ static idt_entry_t pok_idt[IDT_SIZE] __attribute__((aligned(16)));
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_INTERRUPT_CPU_LOAD_IDT_01}: `cpu_load_idt()` shall load the
+ *   interrupt descriptor table register.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_001}
  *
  * @llr
+ * - \llrid{LLR_INTERRUPT_CPU_LOAD_IDT_01}: `cpu_load_idt()` shall execute the
+ *   instruction `lidt` once with the descriptor at `desc`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_CPU_LOAD_IDT_01}
  *
  * @design
  * 1. Execute the assembly code `lidt %0`.
+ *    \llrref{LLR_INTERRUPT_CPU_LOAD_IDT_01}
  *
  * @calls
  * None.
@@ -135,12 +152,21 @@ static void cpu_load_idt(const sysdesc_t* desc)
  * | `cr2` | `uint64_t` | CR2 |
  *
  * @hlr
+ * - \hlrid{HLR_INTERRUPT_CPU_READ_CR2_01}: `cpu_read_cr2()` shall give the
+ *   address of the last page fault.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_003}
  *
  * @llr
+ * - \llrid{LLR_INTERRUPT_CPU_READ_CR2_01}: `cpu_read_cr2()` shall return the
+ *   value of CR2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_CPU_READ_CR2_01}
  *
  * @design
  * 1. Execute the assembly code `mov %%%cr2, %0`.
- * 2. Return `cr2`.
+ *    \llrref{LLR_INTERRUPT_CPU_READ_CR2_01}
+ * 2. Return `cr2`. \llrref{LLR_INTERRUPT_CPU_READ_CR2_01}
  *
  * @calls
  * None.
@@ -177,19 +203,38 @@ static uint64_t cpu_read_cr2(void)
  * | `offset` | `uint64_t` | The stub's address |
  *
  * @hlr
+ * - \hlrid{HLR_INTERRUPT_IDT_SET_GATE_01}: `idt_set_gate()` shall make a vector
+ *   of the interrupt table enter the kernel at a handler, with interrupts
+ *   disabled, from the privilege levels that the gate allows.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_001}
+ *   - \srqref{SRQ_JET_SYS_002}
  *
  * @llr
+ * - \llrid{LLR_INTERRUPT_IDT_SET_GATE_01}: `idt_set_gate()` shall set, in
+ *   `pok_idt[index]`, `offset_low` to the bits 15 to 0 of the address `entry`,
+ *   `offset_mid` to its bits 31 to 16 and `offset_high` to its bits 63 to 32,
+ *   `selector` to `GDT_KERNEL_CODE`, `ist` to 0, `type_attr` to
+ *   `IDT_INTERRUPT_GATE(dpl)` and `reserved` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_IDT_SET_GATE_01}
  *
  * @design
- * 1. Set `offset` to `(uint64_t)entry`.
+ * 1. Set `offset` to `(uint64_t)entry`. \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
  * 2. Set `pok_idt[index].offset_low` to `(uint16_t) (offset & 0xFFFFU)`.
+ *    \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
  * 3. Set `pok_idt[index].selector` to `GDT_KERNEL_CODE`.
- * 4. Set `pok_idt[index].ist` to `0`.
+ *    \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
+ * 4. Set `pok_idt[index].ist` to `0`. \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
  * 5. Set `pok_idt[index].type_attr` to `IDT_INTERRUPT_GATE(dpl)`.
+ *    \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
  * 6. Set `pok_idt[index].offset_mid` to
  *    `(uint16_t) ((offset >> 16) & 0xFFFFU)`.
+ *    \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
  * 7. Set `pok_idt[index].offset_high` to `(uint32_t) (offset >> 32)`.
+ *    \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
  * 8. Set `pok_idt[index].reserved` to `0`.
+ *    \llrref{LLR_INTERRUPT_IDT_SET_GATE_01}
  *
  * @calls
  * None.
@@ -227,22 +272,44 @@ static void idt_set_gate(uint32_t index, void (*entry)(void), uint32_t dpl)
  * | `sysdesc` | `sysdesc_t` | The IDT's limit and base |
  *
  * @hlr
+ * - \hlrid{HLR_INTERRUPT_JA_IDT_INIT_01}: `ja_idt_init()` shall set up the
+ *   interrupt table: every exception and interrupt vector enters the common
+ *   handler of the kernel, and the system call vector and the breakpoint vector
+ *   may be raised from user mode.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_001}
+ *   - \srqref{SRQ_JET_SYS_002}
  *
  * @llr
+ * - \llrid{LLR_INTERRUPT_JA_IDT_INIT_01}: `ja_idt_init()` shall set every byte
+ *   of `pok_idt` to 0 with `memset()`, call `idt_set_gate()` with `i`,
+ *   `ja_interrupt_stubs[i]` and 0 for each `i` from 0 to `IRQ_VECTOR_LAST`,
+ *   then with `EXCEPTION_SYSCALL`, `ja_interrupt_stub_syscall` and 3, and with
+ *   `EXCEPTION_BREAKPOINT`, `ja_interrupt_stubs[EXCEPTION_BREAKPOINT]` and 3,
+ *   and then call `cpu_load_idt()` with a descriptor whose limit is the size of
+ *   `pok_idt` minus 1 and whose base is the address of `pok_idt`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_IDT_INIT_01}
  *
  * @design
  * 1. Call `memset()` with the arguments `pok_idt`, `0` and `sizeof(pok_idt)`.
+ *    \llrref{LLR_INTERRUPT_JA_IDT_INIT_01}
  * 2. Set `i` to `0`; then while `i` is less than or equal to `IRQ_VECTOR_LAST`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_INTERRUPT_JA_IDT_INIT_01}
  *    1. Call `idt_set_gate()` with the arguments `i`, `ja_interrupt_stubs[i]`
  *       and `0`.
  * 3. Call `idt_set_gate()` with the arguments `EXCEPTION_SYSCALL`,
- *    `ja_interrupt_stub_syscall` and `3`.
+ *    `ja_interrupt_stub_syscall` and `3`. \llrref{LLR_INTERRUPT_JA_IDT_INIT_01}
  * 4. Call `idt_set_gate()` with the arguments `EXCEPTION_BREAKPOINT`,
  *    `ja_interrupt_stubs[EXCEPTION_BREAKPOINT]` and `3`.
+ *    \llrref{LLR_INTERRUPT_JA_IDT_INIT_01}
  * 5. Set `sysdesc.limit` to `sizeof(pok_idt) - 1U`.
+ *    \llrref{LLR_INTERRUPT_JA_IDT_INIT_01}
  * 6. Set `sysdesc.base` to `(uint64_t)pok_idt`.
+ *    \llrref{LLR_INTERRUPT_JA_IDT_INIT_01}
  * 7. Call `cpu_load_idt()` with the address of `sysdesc`.
+ *    \llrref{LLR_INTERRUPT_JA_IDT_INIT_01}
  *
  * @calls
  * - `memset()`
@@ -291,24 +358,38 @@ void ja_idt_init(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_INTERRUPT_DUMP_REGISTERS_01}: `dump_registers()` shall print the
+ *   registers of an interrupt frame when the kernel is built with debug output.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_004}
  *
  * @llr
+ * - \llrid{LLR_INTERRUPT_DUMP_REGISTERS_01}: `dump_registers()` shall call
+ *   `printf_debug()` four times: with `"CS: %%lx, SS: %%lx, RFLAGS: %%lx\n"`
+ *   and `cs`, `ss` and `rflags` of `frame`; with `"RIP: %%lx, RSP: %%lx, RBP:
+ *   %%lx, ErrorCode: %%lx\n"` and `rip`, `rsp`, `rbp` and `error` of `frame`;
+ *   with `"RAX: %%lx, RBX: %%lx, RCX: %%lx, RDX: %%lx\n"` and `rax`, `rbx`,
+ *   `rcx` and `rdx` of `frame`; and with `"RSI: %%lx, RDI: %%lx\n"` and `rsi`
+ *   and `rdi` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_DUMP_REGISTERS_01}
  *
  * @design
  * 1. Evaluate `printf_debug("CS: %%lx, SS: %%lx, RFLAGS: %%lx\n", (unsigned`
  *    `long)frame->cs, (unsigned long)frame->ss, (unsigned long)frame->rflags)`.
+ *    \llrref{LLR_INTERRUPT_DUMP_REGISTERS_01}
  * 2. Evaluate
  *    `printf_debug("RIP: %%lx, RSP: %%lx, RBP: %%lx, ErrorCode: %%lx\n",`
  *    `(unsigned`
  *    `long)frame->rip, (unsigned long)frame->rsp, (unsigned long)frame->rbp,`
- *    `(unsigned long)frame->error)`.
+ *    `(unsigned long)frame->error)`. \llrref{LLR_INTERRUPT_DUMP_REGISTERS_01}
  * 3. Evaluate
  *    `printf_debug("RAX: %%lx, RBX: %%lx, RCX: %%lx, RDX: %%lx\n", (unsigned`
  *    `long)frame->rax, (unsigned long)frame->rbx, (unsigned long)frame->rcx,`
- *    `(unsigned long)frame->rdx)`.
+ *    `(unsigned long)frame->rdx)`. \llrref{LLR_INTERRUPT_DUMP_REGISTERS_01}
  * 4. Evaluate
  *    `printf_debug("RSI: %%lx, RDI: %%lx\n", (unsigned long)frame->rsi,`
- *    `(unsigned long)frame->rdi)`.
+ *    `(unsigned long)frame->rdi)`. \llrref{LLR_INTERRUPT_DUMP_REGISTERS_01}
  *
  * @calls
  * - `printf()`
@@ -353,29 +434,95 @@ static void dump_registers(const interrupt_frame* frame)
  * | `vector` | `uint32_t` | The vector |
  *
  * @hlr
+ * - \hlrid{HLR_INTERRUPT_PROCESS_EXCEPTION_01}: `process_exception()` shall
+ *   handle an exception of the processor as an error of the partition: a memory
+ *   fault as a memory violation, an arithmetic fault as a numeric error, others
+ *   as an illegal request, a stack overflow or an unhandled interrupt, as the
+ *   table of the exceptions says.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_003}
+ *   - \srqref{SRQ_JET_HM_001}
+ *   - \srqref{SRQ_JET_MEM_013}
+ * - \hlrid{HLR_INTERRUPT_PROCESS_EXCEPTION_02}: `process_exception()` shall
+ *   stop the kernel after an exception in the kernel itself.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_004}
  *
  * @llr
+ * - \llrid{LLR_INTERRUPT_PROCESS_EXCEPTION_01}: If the vector of `frame` has an
+ *   entry in `exceptions`, `process_exception()` shall take the name and the
+ *   error of the entry, and call `pok_raise_error()` once with the error,
+ *   `from_user` and `rip` of `frame` as the address. The entries are: 0
+ *   `"divide by zero error"`, `POK_ERROR_ID_NUMERIC_ERROR`; 1 `"debug"`, 2
+ *   `"NMI fault"`, 3 `"breakpoint"`, 6 `"invalid opcode fault"`, 7 `"no math
+ *   coprocessor fault"` and 13 `"general protection fault"`,
+ *   `POK_ERROR_ID_ILLEGAL_REQUEST`; 4 `"overflow"`,
+ *   `POK_ERROR_ID_STACK_OVERFLOW`; 5 `"bound range fault"`, 9 `"copseg overrun
+ *   fault"`, 10 `"invalid TSS fault"`, 11 `"segment not present fault"`, 12
+ *   `"stack segment fault"` and 14 `"pagefault"`,
+ *   `POK_ERROR_ID_MEMORY_VIOLATION`; 8 `"double fault"`,
+ *   `POK_ERROR_ID_UNHANDLED_INT`; 16 `"FPU fault"`, 17 `"alignement check
+ *   fault"`, 18 `"machine check fault"` and 19 `"SIMD fault"`,
+ *   `POK_ERROR_ID_HARDWARE_FAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_PROCESS_EXCEPTION_01}
+ * - \llrid{LLR_INTERRUPT_PROCESS_EXCEPTION_02}: If the vector of `frame` has no
+ *   entry in `exceptions` (the name of its element is NULL),
+ *   `process_exception()` shall take the name `"reserved"` and call
+ *   `pok_raise_error()` once with `POK_ERROR_ID_UNHANDLED_INT`, `from_user` and
+ *   `rip` of `frame` as the address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_PROCESS_EXCEPTION_01}
+ * - \llrid{LLR_INTERRUPT_PROCESS_EXCEPTION_03}: If the vector of `frame` is 14,
+ *   `process_exception()` shall call, before `pok_raise_error()`,
+ *   `dump_registers()` with `frame` and then `printf_debug()` with `"[KERNEL]
+ *   Raise exception %%s at 0x%%lx. RIP=0x%%lx\n"`, the name, the result of
+ *   `cpu_read_cr2()` and `rip` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_PROCESS_EXCEPTION_01}
+ * - \llrid{LLR_INTERRUPT_PROCESS_EXCEPTION_04}: If the vector of `frame` is not
+ *   14, `process_exception()` shall call, before `pok_raise_error()`,
+ *   `dump_registers()` with `frame` and then `printf_debug()` with `"[KERNEL]
+ *   Raise exception %%s. RIP=0x%%lx\n"`, the name and `rip` of `frame`, without
+ *   calling `cpu_read_cr2()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_PROCESS_EXCEPTION_01}
+ * - \llrid{LLR_INTERRUPT_PROCESS_EXCEPTION_05}: If and only if `from_user` is
+ *   false, `process_exception()` shall call `pok_fatal()` with `"Unrecoverable
+ *   exception in kernel"` after `pok_raise_error()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_PROCESS_EXCEPTION_02}
  *
  * @design
  * 1. Set `vector` to `frame->vector`.
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_01},
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_02},
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_03},
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_04}
  * 2. Set `name` to `exceptions[vector].name` if `exceptions[vector].name` is
  *    not NULL, otherwise `"reserved"`.
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_01},
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_02}
  * 3. Set `error_id` to `exceptions[vector].error_id` if
  *    `exceptions[vector].name` is not NULL, otherwise
- *    `POK_ERROR_ID_UNHANDLED_INT`.
+ *    `POK_ERROR_ID_UNHANDLED_INT`. \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_01},
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_02}
  * 4. Call `dump_registers()` with the argument `frame`.
- * 5. If `vector` is equal to `14U`:
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_03},
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_04}
+ * 5. If `vector` is equal to `14U`: \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_03}
  *    1. Call `cpu_read_cr2()`, and store the result in `cr2`.
  *    2. Evaluate
  *       `printf_debug("[KERNEL] Raise exception %%s at 0x%%lx. RIP=0x%%lx\n",`
  *       `name, (unsigned long)cr2, (unsigned long)frame->rip)`.
- * 6. Otherwise:
+ * 6. Otherwise: \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_04}
  *    1. Evaluate
  *       `printf_debug("[KERNEL] Raise exception %%s. RIP=0x%%lx\n", name,`
  *       `(unsigned long)frame->rip)`.
  * 7. Call `pok_raise_error()` with the arguments `error_id`, `from_user` and
- *    `(void*)frame->rip`.
- * 8. If `from_user` is false:
+ *    `(void*)frame->rip`. \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_01},
+ *    \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_02}
+ * 8. If `from_user` is false: \llrref{LLR_INTERRUPT_PROCESS_EXCEPTION_05}
  *    1. Call `pok_fatal()` with the argument
  *       `"Unrecoverable exception in kernel"`.
  *
@@ -470,33 +617,126 @@ static void process_exception(interrupt_frame* frame, pok_bool_t from_user)
  * | `vector` | `uint64_t` | The vector |
  *
  * @hlr
+ * - \hlrid{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}: `ja_interrupt_handler()`
+ *   shall dispatch an interrupt or exception: a system call, the timer tick, a
+ *   spurious interrupt of the board (ignored), a trap of the debugger, or an
+ *   exception.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_001}
+ *   - \srqref{SRQ_JET_INT_006}
+ *   - \srqref{SRQ_JET_SYS_002}
+ * - \hlrid{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_02}: `ja_interrupt_handler()`
+ *   shall, on the way back to user mode, set the kernel stack of the next
+ *   interrupt and put the floating point state of the current process into the
+ *   processor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_007}
+ *   - \srqref{SRQ_JET_THR_023}
+ *   - \srqref{SRQ_JET_THR_024}
  *
  * @llr
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}: `ja_interrupt_handler()`
+ *   shall set `global_thread_stack` to `frame` before it handles the vector of
+ *   `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_02}: If and only if the low 2
+ *   bits of `cs` of `frame` are not 3 (the frame is not from user mode),
+ *   `ja_interrupt_handler()` shall set `global_thread_stack` back to its value
+ *   at entry after it has handled the vector.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_03}: If the vector of `frame` is
+ *   `EXCEPTION_SYSCALL`, `ja_interrupt_handler()` shall call
+ *   `process_syscall()` once with `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_04}: If the vector of `frame` is
+ *   `EXCEPTION_TIMER`, `ja_interrupt_handler()` shall call
+ *   `ja_bsp_process_timer()` once with `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_05}: If the vector of `frame` is
+ *   neither `EXCEPTION_SYSCALL` nor `EXCEPTION_TIMER` and is from
+ *   `IRQ_VECTOR_FIRST` to `IRQ_VECTOR_LAST`, `ja_interrupt_handler()` shall
+ *   call none of `process_syscall()`, `ja_bsp_process_timer()`, `ja_gdb_trap()`
+ *   and `process_exception()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_06}: If the vector of `frame` is
+ *   `EXCEPTION_DEBUG` or `EXCEPTION_BREAKPOINT` and `ja_gdb_trap()` returns
+ *   true for `frame`, the vector and whether the frame is from user mode,
+ *   `ja_interrupt_handler()` shall not call `process_exception()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_07}: If the vector of `frame` is
+ *   `EXCEPTION_DEBUG` or `EXCEPTION_BREAKPOINT` and `ja_gdb_trap()` returns
+ *   false for `frame`, the vector and whether the frame is from user mode,
+ *   `ja_interrupt_handler()` shall call `process_exception()` once with `frame`
+ *   and whether the frame is from user mode.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_08}: If the vector of `frame` is
+ *   none of `EXCEPTION_SYSCALL`, `EXCEPTION_TIMER`, `EXCEPTION_DEBUG` and
+ *   `EXCEPTION_BREAKPOINT`, and is not from `IRQ_VECTOR_FIRST` to
+ *   `IRQ_VECTOR_LAST`, `ja_interrupt_handler()` shall call
+ *   `process_exception()` once with `frame` and whether the frame is from user
+ *   mode, without calling `ja_gdb_trap()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
+ * - \llrid{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_09}: If and only if the low 2
+ *   bits of `cs` of `frame` are 3 (the frame is from user mode),
+ *   `ja_interrupt_handler()` shall, after it has handled the vector, call
+ *   `ja_tss_set_rsp0()` with the address that follows the frame (`frame + 1`)
+ *   and then `pok_partition_return_user_fp()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_INTERRUPT_JA_INTERRUPT_HANDLER_02}
  *
  * @design
  * 1. Set `from_user` to `(frame->cs & 3U) == 3U`.
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_02},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_06},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_07},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_08},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_09}
  * 2. Set `vector` to `frame->vector`.
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_03},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_04},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_05},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_06},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_07},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_08}
  * 3. Set `previous_frame` to `global_thread_stack`.
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_02}
  * 4. Set `global_thread_stack` to `frame`.
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_01}
  * 5. If `vector` is equal to `EXCEPTION_SYSCALL`:
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_03}
  *    1. Call `process_syscall()` with the argument `frame`.
  * 6. Otherwise, if `vector` is equal to `EXCEPTION_TIMER`:
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_04}
  *    1. Call `ja_bsp_process_timer()` with the argument `frame`.
  * 7. Otherwise, if `vector` is greater than or equal to `IRQ_VECTOR_FIRST` and
  *    `vector` is less than or equal to `IRQ_VECTOR_LAST`:
- *    1. Do nothing.
- * 8. Otherwise:
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_05}
+ * 8. Otherwise: \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_06},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_07},
+ *    \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_08}
  *    1. Set `handled` to `FALSE`.
  *    2. If `vector` is equal to `EXCEPTION_DEBUG` or `vector` is equal to
- *       `EXCEPTION_BREAKPOINT`:
+ *       `EXCEPTION_BREAKPOINT`: \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_06},
+ *       \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_07}
  *       1. Call `ja_gdb_trap()` with the arguments `frame`, `(uint32_t)vector`
  *          and `from_user`, and store the result in `handled`.
- *    3. If `handled` is false:
+ *    3. If `handled` is false: \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_06},
+ *       \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_07},
+ *       \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_08}
  *       1. Call `process_exception()` with the arguments `frame` and
- *          `from_user`.
- * 9. If `from_user` is false:
+ *          `from_user`. \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_07},
+ *          \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_08}
+ * 9. If `from_user` is false: \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_02}
  *    1. Set `global_thread_stack` to `previous_frame`.
- * 10. If `from_user` is true:
+ * 10. If `from_user` is true: \llrref{LLR_INTERRUPT_JA_INTERRUPT_HANDLER_09}
  *     1. Call `ja_tss_set_rsp0()` with the argument `(uint64_t)(frame + 1)`.
  *     2. Call `pok_partition_return_user_fp()`.
  *

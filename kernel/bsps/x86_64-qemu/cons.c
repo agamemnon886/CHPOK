@@ -51,6 +51,11 @@
  * boards/x86_64-qemu/cons.c (the board support packages are in kernel/bsps);
  * the function headers follow outb() and inb(), which call x86_outb() and
  * x86_inb(); the port numbers are converted to uint16_t at these calls.
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ * Modified by Kirill Brazhnikov, 2026-11-17: requirements with more than one
+ * "shall" are split into requirements of one "shall" each.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
@@ -111,11 +116,26 @@ static s_cons_t g_cons;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IS_TRANSMIT_EMPTY_01}: `is_transmit_empty()` shall tell
+ *   whether a 16550 serial port can take the next byte.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_005}
  *
  * @llr
+ * - \llrid{LLR_CONS_IS_TRANSMIT_EMPTY_01}: If the bit `0x20` is set in the byte
+ *   read with `inb()` from `port + 5`, `is_transmit_empty()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IS_TRANSMIT_EMPTY_01}
+ * - \llrid{LLR_CONS_IS_TRANSMIT_EMPTY_02}: If the bit `0x20` is not set in the
+ *   byte read with `inb()` from `port + 5`, `is_transmit_empty()` shall return
+ *   false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IS_TRANSMIT_EMPTY_01}
  *
  * @design
  * 1. Return `(inb((uint16_t)port + 5U) & 0x20U) != 0U`.
+ *    \llrref{LLR_CONS_IS_TRANSMIT_EMPTY_01},
+ *    \llrref{LLR_CONS_IS_TRANSMIT_EMPTY_02}
  *
  * @calls
  * - `x86_inb()`
@@ -143,13 +163,22 @@ static pok_bool_t is_transmit_empty(int32_t port) {
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_WRITE_SERIAL_01}: `write_serial()` shall write a byte to a
+ *   serial port, waiting until the port can take it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_005}
  *
  * @llr
+ * - \llrid{LLR_CONS_WRITE_SERIAL_01}: `write_serial()` shall call
+ *   `is_transmit_empty()` with `port` until it returns true, and then write `a`
+ *   to `port` once with `outb()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_WRITE_SERIAL_01}
  *
  * @design
  * 1. While `is_transmit_empty(port)` is false:
- *    1. Do nothing.
- * 2. Use the macro `outb(port, a)`.
+ *    \llrref{LLR_CONS_WRITE_SERIAL_01}
+ * 2. Use the macro `outb(port, a)`. \llrref{LLR_CONS_WRITE_SERIAL_01}
  *
  * @calls
  * - `is_transmit_empty()`
@@ -185,15 +214,30 @@ static void write_serial(int32_t port, char a) {
  * | `flags` | `int32_t` | The line status register |
  *
  * @hlr
+ * - \hlrid{HLR_CONS_DATA_TO_READ_01}: `data_to_read()` shall tell whether a
+ *   serial port has a byte that was received without an error.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_004}
  *
  * @llr
+ * - \llrid{LLR_CONS_DATA_TO_READ_01}: If `COM_LSR_DATA` is not set in the byte
+ *   read with `inb()` from `port + COM_LSR`, or `COM_LSR_RFE` is set in it,
+ *   `data_to_read()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_DATA_TO_READ_01}
+ * - \llrid{LLR_CONS_DATA_TO_READ_02}: If `COM_LSR_DATA` is set in the byte read
+ *   with `inb()` from `port + COM_LSR` and `COM_LSR_RFE` is not set in it,
+ *   `data_to_read()` shall return 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_DATA_TO_READ_01}
  *
  * @design
  * 1. Set `flags` to `inb((uint16_t)port + COM_LSR)`.
+ *    \llrref{LLR_CONS_DATA_TO_READ_01}, \llrref{LLR_CONS_DATA_TO_READ_02}
  * 2. If `(flags & COM_LSR_DATA)` is equal to `0` or `((flags & COM_LSR_RFE))`
- *    is not equal to `0`:
+ *    is not equal to `0`: \llrref{LLR_CONS_DATA_TO_READ_01}
  *    1. Return `0`.
- * 3. Return `1`.
+ * 3. Return `1`. \llrref{LLR_CONS_DATA_TO_READ_02}
  *
  * @calls
  * - `x86_inb()`
@@ -230,17 +274,39 @@ static int32_t data_to_read(int32_t port) //return 0 if no data to read
  * | `data` | `int32_t` | The byte read from the receive buffer |
  *
  * @hlr
+ * - \hlrid{HLR_CONS_READ_SERIAL_01}: `read_serial()` shall read a byte that a
+ *   serial port received, without waiting, and give none for a byte received
+ *   with an error.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_004}
  *
  * @llr
+ * - \llrid{LLR_CONS_READ_SERIAL_01}: If `data_to_read()` returns 0 for `port`,
+ *   `read_serial()` shall return -1 without reading `port`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_READ_SERIAL_01}
+ * - \llrid{LLR_CONS_READ_SERIAL_02}: If `data_to_read()` returns a value other
+ *   than 0 for `port`, and `COM_LSR_RFE` is not set in the byte read with
+ *   `inb()` from `port + COM_LSR` after the byte read from `port`,
+ *   `read_serial()` shall return the byte read from `port`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_READ_SERIAL_01}
+ * - \llrid{LLR_CONS_READ_SERIAL_03}: If `data_to_read()` returns a value other
+ *   than 0 for `port`, and `COM_LSR_RFE` is set in the byte read with `inb()`
+ *   from `port + COM_LSR` after the byte read from `port`, `read_serial()`
+ *   shall return -1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_READ_SERIAL_01}
  *
  * @design
- * 1. If `data_to_read(port)` is equal to `0`:
+ * 1. If `data_to_read(port)` is equal to `0`: \llrref{LLR_CONS_READ_SERIAL_01}
  *    1. Return `-1`.
- * 2. Set `data` to `inb((uint16_t)port)`.
+ * 2. Set `data` to `inb((uint16_t)port)`. \llrref{LLR_CONS_READ_SERIAL_02},
+ *    \llrref{LLR_CONS_READ_SERIAL_03}
  * 3. If `(inb((uint16_t)port + COM_LSR) & (uint8_t)COM_LSR_RFE)` is equal to
- *    `0U`:
+ *    `0U`: \llrref{LLR_CONS_READ_SERIAL_02}
  *    1. Return `data`.
- * 4. Return `-1`.
+ * 4. Return `-1`. \llrref{LLR_CONS_READ_SERIAL_03}
  *
  * @calls
  * - `data_to_read()`
@@ -286,18 +352,35 @@ static int32_t read_serial(int32_t port)
  * | `data` | `int32_t` | The byte read, or -1 if there is none |
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_READ_COMMON_01}: `iostream_read_common()` shall
+ *   read the bytes that a serial port has received, up to a length, without
+ *   waiting for more.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_004}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_READ_COMMON_01}: `iostream_read_common()` shall
+ *   call `read_serial()` with `port` and store each result other than -1,
+ *   converted to `char`, at the next index of `s` from 0 on, until `length`
+ *   results are stored, and return the number of results stored.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_READ_COMMON_01}
+ * - \llrid{LLR_CONS_IOSTREAM_READ_COMMON_02}: If `read_serial()` returns -1,
+ *   `iostream_read_common()` shall return the number of results stored before,
+ *   without calling `read_serial()` again.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_READ_COMMON_01}
  *
  * @design
  * 1. Set `i` to `0`; then while `i` is not equal to `length`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_CONS_IOSTREAM_READ_COMMON_01}
  *    1. Call `read_serial()` with the argument `port`, and store the result in
  *       `data`.
- *    2. If `data` is equal to `-1`:
+ *    2. If `data` is equal to `-1`: \llrref{LLR_CONS_IOSTREAM_READ_COMMON_02}
  *       1. Leave the loop.
  *    3. Set `s[i]` to `(char)data`.
- * 2. Return `i`.
+ * 2. Return `i`. \llrref{LLR_CONS_IOSTREAM_READ_COMMON_01},
+ *    \llrref{LLR_CONS_IOSTREAM_READ_COMMON_02}
  *
  * @calls
  * - `read_serial()`
@@ -343,23 +426,34 @@ static size_t iostream_read_common(int32_t port, char* s, size_t length)
  * | `local_curs` | `static s_cons_t` | Copy of the cursor being updated |
  *
  * @hlr
+ * - \hlrid{HLR_CONS_POK_CONS_CLEAR_01}: `pok_cons_clear()` shall clear the VGA
+ *   text screen with the current attribute and put the cursor at the top left
+ *   corner.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BSP_002}
  *
  * @llr
+ * - \llrid{LLR_CONS_POK_CONS_CLEAR_01}: `pok_cons_clear()` shall store 0 and
+ *   then `g_cons.cur_attr` in the two bytes of each of the `screen_h` times
+ *   `screen_w` cells from `vga_base` on, and set `row` and `col` of `g_cons` to
+ *   0, leaving its `cur_attr` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_POK_CONS_CLEAR_01}
  *
  * @design
- * 1. Set `ptr` to `vga_base`.
- * 2. Set `local_curs` to `g_cons`.
+ * 1. Set `ptr` to `vga_base`. \llrref{LLR_CONS_POK_CONS_CLEAR_01}
+ * 2. Set `local_curs` to `g_cons`. \llrref{LLR_CONS_POK_CONS_CLEAR_01}
  * 3. Set `i` to `0`; then while `i` is less than `screen_h`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_CONS_POK_CONS_CLEAR_01}
  *    1. Set `j` to `0`; then while `j` is less than `screen_w`, repeat (after
  *       each pass: increment `j`):
  *       1. Set `*ptr` to `0`.
  *       2. Increment `ptr`.
  *       3. Set `*ptr` to `g_cons.cur_attr`.
  *       4. Increment `ptr`.
- * 4. Set `local_curs.row` to `0`.
- * 5. Set `local_curs.col` to `0`.
- * 6. Set `g_cons` to `local_curs`.
+ * 4. Set `local_curs.row` to `0`. \llrref{LLR_CONS_POK_CONS_CLEAR_01}
+ * 5. Set `local_curs.col` to `0`. \llrref{LLR_CONS_POK_CONS_CLEAR_01}
+ * 6. Set `g_cons` to `local_curs`. \llrref{LLR_CONS_POK_CONS_CLEAR_01}
  *
  * @calls
  * None.
@@ -423,20 +517,69 @@ static void pok_cons_clear (void)
  * | `row_bytes` | `const size_t` | The size of one row of the text buffer |
  *
  * @hlr
+ * - \hlrid{HLR_CONS_POK_WRITE_VGA_01}: `pok_write_vga()` shall write a
+ *   character at the cursor of the VGA text screen and move the cursor,
+ *   scrolling the screen up by a line below the last row.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BSP_002}
+ *   - \srqref{SRQ_JET_CONS_003}
+ * - \hlrid{HLR_CONS_POK_WRITE_VGA_02}: `pok_write_vga()` shall move the cursor
+ *   for a carriage return, a line feed and a tab, without writing them to the
+ *   screen.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BSP_002}
+ *   - \srqref{SRQ_JET_CONS_003}
  *
  * @llr
+ * - \llrid{LLR_CONS_POK_WRITE_VGA_01}: If `c` is `'\r'`, `pok_write_vga()`
+ *   shall set the column of the cursor (`col` of `g_cons`) to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_02}
+ * - \llrid{LLR_CONS_POK_WRITE_VGA_02}: If `c` is `'\n'`, `pok_write_vga()`
+ *   shall set the column of the cursor to 0 and increment its row (`row` of
+ *   `g_cons`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_02}
+ * - \llrid{LLR_CONS_POK_WRITE_VGA_03}: If `c` is `'\t'`, `pok_write_vga()`
+ *   shall add to the column of the cursor 8 minus the column modulo 8.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_02}
+ * - \llrid{LLR_CONS_POK_WRITE_VGA_04}: If `c` is none of `'\r'`, `'\n'` and
+ *   `'\t'`, `pok_write_vga()` shall store `c` and then `cur_attr` of `g_cons`
+ *   in the two bytes of the cell of the cursor (at `vga_base` plus 2 times
+ *   `screen_w` times the row, plus 2 times the column), and increment the
+ *   column.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_01}
+ * - \llrid{LLR_CONS_POK_WRITE_VGA_05}: If and only if the column is then
+ *   `screen_w` or more, `pok_write_vga()` shall set the column to 0 and
+ *   increment the row.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_01}
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_02}
+ * - \llrid{LLR_CONS_POK_WRITE_VGA_06}: If and only if the row is then
+ *   `screen_h` or more, `pok_write_vga()` shall call `memmove()` once to move
+ *   the rows 1 to `screen_h` minus 1 of the screen to its start, store 0 and
+ *   `cur_attr` in the two bytes of each of the `screen_w` cells of the last
+ *   row, and set the row to `screen_h` minus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_01}
+ *   - \hlrref{HLR_CONS_POK_WRITE_VGA_02}
  *
  * @design
- * 1. Set `local_curs` to `g_cons`.
- * 2. If `c` is equal to `'\r'`:
+ * 1. Set `local_curs` to `g_cons`. \llrref{LLR_CONS_POK_WRITE_VGA_01},
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_02}, \llrref{LLR_CONS_POK_WRITE_VGA_03},
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_04}, \llrref{LLR_CONS_POK_WRITE_VGA_05},
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_06}
+ * 2. If `c` is equal to `'\r'`: \llrref{LLR_CONS_POK_WRITE_VGA_01}
  *    1. Set `local_curs.col` to `0`.
- * 3. If `c` is equal to `'\n'`:
+ * 3. If `c` is equal to `'\n'`: \llrref{LLR_CONS_POK_WRITE_VGA_02}
  *    1. Set `local_curs.col` to `0`.
  *    2. Increment `local_curs.row`.
- * 4. If `c` is equal to `'\t'`:
+ * 4. If `c` is equal to `'\t'`: \llrref{LLR_CONS_POK_WRITE_VGA_03}
  *    1. Add `tab_size - (local_curs.col % tab_size)` to `local_curs.col`.
  * 5. If `c` is not equal to `'\r'` and `c` is not equal to `'\n'` and `c` is
- *    not equal to `'\t'`:
+ *    not equal to `'\t'`: \llrref{LLR_CONS_POK_WRITE_VGA_04}
  *    1. Set `ptr` to
  *       `vga_base + (2 * screen_w * local_curs.row) + (2 * local_curs.col)`.
  *    2. Increment `local_curs.col`.
@@ -444,9 +587,11 @@ static void pok_cons_clear (void)
  *    4. Increment `ptr`.
  *    5. Set `*ptr` to `local_curs.cur_attr`.
  * 6. If `local_curs.col` is greater than or equal to `screen_w`:
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_05}
  *    1. Set `local_curs.col` to `0`.
  *    2. Increment `local_curs.row`.
  * 7. If `local_curs.row` is greater than or equal to `screen_h`:
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_06}
  *    1. Set `row_bytes` to `(size_t) screen_w * 2U`.
  *    2. Call `memmove()` with the arguments `vga_base`, `vga_base + row_bytes`
  *       and `row_bytes * ((size_t) screen_h - 1U)`.
@@ -457,7 +602,10 @@ static void pok_cons_clear (void)
  *       2. Set `*(vga_base + (2 * screen_w * (screen_h - 1)) + (2 * i) + 1)`
  *          to `local_curs.cur_attr`.
  *    4. Set `local_curs.row` to `screen_h - 1`.
- * 8. Set `g_cons` to `local_curs`.
+ * 8. Set `g_cons` to `local_curs`. \llrref{LLR_CONS_POK_WRITE_VGA_01},
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_02}, \llrref{LLR_CONS_POK_WRITE_VGA_03},
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_04}, \llrref{LLR_CONS_POK_WRITE_VGA_05},
+ *    \llrref{LLR_CONS_POK_WRITE_VGA_06}
  *
  * @calls
  * - `memmove()`
@@ -550,21 +698,49 @@ static void pok_write_vga (const char c)
  * | `rest` | `size_t` | The number of bytes left to write |
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_WRITE_COMMON_01}: `iostream_write_common()` shall
+ *   write all the bytes to a serial port, each line feed as a carriage return
+ *   and a line feed, and to the VGA screen.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_003}
+ *   - \srqref{SRQ_JET_CONS_005}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_WRITE_COMMON_01}: For each of the `length` bytes
+ *   of `s`, in their order, that is not `'\n'`, `iostream_write_common()` shall
+ *   call `write_serial()` once with `port` and the byte.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_WRITE_COMMON_01}
+ * - \llrid{LLR_CONS_IOSTREAM_WRITE_COMMON_02}: For each of the `length` bytes
+ *   of `s`, in their order, that is `'\n'`, `iostream_write_common()` shall
+ *   call `write_serial()` with `port` and `'\r'`, and then with `port` and
+ *   `'\n'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_WRITE_COMMON_01}
+ * - \llrid{LLR_CONS_IOSTREAM_WRITE_COMMON_03}: `iostream_write_common()` shall
+ *   call `pok_write_vga()` once with each of the `length` bytes of `s`, after
+ *   the calls of `write_serial()` for it, and return `length`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_WRITE_COMMON_01}
  *
  * @design
- * 1. Set `rest` to `length`.
+ * 1. Set `rest` to `length`. \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_01},
+ *    \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_02},
+ *    \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_03}
  * 2. While `rest` is greater than `0U`, repeat (after each pass: decrement
- *    `rest`):
+ *    `rest`): \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_01},
+ *    \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_02},
+ *    \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_03}
  *    1. Set `c` to `s[length - rest]`.
  *    2. If `c` is not equal to `'\n'`:
+ *       \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_01}
  *       1. Call `write_serial()` with the arguments `port` and `c`.
- *    3. Otherwise:
+ *    3. Otherwise: \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_02}
  *       1. Call `write_serial()` with the arguments `port` and `'\r'`.
  *       2. Call `write_serial()` with the arguments `port` and `'\n'`.
  *    4. Call `pok_write_vga()` with the argument `c`.
- * 3. Return `length`.
+ *       \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_03}
+ * 3. Return `length`. \llrref{LLR_CONS_IOSTREAM_WRITE_COMMON_03}
  *
  * @calls
  * - `write_serial()`
@@ -612,19 +788,40 @@ static size_t iostream_write_common (int32_t port, const char *s, size_t length)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_INIT_COMMON_01}: `iostream_init_common()` shall
+ *   clear the VGA screen and set up a serial port at 38400 baud, 8 data bits,
+ *   no parity, one stop bit, with its FIFOs and no interrupts.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BSP_002}
+ *   - \srqref{SRQ_JET_BOOT_003}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_INIT_COMMON_01}: `iostream_init_common()` shall
+ *   call `pok_cons_clear()` once, set `g_cons.cur_attr` to `0x07`, and then
+ *   write with `outb()`, in this order, `0x00` to `port + 1`, `0x80` to `port +
+ *   3`, `0x03` to `port`, `0x00` to `port + 1`, `0x03` to `port + 3`, `0xC7` to
+ *   `port + 2` and `0x0B` to `port + 4`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_INIT_COMMON_01}
  *
  * @design
- * 1. Call `pok_cons_clear()`.
+ * 1. Call `pok_cons_clear()`. \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 2. Set `g_cons.cur_attr` to `(char) 0x07U`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 3. Use the macro `outb((uint16_t)port + 1U, 0x00)`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 4. Use the macro `outb((uint16_t)port + 3U, 0x80)`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 5. Use the macro `outb((uint16_t)port, 0x03)`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 6. Use the macro `outb((uint16_t)port + 1U, 0x00)`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 7. Use the macro `outb((uint16_t)port + 3U, 0x03)`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 8. Use the macro `outb((uint16_t)port + 2U, 0xC7)`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  * 9. Use the macro `outb((uint16_t)port + 4U, 0x0B)`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_COMMON_01}
  *
  * @calls
  * - `pok_cons_clear()`
@@ -667,12 +864,20 @@ static void iostream_init_common (int32_t port)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_READ_MAIN_01}: `iostream_read_main()` shall read
+ *   the main console from the first serial port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_004}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_READ_MAIN_01}: `iostream_read_main()` shall return
+ *   the result of `iostream_read_common()` for `COM0`, `s` and `length`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_READ_MAIN_01}
  *
  * @design
  * 1. Call `iostream_read_common()` with the arguments `COM0`, `s` and `length`,
- *    and return its result.
+ *    and return its result. \llrref{LLR_CONS_IOSTREAM_READ_MAIN_01}
  *
  * @calls
  * - `iostream_read_common()`
@@ -703,12 +908,22 @@ static size_t iostream_read_main(char* s, size_t length)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_WRITE_MAIN_01}: `iostream_write_main()` shall
+ *   write the main console to the first serial port and the VGA screen.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_005}
+ *   - \srqref{SRQ_JET_CONS_003}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_WRITE_MAIN_01}: `iostream_write_main()` shall
+ *   return the result of `iostream_write_common()` for `COM0`, `s` and
+ *   `length`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_WRITE_MAIN_01}
  *
  * @design
  * 1. Call `iostream_write_common()` with the arguments `COM0`, `s` and
- *    `length`, and return its result.
+ *    `length`, and return its result. \llrref{LLR_CONS_IOSTREAM_WRITE_MAIN_01}
  *
  * @calls
  * - `iostream_write_common()`
@@ -731,11 +946,20 @@ static size_t iostream_write_main(const char* s, size_t length)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_INIT_MAIN_01}: `iostream_init_main()` shall
+ *   initialize the screen and the first serial port for the main console.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_003}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_INIT_MAIN_01}: `iostream_init_main()` shall call
+ *   `iostream_init_common()` once with `COM0`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_INIT_MAIN_01}
  *
  * @design
  * 1. Call `iostream_init_common()` with the argument `COM0`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_MAIN_01}
  *
  * @calls
  * - `iostream_init_common()`
@@ -775,12 +999,20 @@ static jet_iostream_t x86_stream_main =
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_READ_DEBUG_01}: `iostream_read_debug()` shall read
+ *   the debug console from the second serial port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_004}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_READ_DEBUG_01}: `iostream_read_debug()` shall
+ *   return the result of `iostream_read_common()` for `COM1`, `s` and `length`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_READ_DEBUG_01}
  *
  * @design
  * 1. Call `iostream_read_common()` with the arguments `COM1`, `s` and `length`,
- *    and return its result.
+ *    and return its result. \llrref{LLR_CONS_IOSTREAM_READ_DEBUG_01}
  *
  * @calls
  * - `iostream_read_common()`
@@ -814,14 +1046,24 @@ static size_t iostream_read_debug(char* s, size_t length)
  * | `i` | `size_t` | The index of the byte being written |
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_WRITE_DEBUG_01}: `iostream_write_debug()` shall
+ *   write the debug console to the second serial port unchanged, and not to the
+ *   screen.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_007}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_WRITE_DEBUG_01}: `iostream_write_debug()` shall
+ *   call `write_serial()` with `COM1` and each of the `length` bytes of `s`, in
+ *   their order, and return `length`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_WRITE_DEBUG_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `length`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_CONS_IOSTREAM_WRITE_DEBUG_01}
  *    1. Call `write_serial()` with the arguments `COM1` and `s[i]`.
- * 2. Return `length`.
+ * 2. Return `length`. \llrref{LLR_CONS_IOSTREAM_WRITE_DEBUG_01}
  *
  * @calls
  * - `write_serial()`
@@ -848,11 +1090,20 @@ static size_t iostream_write_debug(const char* s, size_t length)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CONS_IOSTREAM_INIT_DEBUG_01}: `iostream_init_debug()` shall
+ *   initialize the screen and the second serial port for the debug console.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_003}
  *
  * @llr
+ * - \llrid{LLR_CONS_IOSTREAM_INIT_DEBUG_01}: `iostream_init_debug()` shall call
+ *   `iostream_init_common()` once with `COM1`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CONS_IOSTREAM_INIT_DEBUG_01}
  *
  * @design
  * 1. Call `iostream_init_common()` with the argument `COM1`.
+ *    \llrref{LLR_CONS_IOSTREAM_INIT_DEBUG_01}
  *
  * @calls
  * - `iostream_init_common()`

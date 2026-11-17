@@ -36,6 +36,14 @@
  * hypervisor/csps); system registers are accessed with read_sysreg(),
  * write_sysreg() and isb(), shared with the kernel; memset() of the library
  * shared with the kernel replaces hv_memset().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -75,33 +83,70 @@
  * | `pmcr` | `uint64_t` | PMCR_EL0: the number of performance counters |
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_HV_ARCH_CPU_ENABLE_01}: `hv_arch_cpu_enable()` shall
+ *   prepare the calling CPU to run the guest of its vCPU at exception level 1:
+ *   the controls of exception level 2, the stage 2 translation of its VM, and
+ *   the interrupt controller.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_005}
+ *   - \srqref{SRQ_HV_CPU_010}
+ *   - \srqref{SRQ_HV_MEM_001}
+ * - \hlrid{HLR_VCPU_HV_ARCH_CPU_ENABLE_02}: `hv_arch_cpu_enable()` shall show
+ *   the guest the identity of the processor of the host, with the number of the
+ *   vCPU as its affinity, and give it its timers and counter.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_004}
+ *   - \srqref{SRQ_HV_TMR_003}
  *
  * @llr
+ * - \llrid{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}: `hv_arch_cpu_enable()` shall write,
+ *   in this order, the address of the saved registers of the vCPU of the CPU to
+ *   TPIDR_EL2, `VTCR_VALUE` to VTCR_EL2, `vttbr` of the VM of the vCPU to
+ *   VTTBR_EL2, `HCR_VALUE` to HCR_EL2, `CPTR_EL2_RES1` to CPTR_EL2, 0 to
+ *   HSTR_EL2, and the field `PMCR_N_MASK` at `PMCR_N_SHIFT` of PMCR_EL0 to
+ *   MDCR_EL2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_CPU_ENABLE_01}
+ * - \llrid{LLR_VCPU_HV_ARCH_CPU_ENABLE_02}: `hv_arch_cpu_enable()` shall then
+ *   write `CNTHCTL_EL1_ACCESS` to CNTHCTL_EL2, the value of MIDR_EL1 to
+ *   VPIDR_EL2, and `VMPIDR_RES1` with the index of the vCPU to VMPIDR_EL2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_CPU_ENABLE_02}
+ * - \llrid{LLR_VCPU_HV_ARCH_CPU_ENABLE_03}: `hv_arch_cpu_enable()` shall then
+ *   call, in this order, `isb()` and `gic_init_cpu()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  *
  * @design
  * 1. Set `vcpu` to the address of `cpu->vcpu`.
+ *    \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01},
+ *    \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_02}
  * 2. Set `pmcr` to `read_sysreg(pmcr_el0)`.
+ *    \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 3. Use the macro `write_sysreg()` with the arguments `tpidr_el2` and
  *    `(uint64_t) (uintptr_t) &vcpu->arch.regs`.
+ *    \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 4. Use the macro `write_sysreg()` with the arguments `vtcr_el2` and
- *    `VTCR_VALUE`.
+ *    `VTCR_VALUE`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 5. Use the macro `write_sysreg()` with the arguments `vttbr_el2` and
- *    `vcpu->vm->arch.vttbr`.
+ *    `vcpu->vm->arch.vttbr`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 6. Use the macro `write_sysreg()` with the arguments `hcr_el2` and
- *    `HCR_VALUE`.
+ *    `HCR_VALUE`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 7. Use the macro `write_sysreg()` with the arguments `cptr_el2` and
- *    `CPTR_EL2_RES1`.
+ *    `CPTR_EL2_RES1`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 8. Use the macro `write_sysreg()` with the arguments `hstr_el2` and `0U`.
+ *    \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 9. Use the macro `write_sysreg()` with the arguments `mdcr_el2` and
  *    `(pmcr >> PMCR_N_SHIFT) & PMCR_N_MASK`.
+ *    \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_01}
  * 10. Use the macro `write_sysreg()` with the arguments `cnthctl_el2` and
- *     `CNTHCTL_EL1_ACCESS`.
+ *     `CNTHCTL_EL1_ACCESS`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_02}
  * 11. Use the macro `write_sysreg()` with the arguments `vpidr_el2` and
- *     `read_sysreg(midr_el1)`.
+ *     `read_sysreg(midr_el1)`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_02}
  * 12. Use the macro `write_sysreg()` with the arguments `vmpidr_el2` and
- *     `VMPIDR_RES1 | vcpu->index`.
- * 13. Call `isb()`.
- * 14. Call `gic_init_cpu()`.
+ *     `VMPIDR_RES1 | vcpu->index`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_02}
+ * 13. Call `isb()`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_03}
+ * 14. Call `gic_init_cpu()`. \llrref{LLR_VCPU_HV_ARCH_CPU_ENABLE_03}
  *
  * @calls
  * - `isb()`
@@ -146,52 +191,79 @@ void hv_arch_cpu_enable(hv_cpu_t *cpu)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_RESET_EL1_01}: `reset_el1()` shall set the registers of
+ *   exception level 1 that a kernel may rely on, and the timers, to their reset
+ *   values.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_006}
  *
  * @llr
+ * - \llrid{LLR_VCPU_RESET_EL1_01}: `reset_el1()` shall write `SCTLR_EL1_RESET`
+ *   to SCTLR_EL1, and 0 to TCR_EL1, TTBR0_EL1, TTBR1_EL1, MAIR_EL1, AMAIR_EL1,
+ *   VBAR_EL1, CPACR_EL1, CONTEXTIDR_EL1, TPIDR_EL1, TPIDR_EL0, TPIDRRO_EL0,
+ *   SP_EL0, SP_EL1, ELR_EL1, SPSR_EL1, ESR_EL1, FAR_EL1, AFSR0_EL1, AFSR1_EL1,
+ *   PAR_EL1, CSSELR_EL1, MDSCR_EL1, CNTKCTL_EL1, CNTV_CTL_EL0, CNTV_CVAL_EL0,
+ *   CNTP_CTL_EL0 and CNTP_CVAL_EL0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_RESET_EL1_01}
  *
  * @design
  * 1. Use the macro `write_sysreg()` with the arguments `sctlr_el1` and
- *    `SCTLR_EL1_RESET`.
+ *    `SCTLR_EL1_RESET`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 2. Use the macro `write_sysreg()` with the arguments `tcr_el1` and `0U`.
+ *    \llrref{LLR_VCPU_RESET_EL1_01}
  * 3. Use the macro `write_sysreg()` with the arguments `ttbr0_el1` and `0U`.
+ *    \llrref{LLR_VCPU_RESET_EL1_01}
  * 4. Use the macro `write_sysreg()` with the arguments `ttbr1_el1` and `0U`.
+ *    \llrref{LLR_VCPU_RESET_EL1_01}
  * 5. Use the macro `write_sysreg()` with the arguments `mair_el1` and `0U`.
+ *    \llrref{LLR_VCPU_RESET_EL1_01}
  * 6. Use the macro `write_sysreg()` with the arguments `amair_el1` and `0U`.
+ *    \llrref{LLR_VCPU_RESET_EL1_01}
  * 7. Use the macro `write_sysreg()` with the arguments `vbar_el1` and `0U`.
+ *    \llrref{LLR_VCPU_RESET_EL1_01}
  * 8. Use the macro `write_sysreg()` with the arguments `cpacr_el1` and `0U`.
+ *    \llrref{LLR_VCPU_RESET_EL1_01}
  * 9. Use the macro `write_sysreg()` with the arguments `contextidr_el1` and
- *    `0U`.
+ *    `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 10. Use the macro `write_sysreg()` with the arguments `tpidr_el1` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 11. Use the macro `write_sysreg()` with the arguments `tpidr_el0` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 12. Use the macro `write_sysreg()` with the arguments `tpidrro_el0` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 13. Use the macro `write_sysreg()` with the arguments `sp_el0` and `0U`.
+ *     \llrref{LLR_VCPU_RESET_EL1_01}
  * 14. Use the macro `write_sysreg()` with the arguments `sp_el1` and `0U`.
+ *     \llrref{LLR_VCPU_RESET_EL1_01}
  * 15. Use the macro `write_sysreg()` with the arguments `elr_el1` and `0U`.
+ *     \llrref{LLR_VCPU_RESET_EL1_01}
  * 16. Use the macro `write_sysreg()` with the arguments `spsr_el1` and `0U`.
+ *     \llrref{LLR_VCPU_RESET_EL1_01}
  * 17. Use the macro `write_sysreg()` with the arguments `esr_el1` and `0U`.
+ *     \llrref{LLR_VCPU_RESET_EL1_01}
  * 18. Use the macro `write_sysreg()` with the arguments `far_el1` and `0U`.
+ *     \llrref{LLR_VCPU_RESET_EL1_01}
  * 19. Use the macro `write_sysreg()` with the arguments `afsr0_el1` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 20. Use the macro `write_sysreg()` with the arguments `afsr1_el1` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 21. Use the macro `write_sysreg()` with the arguments `par_el1` and `0U`.
+ *     \llrref{LLR_VCPU_RESET_EL1_01}
  * 22. Use the macro `write_sysreg()` with the arguments `csselr_el1` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 23. Use the macro `write_sysreg()` with the arguments `mdscr_el1` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 24. Use the macro `write_sysreg()` with the arguments `cntkctl_el1` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 25. Use the macro `write_sysreg()` with the arguments `cntv_ctl_el0` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 26. Use the macro `write_sysreg()` with the arguments `cntv_cval_el0` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 27. Use the macro `write_sysreg()` with the arguments `cntp_ctl_el0` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  * 28. Use the macro `write_sysreg()` with the arguments `cntp_cval_el0` and
- *     `0U`.
+ *     `0U`. \llrref{LLR_VCPU_RESET_EL1_01}
  *
  * @calls
  * None.
@@ -252,25 +324,59 @@ static void reset_el1(void)
  * | `host_sp` | `uint64_t` | The hypervisor's stack pointer, kept |
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_HV_ARCH_VCPU_INIT_01}: `hv_arch_vcpu_init()` shall set the
+ *   state of a vCPU at the first start of its VM and at each reset as QEMU
+ *   leaves a kernel: at its entry point at exception level 1 with the MMU off
+ *   and exceptions masked, and the address of the device tree in x0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_006}
+ * - \hlrid{HLR_VCPU_HV_ARCH_VCPU_INIT_02}: `hv_arch_vcpu_init()` shall make the
+ *   virtual counter of the guest start at 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_003}
  *
  * @llr
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_INIT_01}: `hv_arch_vcpu_init()` shall set
+ *   every byte of the saved registers of the vCPU to 0 with `memset()`, except
+ *   `host_sp`, which keeps its value, and then set `x[0]` to `HV_GUEST_RAM`,
+ *   `elr` to the entry of the configuration of the VM and `spsr` to
+ *   `SPSR_EL1H_MASKED`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_INIT_01}
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_INIT_02}: `hv_arch_vcpu_init()` shall then
+ *   call, in this order, `reset_el1()`, `gic_vcpu_reset()` and `isb()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_INIT_01}
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_INIT_03}: `hv_arch_vcpu_init()` shall then
+ *   write the value of CNTPCT_EL0 to CNTVOFF_EL2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_INIT_02}
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_INIT_04}: `hv_arch_vcpu_init()` shall then
+ *   call, in this order, `arm64_tlbi_vmalls12e1()`, `arm64_dsb_ish()` and
+ *   `isb()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_INIT_01}
  *
  * @design
  * 1. Set `regs` to the address of `vcpu->arch.regs`.
- * 2. Set `host_sp` to `regs->host_sp`.
+ *    \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_01}
+ * 2. Set `host_sp` to `regs->host_sp`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_01}
  * 3. Call `memset()` with the arguments `regs`, `0` and `sizeof(*regs)`.
- * 4. Set `regs->host_sp` to `host_sp`.
- * 5. Set `regs->x[0]` to `HV_GUEST_RAM`.
+ *    \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_01}
+ * 4. Set `regs->host_sp` to `host_sp`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_01}
+ * 5. Set `regs->x[0]` to `HV_GUEST_RAM`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_01}
  * 6. Set `regs->elr` to `vcpu->vm->config->entry`.
+ *    \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_01}
  * 7. Set `regs->spsr` to `SPSR_EL1H_MASKED`.
- * 8. Call `reset_el1()`.
- * 9. Call `gic_vcpu_reset()`.
- * 10. Call `isb()`.
+ *    \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_01}
+ * 8. Call `reset_el1()`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_02}
+ * 9. Call `gic_vcpu_reset()`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_02}
+ * 10. Call `isb()`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_02}
  * 11. Use the macro `write_sysreg()` with the arguments `cntvoff_el2` and
- *     `read_sysreg(cntpct_el0)`.
- * 12. Call `arm64_tlbi_vmalls12e1()`.
- * 13. Call `arm64_dsb_ish()`.
- * 14. Call `isb()`.
+ *     `read_sysreg(cntpct_el0)`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_03}
+ * 12. Call `arm64_tlbi_vmalls12e1()`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_04}
+ * 13. Call `arm64_dsb_ish()`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_04}
+ * 14. Call `isb()`. \llrref{LLR_VCPU_HV_ARCH_VCPU_INIT_04}
  *
  * @calls
  * - `memset()`
@@ -321,18 +427,34 @@ void hv_arch_vcpu_init(hv_vcpu_t *vcpu)
  * | `name` | `const char *` | The VM's name |
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_HV_REPORT_STATE_01}: `hv_report_state()` shall report the
+ *   main registers of a vCPU whose VM stops.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_003}
+ *   - \srqref{SRQ_HV_ERR_001}
  *
  * @llr
+ * - \llrid{LLR_VCPU_HV_REPORT_STATE_01}: `hv_report_state()` shall call
+ *   `hv_printf()` once with `"[hv] %%s: PC 0x%%lx PSTATE 0x%%lx ESR 0x%%lx FAR
+ *   0x%%lx\n[hv] %%s: SCTLR_EL1 0x%%lx TTBR0_EL1 0x%%lx VBAR_EL1 0x%%lx\n"`,
+ *   the name of the VM, `elr` and `spsr` of the saved registers of the vCPU,
+ *   ESR_EL2 and FAR_EL2, the name of the VM again, and SCTLR_EL1, TTBR0_EL1 and
+ *   VBAR_EL1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_REPORT_STATE_01}
  *
  * @design
  * 1. Set `regs` to the address of `vcpu->arch.regs`.
+ *    \llrref{LLR_VCPU_HV_REPORT_STATE_01}
  * 2. Set `name` to `vcpu->vm->config->name`.
+ *    \llrref{LLR_VCPU_HV_REPORT_STATE_01}
  * 3. Call `hv_printf()` with the arguments
  *    `"[hv] %%s: PC 0x%%lx PSTATE 0x%%lx ESR 0x%%lx FAR 0x%%lx\n"`
  *    `"[hv] %%s: SCTLR_EL1 0x%%lx TTBR0_EL1 0x%%lx VBAR_EL1 0x%%lx\n"`, `name`,
  *    `regs->elr`, `regs->spsr`, `read_sysreg(esr_el2)`,
  *    `read_sysreg(far_el2)`, `name`, `read_sysreg(sctlr_el1)`,
  *    `read_sysreg(ttbr0_el1)` and `read_sysreg(vbar_el1)`.
+ *    \llrref{LLR_VCPU_HV_REPORT_STATE_01}
  *
  * @calls
  * - `hv_printf()`
@@ -370,17 +492,32 @@ void hv_report_state(const hv_vcpu_t *vcpu)
  * | `ipa` | `uint64_t` | The guest-physical address (HPFAR_EL2 and FAR_EL2) |
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_REPORT_FETCH_01}: `report_fetch()` shall report an
+ *   instruction fetch of a guest outside its RAM.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_MEM_002}
+ *   - \srqref{SRQ_HV_ERR_001}
  *
  * @llr
+ * - \llrid{LLR_VCPU_REPORT_FETCH_01}: `report_fetch()` shall call `hv_printf()`
+ *   once with `"[hv] %%s: instruction fetch from guest-physical address 0x%%lx
+ *   outside its RAM (ESR 0x%%lx)\n"`, the name of the VM, the guest physical
+ *   address (the bits of HPFAR_EL2 from `HPFAR_FIPA_SHIFT` up, shifted left by
+ *   12, with the bits `PAGE_OFFSET_MASK` of FAR_EL2) and `esr`, and then
+ *   `hv_report_state()` once with `vcpu`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_REPORT_FETCH_01}
  *
  * @design
  * 1. Set `ipa` to `((read_sysreg(hpfar_el2) >> HPFAR_FIPA_SHIFT) << 12) |`
  *    `(read_sysreg(far_el2) & PAGE_OFFSET_MASK)`.
+ *    \llrref{LLR_VCPU_REPORT_FETCH_01}
  * 2. Call `hv_printf()` with the arguments
  *    `"[hv] %%s: instruction fetch from guest-physical address "`
  *    `"0x%%lx outside its RAM (ESR 0x%%lx)\n"`, `vcpu->vm->config->name`, `ipa`
- *    and `esr`.
+ *    and `esr`. \llrref{LLR_VCPU_REPORT_FETCH_01}
  * 3. Call `hv_report_state()` with the argument `vcpu`.
+ *    \llrref{LLR_VCPU_REPORT_FETCH_01}
  *
  * @calls
  * - `hv_printf()`
@@ -423,44 +560,104 @@ static void report_fetch(const hv_vcpu_t *vcpu, uint64_t esr)
  * | `action` | `hv_action_e` | What the run loop does next |
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_HANDLE_SYNC_01}: `handle_sync()` shall handle a synchronous
+ *   exception of a guest: a power state call, an access to a device, a wait
+ *   instruction (which goes on), or stop the VM.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_010}
+ * - \hlrid{HLR_VCPU_HANDLE_SYNC_02}: `handle_sync()` shall answer the power
+ *   state calls that a guest makes with the hypervisor call or the secure
+ *   monitor call.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_DEV_005}
+ * - \hlrid{HLR_VCPU_HANDLE_SYNC_03}: `handle_sync()` shall stop the VM, with a
+ *   message, for an instruction fetch outside its RAM or an unexpected
+ *   exception.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_MEM_002}
+ *   - \srqref{SRQ_HV_ERR_001}
  *
  * @llr
+ * - \llrid{LLR_VCPU_HANDLE_SYNC_01}: If the exception class (the field
+ *   `ESR_EC_MASK` at `ESR_EC_SHIFT` of `esr`) is `EC_HVC64`, `handle_sync()`
+ *   shall return the result of `psci_guest_call()` for `vcpu` and the bits
+ *   `ESR_ISS_IMM16` of `esr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_SYNC_02}
+ * - \llrid{LLR_VCPU_HANDLE_SYNC_02}: If the exception class is `EC_SMC64`,
+ *   `handle_sync()` shall add 4 to `elr` of the saved registers of the vCPU and
+ *   return the result of `psci_guest_call()` for `vcpu` and the bits
+ *   `ESR_ISS_IMM16` of `esr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_SYNC_02}
+ * - \llrid{LLR_VCPU_HANDLE_SYNC_03}: If the exception class is `EC_DABT_LOW`,
+ *   `handle_sync()` shall return the result of `mmio_abort()` for `vcpu` and
+ *   `esr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_SYNC_01}
+ * - \llrid{LLR_VCPU_HANDLE_SYNC_04}: If the exception class is `EC_IABT_LOW`,
+ *   `handle_sync()` shall call `report_fetch()` once with `vcpu` and `esr`, and
+ *   return `HV_STOP`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_SYNC_03}
+ * - \llrid{LLR_VCPU_HANDLE_SYNC_05}: If the exception class is `EC_WFX`,
+ *   `handle_sync()` shall add 4 to `elr` of the saved registers of the vCPU and
+ *   return `HV_CONTINUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_SYNC_01}
+ * - \llrid{LLR_VCPU_HANDLE_SYNC_06}: If the exception class is none of
+ *   `EC_HVC64`, `EC_SMC64`, `EC_DABT_LOW`, `EC_IABT_LOW` and `EC_WFX`,
+ *   `handle_sync()` shall call `hv_printf()` once with `"[hv] %%s: unexpected
+ *   exception (ESR 0x%%lx)\n"`, the name of the VM and `esr`, then
+ *   `hv_report_state()` once with `vcpu`, and return `HV_STOP`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_SYNC_03}
  *
  * @design
  * 1. Set `regs` to the address of `vcpu->arch.regs`.
- * 2. Set `name` to `vcpu->vm->config->name`.
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_02}, \llrref{LLR_VCPU_HANDLE_SYNC_05}
+ * 2. Set `name` to `vcpu->vm->config->name`. \llrref{LLR_VCPU_HANDLE_SYNC_06}
  * 3. Set `ec` to `(uint32_t) ((esr >> ESR_EC_SHIFT) & ESR_EC_MASK)`.
- * 4. Set `action` to `HV_CONTINUE`.
- * 5. Depending on `ec`:
- *    1. Case `EC_HVC64`:
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_01}, \llrref{LLR_VCPU_HANDLE_SYNC_02},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_03}, \llrref{LLR_VCPU_HANDLE_SYNC_04},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_05}, \llrref{LLR_VCPU_HANDLE_SYNC_06}
+ * 4. Set `action` to `HV_CONTINUE`. \llrref{LLR_VCPU_HANDLE_SYNC_05}
+ * 5. Depending on `ec`: \llrref{LLR_VCPU_HANDLE_SYNC_01},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_02}, \llrref{LLR_VCPU_HANDLE_SYNC_03},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_04}, \llrref{LLR_VCPU_HANDLE_SYNC_05},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_06}
+ *    1. Case `EC_HVC64`: \llrref{LLR_VCPU_HANDLE_SYNC_01}
  *       1. Call `psci_guest_call()` with the arguments `vcpu` and
  *          `(uint32_t) (esr & ESR_ISS_IMM16)`, and store the result in
  *          `action`.
  *       2. Leave the switch.
- *    2. Case `EC_SMC64`:
+ *    2. Case `EC_SMC64`: \llrref{LLR_VCPU_HANDLE_SYNC_02}
  *       1. Add `4U` to `regs->elr`.
  *       2. Call `psci_guest_call()` with the arguments `vcpu` and
  *          `(uint32_t) (esr & ESR_ISS_IMM16)`, and store the result in
  *          `action`.
  *       3. Leave the switch.
- *    3. Case `EC_DABT_LOW`:
+ *    3. Case `EC_DABT_LOW`: \llrref{LLR_VCPU_HANDLE_SYNC_03}
  *       1. Call `mmio_abort()` with the arguments `vcpu` and `esr`, and store
  *          the result in `action`.
  *       2. Leave the switch.
- *    4. Case `EC_IABT_LOW`:
+ *    4. Case `EC_IABT_LOW`: \llrref{LLR_VCPU_HANDLE_SYNC_04}
  *       1. Call `report_fetch()` with the arguments `vcpu` and `esr`.
  *       2. Set `action` to `HV_STOP`.
  *       3. Leave the switch.
- *    5. Case `EC_WFX`:
+ *    5. Case `EC_WFX`: \llrref{LLR_VCPU_HANDLE_SYNC_05}
  *       1. Add `4U` to `regs->elr`.
  *       2. Leave the switch.
- *    6. Otherwise (default):
+ *    6. Otherwise (default): \llrref{LLR_VCPU_HANDLE_SYNC_06}
  *       1. Call `hv_printf()` with the arguments
  *          `"[hv] %%s: unexpected exception (ESR 0x%%lx)\n"`, `name` and `esr`.
  *       2. Call `hv_report_state()` with the argument `vcpu`.
  *       3. Set `action` to `HV_STOP`.
  *       4. Leave the switch.
- * 6. Return `action`.
+ * 6. Return `action`. \llrref{LLR_VCPU_HANDLE_SYNC_01},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_02}, \llrref{LLR_VCPU_HANDLE_SYNC_03},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_04}, \llrref{LLR_VCPU_HANDLE_SYNC_05},
+ *    \llrref{LLR_VCPU_HANDLE_SYNC_06}
  *
  * @calls
  * - `psci_guest_call()`
@@ -530,36 +727,91 @@ static hv_action_e handle_sync(hv_vcpu_t *vcpu, uint64_t esr)
  * | `action` | `hv_action_e` | What the run loop does next |
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_HANDLE_EXIT_01}: `handle_exit()` shall handle an exit of
+ *   the guest: a synchronous exception, a physical interrupt, or an FIQ, which
+ *   is reported once.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_010}
+ *   - \srqref{SRQ_HV_INT_011}
+ * - \hlrid{HLR_VCPU_HANDLE_EXIT_02}: `handle_exit()` shall stop the VM, with a
+ *   message and its registers, for a system error or an exception from 32-bit
+ *   code.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_001}
  *
  * @llr
+ * - \llrid{LLR_VCPU_HANDLE_EXIT_01}: If `exit` is `HV_EXIT_SYNC`,
+ *   `handle_exit()` shall return the result of `handle_sync()` for the vCPU of
+ *   the CPU and ESR_EL2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_EXIT_01}
+ * - \llrid{LLR_VCPU_HANDLE_EXIT_02}: If `exit` is `HV_EXIT_IRQ`,
+ *   `handle_exit()` shall call `gic_handle_irq()` once with `cpu` and return
+ *   `HV_CONTINUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_EXIT_01}
+ * - \llrid{LLR_VCPU_HANDLE_EXIT_03}: If `exit` is `HV_EXIT_FIQ` and
+ *   `fiq_logged` of the CPU is false, `handle_exit()` shall set `fiq_logged` to
+ *   true, call `hv_printf()` once with `"[hv] CPU %%u: unexpected FIQ\n"` and
+ *   the index of the CPU, and return `HV_CONTINUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_EXIT_01}
+ * - \llrid{LLR_VCPU_HANDLE_EXIT_04}: If `exit` is `HV_EXIT_FIQ` and
+ *   `fiq_logged` of the CPU is true, `handle_exit()` shall return `HV_CONTINUE`
+ *   without calling `hv_printf()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_EXIT_01}
+ * - \llrid{LLR_VCPU_HANDLE_EXIT_05}: If `exit` is `HV_EXIT_SERROR`,
+ *   `handle_exit()` shall call `hv_printf()` once with `"[hv] %%s: SError (ESR
+ *   0x%%lx)\n"`, the name of the VM and ESR_EL2, then `hv_report_state()` once
+ *   with the vCPU, and return `HV_STOP`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_EXIT_02}
+ * - \llrid{LLR_VCPU_HANDLE_EXIT_06}: If `exit` is none of `HV_EXIT_SYNC`,
+ *   `HV_EXIT_IRQ`, `HV_EXIT_FIQ` and `HV_EXIT_SERROR`, `handle_exit()` shall
+ *   call `hv_printf()` once with `"[hv] %%s: exception from AArch32 code, which
+ *   isn't supported\n"` and the name of the VM, then `hv_report_state()` once
+ *   with the vCPU, and return `HV_STOP`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HANDLE_EXIT_02}
  *
  * @design
  * 1. Set `vcpu` to the address of `cpu->vcpu`.
- * 2. Set `name` to `vcpu->vm->config->name`.
- * 3. Set `action` to `HV_CONTINUE`.
- * 4. If `exit` is equal to `HV_EXIT_SYNC`:
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_01}, \llrref{LLR_VCPU_HANDLE_EXIT_05},
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_06}
+ * 2. Set `name` to `vcpu->vm->config->name`. \llrref{LLR_VCPU_HANDLE_EXIT_05},
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_06}
+ * 3. Set `action` to `HV_CONTINUE`. \llrref{LLR_VCPU_HANDLE_EXIT_02},
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_03}, \llrref{LLR_VCPU_HANDLE_EXIT_04}
+ * 4. If `exit` is equal to `HV_EXIT_SYNC`: \llrref{LLR_VCPU_HANDLE_EXIT_01}
  *    1. Call `handle_sync()` with the arguments `vcpu` and
  *       `read_sysreg(esr_el2)`, and store the result in `action`.
  * 5. Otherwise, if `exit` is equal to `HV_EXIT_IRQ`:
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_02}
  *    1. Call `gic_handle_irq()` with the argument `cpu`.
  * 6. Otherwise, if `exit` is equal to `HV_EXIT_FIQ`:
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_03}, \llrref{LLR_VCPU_HANDLE_EXIT_04}
  *    1. If `cpu->arch.fiq_logged` is false:
  *       1. Set `cpu->arch.fiq_logged` to `true`.
  *       2. Call `hv_printf()` with the arguments
  *          `"[hv] CPU %%u: unexpected FIQ\n"` and `cpu->index`.
  * 7. Otherwise, if `exit` is equal to `HV_EXIT_SERROR`:
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_05}
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] %%s: SError (ESR 0x%%lx)\n"`, `name` and
  *       `read_sysreg(esr_el2)`.
  *    2. Call `hv_report_state()` with the argument `vcpu`.
  *    3. Set `action` to `HV_STOP`.
- * 8. Otherwise:
+ * 8. Otherwise: \llrref{LLR_VCPU_HANDLE_EXIT_06}
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] %%s: exception from AArch32 code, which isn't " "supported\n"`
  *       and `name`.
  *    2. Call `hv_report_state()` with the argument `vcpu`.
  *    3. Set `action` to `HV_STOP`.
- * 9. Return `action`.
+ * 9. Return `action`. \llrref{LLR_VCPU_HANDLE_EXIT_01},
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_02}, \llrref{LLR_VCPU_HANDLE_EXIT_03},
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_04}, \llrref{LLR_VCPU_HANDLE_EXIT_05},
+ *    \llrref{LLR_VCPU_HANDLE_EXIT_06}
  *
  * @calls
  * - `handle_sync()`
@@ -620,27 +872,69 @@ static hv_action_e handle_exit(hv_cpu_t *cpu, uint64_t exit)
  * | `action` | `hv_action_e` | What to do after the exit |
  *
  * @hlr
+ * - \hlrid{HLR_VCPU_HV_ARCH_VCPU_RUN_01}: `hv_arch_vcpu_run()` shall run the
+ *   guest of a vCPU for ever, handling its exits.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_005}
+ *   - \srqref{SRQ_HV_CPU_010}
+ * - \hlrid{HLR_VCPU_HV_ARCH_VCPU_RUN_02}: `hv_arch_vcpu_run()` shall load the
+ *   VM again and restart it when its guest resets it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_007}
+ * - \hlrid{HLR_VCPU_HV_ARCH_VCPU_RUN_03}: `hv_arch_vcpu_run()` shall stop only
+ *   this VM, with a message, halting its CPU, when it must stop.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_001}
+ *   - \srqref{SRQ_HV_ERR_002}
+ *   - \srqref{SRQ_HV_CPU_007}
  *
  * @llr
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_RUN_01}: `hv_arch_vcpu_run()` shall, again and
+ *   again without returning, call `hv_guest_enter()` with the saved registers
+ *   of the vCPU of the CPU, and then `handle_exit()` with `cpu` and the result
+ *   of `hv_guest_enter()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_RUN_01}
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_RUN_02}: If `handle_exit()` returns
+ *   `HV_RESET`, `hv_arch_vcpu_run()` shall increment `resets` of the VM and
+ *   call, in this order, `vm_print()` with the VM and `"reset"`, `vm_load()`
+ *   with the VM and `hv_arch_vcpu_init()` with the vCPU, before it enters the
+ *   guest again.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_RUN_02}
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_RUN_03}: If `handle_exit()` returns `HV_STOP`,
+ *   `hv_arch_vcpu_run()` shall call `vm_print()` with the VM and `"stopped"`,
+ *   and then `hv_halt_forever()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_RUN_03}
+ * - \llrid{LLR_VCPU_HV_ARCH_VCPU_RUN_04}: If `handle_exit()` returns neither
+ *   `HV_RESET` nor `HV_STOP`, `hv_arch_vcpu_run()` shall enter the guest again
+ *   without calling `vm_print()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VCPU_HV_ARCH_VCPU_RUN_01}
  *
  * @design
  * 1. Set `vcpu` to the address of `cpu->vcpu`.
- * 2. Set `vm` to `vcpu->vm`.
- * 3. While `true` is true:
+ *    \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_01},
+ *    \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_02}
+ * 2. Set `vm` to `vcpu->vm`. \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_02},
+ *    \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_03}
+ * 3. While `true` is true: \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_01}
  *    1. Call `hv_guest_enter()` with the address of `vcpu->arch.regs`, and
  *       store the result in `exit`.
  *    2. Call `handle_exit()` with the arguments `cpu` and `exit`, and store the
  *       result in `action`.
  *    3. If `action` is equal to `HV_RESET`:
+ *       \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_02}
  *       1. Increment `vm->resets`.
  *       2. Call `vm_print()` with the arguments `vm` and `"reset"`.
  *       3. Call `vm_load()` with the argument `vm`.
  *       4. Call `hv_arch_vcpu_init()` with the argument `vcpu`.
  *    4. Otherwise, if `action` is equal to `HV_STOP`:
+ *       \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_03},
+ *       \llrref{LLR_VCPU_HV_ARCH_VCPU_RUN_04}
  *       1. Call `vm_print()` with the arguments `vm` and `"stopped"`.
  *       2. Call `hv_halt_forever()`.
- *    5. Otherwise:
- *       1. Do nothing.
  *
  * @calls
  * - `hv_guest_enter()`

@@ -27,6 +27,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/libc/strncasecmp.c (kernel/libc is split up: the routines only the
  * kernel uses are in kernel/core).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -63,15 +71,29 @@
  * | `upper` | `char` | The result |
  *
  * @hlr
+ * - \hlrid{HLR_STRNCASECMP_TO_UPPER_01}: `to_upper()` shall give the upper case
+ *   of an ASCII lower case letter, and any other character unchanged.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CFG_004}
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_STRNCASECMP_TO_UPPER_01}: If `c` is from `'a'` to `'z'`,
+ *   `to_upper()` shall return `(c - 'a') + 'A'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRNCASECMP_TO_UPPER_01}
+ * - \llrid{LLR_STRNCASECMP_TO_UPPER_02}: If `c` is less than `'a'` or greater
+ *   than `'z'`, `to_upper()` shall return `c`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRNCASECMP_TO_UPPER_01}
  *
  * @design
- * 1. Set `upper` to `c`.
+ * 1. Set `upper` to `c`. \llrref{LLR_STRNCASECMP_TO_UPPER_02}
  * 2. If `c` is greater than or equal to `'a'` and `c` is less than or equal to
- *    `'z'`:
+ *    `'z'`: \llrref{LLR_STRNCASECMP_TO_UPPER_01}
  *    1. Set `upper` to `(c - 'a') + 'A'`.
- * 3. Return `upper`.
+ * 3. Return `upper`. \llrref{LLR_STRNCASECMP_TO_UPPER_01},
+ *    \llrref{LLR_STRNCASECMP_TO_UPPER_02}
  *
  * @calls
  * None.
@@ -115,24 +137,64 @@ static char to_upper(char c)
  * | `result` | `int` | The result |
  *
  * @hlr
+ * - \hlrid{HLR_STRNCASECMP_STRNCASECMP_01}: `strncasecmp()` shall compare two
+ *   strings without regard to the case of ASCII letters, up to a number of
+ *   characters, and give 0 if they are equal, -1 if the first one comes first
+ *   and 1 otherwise.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CFG_004}
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_STRNCASECMP_STRNCASECMP_01}: If, at the first index less than
+ *   `size` at which the results of `to_upper()` for the characters of `s1` and
+ *   `s2`, taken as unsigned bytes, differ, the one of `s1` is less, and these
+ *   results are equal and not 0 at every index before it, `strncasecmp()` shall
+ *   return -1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRNCASECMP_STRNCASECMP_01}
+ * - \llrid{LLR_STRNCASECMP_STRNCASECMP_02}: If, at the first index less than
+ *   `size` at which these results differ, the one of `s1` is greater, and they
+ *   are equal and not 0 at every index before it, `strncasecmp()` shall
+ *   return 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRNCASECMP_STRNCASECMP_01}
+ * - \llrid{LLR_STRNCASECMP_STRNCASECMP_03}: If these results are equal at every
+ *   index less than `size`, or are equal and 0 at an index before the first
+ *   index at which they differ, `strncasecmp()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRNCASECMP_STRNCASECMP_01}
  *
  * @design
- * 1. Set `result` to `0`.
- * 2. Set `i` to `0U`.
- * 3. Set `done` to `false`.
+ * 1. Set `result` to `0`. \llrref{LLR_STRNCASECMP_STRNCASECMP_01},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_02},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_03}
+ * 2. Set `i` to `0U`. \llrref{LLR_STRNCASECMP_STRNCASECMP_01},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_02},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_03}
+ * 3. Set `done` to `false`. \llrref{LLR_STRNCASECMP_STRNCASECMP_01},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_02},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_03}
  * 4. While `done` is false and `i` is less than `size`:
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_01},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_02},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_03}
  *    1. Set `c1` to `(uint8_t) to_upper(s1[i])`.
  *    2. Set `c2` to `(uint8_t) to_upper(s2[i])`.
- *    3. If `c1` is not equal to `c2`:
+ *    3. If `c1` is not equal to `c2`: \llrref{LLR_STRNCASECMP_STRNCASECMP_01},
+ *       \llrref{LLR_STRNCASECMP_STRNCASECMP_02}
  *       1. Set `result` to `-1` if `c1` is less than `c2`, otherwise `1`.
  *       2. Set `done` to `true`.
  *    4. Otherwise, if `c1` is equal to `0U`:
+ *       \llrref{LLR_STRNCASECMP_STRNCASECMP_03}
  *       1. Set `done` to `true`.
- *    5. Otherwise:
+ *    5. Otherwise: \llrref{LLR_STRNCASECMP_STRNCASECMP_01},
+ *       \llrref{LLR_STRNCASECMP_STRNCASECMP_02},
+ *       \llrref{LLR_STRNCASECMP_STRNCASECMP_03}
  *       1. Increment `i`.
- * 5. Return `result`.
+ * 5. Return `result`. \llrref{LLR_STRNCASECMP_STRNCASECMP_01},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_02},
+ *    \llrref{LLR_STRNCASECMP_STRNCASECMP_03}
  *
  * @calls
  * - `to_upper()`

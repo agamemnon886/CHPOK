@@ -25,6 +25,9 @@
  * (kernel/libc is split up: this file is in the library shared with the
  * hypervisor); it is shared with the hypervisor, and declared in
  * include/common/string.h.
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -69,16 +72,27 @@
  * | `i` | `size_t` | The index of the byte |
  *
  * @hlr
+ * - \hlrid{HLR_MEMCPY_MEMCPY_01}: `memcpy()` shall copy `n` bytes from one
+ *   block of memory to another that does not overlap it, and give the
+ *   destination.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_MEMCPY_MEMCPY_01}: `memcpy()` shall copy each of the `n` bytes
+ *   at `from` to the byte of the same index at `to`, from the first byte on,
+ *   and return `to`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMCPY_MEMCPY_01}
  *
  * @design
- * 1. Set `cto` to `(char *)to`.
- * 2. Set `cfrom` to `(const char *)from`.
+ * 1. Set `cto` to `(char *)to`. \llrref{LLR_MEMCPY_MEMCPY_01}
+ * 2. Set `cfrom` to `(const char *)from`. \llrref{LLR_MEMCPY_MEMCPY_01}
  * 3. Set `i` to `0U`; then while `i` is less than `n`, repeat (after each pass:
- *    increment `i`):
+ *    increment `i`): \llrref{LLR_MEMCPY_MEMCPY_01}
  *    1. Set `cto[i]` to `cfrom[i]`.
- * 4. Return `(to)`.
+ * 4. Return `(to)`. \llrref{LLR_MEMCPY_MEMCPY_01}
  *
  * @calls
  * None.

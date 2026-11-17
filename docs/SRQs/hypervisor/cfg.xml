@@ -36,11 +36,11 @@
     description. The same file serves both architectures.</para>
 
   <section xml:id="SRQ_HV_CFG_001" role="requirement">
-    <title>SRQ_HV_CFG_001</title>
+    <title><phrase role="srq">SRQ_HV_CFG_001</phrase></title>
     <para>The hypervisor shall take its configuration, that is its VMs
-      (name, image, memory, CPUs, console port and GDB port) and the port
-      of its own console, from a description that is fixed when it is
-      built, and shall not change it while it runs.</para>
+    (name, image, memory, CPUs, console port and GDB port) and the port
+    of its own console, from a description that is fixed when it is
+    built.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A fixed configuration is what makes the behaviour
@@ -50,10 +50,33 @@
       <title>Verification</title>
       <para>Review.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VM_HV_VMS_INIT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CFG_006" role="requirement">
+    <title><phrase role="srq">SRQ_HV_CFG_006</phrase></title>
+    <para>The hypervisor shall not change its configuration while it
+    runs.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A fixed configuration is what makes the behaviour
+        predictable.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VM_HV_VMS_INIT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CFG_002" role="requirement">
-    <title>SRQ_HV_CFG_002</title>
+    <title><phrase role="srq">SRQ_HV_CFG_002</phrase></title>
     <para>The configuration shall give the hypervisor one to eight VMs;
       each VM a name of 1 to 30 letters, digits and the characters
       underscore, dot and hyphen, which is unique when compared without
@@ -68,16 +91,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VM_HV_VMS_INIT_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CFG_003" role="requirement">
-    <title>SRQ_HV_CFG_003</title>
-    <para>The hypervisor shall be built only from a configuration that is
-      consistent: an image that is for the other architecture or does not
-      fit into the memory of its VM, a serial port used twice, more than
-      16 CPUs in all on x86_64 or 8 on arm64, or VMs and hypervisor that
-      do not fit into 3 GiB of memory, shall be rejected when the
-      hypervisor is built.</para>
+    <title><phrase role="srq">SRQ_HV_CFG_003</phrase></title>
+    <para>The hypervisor shall be built only from a configuration that
+    is consistent, the build rejecting an image that is for the other
+    architecture or does not fit into the memory of its VM, a serial
+    port used twice, more than 16 CPUs in all on x86_64 or 8 on arm64,
+    and VMs and hypervisor that do not fit into 3 GiB of memory.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A configuration error is found when the hypervisor is built,
@@ -87,10 +113,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_02
+        HLR_MAIN_X86_64_HV_MAIN_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CFG_004" role="requirement">
-    <title>SRQ_HV_CFG_004</title>
+    <title><phrase role="srq">SRQ_HV_CFG_004</phrase></title>
     <para>The configuration shall name serial ports as COM1 to COM4 on
       x86_64 (the four ISA ports), and as COM1 and COM2 (the PL011 ports)
       and COM3 to COM16 (16550 ports on the PCI bus) on arm64.</para>
@@ -102,10 +133,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_UART_PORT_OF_01
+        HLR_UART_HV_UART_ADD_01
+        HLR_UART_ARM64_HV_PORT_NAME_01
+        HLR_UART_X86_64_HV_PORT_NAME_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CFG_005" role="requirement">
-    <title>SRQ_HV_CFG_005</title>
+    <title><phrase role="srq">SRQ_HV_CFG_005</phrase></title>
     <para>The hypervisor shall be built as one image that holds its code,
       its configuration, the images of the VMs and their device trees (on
       arm64), and a CRC-32 of all of them.</para>
@@ -116,6 +154,10 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CRC_HV_IMAGE_CHECK_01</para>
     </formalpara>
   </section>
 </chapter>

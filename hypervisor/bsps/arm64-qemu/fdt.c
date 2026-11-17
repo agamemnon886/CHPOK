@@ -35,6 +35,13 @@
  * hypervisor/arch/arm64/fdt.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps); memset() of the library
  * shared with the kernel replaces hv_memset().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: requirements with more than one
+ * "shall" are split into requirements of one "shall" each.
  */
 
 /**
@@ -71,13 +78,23 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_FDT_BE32_01}: `be32()` shall read a big-endian 32-bit word of
+ *   the device tree of the host at any alignment.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_FDT_BE32_01}: `be32()` shall return the 32-bit value whose
+ *   bytes, from the most significant, are `p[offset]`, `p[offset + 1]`,
+ *   `p[offset + 2]` and `p[offset + 3]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_BE32_01}
  *
  * @design
  * 1. Return
  *    `((uint32_t) p[offset] << 24) | ((uint32_t) p[offset + 1U] << 16) |`
  *    `((uint32_t) p[offset + 2U] << 8) | (uint32_t) p[offset + 3U]`.
+ *    \llrref{LLR_FDT_BE32_01}
  *
  * @calls
  * None.
@@ -108,11 +125,18 @@ static uint32_t be32(const uint8_t *p, uint32_t offset)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_FDT_ALIGN4_01}: `align4()` shall round a size of the device tree
+ *   up to a multiple of 4.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_FDT_ALIGN4_01}: `align4()` shall return `(n + 3U) & ~3U`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_ALIGN4_01}
  *
  * @design
- * 1. Return `(n + 3U) & ~3U`.
+ * 1. Return `(n + 3U) & ~3U`. \llrref{LLR_FDT_ALIGN4_01}
  *
  * @calls
  * None.
@@ -150,21 +174,57 @@ static uint32_t align4(uint32_t n)
  * | `match` | `bool` | Whether the name matches so far |
  *
  * @hlr
+ * - \hlrid{HLR_FDT_NAME_IS_01}: `name_is()` shall tell whether a name in the
+ *   device tree starts with a prefix, or is equal to it, reading nothing beyond
+ *   a limit.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_FDT_NAME_IS_01}: If each character of `prefix` is equal to the
+ *   byte of `fdt->blob` at `offset` plus its position, each of these bytes
+ *   below `limit`, and `whole` is false, `name_is()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NAME_IS_01}
+ * - \llrid{LLR_FDT_NAME_IS_02}: If each character of `prefix` is equal to the
+ *   byte of `fdt->blob` at `offset` plus its position, each of these bytes
+ *   below `limit`, `whole` is true, and the byte after them is below `limit`
+ *   and is 0, `name_is()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NAME_IS_01}
+ * - \llrid{LLR_FDT_NAME_IS_03}: If a character of `prefix` has its position at
+ *   `limit` or beyond, or is not equal to the byte of `fdt->blob` at its
+ *   position, `name_is()` shall return false, without reading the bytes after
+ *   that position.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NAME_IS_01}
+ * - \llrid{LLR_FDT_NAME_IS_04}: If each character of `prefix` is equal to the
+ *   byte of `fdt->blob` at `offset` plus its position, `whole` is true, and the
+ *   byte after them is at `limit` or is not 0, `name_is()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NAME_IS_01}
  *
  * @design
- * 1. Set `i` to `0U`.
- * 2. Set `match` to `true`.
+ * 1. Set `i` to `0U`. \llrref{LLR_FDT_NAME_IS_01}, \llrref{LLR_FDT_NAME_IS_02},
+ *    \llrref{LLR_FDT_NAME_IS_03}, \llrref{LLR_FDT_NAME_IS_04}
+ * 2. Set `match` to `true`. \llrref{LLR_FDT_NAME_IS_01},
+ *    \llrref{LLR_FDT_NAME_IS_02}, \llrref{LLR_FDT_NAME_IS_03},
+ *    \llrref{LLR_FDT_NAME_IS_04}
  * 3. While `match` is true and `prefix[i]` is not equal to `'\0'`:
+ *    \llrref{LLR_FDT_NAME_IS_01}, \llrref{LLR_FDT_NAME_IS_02},
+ *    \llrref{LLR_FDT_NAME_IS_03}, \llrref{LLR_FDT_NAME_IS_04}
  *    1. If `(offset + i)` is greater than or equal to `limit` or
  *       `(char) fdt->blob[offset + i]` is not equal to `prefix[i]`:
+ *       \llrref{LLR_FDT_NAME_IS_03}
  *       1. Set `match` to `false`.
  *    2. Increment `i`.
- * 4. If `match` is true and `whole` is true:
+ * 4. If `match` is true and `whole` is true: \llrref{LLR_FDT_NAME_IS_01},
+ *    \llrref{LLR_FDT_NAME_IS_02}, \llrref{LLR_FDT_NAME_IS_04}
  *    1. Set `match` to
  *       `((offset + i) < limit) && (fdt->blob[offset + i] == 0U)`.
- * 5. Return `match`.
+ *       \llrref{LLR_FDT_NAME_IS_02}, \llrref{LLR_FDT_NAME_IS_04}
+ * 5. Return `match`. \llrref{LLR_FDT_NAME_IS_01}, \llrref{LLR_FDT_NAME_IS_02},
+ *    \llrref{LLR_FDT_NAME_IS_03}, \llrref{LLR_FDT_NAME_IS_04}
  *
  * @calls
  * None.
@@ -211,13 +271,30 @@ static bool name_is(const fdt_t *fdt, uint32_t offset, uint32_t limit,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_FDT_PROP_IS_01}: `prop_is()` shall tell whether the name of a
+ *   property, in the strings block, is a given name.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_FDT_PROP_IS_01}: If `nameoff` is less than `strings_size` of
+ *   `fdt` and `name_is()` returns true for `strings` plus `nameoff`, the limit
+ *   `strings` plus `strings_size`, `name` and true, `prop_is()` shall return
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_PROP_IS_01}
+ * - \llrid{LLR_FDT_PROP_IS_02}: If `nameoff` is not less than `strings_size` of
+ *   `fdt`, or `name_is()` returns false for `strings` plus `nameoff`, the limit
+ *   `strings` plus `strings_size`, `name` and true, `prop_is()` shall return
+ *   false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_PROP_IS_01}
  *
  * @design
  * 1. Return
  *    `(nameoff < fdt->strings_size) && name_is(fdt, fdt->strings + nameoff,`
  *    `fdt->strings + fdt->strings_size, name, true)`.
+ *    \llrref{LLR_FDT_PROP_IS_01}, \llrref{LLR_FDT_PROP_IS_02}
  *
  * @calls
  * - `name_is()`
@@ -256,20 +333,40 @@ static bool prop_is(const fdt_t *fdt, uint32_t nameoff, const char *name)
  * | `found` | `bool` | Whether s was found |
  *
  * @hlr
+ * - \hlrid{HLR_FDT_VALUE_HAS_STRING_01}: `value_has_string()` shall tell
+ *   whether a string list value of the device tree, such as compatible,
+ *   contains a string.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_003}
  *
  * @llr
+ * - \llrid{LLR_FDT_VALUE_HAS_STRING_01}: If `name_is()` returns true for the
+ *   start of one of the strings of the `length` bytes at `offset` (each ends
+ *   with a 0 byte or at `length`), the limit `offset` plus `length`, `s` and
+ *   true, `value_has_string()` shall return true, without comparing the strings
+ *   after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_VALUE_HAS_STRING_01}
+ * - \llrid{LLR_FDT_VALUE_HAS_STRING_02}: If `length` is 0, or `name_is()`
+ *   returns false for the start of each string of the `length` bytes at
+ *   `offset`, `value_has_string()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_VALUE_HAS_STRING_01}
  *
  * @design
- * 1. Set `pos` to `0U`.
- * 2. Set `found` to `false`.
+ * 1. Set `pos` to `0U`. \llrref{LLR_FDT_VALUE_HAS_STRING_01},
+ *    \llrref{LLR_FDT_VALUE_HAS_STRING_02}
+ * 2. Set `found` to `false`. \llrref{LLR_FDT_VALUE_HAS_STRING_02}
  * 3. While `found` is false and `pos` is less than `length`:
+ *    \llrref{LLR_FDT_VALUE_HAS_STRING_01}, \llrref{LLR_FDT_VALUE_HAS_STRING_02}
  *    1. Call `name_is()` with the arguments `fdt`, `offset + pos`,
  *       `offset + length`, `s` and `true`, and store the result in `found`.
  *    2. While `pos` is less than `length` and `fdt->blob[offset + pos]` is not
  *       equal to `0U`:
  *       1. Increment `pos`.
  *    3. Increment `pos`.
- * 4. Return `found`.
+ * 4. Return `found`. \llrref{LLR_FDT_VALUE_HAS_STRING_01},
+ *    \llrref{LLR_FDT_VALUE_HAS_STRING_02}
  *
  * @calls
  * - `name_is()`
@@ -316,15 +413,31 @@ static bool value_has_string(const fdt_t *fdt, uint32_t offset,
  * | `value` | `uint64_t` | The value |
  *
  * @hlr
+ * - \hlrid{HLR_FDT_CELLS_VALUE_01}: `cells_value()` shall read an address or a
+ *   size of one or two 32-bit cells of the device tree.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_FDT_CELLS_VALUE_01}: If `cells` is 2, `cells_value()` shall
+ *   return the 64-bit value whose high 32 bits are the result of `be32()` for
+ *   `fdt->blob` and `offset`, and whose low 32 bits are the result of `be32()`
+ *   for `fdt->blob` and `offset` plus 4.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_CELLS_VALUE_01}
+ * - \llrid{LLR_FDT_CELLS_VALUE_02}: If `cells` is not 2, `cells_value()` shall
+ *   return the result of `be32()` for `fdt->blob` and `offset`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_CELLS_VALUE_01}
  *
  * @design
  * 1. Call `be32()` with the arguments `fdt->blob` and `offset`, and store the
- *    result in `value`.
- * 2. If `cells` is equal to `2U`:
+ *    result in `value`. \llrref{LLR_FDT_CELLS_VALUE_01},
+ *    \llrref{LLR_FDT_CELLS_VALUE_02}
+ * 2. If `cells` is equal to `2U`: \llrref{LLR_FDT_CELLS_VALUE_01}
  *    1. Set `value` to `(value << 32) | be32(fdt->blob, offset + 4U)`.
- * 3. Return `value`.
+ * 3. Return `value`. \llrref{LLR_FDT_CELLS_VALUE_01},
+ *    \llrref{LLR_FDT_CELLS_VALUE_02}
  *
  * @calls
  * - `be32()`
@@ -369,34 +482,95 @@ static uint64_t cells_value(const fdt_t *fdt, uint32_t offset,
  * | `kind` | `node_e` | The node's kind |
  *
  * @hlr
+ * - \hlrid{HLR_FDT_NODE_KIND_01}: `node_kind()` shall recognize the nodes of
+ *   the device tree that the hypervisor needs (the root, the memory, the CPUs,
+ *   the GIC and the PCI bus) and note whether the second PL011 exists.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
+ *   - \srqref{SRQ_HV_CON_006}
  *
  * @llr
+ * - \llrid{LLR_FDT_NODE_KIND_01}: If `depth` is 1, `node_kind()` shall return
+ *   `NODE_ROOT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
+ * - \llrid{LLR_FDT_NODE_KIND_02}: If `depth` is 2, `parent` is `NODE_ROOT` and
+ *   `name_is()` returns true for the name and the prefix `"memory@"`,
+ *   `node_kind()` shall return `NODE_MEMORY`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
+ * - \llrid{LLR_FDT_NODE_KIND_03}: If `depth` is 2, `parent` is `NODE_ROOT`, and
+ *   `name_is()` returns false for the prefix `"memory@"` and true for the whole
+ *   name `"cpus"`, `node_kind()` shall return `NODE_CPUS`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
+ * - \llrid{LLR_FDT_NODE_KIND_04}: If `depth` is 2, `parent` is `NODE_ROOT`, and
+ *   `name_is()` returns false for the prefix `"memory@"` and the whole name
+ *   `"cpus"`, and true for the prefix `"intc@"`, `node_kind()` shall return
+ *   `NODE_GIC`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
+ * - \llrid{LLR_FDT_NODE_KIND_05}: If `depth` is 2, `parent` is `NODE_ROOT`, and
+ *   `name_is()` returns false for the prefix `"memory@"`, the whole name
+ *   `"cpus"` and the prefix `"intc@"`, and true for the prefix `"pcie@"`,
+ *   `node_kind()` shall return `NODE_PCIE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
+ * - \llrid{LLR_FDT_NODE_KIND_06}: If `depth` is 2, `parent` is `NODE_ROOT`, and
+ *   `name_is()` returns false for the prefixes `"memory@"`, `"intc@"` and
+ *   `"pcie@"` and the whole name `"cpus"`, and true for the whole name
+ *   `"pl011@9040000"`, `node_kind()` shall set `uart1` of `info` to true and
+ *   return `NODE_OTHER`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
+ * - \llrid{LLR_FDT_NODE_KIND_07}: If `depth` is 3, `parent` is `NODE_CPUS` and
+ *   `name_is()` returns true for the name and the prefix `"cpu@"`,
+ *   `node_kind()` shall return `NODE_CPU`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
+ * - \llrid{LLR_FDT_NODE_KIND_08}: If `depth` is 2 and `parent` is not
+ *   `NODE_ROOT`, or `depth` is 2, `parent` is `NODE_ROOT` and `name_is()`
+ *   returns false for `"memory@"`, `"cpus"`, `"intc@"`, `"pcie@"` and
+ *   `"pl011@9040000"`, or `depth` is 3 and `parent` is not `NODE_CPUS`, or
+ *   `depth` is 3, `parent` is `NODE_CPUS` and `name_is()` returns false for
+ *   `"cpu@"`, or `depth` is none of 1, 2 and 3, `node_kind()` shall return
+ *   `NODE_OTHER` and leave `info` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_NODE_KIND_01}
  *
  * @design
- * 1. Set `kind` to `NODE_OTHER`.
- * 2. If `depth` is equal to `1U`:
+ * 1. Set `kind` to `NODE_OTHER`. \llrref{LLR_FDT_NODE_KIND_06},
+ *    \llrref{LLR_FDT_NODE_KIND_08}
+ * 2. If `depth` is equal to `1U`: \llrref{LLR_FDT_NODE_KIND_01}
  *    1. Set `kind` to `NODE_ROOT`.
  * 3. Otherwise, if `depth` is equal to `2U` and `parent` is equal to
- *    `NODE_ROOT`:
+ *    `NODE_ROOT`: \llrref{LLR_FDT_NODE_KIND_02}, \llrref{LLR_FDT_NODE_KIND_03},
+ *    \llrref{LLR_FDT_NODE_KIND_04}, \llrref{LLR_FDT_NODE_KIND_05},
+ *    \llrref{LLR_FDT_NODE_KIND_06}, \llrref{LLR_FDT_NODE_KIND_08}
  *    1. If `name_is(fdt, offset, limit, "memory@", false)` is true:
+ *       \llrref{LLR_FDT_NODE_KIND_02}
  *       1. Set `kind` to `NODE_MEMORY`.
  *    2. Otherwise, if `name_is(fdt, offset, limit, "cpus", true)` is true:
+ *       \llrref{LLR_FDT_NODE_KIND_03}
  *       1. Set `kind` to `NODE_CPUS`.
  *    3. Otherwise, if `name_is(fdt, offset, limit, "intc@", false)` is true:
+ *       \llrref{LLR_FDT_NODE_KIND_04}
  *       1. Set `kind` to `NODE_GIC`.
  *    4. Otherwise, if `name_is(fdt, offset, limit, "pcie@", false)` is true:
+ *       \llrref{LLR_FDT_NODE_KIND_05}
  *       1. Set `kind` to `NODE_PCIE`.
  *    5. Otherwise, if `name_is(fdt, offset, limit, "pl011@9040000", true)` is
- *       true:
+ *       true: \llrref{LLR_FDT_NODE_KIND_06}, \llrref{LLR_FDT_NODE_KIND_08}
  *       1. Set `info->uart1` to `true`.
- *    6. Otherwise:
- *       1. Do nothing.
  * 4. Otherwise, if `depth` is equal to `3U` and `parent` is equal to
  *    `NODE_CPUS` and `name_is(fdt, offset, limit, "cpu@", false)` is true:
+ *    \llrref{LLR_FDT_NODE_KIND_07}, \llrref{LLR_FDT_NODE_KIND_08}
  *    1. Set `kind` to `NODE_CPU`.
- * 5. Otherwise:
- *    1. Do nothing.
- * 6. Return `kind`.
+ * 5. Return `kind`. \llrref{LLR_FDT_NODE_KIND_01},
+ *    \llrref{LLR_FDT_NODE_KIND_02}, \llrref{LLR_FDT_NODE_KIND_03},
+ *    \llrref{LLR_FDT_NODE_KIND_04}, \llrref{LLR_FDT_NODE_KIND_05},
+ *    \llrref{LLR_FDT_NODE_KIND_06}, \llrref{LLR_FDT_NODE_KIND_07},
+ *    \llrref{LLR_FDT_NODE_KIND_08}
  *
  * @calls
  * - `name_is()`
@@ -461,40 +635,170 @@ static node_e node_kind(const fdt_t *fdt, uint32_t offset, uint32_t limit,
  * | `i` | `uint32_t` | The index of a GIC register range |
  *
  * @hlr
+ * - \hlrid{HLR_FDT_USE_PROPERTY_01}: `use_property()` shall take from the
+ *   properties of the device tree the cell sizes, the affinities of the CPUs,
+ *   the RAM, the PCI configuration space, and the version and register ranges
+ *   of the GIC.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
+ *   - \srqref{SRQ_HV_CPU_002}
+ *   - \srqref{SRQ_HV_BOOT_003}
  *
  * @llr
+ * - \llrid{LLR_FDT_USE_PROPERTY_01}: If `node` is `NODE_ROOT`, `length` is 4
+ *   and `prop_is()` returns true for `nameoff` and `"#address-cells"`,
+ *   `use_property()` shall set `address_cells` of `cells` to the result of
+ *   `be32()` for the value.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_02}: If `node` is `NODE_ROOT`, `length` is 4,
+ *   and `prop_is()` returns false for `"#address-cells"` and true for
+ *   `"#size-cells"`, `use_property()` shall set `size_cells` of `cells` to the
+ *   result of `be32()` for the value.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_03}: If `node` is `NODE_CPUS`, `length` is 4
+ *   and `prop_is()` returns true for `nameoff` and `"#address-cells"`,
+ *   `use_property()` shall set `cpu_cells` of `cells` to the result of `be32()`
+ *   for the value.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_04}: If `node` is `NODE_CPU`, `prop_is()`
+ *   returns true for `"reg"`, `cpu_cells` is 1 or 2, `length` is 4 times
+ *   `cpu_cells` and `nb_cpus` of `info` is less than `HV_MAX_CPUS`,
+ *   `use_property()` shall set `mpidr[nb_cpus]` of `info` to the low 24 bits of
+ *   the result of `be32()` for the last 4 bytes of the value, and increment
+ *   `nb_cpus`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_05}: If `node` is `NODE_CPU`, `prop_is()`
+ *   returns true for `"reg"`, `cpu_cells` is 1 or 2, `length` is 4 times
+ *   `cpu_cells` and `nb_cpus` of `info` is `HV_MAX_CPUS` or more,
+ *   `use_property()` shall increment `nb_cpus` and leave `mpidr` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_06}: If `node` is `NODE_MEMORY`, `prop_is()`
+ *   returns true for `"reg"`, `address_cells` and `size_cells` are each 1 or 2,
+ *   `length` is not less than 4 times their sum and `ram_size` of `info` is 0,
+ *   `use_property()` shall set `ram_base` to the result of `cells_value()` for
+ *   the value and `address_cells`, and `ram_size` to the result of
+ *   `cells_value()` for the value plus 4 times `address_cells` and
+ *   `size_cells`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_07}: If `node` is `NODE_PCIE`, `prop_is()`
+ *   returns true for `"reg"`, `address_cells` and `size_cells` are each 1 or 2
+ *   and `length` is not less than 4 times their sum, `use_property()` shall set
+ *   `ecam_base` to the result of `cells_value()` for the value and
+ *   `address_cells`, and `ecam_size` to the result of `cells_value()` for the
+ *   value plus 4 times `address_cells` and `size_cells`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_08}: If `node` is `NODE_GIC` and `prop_is()`
+ *   returns true for `"compatible"`, `use_property()` shall set `gic_v2` of
+ *   `info` to the result of `value_has_string()` for the value, `length` and
+ *   `"arm,cortex-a15-gic"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_09}: If `node` is `NODE_GIC`, `prop_is()`
+ *   returns false for `"compatible"` and true for `"reg"`, and `address_cells`
+ *   and `size_cells` are each 1 or 2, `use_property()` shall set `gic_regs` of
+ *   `info` to `length` divided by 4 times their sum, and `gicd`, `gicc`, `gich`
+ *   and `gicv`, in this order, as many as `gic_regs` and at most 4, to the
+ *   results of `cells_value()` for the addresses of the entries of the value.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_10}: If `node` is `NODE_GIC`, `prop_is()`
+ *   returns false for `"compatible"` and true for `"reg"`, `address_cells` and
+ *   `size_cells` are each 1 or 2 and `length` divided by 4 times their sum is 4
+ *   or more, `use_property()` shall set `gicv_size` of `info` to the result of
+ *   `cells_value()` for the size of the fourth entry of the value.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_11}: If `node` is `NODE_GIC`, `prop_is()`
+ *   returns false for `"compatible"` and true for `"reg"`, `address_cells` and
+ *   `size_cells` are each 1 or 2 and `length` divided by 4 times their sum is
+ *   less than 4, `use_property()` shall leave `gicv_size` of `info` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_12}: If `node` is `NODE_ROOT` and `length` is
+ *   not 4 or `prop_is()` returns false for `"#address-cells"` and
+ *   `"#size-cells"`, or `node` is `NODE_CPUS` and `length` is not 4 or
+ *   `prop_is()` returns false for `"#address-cells"`, `use_property()` shall
+ *   leave `cells` and `info` as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_13}: If `node` is `NODE_CPU`, and `prop_is()`
+ *   returns false for `"reg"`, or `cpu_cells` is neither 1 nor 2, or `length`
+ *   is not 4 times `cpu_cells`, `use_property()` shall leave `cells` and `info`
+ *   as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_14}: If `node` is `NODE_MEMORY` or `NODE_PCIE`,
+ *   and `prop_is()` returns false for `"reg"`, or `address_cells` or
+ *   `size_cells` is neither 1 nor 2, or `length` is less than 4 times their
+ *   sum, or `node` is `NODE_MEMORY` and `ram_size` of `info` is not 0,
+ *   `use_property()` shall leave `cells` and `info` as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_15}: If `node` is `NODE_GIC`, and `prop_is()`
+ *   returns false for `"compatible"` and `"reg"`, or returns true for `"reg"`
+ *   while `address_cells` or `size_cells` is neither 1 nor 2, `use_property()`
+ *   shall leave `cells` and `info` as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
+ * - \llrid{LLR_FDT_USE_PROPERTY_16}: If `node` is none of `NODE_ROOT`,
+ *   `NODE_CPUS`, `NODE_CPU`, `NODE_MEMORY`, `NODE_PCIE` and `NODE_GIC`,
+ *   `use_property()` shall leave `cells` and `info` as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_USE_PROPERTY_01}
  *
  * @design
  * 1. Set `cells_ok` to
  *    `(cells->address_cells >= 1U) && (cells->address_cells <= 2U) &&`
  *    `(cells->size_cells >= 1U) && (cells->size_cells <= 2U)`.
+ *    \llrref{LLR_FDT_USE_PROPERTY_06}, \llrref{LLR_FDT_USE_PROPERTY_07},
+ *    \llrref{LLR_FDT_USE_PROPERTY_09}, \llrref{LLR_FDT_USE_PROPERTY_10},
+ *    \llrref{LLR_FDT_USE_PROPERTY_11}, \llrref{LLR_FDT_USE_PROPERTY_14},
+ *    \llrref{LLR_FDT_USE_PROPERTY_15}
  * 2. Set `entry` to `((cells->address_cells + cells->size_cells) * 4U)` if
- *    `cells_ok` is true, otherwise `0U`.
+ *    `cells_ok` is true, otherwise `0U`. \llrref{LLR_FDT_USE_PROPERTY_06},
+ *    \llrref{LLR_FDT_USE_PROPERTY_07}, \llrref{LLR_FDT_USE_PROPERTY_09},
+ *    \llrref{LLR_FDT_USE_PROPERTY_10}, \llrref{LLR_FDT_USE_PROPERTY_11},
+ *    \llrref{LLR_FDT_USE_PROPERTY_14}, \llrref{LLR_FDT_USE_PROPERTY_15}
  * 3. If `node` is equal to `NODE_ROOT` and `length` is equal to `4U`:
+ *    \llrref{LLR_FDT_USE_PROPERTY_01}, \llrref{LLR_FDT_USE_PROPERTY_02},
+ *    \llrref{LLR_FDT_USE_PROPERTY_12}
  *    1. If `prop_is(fdt, nameoff, "#address-cells")` is true:
+ *       \llrref{LLR_FDT_USE_PROPERTY_01}
  *       1. Call `be32()` with the arguments `fdt->blob` and `value`, and store
  *          the result in `cells->address_cells`.
  *    2. Otherwise, if `prop_is(fdt, nameoff, "#size-cells")` is true:
+ *       \llrref{LLR_FDT_USE_PROPERTY_02}, \llrref{LLR_FDT_USE_PROPERTY_12}
  *       1. Call `be32()` with the arguments `fdt->blob` and `value`, and store
  *          the result in `cells->size_cells`.
- *    3. Otherwise:
- *       1. Do nothing.
  * 4. Otherwise, if `node` is equal to `NODE_CPUS` and `length` is equal to `4U`
  *    and `prop_is(fdt, nameoff, "#address-cells")` is true:
+ *    \llrref{LLR_FDT_USE_PROPERTY_03}, \llrref{LLR_FDT_USE_PROPERTY_12}
  *    1. Call `be32()` with the arguments `fdt->blob` and `value`, and store the
  *       result in `cells->cpu_cells`.
  * 5. Otherwise, if `node` is equal to `NODE_CPU` and
  *    `prop_is(fdt, nameoff, "reg")` is true and `cells->cpu_cells` is greater
  *    than or equal to `1U` and `cells->cpu_cells` is less than or equal to `2U`
  *    and `length` is equal to `(cells->cpu_cells * 4U)`:
+ *    \llrref{LLR_FDT_USE_PROPERTY_04}, \llrref{LLR_FDT_USE_PROPERTY_05},
+ *    \llrref{LLR_FDT_USE_PROPERTY_13}
  *    1. If `info->nb_cpus` is less than `HV_MAX_CPUS`:
+ *       \llrref{LLR_FDT_USE_PROPERTY_04}, \llrref{LLR_FDT_USE_PROPERTY_05}
  *       1. Set `info->mpidr[info->nb_cpus]` to
  *          `be32(fdt->blob, (value + length) - 4U) & 0xFFFFFFU`.
- *    2. Increment `info->nb_cpus`.
+ *    2. Increment `info->nb_cpus`. \llrref{LLR_FDT_USE_PROPERTY_04},
+ *       \llrref{LLR_FDT_USE_PROPERTY_05}
  * 6. Otherwise, if `node` is equal to `NODE_MEMORY` and
  *    `prop_is(fdt, nameoff, "reg")` is true and `entry` is not equal to `0U`
  *    and `length` is greater than or equal to `entry` and `info->ram_size` is
- *    equal to `0U`:
+ *    equal to `0U`: \llrref{LLR_FDT_USE_PROPERTY_06},
+ *    \llrref{LLR_FDT_USE_PROPERTY_14}
  *    1. Call `cells_value()` with the arguments `fdt`, `value` and
  *       `cells->address_cells`, and store the result in `info->ram_base`.
  *    2. Call `cells_value()` with the arguments `fdt`,
@@ -503,6 +807,7 @@ static node_e node_kind(const fdt_t *fdt, uint32_t offset, uint32_t limit,
  * 7. Otherwise, if `node` is equal to `NODE_PCIE` and
  *    `prop_is(fdt, nameoff, "reg")` is true and `entry` is not equal to `0U`
  *    and `length` is greater than or equal to `entry`:
+ *    \llrref{LLR_FDT_USE_PROPERTY_07}, \llrref{LLR_FDT_USE_PROPERTY_14}
  *    1. Call `cells_value()` with the arguments `fdt`, `value` and
  *       `cells->address_cells`, and store the result in `info->ecam_base`.
  *    2. Call `cells_value()` with the arguments `fdt`,
@@ -510,23 +815,29 @@ static node_e node_kind(const fdt_t *fdt, uint32_t offset, uint32_t limit,
  *       store the result in `info->ecam_size`.
  * 8. Otherwise, if `node` is equal to `NODE_GIC` and
  *    `prop_is(fdt, nameoff, "compatible")` is true:
+ *    \llrref{LLR_FDT_USE_PROPERTY_08}, \llrref{LLR_FDT_USE_PROPERTY_15}
  *    1. Call `value_has_string()` with the arguments `fdt`, `value`, `length`
  *       and `"arm,cortex-a15-gic"`, and store the result in `info->gic_v2`.
  * 9. Otherwise, if `node` is equal to `NODE_GIC` and
  *    `prop_is(fdt, nameoff, "reg")` is true and `entry` is not equal to `0U`:
+ *    \llrref{LLR_FDT_USE_PROPERTY_09}, \llrref{LLR_FDT_USE_PROPERTY_10},
+ *    \llrref{LLR_FDT_USE_PROPERTY_11}, \llrref{LLR_FDT_USE_PROPERTY_15},
+ *    \llrref{LLR_FDT_USE_PROPERTY_16}
  *    1. Set `bases` to
  *       `{ &info->gicd, &info->gicc, &info->gich, &info->gicv }`.
+ *       \llrref{LLR_FDT_USE_PROPERTY_09}
  *    2. Set `info->gic_regs` to `length / entry`.
+ *       \llrref{LLR_FDT_USE_PROPERTY_09}
  *    3. Set `i` to `0U`; then while `i` is less than `info->gic_regs` and `i`
  *       is less than `4U`, repeat (after each pass: increment `i`):
+ *       \llrref{LLR_FDT_USE_PROPERTY_09}
  *       1. Call `cells_value()` with the arguments `fdt`, `value + (i * entry)`
  *          and `cells->address_cells`, and store the result in `*bases[i]`.
  *    4. If `info->gic_regs` is greater than or equal to `4U`:
+ *       \llrref{LLR_FDT_USE_PROPERTY_10}, \llrref{LLR_FDT_USE_PROPERTY_11}
  *       1. Call `cells_value()` with the arguments `fdt`,
  *          `value + (3U * entry) + (cells->address_cells * 4U)` and
  *          `cells->size_cells`, and store the result in `info->gicv_size`.
- * 10. Otherwise:
- *     1. Do nothing.
  *
  * @calls
  * - `prop_is()`
@@ -640,41 +951,132 @@ static void use_property(const fdt_t *fdt, node_e node, uint32_t nameoff,
  * | `nameoff` | `uint32_t` | The offset of a property's name |
  *
  * @hlr
+ * - \hlrid{HLR_FDT_FDT_READ_01}: `fdt_read()` shall read the device tree of the
+ *   host in one pass and collect the RAM, the CPUs, the GIC, the PCI
+ *   configuration space and the second UART, and tell whether the tree is
+ *   valid, reading nothing outside it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_FDT_FDT_READ_01}: `fdt_read()` shall set every byte of `info` to
+ *   0 with `memset()` before it reads the tree.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_02}: If the 32-bit big-endian word at `address`
+ *   (`be32()`) is not `FDT_MAGIC`, `fdt_read()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_03}: If the total size (the word at
+ *   `FDT_OFF_TOTALSIZE`) is more than `FDT_SIZE_MAX` or less than
+ *   `FDT_HEADER_SIZE`, or the version (at `FDT_OFF_VERSION`) is less than
+ *   `FDT_VERSION_MIN`, or the offset of the structure block (at
+ *   `FDT_OFF_STRUCT`) or its end (the offset plus the word at
+ *   `FDT_OFF_SIZE_STRUCT`) is more than the total size, or the end is less than
+ *   the offset, or the offset of the strings block (at `FDT_OFF_STRINGS`) is
+ *   more than the total size, or its size (at `FDT_OFF_SIZE_STRINGS`) is more
+ *   than the total size minus its offset, `fdt_read()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_04}: `fdt_read()` shall read the tokens of the
+ *   structure block in order, each a 32-bit big-endian word, until the token
+ *   `FDT_END` or a failure, starting at depth 0 with 2 address cells, 1 size
+ *   cell and 1 CPU cell in `cells`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_05}: If fewer than 4 bytes are left in the
+ *   structure block for a token, `fdt_read()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_06}: If the token is `FDT_BEGIN_NODE`, the name
+ *   after it has a 0 byte before the end of the block and the depth is less
+ *   than `DEPTH_MAX`, `fdt_read()` shall increment the depth, store as the kind
+ *   of the node the result of `node_kind()` for the name, the end of the block,
+ *   the depth, the kind of the node around it (`NODE_OTHER` at depth 0) and
+ *   `info`, and go on after the name and its 0 byte, rounded up to a multiple
+ *   of 4 with `align4()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_07}: If the token is `FDT_BEGIN_NODE` and the name
+ *   after it has no 0 byte before the end of the block, or the depth is
+ *   `DEPTH_MAX`, `fdt_read()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_08}: If the token is `FDT_END_NODE` and the depth
+ *   is not 0, `fdt_read()` shall decrement the depth.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_09}: If the token is `FDT_END_NODE` and the depth
+ *   is 0, `fdt_read()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_10}: If the token is `FDT_PROP`, at least 8 bytes
+ *   follow it in the block, the length (the first word after it) is not more
+ *   than the bytes left after the two words, and the depth is not 0,
+ *   `fdt_read()` shall call `use_property()` once with the kind of the node
+ *   around it, the offset of the name (the second word), the offset of the
+ *   value, the length, `cells` and `info`, and go on after the value, rounded
+ *   up to a multiple of 4 with `align4()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_11}: If the token is `FDT_PROP` and fewer than 8
+ *   bytes follow it in the block, or the length is more than the bytes left
+ *   after the two words, or the depth is 0, `fdt_read()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_12}: If the token is `FDT_NOP`, `fdt_read()` shall
+ *   go on with the next token.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_13}: If the token is `FDT_END`, `fdt_read()` shall
+ *   return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
+ * - \llrid{LLR_FDT_FDT_READ_14}: If the token is none of `FDT_BEGIN_NODE`,
+ *   `FDT_END_NODE`, `FDT_PROP`, `FDT_NOP` and `FDT_END`, `fdt_read()` shall
+ *   return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FDT_FDT_READ_01}
  *
  * @design
- * 1. Set `cells` to `{ 2U, 1U, 1U }`.
- * 2. Set `depth` to `0U`.
- * 3. Set `ok` to `true`.
- * 4. Set `done` to `false`.
+ * 1. Set `cells` to `{ 2U, 1U, 1U }`. \llrref{LLR_FDT_FDT_READ_04}
+ * 2. Set `depth` to `0U`. \llrref{LLR_FDT_FDT_READ_04}
+ * 3. Set `ok` to `true`. \llrref{LLR_FDT_FDT_READ_04}
+ * 4. Set `done` to `false`. \llrref{LLR_FDT_FDT_READ_04}
  * 5. Call `memset()` with the arguments `info`, `0` and `sizeof(*info)`.
+ *    \llrref{LLR_FDT_FDT_READ_01}
  * 6. Set `fdt.blob` to `(const uint8_t *) (uintptr_t) address`.
+ *    \llrref{LLR_FDT_FDT_READ_02}, \llrref{LLR_FDT_FDT_READ_03},
+ *    \llrref{LLR_FDT_FDT_READ_04}
  * 7. If `be32(fdt.blob, 0U)` is not equal to `FDT_MAGIC`:
+ *    \llrref{LLR_FDT_FDT_READ_02}
  *    1. Return `false`.
  * 8. Call `be32()` with the arguments `fdt.blob` and `FDT_OFF_TOTALSIZE`, and
- *    store the result in `fdt.size`.
+ *    store the result in `fdt.size`. \llrref{LLR_FDT_FDT_READ_03}
  * 9. Call `be32()` with the arguments `fdt.blob` and `FDT_OFF_STRUCT`, and
- *    store the result in `pos`.
+ *    store the result in `pos`. \llrref{LLR_FDT_FDT_READ_03}
  * 10. Set `end` to `pos + be32(fdt.blob, FDT_OFF_SIZE_STRUCT)`.
+ *     \llrref{LLR_FDT_FDT_READ_03}
  * 11. Call `be32()` with the arguments `fdt.blob` and `FDT_OFF_STRINGS`, and
- *     store the result in `fdt.strings`.
+ *     store the result in `fdt.strings`. \llrref{LLR_FDT_FDT_READ_03}
  * 12. Call `be32()` with the arguments `fdt.blob` and `FDT_OFF_SIZE_STRINGS`,
- *     and store the result in `fdt.strings_size`.
+ *     and store the result in `fdt.strings_size`. \llrref{LLR_FDT_FDT_READ_03}
  * 13. If `fdt.size` is greater than `FDT_SIZE_MAX` or `fdt.size` is less than
  *     `FDT_HEADER_SIZE` or `be32(fdt.blob, FDT_OFF_VERSION)` is less than
  *     `FDT_VERSION_MIN` or `pos` is greater than `fdt.size` or `end` is greater
  *     than `fdt.size` or `end` is less than `pos` or `fdt.strings` is greater
  *     than `fdt.size` or `fdt.strings_size` is greater than
- *     `(fdt.size - fdt.strings)`:
+ *     `(fdt.size - fdt.strings)`: \llrref{LLR_FDT_FDT_READ_03}
  *     1. Return `false`.
- * 14. While `ok` is true and `done` is false:
- *     1. Set `token` to `FDT_END + 1U`.
+ * 14. While `ok` is true and `done` is false: \llrref{LLR_FDT_FDT_READ_04}
+ *     1. Set `token` to `FDT_END + 1U`. \llrref{LLR_FDT_FDT_READ_05}
  *     2. If `(pos + 4U)` is less than or equal to `end`:
+ *        \llrref{LLR_FDT_FDT_READ_04}, \llrref{LLR_FDT_FDT_READ_05}
  *        1. Call `be32()` with the arguments `fdt.blob` and `pos`, and store
  *           the result in `token`.
  *        2. Add `4U` to `pos`.
- *     3. If `token` is equal to `FDT_BEGIN_NODE`:
+ *     3. If `token` is equal to `FDT_BEGIN_NODE`: \llrref{LLR_FDT_FDT_READ_06},
+ *        \llrref{LLR_FDT_FDT_READ_07}
  *        1. Set `name` to `pos`.
  *        2. Set `parent` to `stack[depth - 1U]` if `depth` is greater than
  *           `0U`, otherwise `NODE_OTHER`.
@@ -682,43 +1084,50 @@ static void use_property(const fdt_t *fdt, node_e node, uint32_t nameoff,
  *           `0U`:
  *           1. Increment `pos`.
  *        4. If `pos` is greater than or equal to `end` or `depth` is greater
- *           than or equal to `DEPTH_MAX`:
+ *           than or equal to `DEPTH_MAX`: \llrref{LLR_FDT_FDT_READ_07}
  *           1. Set `ok` to `false`.
- *        5. Otherwise:
+ *        5. Otherwise: \llrref{LLR_FDT_FDT_READ_06}
  *           1. Increment `depth`.
  *           2. Call `node_kind()` with the arguments the address of `fdt`,
  *              `name`, `end`, `depth`, `parent` and `info`, and store the
  *              result in `stack[depth - 1U]`.
  *           3. Set `pos` to `name + align4((pos - name) + 1U)`.
  *     4. Otherwise, if `token` is equal to `FDT_END_NODE`:
- *        1. If `depth` is equal to `0U`:
+ *        \llrref{LLR_FDT_FDT_READ_08}, \llrref{LLR_FDT_FDT_READ_09}
+ *        1. If `depth` is equal to `0U`: \llrref{LLR_FDT_FDT_READ_09}
  *           1. Set `ok` to `false`.
- *        2. Otherwise:
+ *        2. Otherwise: \llrref{LLR_FDT_FDT_READ_08}
  *           1. Decrement `depth`.
  *     5. Otherwise, if `token` is equal to `FDT_PROP`:
- *        1. If `(pos + 8U)` is greater than `end`:
+ *        \llrref{LLR_FDT_FDT_READ_10}, \llrref{LLR_FDT_FDT_READ_11}
+ *        1. If `(pos + 8U)` is greater than `end`: \llrref{LLR_FDT_FDT_READ_11}
  *           1. Set `ok` to `false`.
- *        2. Otherwise:
+ *        2. Otherwise: \llrref{LLR_FDT_FDT_READ_10},
+ *           \llrref{LLR_FDT_FDT_READ_11}
  *           1. Call `be32()` with the arguments `fdt.blob` and `pos`, and store
  *              the result in `length`.
  *           2. Call `be32()` with the arguments `fdt.blob` and `pos + 4U`, and
  *              store the result in `nameoff`.
  *           3. Add `8U` to `pos`.
  *           4. If `length` is greater than `(end - pos)` or `depth` is equal to
- *              `0U`:
+ *              `0U`: \llrref{LLR_FDT_FDT_READ_11}
  *              1. Set `ok` to `false`.
- *           5. Otherwise:
+ *           5. Otherwise: \llrref{LLR_FDT_FDT_READ_10}
  *              1. Call `use_property()` with the arguments the address of
  *                 `fdt`, `stack[depth - 1U]`, `nameoff`, `pos`, `length`, the
  *                 address of `cells` and `info`.
  *              2. Add `align4(length)` to `pos`.
  *     6. Otherwise, if `token` is equal to `FDT_NOP`:
- *        1. Do nothing.
+ *        \llrref{LLR_FDT_FDT_READ_12}
  *     7. Otherwise, if `token` is equal to `FDT_END`:
+ *        \llrref{LLR_FDT_FDT_READ_13}
  *        1. Set `done` to `true`.
- *     8. Otherwise:
+ *     8. Otherwise: \llrref{LLR_FDT_FDT_READ_05}, \llrref{LLR_FDT_FDT_READ_14}
  *        1. Set `ok` to `false`.
- * 15. Return `ok && done`.
+ * 15. Return `ok && done`. \llrref{LLR_FDT_FDT_READ_05},
+ *     \llrref{LLR_FDT_FDT_READ_07}, \llrref{LLR_FDT_FDT_READ_09},
+ *     \llrref{LLR_FDT_FDT_READ_11}, \llrref{LLR_FDT_FDT_READ_13},
+ *     \llrref{LLR_FDT_FDT_READ_14}
  *
  * @calls
  * - `memset()`

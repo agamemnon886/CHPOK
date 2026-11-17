@@ -37,7 +37,7 @@
     requirements on the processes are in the chapter "Processes".</para>
 
   <section xml:id="SRQ_JET_SCHED_001" role="requirement">
-    <title>SRQ_JET_SCHED_001</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_001</phrase></title>
     <para>JetOS shall execute the schedule of the module as an endless
       series of major frames, each the same ordered list of slots, the
       first one beginning when the schedule starts.</para>
@@ -49,10 +49,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_POK_SCHED_RESTART_01
+        HLR_SCHED_POK_SCHED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SCHED_002" role="requirement">
-    <title>SRQ_JET_SCHED_002</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_002</phrase></title>
     <para>JetOS shall, in a partition slot, run only the partition of the
       slot; in a spare slot, nothing; in a monitor slot, the monitor, and
       in a GDB slot the GDB server, if configured.</para>
@@ -64,10 +69,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_IDLE_PARTITION_IDLE_THREAD_01
+        HLR_SCHED_POK_SCHED_01
+        HLR_SCHED_POK_SCHED_INIT_01
+        HLR_MONITOR_POK_NETWORK_THREAD_INIT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SCHED_003" role="requirement">
-    <title>SRQ_JET_SCHED_003</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_003</phrase></title>
     <para>JetOS shall end a slot and begin the next one, switching to its
       partition, at the end of the duration of the slot, within one
       period of the timer tick, whatever the partition does.</para>
@@ -80,10 +92,18 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_INTER_PARTITION_SWITCH_01
+        HLR_SCHED_INTER_PARTITION_SWITCH_02
+        HLR_SCHED_POK_SCHED_01
+        HLR_SCHED_POK_PREEMPTION_ENABLE_01
+        HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SCHED_004" role="requirement">
-    <title>SRQ_JET_SCHED_004</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_004</phrase></title>
     <para>JetOS shall save the context of a partition at the end of its
       slot, and resume it, at the point where it was interrupted, at the
       start of its next slot, unless the partition was restarted in the
@@ -96,10 +116,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_SPACE_SWITCH_01
+        HLR_SCHED_START_PARTITION_01
+        HLR_SCHED_START_PARTITION_02
+        HLR_SCHED_INTRA_PARTITION_SWITCH_01
+        HLR_SCHED_INTER_PARTITION_SWITCH_02
+        HLR_SCHED_INTER_PARTITION_SWITCH_03
+        HLR_SPACE_X86_64_JA_SPACE_SWITCH_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SCHED_005" role="requirement">
-    <title>SRQ_JET_SCHED_005</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_005</phrase></title>
     <para>JetOS shall handle the events of a partition (time-outs, the
       release of periodic processes, deadlines, delayed starts and
       messages for its ports) in the partition, in its own context.</para>
@@ -112,10 +142,24 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_POK_PARTITION_INIT_01
+        HLR_PARTITION_POK_PARTITION_ADD_EVENT_01
+        HLR_PARTITION_POK_PARTITION_GET_EVENT_01
+        HLR_PARTITION_POK_PARTITION_SET_TIMER_01
+        HLR_SCHED_POK_SCHED_02
+        HLR_SCHED_POK_PREEMPTION_ENABLE_02
+        HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02
+        HLR_SCHED_ARINC_SCHED_ARINC_01
+        HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_DISABLE_01
+        HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01
+        HLR_SCHED_ARINC_POK_SCHED_ARINC_ON_EVENT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SCHED_006" role="requirement">
-    <title>SRQ_JET_SCHED_006</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_006</phrase></title>
     <para>JetOS shall start the periodic processes of a partition at the
       start of a slot of that partition that is marked as starting
       periodic processing.</para>
@@ -127,10 +171,16 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_PARTITION_SET_MODE_NORMAL_02
+        HLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01
+        HLR_THREAD_THREAD_DELAYED_START_INTERNAL_04</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SCHED_007" role="requirement">
-    <title>SRQ_JET_SCHED_007</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_007</phrase></title>
     <para>JetOS shall let a partition idle, waiting for events, when none
       of its processes can run.</para>
     <formalpara>
@@ -142,10 +192,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_ARINC_DO_NOTHING_FUNC_01
+        HLR_SCHED_ARINC_SCHED_ARINC_04</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_SCHED_008" role="requirement">
-    <title>SRQ_JET_SCHED_008</title>
+    <title><phrase role="srq">SRQ_JET_SCHED_008</phrase></title>
     <para>JetOS shall start the schedule again from the first slot of a
       new major frame, with every partition started afresh, when the
       module restarts.</para>
@@ -156,6 +211,11 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_POK_PARTITION_RESET_01
+        HLR_SCHED_POK_SCHED_RESTART_01</para>
     </formalpara>
   </section>
 </chapter>

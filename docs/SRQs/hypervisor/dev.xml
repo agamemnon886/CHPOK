@@ -35,16 +35,13 @@
     to any other device does not reach the hardware.</para>
 
   <section xml:id="SRQ_HV_DEV_001" role="requirement">
-    <title>SRQ_HV_DEV_001</title>
+    <title><phrase role="srq">SRQ_HV_DEV_001</phrase></title>
     <para>On x86_64 the hypervisor shall give the guest the I/O ports of
-      its devices only: the 8259A pair (0x20-0x21, 0xA0-0xA1), the 8254
-      timer and port B (0x40-0x43, 0x61), the console port (COM1) and the
-      GDB port (COM2) of the VM, and the keyboard controller (0x60, 0x64)
-      and reset control (0xCF9) ports, through which the guest resets the
-      VM; any other port shall read as all ones and ignore writes, the
-      first access to each being reported on the console of the
-      hypervisor, except for the ports 0x80, 0xED and 0xCF8-0xCFF, which
-      are silent.</para>
+    its devices only: the 8259A pair (0x20-0x21, 0xA0-0xA1), the 8254
+    timer and port B (0x40-0x43, 0x61), the console port (COM1) and the
+    GDB port (COM2) of the VM, and the keyboard controller (0x60, 0x64)
+    and reset control (0xCF9) ports, through which the guest resets the
+    VM.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A guest must not drive a device that is not its own.</para>
@@ -53,10 +50,43 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_IOPORT_IO_INIT_IOPM_01
+        HLR_IOPORT_IN_RANGE_01
+        HLR_IOPORT_IO_ACCESS_01
+        HLR_MULTIBOOT_HV_ARCH_VM_INIT_01
+        HLR_SVM_IO_MASK_01
+        HLR_SVM_HANDLE_IO_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_DEV_006" role="requirement">
+    <title><phrase role="srq">SRQ_HV_DEV_006</phrase></title>
+    <para>On x86_64 the hypervisor shall make any other I/O port read as
+    all ones and ignore writes to it, the first access to each being
+    reported on the console of the hypervisor, except for the ports
+    0x80, 0xED and 0xCF8-0xCFF, which are silent.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest that probes for a device must find none, and the
+      operator must see what it looked for.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_IOPORT_ALL_ONES_01
+        HLR_IOPORT_REPORT_PORT_01
+        HLR_IOPORT_OTHER_PORT_01
+        HLR_IOPORT_IO_ACCESS_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_DEV_002" role="requirement">
-    <title>SRQ_HV_DEV_002</title>
+    <title><phrase role="srq">SRQ_HV_DEV_002</phrase></title>
     <para>On x86_64 the hypervisor shall give the VM no local APIC, I/O
       APIC or PCI device.</para>
     <formalpara>
@@ -68,10 +98,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_NPT_NPT_BUILD_01
+        HLR_SVM_HANDLE_CPUID_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_DEV_003" role="requirement">
-    <title>SRQ_HV_DEV_003</title>
+    <title><phrase role="srq">SRQ_HV_DEV_003</phrase></title>
     <para>On arm64 the hypervisor shall give the VM the devices of the
       QEMU virt machine that JetOS uses and no others: the GICv2 (the
       distributor emulated, the CPU interface direct), the PL011 of the
@@ -87,15 +122,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMIO_DEVICE_OF_01
+        HLR_VUART_ID_REGISTER_01
+        HLR_VUART_STORED_REGISTER_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_DEV_004" role="requirement">
-    <title>SRQ_HV_DEV_004</title>
+    <title><phrase role="srq">SRQ_HV_DEV_004</phrase></title>
     <para>On arm64 the hypervisor shall emulate an access of a guest to
-      an emulated device that it can decode (an instruction that gives
-      its syndrome); a register that it does not emulate shall read as
-      zero and ignore writes, the first access to each being reported;
-      and it shall stop the VM for an access that it cannot decode.</para>
+    an emulated device that it can decode (an instruction that gives its
+    syndrome).</para>
     <formalpara>
       <title>Rationale</title>
       <para>An instruction that cannot be decoded cannot be repeated for
@@ -105,10 +144,65 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMIO_DEVICE_OF_01
+        HLR_MMIO_EMULATE_01
+        HLR_MMIO_LOAD_VALUE_01
+        HLR_MMIO_MMIO_ABORT_01
+        HLR_VGICD_VGICD_ACCESS_01
+        HLR_VUART_ARM64_VUART_ACCESS_02
+        HLR_VUART_VRTC_ACCESS_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_DEV_007" role="requirement">
+    <title><phrase role="srq">SRQ_HV_DEV_007</phrase></title>
+    <para>On arm64 the hypervisor shall make a register of an emulated
+    device that it does not emulate read as zero and ignore writes to
+    it, the first access to each being reported.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A guest that probes a register must find nothing there, and
+      the operator must see what it looked for.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMIO_LOG_UNHANDLED_01
+        HLR_MMIO_EMULATE_01
+        HLR_MMIO_EMULATE_02
+        HLR_VUART_ARM64_VUART_ACCESS_02
+        HLR_VUART_ARM64_VUART_ACCESS_03
+        HLR_VUART_VRTC_ACCESS_02
+        HLR_VUART_VRTC_ACCESS_03</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_DEV_008" role="requirement">
+    <title><phrase role="srq">SRQ_HV_DEV_008</phrase></title>
+    <para>On arm64 the hypervisor shall stop the VM for an access to an
+    emulated device that it cannot decode.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>An instruction that cannot be decoded cannot be repeated for
+        the guest.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMIO_MMIO_ABORT_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_DEV_005" role="requirement">
-    <title>SRQ_HV_DEV_005</title>
+    <title><phrase role="srq">SRQ_HV_DEV_005</phrase></title>
     <para>On arm64 the hypervisor shall answer the power state calls
       (PSCI) that a guest makes with the hypervisor call or the secure
       monitor call, for a VM that has one CPU: the version, the features,
@@ -121,6 +215,12 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VCPU_HANDLE_SYNC_02
+        HLR_PSCI_SUPPORTED_01
+        HLR_PSCI_PSCI_GUEST_CALL_01</para>
     </formalpara>
   </section>
 </chapter>

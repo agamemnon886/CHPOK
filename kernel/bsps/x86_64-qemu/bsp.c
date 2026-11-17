@@ -27,6 +27,10 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * boards/x86_64-qemu/bsp.c (the board support packages are in kernel/bsps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -57,13 +61,26 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_BSP_X86_64_JA_BSP_INIT_01}: `ja_bsp_init()` shall initialize the
+ *   board when the kernel starts: first the consoles, then the interrupt
+ *   controllers, then the timer.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_002}
+ *   - \srqref{SRQ_JET_BOOT_003}
+ *   - \srqref{SRQ_JET_BSP_002}
+ *   - \srqref{SRQ_JET_BSP_005}
  *
  * @llr
+ * - \llrid{LLR_BSP_X86_64_JA_BSP_INIT_01}: `ja_bsp_init()` shall call, in this
+ *   order, `jet_console_init_all()`, `pok_pic_init()` and
+ *   `pok_x86_qemu_timer_init()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_BSP_X86_64_JA_BSP_INIT_01}
  *
  * @design
- * 1. Call `jet_console_init_all()`.
- * 2. Call `pok_pic_init()`.
- * 3. Call `pok_x86_qemu_timer_init()`.
+ * 1. Call `jet_console_init_all()`. \llrref{LLR_BSP_X86_64_JA_BSP_INIT_01}
+ * 2. Call `pok_pic_init()`. \llrref{LLR_BSP_X86_64_JA_BSP_INIT_01}
+ * 3. Call `pok_x86_qemu_timer_init()`. \llrref{LLR_BSP_X86_64_JA_BSP_INIT_01}
  *
  * @calls
  * - `jet_console_init_all()`

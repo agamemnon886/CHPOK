@@ -35,9 +35,9 @@
     from the processor when it cannot execute an instruction.</para>
 
   <section xml:id="SRQ_JET_INT_001" role="requirement">
-    <title>SRQ_JET_INT_001</title>
-    <para>JetOS shall handle the interrupts of the timer of the board,
-      and shall not let any other interrupt disturb the module.</para>
+    <title><phrase role="srq">SRQ_JET_INT_001</phrase></title>
+    <para>JetOS shall handle the interrupts of the timer of the
+    board.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The timer drives the schedule, and no other device is in use.</para>
@@ -46,13 +46,50 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_GIC_INIT_01
+        HLR_BSP_JA_BSP_PROCESS_IRQ_01
+        HLR_PIC_POK_PIC_INIT_01
+        HLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01
+        HLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01
+        HLR_GDT_JA_GDT_INIT_01
+        HLR_GDT_JA_TSS_SET_RSP0_01
+        HLR_INTERRUPT_CPU_LOAD_IDT_01
+        HLR_INTERRUPT_IDT_SET_GATE_01
+        HLR_INTERRUPT_JA_IDT_INIT_01
+        HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_INT_006" role="requirement">
+    <title><phrase role="srq">SRQ_JET_INT_006</phrase></title>
+    <para>JetOS shall not let an interrupt other than that of the timer
+    of the board disturb the module.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>No device other than the timer is in use, so no other
+      interrupt may take time from the partitions.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_GIC_INIT_01
+        HLR_BSP_JA_BSP_PROCESS_IRQ_01
+        HLR_PIC_POK_PIC_INIT_01
+        HLR_PIC_POK_PIC_MASK_01
+        HLR_PIC_POK_PIC_UNMASK_01
+        HLR_INTERRUPT_JA_INTERRUPT_HANDLER_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_INT_002" role="requirement">
-    <title>SRQ_JET_INT_002</title>
+    <title><phrase role="srq">SRQ_JET_INT_002</phrase></title>
     <para>JetOS shall disable and enable the interrupts of the processor
-      when the kernel needs to protect its data, and shall tell whether
-      they are enabled.</para>
+    when the kernel needs to protect its data.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The kernel keeps its data consistent against interrupts this
@@ -62,10 +99,41 @@
       <title>Verification</title>
       <para>Analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ARCH_ARM64_JA_PREEMPT_DISABLE_01
+        HLR_ARCH_ARM64_JA_PREEMPT_ENABLE_01
+        HLR_SCHED_POK_PREEMPTION_DISABLE_01
+        HLR_SCHED_POK_PREEMPTION_ENABLE_01
+        HLR_SCHED___POK_PREEMPTION_ENABLE_01
+        HLR_ARCH_X86_64_JA_PREEMPT_DISABLE_01
+        HLR_ARCH_X86_64_JA_PREEMPT_ENABLE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_INT_007" role="requirement">
+    <title><phrase role="srq">SRQ_JET_INT_007</phrase></title>
+    <para>JetOS shall tell whether the interrupts of the processor are
+    enabled.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A kernel function restores the state of the interrupts that
+      it found.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ARCH_ARM64_JA_PREEMPT_ENABLED_01
+        HLR_ARCH_GET_FLAGS_01
+        HLR_ARCH_X86_64_JA_PREEMPT_ENABLED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_INT_003" role="requirement">
-    <title>SRQ_JET_INT_003</title>
+    <title><phrase role="srq">SRQ_JET_INT_003</phrase></title>
     <para>JetOS shall handle an exception of the processor in a partition
       as an error of the partition: a fault of the memory as a memory
       violation, an arithmetic one as a numeric error, and other as an
@@ -78,10 +146,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_ERROR_ID_FOR_01
+        HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_02
+        HLR_INTERRUPT_CPU_READ_CR2_01
+        HLR_INTERRUPT_PROCESS_EXCEPTION_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_INT_004" role="requirement">
-    <title>SRQ_JET_INT_004</title>
+    <title><phrase role="srq">SRQ_JET_INT_004</phrase></title>
     <para>JetOS shall report an exception in the kernel itself or an
       unexpected one on the console, with the registers, and stop the
       module.</para>
@@ -93,10 +168,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_DUMP_REGISTERS_01
+        HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01
+        HLR_EXCEPTIONS_JA_EXCEPTION_UNEXPECTED_01
+        HLR_DEBUG_POK_FATAL_01
+        HLR_DEBUG_POK_FATAL_02
+        HLR_INTERRUPT_DUMP_REGISTERS_01
+        HLR_INTERRUPT_PROCESS_EXCEPTION_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_INT_005" role="requirement">
-    <title>SRQ_JET_INT_005</title>
+    <title><phrase role="srq">SRQ_JET_INT_005</phrase></title>
     <para>JetOS shall acknowledge each interrupt at the interrupt
       controller of the board, so that the next one is delivered.</para>
     <formalpara>
@@ -106,6 +191,12 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_JA_BSP_PROCESS_IRQ_01
+        HLR_PIC_POK_PIC_EOI_01
+        HLR_PIT_JA_BSP_PROCESS_TIMER_01</para>
     </formalpara>
   </section>
 </chapter>

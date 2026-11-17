@@ -36,6 +36,10 @@
  * hypervisor/arch/x86_64/multiboot.c (the code of the processor architecture
  * is in hypervisor/csps); memcpy() and memset() of the library shared with the
  * kernel replace hv_memcpy() and hv_memset().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -75,15 +79,32 @@
  * | `iopms` | `static uint8_t[HV_MAX_VMS][SVM_IOPM_SIZE]` | The I/O permission maps of the VMs |
  *
  * @hlr
+ * - \hlrid{HLR_MULTIBOOT_HV_ARCH_VM_INIT_01}: `hv_arch_vm_init()` shall set up
+ *   the x86_64 part of a VM once its RAM is placed: its nested page tables and
+ *   its I/O permission map.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_MEM_001}
+ *   - \srqref{SRQ_HV_DEV_001}
  *
  * @llr
+ * - \llrid{LLR_MULTIBOOT_HV_ARCH_VM_INIT_01}: `hv_arch_vm_init()` shall set
+ *   `npt_root` of the VM to the result of `npt_build()` for its index, its RAM
+ *   base and the memory size of its configuration, set `iopm` to the I/O
+ *   permission map of its index and `iopm_pa` to the address of that map, and
+ *   then call `io_init_iopm()` once with the VM.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_HV_ARCH_VM_INIT_01}
  *
  * @design
  * 1. Call `npt_build()` with the arguments `vm->index`, `vm->ram_base` and
  *    `vm->config->memory_size`, and store the result in `vm->arch.npt_root`.
+ *    \llrref{LLR_MULTIBOOT_HV_ARCH_VM_INIT_01}
  * 2. Set `vm->arch.iopm` to `iopms[vm->index]`.
+ *    \llrref{LLR_MULTIBOOT_HV_ARCH_VM_INIT_01}
  * 3. Set `vm->arch.iopm_pa` to `(uint64_t) (uintptr_t) iopms[vm->index]`.
+ *    \llrref{LLR_MULTIBOOT_HV_ARCH_VM_INIT_01}
  * 4. Call `io_init_iopm()` with the argument `vm`.
+ *    \llrref{LLR_MULTIBOOT_HV_ARCH_VM_INIT_01}
  *
  * @calls
  * - `npt_build()`
@@ -122,13 +143,22 @@ void hv_arch_vm_init(hv_vm_t *vm)
  * | `i` | `uint64_t` | The index of the 64-bit word |
  *
  * @hlr
+ * - \hlrid{HLR_MULTIBOOT_ZERO_RAM_01}: `zero_ram()` shall clear guest RAM at a
+ *   host physical address.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_004}
  *
  * @llr
+ * - \llrid{LLR_MULTIBOOT_ZERO_RAM_01}: `zero_ram()` shall write 0 to each of
+ *   the `size` divided by 8 64-bit words from the address `pa`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_ZERO_RAM_01}
  *
  * @design
  * 1. Set `p` to `(volatile uint64_t *) (uintptr_t) pa`.
+ *    \llrref{LLR_MULTIBOOT_ZERO_RAM_01}
  * 2. Set `i` to `0U`; then while `i` is less than `(size / 8U)`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_MULTIBOOT_ZERO_RAM_01}
  *    1. Set `p[i]` to `0U`.
  *
  * @calls
@@ -164,12 +194,21 @@ static void zero_ram(uint64_t pa, uint64_t size)
  * | `p` | `volatile uint32_t *` | The word |
  *
  * @hlr
+ * - \hlrid{HLR_MULTIBOOT_PUT32_01}: `put32()` shall write a 32-bit value to
+ *   guest RAM at a host physical address.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_005}
  *
  * @llr
+ * - \llrid{LLR_MULTIBOOT_PUT32_01}: `put32()` shall write the 32-bit value
+ *   `value` once at the address `pa`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_PUT32_01}
  *
  * @design
  * 1. Set `p` to `(volatile uint32_t *) (uintptr_t) pa`.
- * 2. Set `*p` to `value`.
+ *    \llrref{LLR_MULTIBOOT_PUT32_01}
+ * 2. Set `*p` to `value`. \llrref{LLR_MULTIBOOT_PUT32_01}
  *
  * @calls
  * None.
@@ -201,17 +240,32 @@ static void put32(uint64_t pa, uint32_t value)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MULTIBOOT_PUT_MMAP_ENTRY_01}: `put_mmap_entry()` shall write a
+ *   RAM entry of the Multiboot memory map.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_005}
  *
  * @llr
+ * - \llrid{LLR_MULTIBOOT_PUT_MMAP_ENTRY_01}: `put_mmap_entry()` shall write
+ *   with `put32()`, at `pa` and every 4 bytes after it, in this order:
+ *   `MMAP_ENTRY_SIZE` minus 4, the low and the high 32 bits of `base`, the low
+ *   and the high 32 bits of `length`, and `MMAP_RAM`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_PUT_MMAP_ENTRY_01}
  *
  * @design
  * 1. Call `put32()` with the arguments `pa` and `MMAP_ENTRY_SIZE - 4U`.
+ *    \llrref{LLR_MULTIBOOT_PUT_MMAP_ENTRY_01}
  * 2. Call `put32()` with the arguments `pa + 4U` and `(uint32_t) base`.
+ *    \llrref{LLR_MULTIBOOT_PUT_MMAP_ENTRY_01}
  * 3. Call `put32()` with the arguments `pa + 8U` and `(uint32_t) (base >> 32)`.
+ *    \llrref{LLR_MULTIBOOT_PUT_MMAP_ENTRY_01}
  * 4. Call `put32()` with the arguments `pa + 12U` and `(uint32_t) length`.
+ *    \llrref{LLR_MULTIBOOT_PUT_MMAP_ENTRY_01}
  * 5. Call `put32()` with the arguments `pa + 16U` and
- *    `(uint32_t) (length >> 32)`.
+ *    `(uint32_t) (length >> 32)`. \llrref{LLR_MULTIBOOT_PUT_MMAP_ENTRY_01}
  * 6. Call `put32()` with the arguments `pa + 20U` and `MMAP_RAM`.
+ *    \llrref{LLR_MULTIBOOT_PUT_MMAP_ENTRY_01}
  *
  * @calls
  * - `put32()`
@@ -250,32 +304,60 @@ static void put_mmap_entry(uint64_t pa, uint64_t base, uint64_t length)
  * | `name` | `uint8_t *` | Where the boot loader's name goes |
  *
  * @hlr
+ * - \hlrid{HLR_MULTIBOOT_WRITE_MBI_01}: `write_mbi()` shall write the Multiboot
+ *   information of a VM at its address in the VM's RAM: the memory sizes, a
+ *   memory map and the name of the boot loader.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_005}
  *
  * @llr
+ * - \llrid{LLR_MULTIBOOT_WRITE_MBI_01}: `write_mbi()` shall write with
+ *   `put32()`, in the Multiboot information at `HV_GUEST_MBI` in the RAM of the
+ *   VM: `MBI_FLAG_MEM | MBI_FLAG_MMAP | MBI_FLAG_LOADER` in `MBI_FLAGS`,
+ *   `LOW_MEMORY_END` divided by 1024 in `MBI_MEM_LOWER`, the memory size of the
+ *   configuration minus `HIGH_MEMORY_START`, divided by 1024, in
+ *   `MBI_MEM_UPPER`, 2 times `MMAP_ENTRY_SIZE` in `MBI_MMAP_LENGTH`,
+ *   `HV_GUEST_MBI` plus `MBI_MMAP_OFFSET` in `MBI_MMAP_ADDR`, and
+ *   `HV_GUEST_MBI` plus `MBI_NAME_OFFSET` in `MBI_LOADER_NAME`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_WRITE_MBI_01}
+ * - \llrid{LLR_MULTIBOOT_WRITE_MBI_02}: `write_mbi()` shall write with
+ *   `put_mmap_entry()`, at `MBI_MMAP_OFFSET` of the information, an entry of
+ *   `LOW_MEMORY_END` bytes from 0, and after it an entry from
+ *   `HIGH_MEMORY_START` of the memory size minus `HIGH_MEMORY_START` bytes, and
+ *   copy `"JetOS hypervisor"` with its 0 byte to `MBI_NAME_OFFSET` of the
+ *   information with `memcpy()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_WRITE_MBI_01}
  *
  * @design
  * 1. Set `mbi` to `vm->ram_base + HV_GUEST_MBI`.
+ *    \llrref{LLR_MULTIBOOT_WRITE_MBI_01}, \llrref{LLR_MULTIBOOT_WRITE_MBI_02}
  * 2. Set `size` to `vm->config->memory_size`.
+ *    \llrref{LLR_MULTIBOOT_WRITE_MBI_01}, \llrref{LLR_MULTIBOOT_WRITE_MBI_02}
  * 3. Set `name` to `(uint8_t *) (uintptr_t) (mbi + MBI_NAME_OFFSET)`.
+ *    \llrref{LLR_MULTIBOOT_WRITE_MBI_02}
  * 4. Call `put32()` with the arguments `mbi + MBI_FLAGS` and
  *    `MBI_FLAG_MEM | MBI_FLAG_MMAP | MBI_FLAG_LOADER`.
+ *    \llrref{LLR_MULTIBOOT_WRITE_MBI_01}
  * 5. Call `put32()` with the arguments `mbi + MBI_MEM_LOWER` and
- *    `LOW_MEMORY_END / 1024U`.
+ *    `LOW_MEMORY_END / 1024U`. \llrref{LLR_MULTIBOOT_WRITE_MBI_01}
  * 6. Call `put32()` with the arguments `mbi + MBI_MEM_UPPER` and
  *    `(uint32_t) ((size - HIGH_MEMORY_START) / 1024U)`.
+ *    \llrref{LLR_MULTIBOOT_WRITE_MBI_01}
  * 7. Call `put32()` with the arguments `mbi + MBI_MMAP_LENGTH` and
- *    `2U * MMAP_ENTRY_SIZE`.
+ *    `2U * MMAP_ENTRY_SIZE`. \llrref{LLR_MULTIBOOT_WRITE_MBI_01}
  * 8. Call `put32()` with the arguments `mbi + MBI_MMAP_ADDR` and
- *    `HV_GUEST_MBI + MBI_MMAP_OFFSET`.
+ *    `HV_GUEST_MBI + MBI_MMAP_OFFSET`. \llrref{LLR_MULTIBOOT_WRITE_MBI_01}
  * 9. Call `put32()` with the arguments `mbi + MBI_LOADER_NAME` and
- *    `HV_GUEST_MBI + MBI_NAME_OFFSET`.
+ *    `HV_GUEST_MBI + MBI_NAME_OFFSET`. \llrref{LLR_MULTIBOOT_WRITE_MBI_01}
  * 10. Call `put_mmap_entry()` with the arguments `mbi + MBI_MMAP_OFFSET`, `0U`
- *     and `LOW_MEMORY_END`.
+ *     and `LOW_MEMORY_END`. \llrref{LLR_MULTIBOOT_WRITE_MBI_02}
  * 11. Call `put_mmap_entry()` with the arguments
  *     `mbi + MBI_MMAP_OFFSET + MMAP_ENTRY_SIZE`, `HIGH_MEMORY_START` and
- *     `size - HIGH_MEMORY_START`.
+ *     `size - HIGH_MEMORY_START`. \llrref{LLR_MULTIBOOT_WRITE_MBI_02}
  * 12. Call `memcpy()` with the arguments `name`, `loader_name` and
- *     `sizeof(loader_name)`.
+ *     `sizeof(loader_name)`. \llrref{LLR_MULTIBOOT_WRITE_MBI_02}
  *
  * @calls
  * - `put32()`
@@ -328,31 +410,69 @@ static void write_mbi(const hv_vm_t *vm)
  * | `load_end` | `uint64_t` | The end of the loaded bytes |
  *
  * @hlr
+ * - \hlrid{HLR_MULTIBOOT_VM_LOAD_01}: `vm_load()` shall load a VM at its first
+ *   start and at each reset: clear its RAM, copy its image, write the Multiboot
+ *   information and reset its devices.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_004}
+ *   - \srqref{SRQ_HV_VM_005}
+ * - \hlrid{HLR_MULTIBOOT_VM_LOAD_02}: `vm_load()` shall stop, with a message,
+ *   if the image does not fit into the RAM of the VM or its entry is outside
+ *   it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_003}
  *
  * @llr
+ * - \llrid{LLR_MULTIBOOT_VM_LOAD_01}: If the load address of the configuration
+ *   is less than `HIGH_MEMORY_START`, or the load address plus the size of the
+ *   image is more than `bss_end`, or `bss_end` is more than `memory_size`, or
+ *   `entry` is less than the load address, or `entry` is not less than the load
+ *   address plus the size of the image, `vm_load()` shall call `vm_print()`
+ *   with the VM and `"image doesn't fit into the VM's RAM"`, and then
+ *   `hv_fatal()` with `"bad VM image"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_VM_LOAD_02}
+ * - \llrid{LLR_MULTIBOOT_VM_LOAD_02}: If the load address of the configuration
+ *   is `HIGH_MEMORY_START` or more, the load address plus the size of the image
+ *   is not more than `bss_end`, `bss_end` is not more than `memory_size`, and
+ *   `entry` is from the load address to below the load address plus the size of
+ *   the image, `vm_load()` shall, in this order, call `zero_ram()` with the RAM
+ *   base of the VM and `memory_size`, copy the image to the RAM base plus the
+ *   load address with `memcpy()`, call `write_mbi()`, `vpic_reset()` for the
+ *   PIC of the VM and `vpit_reset()` for its PIT, and set every byte of
+ *   `io_logged` of the VM to 0 with `memset()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MULTIBOOT_VM_LOAD_01}
  *
  * @design
- * 1. Set `cfg` to `vm->config`.
+ * 1. Set `cfg` to `vm->config`. \llrref{LLR_MULTIBOOT_VM_LOAD_01},
+ *    \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  * 2. Set `image_size` to the value at `cfg->image_size`.
- * 3. Set `load` to `cfg->load_addr`.
- * 4. Set `load_end` to `load + image_size`.
+ *    \llrref{LLR_MULTIBOOT_VM_LOAD_01}, \llrref{LLR_MULTIBOOT_VM_LOAD_02}
+ * 3. Set `load` to `cfg->load_addr`. \llrref{LLR_MULTIBOOT_VM_LOAD_01},
+ *    \llrref{LLR_MULTIBOOT_VM_LOAD_02}
+ * 4. Set `load_end` to `load + image_size`. \llrref{LLR_MULTIBOOT_VM_LOAD_01},
+ *    \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  * 5. If `load` is less than `HIGH_MEMORY_START` or `load_end` is greater than
  *    `cfg->bss_end` or `cfg->bss_end` is greater than `cfg->memory_size` or
  *    `cfg->entry` is less than `load` or `cfg->entry` is greater than or equal
- *    to `load_end`:
+ *    to `load_end`: \llrref{LLR_MULTIBOOT_VM_LOAD_01}
  *    1. Call `vm_print()` with the arguments `vm` and
  *       `"image doesn't fit into the VM's RAM"`.
  *    2. Call `hv_fatal()` with the argument `"bad VM image"`.
  * 6. Call `zero_ram()` with the arguments `vm->ram_base` and
- *    `cfg->memory_size`.
+ *    `cfg->memory_size`. \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  * 7. Call `memcpy()` with the arguments
  *    `(uint8_t *) (uintptr_t) (vm->ram_base + load)`, `cfg->image` and
- *    `(size_t) image_size`.
+ *    `(size_t) image_size`. \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  * 8. Call `write_mbi()` with the argument `vm`.
+ *    \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  * 9. Call `vpic_reset()` with the address of `vm->arch.pic`.
+ *    \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  * 10. Call `vpit_reset()` with the address of `vm->arch.pit`.
+ *     \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  * 11. Call `memset()` with the arguments `vm->arch.io_logged`, `0` and
- *     `sizeof(vm->arch.io_logged)`.
+ *     `sizeof(vm->arch.io_logged)`. \llrref{LLR_MULTIBOOT_VM_LOAD_02}
  *
  * @calls
  * - `vm_print()`

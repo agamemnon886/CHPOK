@@ -39,12 +39,10 @@
     (INIT_COLD and INIT_WARM in the code).</para>
 
   <section xml:id="SRQ_JET_PART_001" role="requirement">
-    <title>SRQ_JET_PART_001</title>
+    <title><phrase role="srq">SRQ_JET_PART_001</phrase></title>
     <para>JetOS shall give each partition an operating mode, one of
-      <literal>IDLE</literal>, <literal>COLD_START</literal>,
-      <literal>WARM_START</literal> and <literal>NORMAL</literal>, and
-      shall start each partition in <literal>COLD_START</literal> mode
-      when the module starts.</para>
+    <literal>IDLE</literal>, <literal>COLD_START</literal>,
+    <literal>WARM_START</literal> and <literal>NORMAL</literal>.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The mode tells what the partition may do and what the kernel
@@ -54,16 +52,37 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_PARTITION_ARINC_START_05</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_011" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_011</phrase></title>
+    <para>JetOS shall start each partition in
+    <literal>COLD_START</literal> mode when the module starts.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A partition initializes itself before it works
+      normally.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_PARTITION_ARINC_START_05</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_002" role="requirement">
-    <title>SRQ_JET_PART_002</title>
+    <title><phrase role="srq">SRQ_JET_PART_002</phrase></title>
     <para>JetOS shall load the image of a partition from the archive
-      embedded in the kernel into its memory space when the partition
-      starts: it shall check the image and its loadable segments against
-      the memory space of the partition, copy the segments, clear the
-      memory that they do not initialize, and take the entry point from
-      the image.</para>
+    embedded in the kernel into its memory space when the partition
+    starts, copying its loadable segments, clearing the memory that they
+    do not initialize, and taking the entry point from the image.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The code of the partition is part of the kernel image; it
@@ -74,10 +93,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_SPACE_LAYOUT_GET_01
+        HLR_LOADER_JET_LOADER_ELF_LOAD_01
+        HLR_LOADER_JET_LOADER_ELF_LOAD_02
+        HLR_LOADER_JET_LOADER_ELF_LOAD_03
+        HLR_PARTITION_ARINC_PARTITION_ARINC_START_01
+        HLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_012" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_012</phrase></title>
+    <para>JetOS shall check the image of a partition and its loadable
+    segments against the memory space of the partition before it copies
+    them.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A damaged or oversized image must not corrupt
+      anything.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_SPACE_LAYOUT_GET_01
+        HLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01
+        HLR_LOADER_JET_LOADER_ELF_LOAD_04</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_003" role="requirement">
-    <title>SRQ_JET_PART_003</title>
+    <title><phrase role="srq">SRQ_JET_PART_003</phrase></title>
     <para>JetOS shall treat an image that cannot be loaded as a partition
       load error of the partition (see health monitoring).</para>
     <formalpara>
@@ -89,15 +139,18 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOADER_JET_LOADER_ELF_LOAD_04</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_004" role="requirement">
-    <title>SRQ_JET_PART_004</title>
-    <para>JetOS shall, when a partition starts or restarts, give it empty
-      state: the memory of its image as loaded, no processes created, no
-      ports created, the shared area initialized, all its stacks free;
-      and shall run its first process, the main process, at the entry
-      point of the image, with preemption locked.</para>
+    <title><phrase role="srq">SRQ_JET_PART_004</phrase></title>
+    <para>JetOS shall, when a partition starts or restarts, give it
+    empty state: the memory of its image as loaded, no processes
+    created, no ports created, the shared area initialized, all its
+    stacks free.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Each start is a fresh one, so that a restart really recovers
@@ -107,19 +160,43 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_THREAD_RESET_01
+        HLR_PARTITION_ARINC_PARTITION_ARINC_START_02
+        HLR_SCHED_START_PARTITION_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_013" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_013</phrase></title>
+    <para>JetOS shall run the first process of a partition that starts
+    or restarts, the main process, at the entry point of the image, with
+    preemption locked.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The main process creates the other processes and the ports
+      before the partition works normally.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_PARTITION_ARINC_START_04
+        HLR_SCHED_START_PARTITION_01
+        HLR_SCHED_START_PARTITION_02
+        HLR_SCHED_POK_PARTITION_JUMP_USER_01
+        HLR_SCHED_ARINC_SCHED_ARINC_START_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_005" role="requirement">
-    <title>SRQ_JET_PART_005</title>
-    <para>JetOS shall change the mode of the calling partition at its
-      request as follows: to <literal>COLD_START</literal> or
-      <literal>WARM_START</literal> it shall restart the partition in
-      that mode; to <literal>IDLE</literal> it shall stop its processing;
-      to <literal>NORMAL</literal> it shall start its processes. The
-      request shall be refused with an error for
-      <literal>WARM_START</literal> while the mode is
-      <literal>COLD_START</literal>, for <literal>NORMAL</literal> while
-      the mode is <literal>NORMAL</literal>, and for any other mode.</para>
+    <title><phrase role="srq">SRQ_JET_PART_005</phrase></title>
+    <para>JetOS shall restart the calling partition in
+    <literal>COLD_START</literal> or <literal>WARM_START</literal> mode
+    when the partition requests that mode.</para>
     <formalpara>
       <title>Rationale</title>
       <para>These are the mode transitions that ARINC 653 allows to a
@@ -129,10 +206,83 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_POK_PARTITION_ARINC_RESET_01
+        HLR_PARTITION_ARINC_PARTITION_SET_MODE_INTERNAL_01
+        HLR_PARTITION_ARINC_POK_PARTITION_SET_MODE_CURRENT_01
+        HLR_SCHED_INTRA_PARTITION_SWITCH_02
+        HLR_SCHED_POK_SCHED_03
+        HLR_SCHED_POK_PARTITION_RESTART_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_014" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_014</phrase></title>
+    <para>JetOS shall stop the processing of the calling partition when
+    the partition requests <literal>IDLE</literal> mode.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the mode transitions that ARINC 653 allows to a
+        partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_POK_PARTITION_ARINC_IDLE_01
+        HLR_PARTITION_ARINC_PARTITION_SET_MODE_INTERNAL_01
+        HLR_PARTITION_ARINC_POK_PARTITION_SET_MODE_CURRENT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_015" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_015</phrase></title>
+    <para>JetOS shall start the processes of the calling partition when
+    the partition requests <literal>NORMAL</literal> mode.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the mode transitions that ARINC 653 allows to a
+        partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_PARTITION_SET_MODE_INTERNAL_01
+        HLR_PARTITION_ARINC_POK_PARTITION_SET_MODE_CURRENT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_016" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_016</phrase></title>
+    <para>JetOS shall refuse with an error a request of a partition for
+    <literal>WARM_START</literal> mode while its mode is
+    <literal>COLD_START</literal>, for <literal>NORMAL</literal> mode
+    while its mode is <literal>NORMAL</literal>, and for any other
+    mode.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the mode transitions that ARINC 653 allows to a
+        partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_PARTITION_SET_MODE_INTERNAL_01
+        HLR_PARTITION_ARINC_POK_PARTITION_SET_MODE_CURRENT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_006" role="requirement">
-    <title>SRQ_JET_PART_006</title>
+    <title><phrase role="srq">SRQ_JET_PART_006</phrase></title>
     <para>JetOS shall, when a partition enters <literal>NORMAL</literal>
       mode, release its locked preemption and start the processes that
       were started during the initialization: an aperiodic process after
@@ -148,10 +298,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_PARTITION_SET_MODE_NORMAL_01
+        HLR_THREAD_THREAD_DELAYED_START_INTERNAL_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_007" role="requirement">
-    <title>SRQ_JET_PART_007</title>
+    <title><phrase role="srq">SRQ_JET_PART_007</phrase></title>
     <para>JetOS shall, while a partition is in <literal>IDLE</literal>
       mode, run none of its processes, while its time slots stay assigned
       to it.</para>
@@ -164,10 +319,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ARCH_ARM64_JA_INF_LOOP_01
+        HLR_PARTITION_ARINC_IDLE_FUNC_01
+        HLR_PARTITION_ARINC_POK_PARTITION_ARINC_IDLE_01
+        HLR_ARCH_X86_64_JA_INF_LOOP_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_008" role="requirement">
-    <title>SRQ_JET_PART_008</title>
+    <title><phrase role="srq">SRQ_JET_PART_008</phrase></title>
     <para>JetOS shall record, for each partition, why it started last
       (normal start, partition restart, restart by the health monitor of
       the module or of the partition) and give it, with its identifier,
@@ -182,17 +344,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_SET_HM_MODULE_RESTART_01
+        HLR_PARTITION_ARINC_PARTITION_ARINC_START_05
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_GET_STATUS_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_009" role="requirement">
-    <title>SRQ_JET_PART_009</title>
+    <title><phrase role="srq">SRQ_JET_PART_009</phrase></title>
     <para>JetOS shall let a partition raise the lock level of its
-      preemption (locking it) up to a maximum of 16 levels (a request
-      beyond it is refused with an error), and lower it; while the level
-      is above 0 the current process shall not be preempted by another
-      process of its partition, and when it falls to 0 the partition
-      shall choose the process to run again. The level shall not change
-      outside <literal>NORMAL</literal> mode or in the error handler.</para>
+    preemption (locking it) up to a maximum of 16 levels, a request
+    beyond it being refused with an error, and lower it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Preemption locking is the ARINC 653 means to protect short
@@ -202,10 +366,81 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_INC_LOCK_LEVEL_01
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_INC_LOCK_LEVEL_02
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_DEC_LOCK_LEVEL_01
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_DEC_LOCK_LEVEL_03</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_017" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_017</phrase></title>
+    <para>JetOS shall not preempt the current process of a partition by
+    another process of the partition while the lock level of the
+    partition is above 0.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The lock protects a short critical region of the process
+      that holds it.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_INC_LOCK_LEVEL_01
+        HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_DISABLE_01
+        HLR_SCHED_ARINC_POK_PREEMPTION_LOCAL_ENABLE_01
+        HLR_SCHED_ARINC_SCHED_ARINC_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_018" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_018</phrase></title>
+    <para>JetOS shall make a partition choose the process to run again
+    when its lock level falls to 0.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Preemption locking is the ARINC 653 means to protect short
+        critical regions of a partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_DEC_LOCK_LEVEL_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_PART_019" role="requirement">
+    <title><phrase role="srq">SRQ_JET_PART_019</phrase></title>
+    <para>JetOS shall not change the lock level of a partition outside
+    <literal>NORMAL</literal> mode or in the error handler.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Outside <literal>NORMAL</literal> mode and in the error
+      handler, the partition does not schedule its processes by
+      priority.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_ARINC_IS_LOCK_LEVEL_BLOCKED_01
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_INC_LOCK_LEVEL_02
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_DEC_LOCK_LEVEL_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_PART_010" role="requirement">
-    <title>SRQ_JET_PART_010</title>
+    <title><phrase role="srq">SRQ_JET_PART_010</phrase></title>
     <para>JetOS shall run, if configured, kernel-only partitions without
       a memory space of their own, for the monitor and for the debugger,
       as part of the kernel.</para>
@@ -217,6 +452,12 @@
     <formalpara>
       <title>Verification</title>
       <para>Review.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_KERNEL_THREAD_ON_EVENT_01
+        HLR_GDB_POK_GDB_THREAD_INIT_01
+        HLR_MONITOR_POK_MONITOR_THREAD_INIT_01</para>
     </formalpara>
   </section>
 </chapter>

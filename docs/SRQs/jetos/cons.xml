@@ -37,10 +37,9 @@
     only by the GDB server.</para>
 
   <section xml:id="SRQ_JET_CONS_001" role="requirement">
-    <title>SRQ_JET_CONS_001</title>
+    <title><phrase role="srq">SRQ_JET_CONS_001</phrase></title>
     <para>JetOS shall write the text that a partition sends to the
-      console to the main console, as the partition gave it, and shall
-      not lose or mix the text of one write with that of another.</para>
+    console to the main console, as the partition gave it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Partitions report their state and their errors on the
@@ -50,10 +49,36 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_JET_CONSOLE_WRITE_USER_01
+        HLR_ERROR_ARINC_POK_ERROR_REPORT_APPLICATION_MESSAGE_01
+        HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_03</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_008" role="requirement">
+    <title><phrase role="srq">SRQ_JET_CONS_008</phrase></title>
+    <para>JetOS shall not lose the text of a write of a partition to the
+    console, nor mix it with that of another write.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Partitions report their state and their errors on the
+        console.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_JET_CONSOLE_WRITE_USER_01
+        HLR_ERROR_ARINC_POK_ERROR_REPORT_APPLICATION_MESSAGE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_CONS_002" role="requirement">
-    <title>SRQ_JET_CONS_002</title>
+    <title><phrase role="srq">SRQ_JET_CONS_002</phrase></title>
     <para>JetOS shall provide the kernel with formatted output to the
       main console, whose text is written as one message, so that the
       messages of the kernel and of a partition are not interleaved.</para>
@@ -65,10 +90,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_FORMAT_JET_FORMAT_01
+        HLR_PRINTF_BUF_FLUSH_01
+        HLR_PRINTF_INIT_BUFFERED_OUTPUT_01
+        HLR_PRINTF_BUF_PUTC_01
+        HLR_PRINTF_CLOSE_BUFFERED_OUTPUT_01
+        HLR_PRINTF_PRINTF_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_CONS_003" role="requirement">
-    <title>SRQ_JET_CONS_003</title>
+    <title><phrase role="srq">SRQ_JET_CONS_003</phrase></title>
     <para>JetOS shall translate each line feed that it writes to the main
       console into a carriage return and a line feed.</para>
     <formalpara>
@@ -79,13 +113,21 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_IOSTREAM_WRITE_01
+        HLR_CONS_POK_WRITE_VGA_01
+        HLR_CONS_POK_WRITE_VGA_02
+        HLR_CONS_IOSTREAM_WRITE_COMMON_01
+        HLR_CONS_IOSTREAM_WRITE_MAIN_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_CONS_004" role="requirement">
-    <title>SRQ_JET_CONS_004</title>
+    <title><phrase role="srq">SRQ_JET_CONS_004</phrase></title>
     <para>JetOS shall give the main console and the debug console, on
-      request, the characters that have arrived, without waiting for
-      more, and shall be able to wait for the next character of each.</para>
+    request, the characters that have arrived, without waiting for
+    more.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The monitor and the GDB server read their input this way.</para>
@@ -94,10 +136,50 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_UART_READ_01
+        HLR_CONS_IOSTREAM_READ_01
+        HLR_CONS_DEBUG_READ_01
+        HLR_CONS_DATA_TO_READ_01
+        HLR_CONS_READ_SERIAL_01
+        HLR_CONS_IOSTREAM_READ_COMMON_01
+        HLR_CONS_IOSTREAM_READ_MAIN_01
+        HLR_CONS_IOSTREAM_READ_DEBUG_01
+        HLR_CONSOLE_SERIAL_PROC_DATA_01
+        HLR_CONSOLE_CONS_INTR_01
+        HLR_CONSOLE_CONS_GETC_01
+        HLR_CONS_JET_CONSOLE_READ_COMMON_01
+        HLR_CONS_JET_CONSOLE_READ_01
+        HLR_CONS_JET_CONSOLE_READ_DEBUG_01
+        HLR_CONS_DATA_TO_READ_0_01
+        HLR_CONS_READ_SERIAL_0_01
+        HLR_CONS_DATA_TO_READ_1_01
+        HLR_CONS_READ_SERIAL_1_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_CONS_009" role="requirement">
+    <title><phrase role="srq">SRQ_JET_CONS_009</phrase></title>
+    <para>JetOS shall be able to wait for the next character of the main
+    console and of the debug console.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The monitor and the GDB server read their input this way.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONSOLE2_GETCHAR2_01
+        HLR_CONSOLE_GETCHAR_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_CONS_005" role="requirement">
-    <title>SRQ_JET_CONS_005</title>
+    <title><phrase role="srq">SRQ_JET_CONS_005</phrase></title>
     <para>JetOS shall write to a console all the bytes it is given,
       waiting for the device as long as it must.</para>
     <formalpara>
@@ -108,10 +190,24 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_UART_PUTC_01
+        HLR_CONS_IOSTREAM_WRITE_01
+        HLR_CONS_IS_TRANSMIT_EMPTY_01
+        HLR_CONS_WRITE_SERIAL_01
+        HLR_CONS_IOSTREAM_WRITE_COMMON_01
+        HLR_CONS_IOSTREAM_WRITE_MAIN_01
+        HLR_CONS_JET_CONSOLE_WRITE_COMMON_01
+        HLR_CONS_JET_CONSOLE_WRITE_01
+        HLR_CONS_JET_CONSOLE_WRITE_DEBUG_01
+        HLR_CONS_POK_CONS_WRITE_01
+        HLR_CONS_POK_CONS_WRITE_1_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_CONS_006" role="requirement">
-    <title>SRQ_JET_CONS_006</title>
+    <title><phrase role="srq">SRQ_JET_CONS_006</phrase></title>
     <para>JetOS shall drop what is written to a console that the board
       does not provide, and give no input from it, instead of failing.</para>
     <formalpara>
@@ -122,10 +218,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_UART1_PROBE_01
+        HLR_CONS_DEBUG_WRITE_01
+        HLR_CONS_DEBUG_READ_01
+        HLR_CONS_IOSTREAM_INIT_01
+        HLR_CONS_IOSTREAM_WRITE_NULL_01
+        HLR_CONS_IOSTREAM_READ_NULL_01
+        HLR_CONS_IOSTREAM_GET_DEFAULT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_CONS_007" role="requirement">
-    <title>SRQ_JET_CONS_007</title>
+    <title><phrase role="srq">SRQ_JET_CONS_007</phrase></title>
     <para>JetOS shall pass the data of the debug console to the serial
       line unchanged.</para>
     <formalpara>
@@ -135,6 +241,13 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_DEBUG_WRITE_01
+        HLR_CONS_IOSTREAM_WRITE_DEBUG_01
+        HLR_CONS_JET_CONSOLE_WRITE_DEBUG_01
+        HLR_CONS_POK_CONS_WRITE_1_01</para>
     </formalpara>
   </section>
 </chapter>

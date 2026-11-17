@@ -35,7 +35,7 @@
     since it cannot use the library of a partition.</para>
 
   <section xml:id="SRQ_JET_LIB_001" role="requirement">
-    <title>SRQ_JET_LIB_001</title>
+    <title><phrase role="srq">SRQ_JET_LIB_001</phrase></title>
     <para>JetOS shall provide the kernel with the routines of the C
       library that copy, fill, move, compare and search memory and that
       measure, compare and search strings, with the behaviour that the C
@@ -50,10 +50,28 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MEMCPY_MEMCPY_01
+        HLR_MEMSET_MEMSET_01
+        HLR_MEMCHR_MEMCHR_01
+        HLR_MEMCMP_MEMCMP_01
+        HLR_MEMMOVE_MEMMOVE_01
+        HLR_STRCHR_STRCHR_01
+        HLR_STRCMP_COMPARE_01
+        HLR_STRCMP_STRCMP_01
+        HLR_STRCMP_STRNCMP_01
+        HLR_STRLEN_STRLEN_01
+        HLR_STRLEN_STRNLEN_01
+        HLR_STRLEN_STRNCPY_01
+        HLR_STRNCASECMP_TO_UPPER_01
+        HLR_STRNCASECMP_STRNCASECMP_01
+        HLR_STRRCHR_STRRCHR_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_LIB_002" role="requirement">
-    <title>SRQ_JET_LIB_002</title>
+    <title><phrase role="srq">SRQ_JET_LIB_002</phrase></title>
     <para>JetOS shall provide formatted output that writes to the main
       console and into a buffer of a given size, which it terminates with
       a NUL and cuts to size, with the integer, hexadecimal, pointer,
@@ -65,6 +83,22 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_FORMAT_PUT_01
+        HLR_FORMAT_PUT_REPEATED_01
+        HLR_FORMAT_PUT_NUMBER_01
+        HLR_FORMAT_PUT_STRING_01
+        HLR_FORMAT_UNSIGNED_ARGUMENT_01
+        HLR_FORMAT_SIGNED_ARGUMENT_01
+        HLR_FORMAT_PUT_CONVERSION_01
+        HLR_FORMAT_PUT_CONVERSION_02
+        HLR_FORMAT_IS_DIGIT_01
+        HLR_FORMAT_JET_FORMAT_01
+        HLR_PRINTF_SPRINTF_PUTC_01
+        HLR_PRINTF_PRINTF_01
+        HLR_PRINTF_SNPRINTF_01</para>
     </formalpara>
   </section>
 </chapter>

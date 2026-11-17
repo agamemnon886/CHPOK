@@ -52,6 +52,16 @@
  * kernel/arch/arm64/exceptions.c (the CPU support packages are in
  * kernel/csps); sysreg.h is include/csps/arm64/cpu/sysreg.h, shared with the
  * hypervisor.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -96,16 +106,37 @@
  * | `i` | `int32_t` | The number of a register |
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_DUMP_REGISTERS_01}: `dump_registers()` shall print
+ *   the registers of an exception frame.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_004}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_DUMP_REGISTERS_01}: For each even `i` from 0 to 28,
+ *   `dump_registers()` shall call `printf()` once with a format made of `"x%-2d
+ *   = 0x%016lx"` twice, with two spaces between them and `"\n"` after them, and
+ *   `i`, `x[i]` of `frame`, `i` plus 1 and `x[i + 1]` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_DUMP_REGISTERS_01}
+ * - \llrid{LLR_EXCEPTIONS_DUMP_REGISTERS_02}: For `i` equal to 30,
+ *   `dump_registers()` shall call `printf()` once with `"x30 = 0x%016lx\n"` and
+ *   `x[30]` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_DUMP_REGISTERS_01}
+ * - \llrid{LLR_EXCEPTIONS_DUMP_REGISTERS_03}: `dump_registers()` shall then
+ *   call `printf()` once with `"sp_el0 = 0x%016lx elr = 0x%016lx spsr =
+ *   0x%%lx\n"` and `sp_el0`, `elr` and `spsr` of `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_DUMP_REGISTERS_01}
  *
  * @design
  * 1. Set `i` to `0`; then while `i` is less than `31`, repeat (after each pass:
- *    add `2` to `i`):
- *    1. If `i` is equal to `30`:
+ *    add `2` to `i`): \llrref{LLR_EXCEPTIONS_DUMP_REGISTERS_01},
+ *    \llrref{LLR_EXCEPTIONS_DUMP_REGISTERS_02}
+ *    1. If `i` is equal to `30`: \llrref{LLR_EXCEPTIONS_DUMP_REGISTERS_02}
  *       1. Call `printf()` with the arguments `"x30 = 0x%016lx\n"` and
  *          `(unsigned long)frame->x[30]`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_EXCEPTIONS_DUMP_REGISTERS_01}
  *       1. Call `printf()` with the arguments
  *          `"x%-2d = 0x%016lx x%-2d = 0x%016lx\n"`, `i`,
  *          `(unsigned long)frame->x[i]`, `i + 1` and
@@ -113,7 +144,7 @@
  * 2. Call `printf()` with the arguments
  *    `"sp_el0 = 0x%016lx elr = 0x%016lx spsr = 0x%%lx\n"`,
  *    `(unsigned long)frame->sp_el0`, `(unsigned long)frame->elr` and
- *    `(unsigned long)frame->spsr`.
+ *    `(unsigned long)frame->spsr`. \llrref{LLR_EXCEPTIONS_DUMP_REGISTERS_03}
  *
  * @calls
  * - `printf()`
@@ -154,17 +185,44 @@ static void dump_registers(const interrupt_frame* frame)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_ERROR_ID_FOR_01}: `error_id_for()` shall give the
+ *   error of the health monitoring for a class of synchronous exception: a
+ *   memory fault or a misalignment as a memory violation, a floating point
+ *   exception as a numeric error, and others as an illegal request.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_003}
+ *   - \srqref{SRQ_JET_HM_001}
+ *   - \srqref{SRQ_JET_MEM_013}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_ERROR_ID_FOR_01}: If `ec` is `EC_IABORT_LOWER`,
+ *   `EC_IABORT_CUR`, `EC_DABORT_LOWER`, `EC_DABORT_CUR`, `EC_PC_ALIGN` or
+ *   `EC_SP_ALIGN`, `error_id_for()` shall return
+ *   `POK_ERROR_ID_MEMORY_VIOLATION`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_ERROR_ID_FOR_01}
+ * - \llrid{LLR_EXCEPTIONS_ERROR_ID_FOR_02}: If `ec` is `EC_FP64`,
+ *   `error_id_for()` shall return `POK_ERROR_ID_NUMERIC_ERROR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_ERROR_ID_FOR_01}
+ * - \llrid{LLR_EXCEPTIONS_ERROR_ID_FOR_03}: If `ec` is none of
+ *   `EC_IABORT_LOWER`, `EC_IABORT_CUR`, `EC_DABORT_LOWER`, `EC_DABORT_CUR`,
+ *   `EC_PC_ALIGN`, `EC_SP_ALIGN` and `EC_FP64`, `error_id_for()` shall return
+ *   `POK_ERROR_ID_ILLEGAL_REQUEST`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_ERROR_ID_FOR_01}
  *
  * @design
- * 1. Depending on `ec`:
+ * 1. Depending on `ec`: \llrref{LLR_EXCEPTIONS_ERROR_ID_FOR_01},
+ *    \llrref{LLR_EXCEPTIONS_ERROR_ID_FOR_02},
+ *    \llrref{LLR_EXCEPTIONS_ERROR_ID_FOR_03}
  *    1. Case `EC_IABORT_LOWER` or `EC_IABORT_CUR` or `EC_DABORT_LOWER` or
  *       `EC_DABORT_CUR` or `EC_PC_ALIGN` or `EC_SP_ALIGN`:
+ *       \llrref{LLR_EXCEPTIONS_ERROR_ID_FOR_01}
  *       1. Return `POK_ERROR_ID_MEMORY_VIOLATION`.
- *    2. Case `EC_FP64`:
+ *    2. Case `EC_FP64`: \llrref{LLR_EXCEPTIONS_ERROR_ID_FOR_02}
  *       1. Return `POK_ERROR_ID_NUMERIC_ERROR`.
- *    3. Otherwise (default):
+ *    3. Otherwise (default): \llrref{LLR_EXCEPTIONS_ERROR_ID_FOR_03}
  *       1. Return `POK_ERROR_ID_ILLEGAL_REQUEST`.
  *
  * @calls
@@ -204,11 +262,23 @@ static pok_error_id_t error_id_for(uint32_t ec)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_RETURN_USER_01}: `return_user()` shall put the
+ *   floating point state of the process that returns to user mode into the
+ *   processor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_007}
+ *   - \srqref{SRQ_JET_THR_023}
+ *   - \srqref{SRQ_JET_THR_024}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_RETURN_USER_01}: `return_user()` shall call
+ *   `pok_partition_return_user_fp()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_RETURN_USER_01}
  *
  * @design
  * 1. Call `pok_partition_return_user_fp()`.
+ *    \llrref{LLR_EXCEPTIONS_RETURN_USER_01}
  *
  * @calls
  * - `pok_partition_return_user_fp()`
@@ -243,31 +313,97 @@ static void return_user(void)
  * | `handled` | `pok_bool_t` | Whether GDB handled it |
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01}:
+ *   `ja_exception_sync_user()` shall take a system call from the supervisor
+ *   call instruction of user code.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_002}
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_02}:
+ *   `ja_exception_sync_user()` shall handle another synchronous exception from
+ *   user code that is not a trap of the debugger as an error of the partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_003}
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03}:
+ *   `ja_exception_sync_user()` shall give the debugger the traps that are its
+ *   own.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01}:
+ *   `ja_exception_sync_user()` shall set `global_thread_stack` to `frame`, call
+ *   `ja_gdb_exception_enter()` with `frame`, and then `ja_gdb_trap()` with
+ *   `frame`, the exception class (the bits 31 to 26 of ESR_EL1) and `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03}
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_02}: If `ja_gdb_trap()`
+ *   returns true, `ja_exception_sync_user()` shall call none of
+ *   `ja_gdb_exception_unmask()`, `process_syscall()` and `pok_raise_error()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03}
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03}: If `ja_gdb_trap()`
+ *   returns false, `ja_exception_sync_user()` shall call
+ *   `ja_gdb_exception_unmask()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03}
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_04}: If `ja_gdb_trap()`
+ *   returns false and the exception class is `EC_SVC64`,
+ *   `ja_exception_sync_user()` shall call `process_syscall()` once with
+ *   `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01}
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_05}: If `ja_gdb_trap()`
+ *   returns false and the exception class is not `EC_SVC64`,
+ *   `ja_exception_sync_user()` shall call `printf_debug()` with `"[KERNEL]
+ *   Exception in user space: ESR=0x%%lx FAR=0x%%lx ELR=0x%%lx\n"`, ESR_EL1,
+ *   FAR_EL1 and `elr` of `frame`, and then `pok_raise_error()` once with the
+ *   result of `error_id_for()` for the class, `TRUE` and `elr` of `frame` as
+ *   the address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_02}
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_06}:
+ *   `ja_exception_sync_user()` shall end with the calls, in this order, of
+ *   `return_user()` and of `ja_gdb_exception_leave()` with `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01}
  *
  * @design
  * 1. Set `esr` to `read_sysreg(esr_el1)`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_05}
  * 2. Set `ec` to `(uint32_t) ((esr >> 26) & 0x3fU)`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_04},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_05}
  * 3. Set `handled` to `FALSE`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_02},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_04},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_05}
  * 4. Set `global_thread_stack` to `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01}
  * 5. Call `ja_gdb_exception_enter()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01}
  * 6. Call `ja_gdb_trap()` with the arguments `frame`, `ec` and `TRUE`, and
  *    store the result in `handled`.
- * 7. If `handled` is false:
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_01}
+ * 7. If `handled` is false: \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_02},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03}
  *    1. Call `ja_gdb_exception_unmask()`.
- * 8. If `handled` is true:
- *    1. Do nothing.
+ *       \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_03}
+ * 8. If `handled` is true: \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_02}
  * 9. Otherwise, if `ec` is equal to `EC_SVC64`:
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_04}
  *    1. Call `process_syscall()` with the argument `frame`.
- * 10. Otherwise:
+ * 10. Otherwise: \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_05}
  *     1. Evaluate `printf_debug("[KERNEL] Exception in user space: ESR=0x%%lx
  *        FAR=0x%%lx ELR=0x%%lx\n", (unsigned long)esr,
  *        (unsigned long)read_sysreg(far_el1), (unsigned long)frame->elr)`.
  *     2. Call `pok_raise_error()` with the arguments `error_id_for(ec)`, `TRUE`
  *        and `(void*)frame->elr`.
- * 11. Call `return_user()`.
+ * 11. Call `return_user()`. \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_06}
  * 12. Call `ja_gdb_exception_leave()` with the argument `frame`.
+ *     \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_USER_06}
  *
  * @calls
  * - `ja_gdb_exception_enter()`
@@ -346,29 +482,77 @@ void ja_exception_sync_user(interrupt_frame* frame)
  * | `previous_frame` | `interrupt_frame *` | The frame before |
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01}:
+ *   `ja_exception_sync_kernel()` shall report a synchronous exception in the
+ *   kernel that is not a trap of the debugger, with the registers, and stop the
+ *   kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_004}
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}:
+ *   `ja_exception_sync_kernel()` shall give the debugger the traps in the
+ *   kernel that are its own, and go on after them.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01}:
+ *   `ja_exception_sync_kernel()` shall set `global_thread_stack` to `frame`,
+ *   call `ja_gdb_exception_enter()` with `frame`, and then `ja_gdb_trap()` with
+ *   `frame`, the exception class (the bits 31 to 26 of ESR_EL1) and `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}: If `ja_gdb_trap()`
+ *   returns true, `ja_exception_sync_kernel()` shall set `global_thread_stack`
+ *   back to its value at entry, call `ja_gdb_exception_leave()` with `frame`
+ *   and return, without calling `pok_fatal()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}: If `ja_gdb_trap()`
+ *   returns false, `ja_exception_sync_kernel()` shall call, in this order,
+ *   `ja_gdb_exception_unmask()`, `printf()` with `"[KERNEL] Exception in
+ *   kernel: ESR=0x%%lx FAR=0x%%lx ELR=0x%%lx\n"`, ESR_EL1, FAR_EL1 and `elr` of
+ *   `frame`, `dump_registers()` with `frame`, `pok_raise_error()` with the
+ *   result of `error_id_for()` for the class, `FALSE` and `elr` of `frame` as
+ *   the address, and `pok_fatal()` with `"Unrecoverable exception in kernel"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01}
  *
  * @design
  * 1. Set `esr` to `read_sysreg(esr_el1)`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}
  * 2. Set `ec` to `(uint32_t) ((esr >> 26) & 0x3fU)`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}
  * 3. Set `previous_frame` to `global_thread_stack`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}
  * 4. Set `global_thread_stack` to `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01}
  * 5. Call `ja_gdb_exception_enter()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01}
  * 6. If `ja_gdb_trap(frame, ec, FALSE)` is true:
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_01},
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}
  *    1. Set `global_thread_stack` to `previous_frame`.
+ *       \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}
  *    2. Call `ja_gdb_exception_leave()` with the argument `frame`.
- *    3. Return.
+ *       \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}
+ *    3. Return. \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_02}
  * 7. Call `ja_gdb_exception_unmask()`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}
  * 8. Call `printf()` with the arguments
  *    `"[KERNEL] Exception in kernel: ESR=0x%%lx FAR=0x%%lx ELR=0x%%lx\n"`,
  *    `(unsigned long)esr`, `(unsigned long)read_sysreg(far_el1)` and
  *    `(unsigned long)frame->elr`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}
  * 9. Call `dump_registers()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}
  * 10. Call `pok_raise_error()` with the arguments `error_id_for(ec)`, `FALSE`
  *     and `(void*)frame->elr`.
+ *     \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}
  * 11. Call `pok_fatal()` with the argument
  *     `"Unrecoverable exception in kernel"`.
+ *     \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_SYNC_KERNEL_03}
  *
  * @calls
  * - `ja_gdb_exception_enter()`
@@ -439,17 +623,37 @@ void ja_exception_sync_kernel(interrupt_frame* frame)
  * | `previous_frame` | `interrupt_frame *` | The frame before |
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}:
+ *   `ja_exception_irq_kernel()` shall handle an interrupt that interrupted the
+ *   kernel by the board's handler.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_001}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}:
+ *   `ja_exception_irq_kernel()` shall set `global_thread_stack` to `frame`,
+ *   call, in this order, `ja_gdb_exception_enter()` with `frame`,
+ *   `ja_gdb_exception_unmask()` and `ja_bsp_process_irq()` with `frame`, then
+ *   set `global_thread_stack` back to its value at entry and call
+ *   `ja_gdb_exception_leave()` with `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  *
  * @design
  * 1. Set `previous_frame` to `global_thread_stack`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  * 2. Set `global_thread_stack` to `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  * 3. Call `ja_gdb_exception_enter()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  * 4. Call `ja_gdb_exception_unmask()`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  * 5. Call `ja_bsp_process_irq()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  * 6. Set `global_thread_stack` to `previous_frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  * 7. Call `ja_gdb_exception_leave()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_KERNEL_01}
  *
  * @calls
  * - `ja_gdb_exception_enter()`
@@ -497,16 +701,34 @@ void ja_exception_irq_kernel(interrupt_frame* frame)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}: `ja_exception_irq_user()`
+ *   shall handle an interrupt that interrupted user code by the board's
+ *   handler, and prepare the return to user mode.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_001}
+ *   - \srqref{SRQ_JET_SYS_007}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}: `ja_exception_irq_user()`
+ *   shall set `global_thread_stack` to `frame` and call, in this order,
+ *   `ja_gdb_exception_enter()` with `frame`, `ja_gdb_exception_unmask()`,
+ *   `ja_bsp_process_irq()` with `frame`, `return_user()` and
+ *   `ja_gdb_exception_leave()` with `frame`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}
  *
  * @design
  * 1. Set `global_thread_stack` to `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}
  * 2. Call `ja_gdb_exception_enter()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}
  * 3. Call `ja_gdb_exception_unmask()`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}
  * 4. Call `ja_bsp_process_irq()` with the argument `frame`.
- * 5. Call `return_user()`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}
+ * 5. Call `return_user()`. \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}
  * 6. Call `ja_gdb_exception_leave()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_IRQ_USER_01}
  *
  * @calls
  * - `ja_gdb_exception_enter()`
@@ -554,16 +776,35 @@ void ja_exception_irq_user(interrupt_frame* frame)
  * | `names` | `static const char *const[6]` | The names of the kinds |
  *
  * @hlr
+ * - \hlrid{HLR_EXCEPTIONS_JA_EXCEPTION_UNEXPECTED_01}:
+ *   `ja_exception_unexpected()` shall report an unexpected exception (one with
+ *   SP_EL0 in the kernel, an FIQ, a system error, or one from 32-bit code),
+ *   with the registers, and stop the kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_004}
  *
  * @llr
+ * - \llrid{LLR_EXCEPTIONS_JA_EXCEPTION_UNEXPECTED_01}:
+ *   `ja_exception_unexpected()` shall call, in this order, `printf()` with
+ *   `"[KERNEL] Unexpected %%s: ESR=0x%%lx FAR=0x%%lx\n"`, the name
+ *   `names[kind]`, ESR_EL1 and FAR_EL1, `dump_registers()` with `frame`, and
+ *   `pok_fatal()` with `"Unexpected exception"`; the names are `"exception with
+ *   SP_EL0 in kernel"` for 0, `"FIQ in kernel"` for 1, `"SError in kernel"` for
+ *   2, `"FIQ in user space"` for 3, `"SError in user space"` for 4 and
+ *   `"exception from AArch32 user space"` for 5.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_EXCEPTIONS_JA_EXCEPTION_UNEXPECTED_01}
  *
  * @design
  * 1. Call `printf()` with the arguments
  *    `"[KERNEL] Unexpected %%s: ESR=0x%%lx FAR=0x%%lx\n"`, `names[kind]`,
  *    `(unsigned long)read_sysreg(esr_el1)` and
  *    `(unsigned long)read_sysreg(far_el1)`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_UNEXPECTED_01}
  * 2. Call `dump_registers()` with the argument `frame`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_UNEXPECTED_01}
  * 3. Call `pok_fatal()` with the argument `"Unexpected exception"`.
+ *    \llrref{LLR_EXCEPTIONS_JA_EXCEPTION_UNEXPECTED_01}
  *
  * @calls
  * - `printf()`

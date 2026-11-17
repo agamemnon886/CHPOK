@@ -44,6 +44,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/x86_64/alloc.c (the CPU support packages are in kernel/csps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -95,16 +105,48 @@
  * | `res` | `char *` | The memory allocated |
  *
  * @hlr
+ * - \hlrid{HLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_01}: `ja_mem_alloc_aligned()`
+ *   shall allocate memory with an alignment from the kernel heap, which starts
+ *   after the kernel image, never frees memory and ends below the memory of the
+ *   partitions.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_010}
+ *   - \srqref{SRQ_JET_MEM_019}
+ * - \hlrid{HLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_02}: `ja_mem_alloc_aligned()`
+ *   shall stop the kernel when an allocation would not end below the memory of
+ *   the partitions.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_010}
  *
  * @llr
+ * - \llrid{LLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_01}: If `heap_end` rounded up
+ *   to `alignment` (`ALIGN_VAL()`) is greater than
+ *   `BOARD_PARTITION_PHYS_START`, or `size` is greater than
+ *   `BOARD_PARTITION_PHYS_START` minus that rounded address,
+ *   `ja_mem_alloc_aligned()` shall call `pok_fatal()` with `"Kernel heap
+ *   overflow"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_02}
+ * - \llrid{LLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_02}: If `heap_end` rounded up
+ *   to `alignment` (`ALIGN_VAL()`) is not greater than
+ *   `BOARD_PARTITION_PHYS_START` and `size` is not greater than
+ *   `BOARD_PARTITION_PHYS_START` minus that rounded address,
+ *   `ja_mem_alloc_aligned()` shall set `heap_end` to the rounded address plus
+ *   `size` and return the rounded address, without calling `pok_fatal()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_01}
  *
  * @design
  * 1. Set `res` to `(char *)(ALIGN_VAL((uintptr_t)heap_end, alignment))`.
+ *    \llrref{LLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_01},
+ *    \llrref{LLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_02}
  * 2. If `(uintptr_t)res` is greater than `BOARD_PARTITION_PHYS_START` or `size`
  *    is greater than `(BOARD_PARTITION_PHYS_START - (uintptr_t)res)`:
+ *    \llrref{LLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_01}
  *    1. Call `pok_fatal()` with the argument `"Kernel heap overflow"`.
  * 3. Set `heap_end` to `res + size`.
- * 4. Return `res`.
+ *    \llrref{LLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_02}
+ * 4. Return `res`. \llrref{LLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_02}
  *
  * @calls
  * - `ALIGN_VAL()`
@@ -157,15 +199,25 @@ void *ja_mem_alloc_aligned (size_t size, uint32_t alignment)
  * | `alignment` | `uint32_t` | The alignment |
  *
  * @hlr
+ * - \hlrid{HLR_ALLOC_X86_64_JA_MEM_GET_ALIGNMENT_01}: `ja_mem_get_alignment()`
+ *   shall give the alignment of an object of a size: the largest power of 2 not
+ *   greater than the size, at most 16.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_010}
  *
  * @llr
+ * - \llrid{LLR_ALLOC_X86_64_JA_MEM_GET_ALIGNMENT_01}: `ja_mem_get_alignment()`
+ *   shall return the largest of 1, 2, 4, 8 and 16 that is not greater than
+ *   `size`, and 1 if `size` is 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ALLOC_X86_64_JA_MEM_GET_ALIGNMENT_01}
  *
  * @design
- * 1. Set `alignment` to `1`.
+ * 1. Set `alignment` to `1`. \llrref{LLR_ALLOC_X86_64_JA_MEM_GET_ALIGNMENT_01}
  * 2. While `alignment` is less than `16U` and `(alignment * 2U)` is less than
- *    or equal to `size`:
+ *    or equal to `size`: \llrref{LLR_ALLOC_X86_64_JA_MEM_GET_ALIGNMENT_01}
  *    1. Multiply `alignment` by `2U`.
- * 3. Return `alignment`.
+ * 3. Return `alignment`. \llrref{LLR_ALLOC_X86_64_JA_MEM_GET_ALIGNMENT_01}
  *
  * @calls
  * None.
@@ -208,20 +260,37 @@ uint32_t ja_mem_get_alignment (size_t size)
  * | `stack_tail` | `char *` | The bottom of the stack |
  *
  * @hlr
+ * - \hlrid{HLR_ALLOC_X86_64_POK_STACK_ALLOC_01}: `pok_stack_alloc()` shall
+ *   allocate a kernel stack of a size rounded up to 16 bytes from the kernel
+ *   heap, with a terminating frame of zeros at its head, and give its head.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_013}
+ *   - \srqref{SRQ_JET_MEM_010}
  *
  * @llr
+ * - \llrid{LLR_ALLOC_X86_64_POK_STACK_ALLOC_01}: `pok_stack_alloc()` shall call
+ *   `ja_mem_alloc_aligned()` once with `stack_size` rounded up to a multiple of
+ *   16 (`ALIGN_VAL()`) and the alignment 16, set the last 16 bytes of the
+ *   memory that it gives to 0 with `memset()`, and return the address of these
+ *   16 bytes.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ALLOC_X86_64_POK_STACK_ALLOC_01}
  *
  * @design
- * 1. Set `alignment` to `16`.
+ * 1. Set `alignment` to `16`. \llrref{LLR_ALLOC_X86_64_POK_STACK_ALLOC_01}
  * 2. Call `ALIGN_VAL()` with the arguments `stack_size` and `alignment`, and
  *    store the result in `stack_size_real`.
+ *    \llrref{LLR_ALLOC_X86_64_POK_STACK_ALLOC_01}
  * 3. Call `ja_mem_alloc_aligned()` with the arguments `stack_size_real` and
  *    `alignment`, and store the result in `stack_tail`.
+ *    \llrref{LLR_ALLOC_X86_64_POK_STACK_ALLOC_01}
  * 4. Set `stack_head` to
  *    `stack_tail + stack_size_real - (2U * sizeof(uint64_t))`.
+ *    \llrref{LLR_ALLOC_X86_64_POK_STACK_ALLOC_01}
  * 5. Call `memset()` with the arguments `stack_head`, `0` and
- *    `2U * sizeof(uint64_t)`.
+ *    `2U * sizeof(uint64_t)`. \llrref{LLR_ALLOC_X86_64_POK_STACK_ALLOC_01}
  * 6. Return `(jet_stack_t)stack_head`.
+ *    \llrref{LLR_ALLOC_X86_64_POK_STACK_ALLOC_01}
  *
  * @calls
  * - `ALIGN_VAL()`

@@ -36,11 +36,10 @@
     of the computer.</para>
 
   <section xml:id="SRQ_HV_CON_001" role="requirement">
-    <title>SRQ_HV_CON_001</title>
+    <title><phrase role="srq">SRQ_HV_CON_001</phrase></title>
     <para>The hypervisor shall write its messages to the serial port of
-      its console, if the configuration has one, at 38400 baud with 8
-      data bits, no parity and one stop bit on a 16550 UART, and shall
-      drop them if it has none.</para>
+    its console, if the configuration has one, at 38400 baud with 8 data
+    bits, no parity and one stop bit on a 16550 UART.</para>
     <formalpara>
       <title>Rationale</title>
       <para>An operator needs to see what the hypervisor does.</para>
@@ -49,14 +48,51 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_FIND_SERIAL_PORTS_01
+        HLR_UART_REG_READ32_01
+        HLR_UART_REG_WRITE32_01
+        HLR_UART_REG_READ8_01
+        HLR_UART_REG_WRITE8_01
+        HLR_UART_ARM64_UART_INIT_01
+        HLR_UART_TX_READY_01
+        HLR_UART_HV_UART_WRITE_01
+        HLR_UART_ARM64_UART_PUTC_01
+        HLR_UART_UART_OUT_01
+        HLR_UART_X86_64_UART_INIT_01
+        HLR_UART_X86_64_UART_PUTC_01
+        HLR_CONSOLE_HV_CONSOLE_INIT_01
+        HLR_CONSOLE_HV_CONSOLE_WRITE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CON_007" role="requirement">
+    <title><phrase role="srq">SRQ_HV_CON_007</phrase></title>
+    <para>The hypervisor shall drop its messages if the configuration
+    gives its console no serial port.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A hypervisor without a console must run as one with a
+      console does.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_UART_HV_UART_WRITE_01
+        HLR_CONSOLE_HV_CONSOLE_INIT_01
+        HLR_CONSOLE_HV_CONSOLE_WRITE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CON_002" role="requirement">
-    <title>SRQ_HV_CON_002</title>
+    <title><phrase role="srq">SRQ_HV_CON_002</phrase></title>
     <para>The hypervisor shall write each of its messages as a whole,
-      without it being mixed with the message of another CPU, with a
-      carriage return before each line feed, and shall let a CPU that
-      holds the console report a fatal error of its own.</para>
+    without it being mixed with the message of another CPU, with a
+    carriage return before each line feed.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Several CPUs print at the same time.</para>
@@ -65,10 +101,38 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONSOLE_HV_CONSOLE_LOCK_01
+        HLR_CONSOLE_HV_CONSOLE_UNLOCK_01
+        HLR_CONSOLE_HV_CONSOLE_WRITE_01
+        HLR_PRINTF_FLUSH_01
+        HLR_PRINTF_BUFFER_PUT_01
+        HLR_PRINTF_HV_PRINTF_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CON_008" role="requirement">
+    <title><phrase role="srq">SRQ_HV_CON_008</phrase></title>
+    <para>The hypervisor shall let a CPU that holds the console report a
+    fatal error of its own.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A CPU that fails while it prints must still be able to say
+      why.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONSOLE_HV_CONSOLE_LOCK_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CON_003" role="requirement">
-    <title>SRQ_HV_CON_003</title>
+    <title><phrase role="srq">SRQ_HV_CON_003</phrase></title>
     <para>The hypervisor shall report on its console what happens to a
       VM: its start, the reason of its stop with the main registers of
       its vCPU, the parking of a vCPU, and the first access of its guest
@@ -81,10 +145,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMIO_LOG_UNHANDLED_01
+        HLR_VCPU_HV_REPORT_STATE_01
+        HLR_IOPORT_REPORT_PORT_01
+        HLR_CPUS_HV_CPU_MAIN_03
+        HLR_VM_VM_PRINT_01
+        HLR_SVM_LOG_MSR_01
+        HLR_SVM_REPORT_STATE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CON_004" role="requirement">
-    <title>SRQ_HV_CON_004</title>
+    <title><phrase role="srq">SRQ_HV_CON_004</phrase></title>
     <para>The hypervisor shall connect the console of a VM (the guest
       port COM1 on x86_64, its first PL011 on arm64) to the serial port
       of the computer that the configuration gives it: directly if the
@@ -99,17 +173,32 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOAD_SETUP_UART_01
+        HLR_LOAD_HV_ARCH_VM_INIT_01
+        HLR_UART_HV_UART_IS_PL011_01
+        HLR_UART_HV_UART_WRITE_01
+        HLR_UART_HV_UART_RX_READY_01
+        HLR_UART_HV_UART_READ_01
+        HLR_UART_HV_UART_TX_EMPTY_01
+        HLR_VUART_VUART_RESET_01
+        HLR_VUART_ARM64_VUART_ACCESS_01
+        HLR_IOPORT_IOPM_ALLOW_01
+        HLR_IOPORT_IO_INIT_IOPM_01
+        HLR_IOPORT_SERIAL_ACCESS_01
+        HLR_VUART_X86_64_VUART_ACCESS_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CON_005" role="requirement">
-    <title>SRQ_HV_CON_005</title>
+    <title><phrase role="srq">SRQ_HV_CON_005</phrase></title>
     <para>The hypervisor shall connect the GDB port of a VM (the guest
-      port COM2 on x86_64, its second PL011 on arm64) to the serial port
-      of the computer that the configuration gives it, directly if the
-      guest can use that port itself (the host COM2 on x86_64; a PL011 on
-      arm64), otherwise by repeating each access; the GDB server of the
-      JetOS in the VM can then be used while the other VMs run, and when
-      the debugger stops a VM only that VM shall stop.</para>
+    port COM2 on x86_64, its second PL011 on arm64) to the serial port
+    of the computer that the configuration gives it, directly if the
+    guest can use that port itself (the host COM2 on x86_64; a PL011 on
+    arm64), otherwise by repeating each access, so that the GDB server
+    of the JetOS in the VM can be used while the other VMs run.</para>
     <formalpara>
       <title>Rationale</title>
       <para>VMs are debugged one at a time, without stopping the others.</para>
@@ -118,9 +207,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOAD_SETUP_UART_01
+        HLR_LOAD_HV_ARCH_VM_INIT_01
+        HLR_UART_HV_UART_IS_PL011_01
+        HLR_UART_HV_UART_RX_READY_01
+        HLR_UART_HV_UART_READ_01
+        HLR_UART_HV_UART_TX_EMPTY_01
+        HLR_VUART_ARM64_VUART_ACCESS_01
+        HLR_IOPORT_IOPM_ALLOW_01
+        HLR_IOPORT_IO_INIT_IOPM_01
+        HLR_IOPORT_SERIAL_ACCESS_01
+        HLR_VUART_X86_64_VUART_ACCESS_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CON_009" role="requirement">
+    <title><phrase role="srq">SRQ_HV_CON_009</phrase></title>
+    <para>The hypervisor shall keep the other VMs running while the
+    debugger holds a VM stopped.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>VMs are debugged one at a time, without stopping the others.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CPUS_HV_ASSIGN_CPUS_01</para>
+    </formalpara>
   </section>
   <section xml:id="SRQ_HV_CON_006" role="requirement">
-    <title>SRQ_HV_CON_006</title>
+    <title><phrase role="srq">SRQ_HV_CON_006</phrase></title>
     <para>On arm64 the hypervisor shall find the serial ports COM3 to
       COM16 as 16550 UARTs on PCI bus 0, in the slots that the script of
       its build gives them (slot 0x10 + n - 3 for COMn), and give each
@@ -133,6 +254,16 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ECAM_MAPPED_01
+        HLR_MAIN_FIND_SERIAL_PORTS_01
+        HLR_FDT_NODE_KIND_01
+        HLR_PCI_CONFIG_READ_01
+        HLR_PCI_CONFIG_WRITE_01
+        HLR_PCI_PCI_FIND_SERIAL_PORTS_01
+        HLR_UART_HV_UART_ADD_01</para>
     </formalpara>
   </section>
 </chapter>

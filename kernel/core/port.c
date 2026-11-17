@@ -37,6 +37,16 @@
  * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
  * pok_queuing_discipline_e (was pok_queuing_discipline_t), pok_ret_e (was
  * pok_ret_t).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -92,21 +102,49 @@
  * | `ports_queuing_end` | `pok_port_queuing_t *` | The end of the partition's queuing ports |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_FIND_PORT_QUEUING_01}: `find_port_queuing()` shall find a
+ *   queuing port of the configuration of the current partition by its name,
+ *   without regard to case.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_017}
+ *   - \srqref{SRQ_JET_CFG_004}
  *
  * @llr
+ * - \llrid{LLR_PORT_FIND_PORT_QUEUING_01}: `find_port_queuing()` shall copy the
+ *   `MAX_NAME_LENGTH` bytes at `k_name` to a kernel buffer with `memcpy()`
+ *   before it compares them.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_FIND_PORT_QUEUING_01}
+ * - \llrid{LLR_PORT_FIND_PORT_QUEUING_02}: If `pok_compare_names()` returns 0
+ *   for `name` of one of the `nports_queuing` elements of `ports_queuing` of
+ *   the partition and the buffer, `find_port_queuing()` shall return the
+ *   address of the first such port.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_FIND_PORT_QUEUING_01}
+ * - \llrid{LLR_PORT_FIND_PORT_QUEUING_03}: If `pok_compare_names()` returns a
+ *   value other than 0 for each of them, `find_port_queuing()` shall return
+ *   NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_FIND_PORT_QUEUING_01}
  *
  * @design
  * 1. Set `port_queuing` to `current_partition_arinc->ports_queuing`.
+ *    \llrref{LLR_PORT_FIND_PORT_QUEUING_02},
+ *    \llrref{LLR_PORT_FIND_PORT_QUEUING_03}
  * 2. Set `ports_queuing_end` to
  *    `port_queuing + current_partition_arinc->nports_queuing`.
+ *    \llrref{LLR_PORT_FIND_PORT_QUEUING_02},
+ *    \llrref{LLR_PORT_FIND_PORT_QUEUING_03}
  * 3. Call `memcpy()` with the arguments `kernel_name`, `k_name` and
- *    `MAX_NAME_LENGTH`.
+ *    `MAX_NAME_LENGTH`. \llrref{LLR_PORT_FIND_PORT_QUEUING_01}
  * 4. While `port_queuing` is less than `ports_queuing_end`, repeat (after each
- *    pass: increment `port_queuing`):
+ *    pass: increment `port_queuing`): \llrref{LLR_PORT_FIND_PORT_QUEUING_02},
+ *    \llrref{LLR_PORT_FIND_PORT_QUEUING_03}
  *    1. If `pok_compare_names(port_queuing->name, kernel_name)` is equal to
- *       `0`:
+ *       `0`: \llrref{LLR_PORT_FIND_PORT_QUEUING_02}
  *       1. Return `port_queuing`.
- * 5. Return `NULL`.
+ * 5. Return `NULL`. \llrref{LLR_PORT_FIND_PORT_QUEUING_03}
  *
  * @calls
  * - `memcpy()`
@@ -160,16 +198,43 @@ static pok_port_queuing_t* find_port_queuing(const char* JET_KUSER k_name)
  * | `port_queuing` | `pok_port_queuing_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_GET_PORT_QUEUING_01}: `get_port_queuing()` shall give a
+ *   created queuing port of the current partition by its identifier, and none
+ *   for an identifier of no port of the partition or of a port not created.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_005}
+ *   - \srqref{SRQ_JET_SYS_005}
  *
  * @llr
+ * - \llrid{LLR_PORT_GET_PORT_QUEUING_01}: If `id` is not less than
+ *   `nports_queuing` of the partition, `get_port_queuing()` shall return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_GET_PORT_QUEUING_01}
+ * - \llrid{LLR_PORT_GET_PORT_QUEUING_02}: If `id` is less than `nports_queuing`
+ *   and `is_created` of `ports_queuing[id]` is true, `get_port_queuing()` shall
+ *   return its address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_GET_PORT_QUEUING_01}
+ * - \llrid{LLR_PORT_GET_PORT_QUEUING_03}: If `id` is less than `nports_queuing`
+ *   and `is_created` of `ports_queuing[id]` is false, `get_port_queuing()`
+ *   shall return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_GET_PORT_QUEUING_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_PORT_GET_PORT_QUEUING_01},
+ *    \llrref{LLR_PORT_GET_PORT_QUEUING_02},
+ *    \llrref{LLR_PORT_GET_PORT_QUEUING_03}
  * 2. If `id` is greater than or equal to `part->nports_queuing`:
+ *    \llrref{LLR_PORT_GET_PORT_QUEUING_01}
  *    1. Return `NULL`.
  * 3. Set `port_queuing` to the address of `part->ports_queuing[id]`.
+ *    \llrref{LLR_PORT_GET_PORT_QUEUING_02},
+ *    \llrref{LLR_PORT_GET_PORT_QUEUING_03}
  * 4. Return `port_queuing` if `port_queuing->is_created` is true, otherwise
- *    `NULL`.
+ *    `NULL`. \llrref{LLR_PORT_GET_PORT_QUEUING_02},
+ *    \llrref{LLR_PORT_GET_PORT_QUEUING_03}
  *
  * @calls
  * None.
@@ -216,25 +281,56 @@ static pok_port_queuing_t* get_port_queuing(pok_port_id_t id)
  * | `message_size` | `pok_message_size_t` | The size of the message |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_PORT_QUEUING_RECEIVE_01}: `port_queuing_receive()` shall
+ *   give a process the first message of the channel of a queuing destination
+ *   port, removing it from the queue.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
+ *   - \srqref{SRQ_JET_IPC_011}
+ *   - \srqref{SRQ_JET_IPC_021}
+ * - \hlrid{HLR_PORT_PORT_QUEUING_RECEIVE_02}: `port_queuing_receive()` shall
+ *   tell the process that messages were lost if the channel discarded messages.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_022}
  *
  * @llr
+ * - \llrid{LLR_PORT_PORT_QUEUING_RECEIVE_01}: `port_queuing_receive()` shall
+ *   call `pok_channel_queuing_r_get_message()` once with `channel` of `port`
+ *   and `FALSE`, copy the message of the size that it gives to
+ *   `wait_buffer.dest` of `t` with `memcpy()`, set `wait_len` of `t` to that
+ *   size, and call `pok_channel_queuing_r_consume_message()` once with the
+ *   channel.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_PORT_QUEUING_RECEIVE_01}
+ * - \llrid{LLR_PORT_PORT_QUEUING_RECEIVE_02}: If
+ *   `pok_channel_queuing_r_consume_message()` reports a discarded message,
+ *   `port_queuing_receive()` shall set `wait_result` of `t` to
+ *   `POK_ERRNO_TOOMANY`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_PORT_QUEUING_RECEIVE_02}
+ * - \llrid{LLR_PORT_PORT_QUEUING_RECEIVE_03}: If
+ *   `pok_channel_queuing_r_consume_message()` reports no discarded message,
+ *   `port_queuing_receive()` shall set `wait_result` of `t` to `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_PORT_QUEUING_RECEIVE_02}
  *
  * @design
  * 1. Call `pok_channel_queuing_r_get_message()` with the arguments
  *    `port->channel`, the address of `message_size` and `FALSE`, and store the
- *    result in `message`.
- * 2. Check that `message != NULL` holds (assert: stop otherwise).
- * 3. Call `memcpy()` with the arguments `t->wait_buffer.dest`, `message` and
- *    `message_size`.
- * 4. Set `t->wait_len` to `message_size`.
- * 5. Call `pok_channel_queuing_r_consume_message()` with the arguments
+ *    result in `message`. \llrref{LLR_PORT_PORT_QUEUING_RECEIVE_01}
+ * 2. Call `memcpy()` with the arguments `t->wait_buffer.dest`, `message` and
+ *    `message_size`. \llrref{LLR_PORT_PORT_QUEUING_RECEIVE_01}
+ * 3. Set `t->wait_len` to `message_size`.
+ *    \llrref{LLR_PORT_PORT_QUEUING_RECEIVE_01}
+ * 4. Call `pok_channel_queuing_r_consume_message()` with the arguments
  *    `port->channel` and the address of `message_discarded`.
- * 6. Set `t->wait_result` to `POK_ERRNO_TOOMANY` if `message_discarded` is
- *    true, otherwise `POK_ERRNO_OK`.
+ *    \llrref{LLR_PORT_PORT_QUEUING_RECEIVE_01}
+ * 5. Set `t->wait_result` to `POK_ERRNO_TOOMANY` if `message_discarded` is
+ *    true, otherwise `POK_ERRNO_OK`. \llrref{LLR_PORT_PORT_QUEUING_RECEIVE_02},
+ *    \llrref{LLR_PORT_PORT_QUEUING_RECEIVE_03}
  *
  * @calls
  * - `pok_channel_queuing_r_get_message()`
- * - `pok_assertion_fail()`
  * - `memcpy()`
  * - `pok_channel_queuing_r_consume_message()`
  */
@@ -277,22 +373,37 @@ void port_queuing_receive(pok_port_queuing_t* port, pok_thread_t* t)
  * | `message` | `char *` | The channel's room for the message |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_PORT_QUEUING_SEND_01}: `port_queuing_send()` shall put the
+ *   message of a process at the end of the queue of the channel of a queuing
+ *   source port, which has room.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
+ *   - \srqref{SRQ_JET_IPC_010}
+ *   - \srqref{SRQ_JET_IPC_020}
  *
  * @llr
+ * - \llrid{LLR_PORT_PORT_QUEUING_SEND_01}: `port_queuing_send()` shall call
+ *   `pok_channel_queuing_s_get_message()` once with `channel` of `port` and
+ *   `FALSE`, copy `wait_len` bytes of `wait_buffer.src` of `t` to the message
+ *   that it gives with `memcpy()`, call
+ *   `pok_channel_queuing_s_produce_message()` once with the channel and
+ *   `wait_len`, and set `wait_result` of `t` to `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_PORT_QUEUING_SEND_01}
  *
  * @design
  * 1. Call `pok_channel_queuing_s_get_message()` with the arguments
  *    `port->channel` and `FALSE`, and store the result in `message`.
- * 2. Check that `message != NULL` holds (assert: stop otherwise).
- * 3. Call `memcpy()` with the arguments `message`, `t->wait_buffer.src` and
- *    `t->wait_len`.
- * 4. Call `pok_channel_queuing_s_produce_message()` with the arguments
- *    `port->channel` and `t->wait_len`.
- * 5. Set `t->wait_result` to `POK_ERRNO_OK`.
+ *    \llrref{LLR_PORT_PORT_QUEUING_SEND_01}
+ * 2. Call `memcpy()` with the arguments `message`, `t->wait_buffer.src` and
+ *    `t->wait_len`. \llrref{LLR_PORT_PORT_QUEUING_SEND_01}
+ * 3. Call `pok_channel_queuing_s_produce_message()` with the arguments
+ *    `port->channel` and `t->wait_len`. \llrref{LLR_PORT_PORT_QUEUING_SEND_01}
+ * 4. Set `t->wait_result` to `POK_ERRNO_OK`.
+ *    \llrref{LLR_PORT_PORT_QUEUING_SEND_01}
  *
  * @calls
  * - `pok_channel_queuing_s_get_message()`
- * - `pok_assertion_fail()`
  * - `memcpy()`
  * - `pok_channel_queuing_s_produce_message()`
  */
@@ -326,12 +437,23 @@ void port_queuing_send(pok_port_queuing_t* port, pok_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_INIT_01}: `pok_port_queuing_init()` shall
+ *   make a queuing port one that is not created and that no process waits on.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_004}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_INIT_01}: `pok_port_queuing_init()` shall
+ *   call `pok_thread_wq_init()` once with the address of `waiters` of
+ *   `port_queuing` and set its `is_created` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_INIT_01}
  *
  * @design
  * 1. Call `pok_thread_wq_init()` with the address of `port_queuing->waiters`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_INIT_01}
  * 2. Set `port_queuing->is_created` to `FALSE`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_INIT_01}
  *
  * @calls
  * - `pok_thread_wq_init()`
@@ -380,54 +502,159 @@ void pok_port_queuing_init(pok_port_queuing_t* port_queuing)
  * | `port_queuing` | `pok_port_queuing_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_CREATE_01}: `pok_port_queuing_create()`
+ *   shall create a queuing port of the current partition outside `NORMAL` mode,
+ *   if its name is that of a queuing port of the partition in the
+ *   configuration, not yet created, with the configured maximum message size,
+ *   direction and maximum number of messages, and a discipline of FIFO or
+ *   priority; and give its identifier.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_017}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_CREATE_02}: `pok_port_queuing_create()`
+ *   shall record the discipline of the port for the order of its waiting
+ *   processes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_012}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_CREATE_03}: `pok_port_queuing_create()`
+ *   shall refuse a name or an identifier address that the partition may not
+ *   access with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_01}: If `jet_user_to_kernel_ro()`
+ *   returns NULL for `name` and `MAX_NAME_LENGTH`, `pok_port_queuing_create()`
+ *   shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_03}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_02}: If the name is readable and
+ *   `jet_user_to_kernel_typed()` returns NULL for `id`,
+ *   `pok_port_queuing_create()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_03}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_03}: If both conversions give an
+ *   address and `find_port_queuing()` returns NULL, `pok_port_queuing_create()`
+ *   shall return `POK_ERRNO_UNAVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_04}: If `find_port_queuing()`
+ *   returns a port whose `is_created` is true, `pok_port_queuing_create()`
+ *   shall return `POK_ERRNO_EXISTS`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_05}: If the port found is not
+ *   created and `message_size` is not `max_message_size` of its channel,
+ *   `pok_port_queuing_create()` shall return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_06}: If `message_size` is
+ *   `max_message_size` of the channel and `direction` is not `direction` of the
+ *   port, `pok_port_queuing_create()` shall return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_07}: If `direction` is that of the
+ *   port and `discipline` is neither `POK_QUEUING_DISCIPLINE_FIFO` nor
+ *   `POK_QUEUING_DISCIPLINE_PRIORITY`, `pok_port_queuing_create()` shall return
+ *   `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_08}: If the discipline is valid,
+ *   `direction` is `POK_PORT_DIRECTION_IN` and `max_nb_message` is not
+ *   `recv.max_nb_message` of the channel, `pok_port_queuing_create()` shall
+ *   return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_09}: If the discipline is valid,
+ *   `direction` is not `POK_PORT_DIRECTION_IN` and `max_nb_message` is not
+ *   `send.max_nb_message` of the channel, `pok_port_queuing_create()` shall
+ *   return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_10}: If all these checks pass and
+ *   `mode` of the partition is `POK_PARTITION_MODE_NORMAL`,
+ *   `pok_port_queuing_create()` shall return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_11}: If all these checks pass,
+ *   `mode` is not `POK_PARTITION_MODE_NORMAL` and `direction` is
+ *   `POK_PORT_DIRECTION_IN`, `pok_port_queuing_create()` shall set `is_created`
+ *   of the port to `TRUE` and its `discipline` to `discipline`, call
+ *   `pok_channel_queuing_side_init()` with the channel, its `recv` and the
+ *   index of the port in `ports_queuing`, store that index at `id`, and return
+ *   `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_12}: If all these checks pass,
+ *   `mode` is not `POK_PARTITION_MODE_NORMAL` and `direction` is not
+ *   `POK_PORT_DIRECTION_IN`, `pok_port_queuing_create()` shall do the same with
+ *   `send` of the channel in place of `recv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_02}
  *
  * @design
  * 1. Call `jet_user_to_kernel_ro()` with the arguments `name` and
  *    `MAX_NAME_LENGTH`, and store the result in `k_name`.
- * 2. If `k_name` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_01}
+ * 2. If `k_name` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_01}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 3. Set `k_id` to `jet_user_to_kernel_typed(id)`.
- * 4. If `k_id` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_02}
+ * 4. If `k_id` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_02}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 5. Call `find_port_queuing()` with the argument `k_name`, and store the
- *    result in `port_queuing`.
- * 6. If `port_queuing` is NULL:
+ *    result in `port_queuing`. \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_03}
+ * 6. If `port_queuing` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_03}
  *    1. Return `POK_ERRNO_UNAVAILABLE`.
  * 7. If `port_queuing->is_created` is true:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_04}
  *    1. Return `POK_ERRNO_EXISTS`.
  * 8. If `message_size` is not equal to
  *    `port_queuing->channel->max_message_size`:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_05}
  *    1. Return `POK_ERRNO_EINVAL`.
  * 9. If `direction` is not equal to `port_queuing->direction`:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_06}
  *    1. Return `POK_ERRNO_EINVAL`.
  * 10. If `discipline` is not equal to `POK_QUEUING_DISCIPLINE_FIFO` and
  *     `discipline` is not equal to `POK_QUEUING_DISCIPLINE_PRIORITY`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_07}
  *     1. Return `POK_ERRNO_EINVAL`.
  * 11. If `direction` is equal to `POK_PORT_DIRECTION_IN`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_08}
  *     1. If `max_nb_message` is not equal to
  *        `port_queuing->channel->recv.max_nb_message`:
  *        1. Return `POK_ERRNO_EINVAL`.
- * 12. Otherwise:
+ * 12. Otherwise: \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_09}
  *     1. If `max_nb_message` is not equal to
  *        `port_queuing->channel->send.max_nb_message`:
  *        1. Return `POK_ERRNO_EINVAL`.
  * 13. If `current_partition_arinc->mode` is equal to
- *     `POK_PARTITION_MODE_NORMAL`:
+ *     `POK_PARTITION_MODE_NORMAL`: \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_10}
  *     1. Return `POK_ERRNO_MODE`.
  * 14. Set `port_queuing->is_created` to `TRUE`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_11},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_12}
  * 15. Set `port_queuing->discipline` to `discipline`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_11},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_12}
  * 16. If `direction` is equal to `POK_PORT_DIRECTION_IN`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_11}
  *     1. Call `pok_channel_queuing_side_init()` with the arguments
  *        `port_queuing->channel`, the address of `port_queuing->channel->recv`
  *        and `port_queuing - current_partition_arinc->ports_queuing`.
- * 17. Otherwise:
+ * 17. Otherwise: \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_12}
  *     1. Call `pok_channel_queuing_side_init()` with the arguments
  *        `port_queuing->channel`, the address of `port_queuing->channel->send`
  *        and `port_queuing - current_partition_arinc->ports_queuing`.
  * 18. Set `*k_id` to `port_queuing - current_partition_arinc->ports_queuing`.
- * 19. Return `POK_ERRNO_OK`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_11},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_12}
+ * 19. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_11},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_12}
  *
  * @calls
  * - `jet_user_to_kernel_ro()`
@@ -539,16 +766,43 @@ pok_ret_e pok_port_queuing_create(
  * | `k_arg` | `const pok_port_queuing_create_arg_t *` | Kernel address of the attributes |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_01}:
+ *   `pok_port_queuing_create_packed()` shall create a queuing port with the
+ *   attributes given in one structure, as `pok_port_queuing_create()` does.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_017}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_02}:
+ *   `pok_port_queuing_create_packed()` shall refuse an attribute address that
+ *   the partition may not read with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_01}: If
+ *   `jet_user_to_kernel_typed_ro()` returns NULL for `arg`,
+ *   `pok_port_queuing_create_packed()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_02}: If
+ *   `jet_user_to_kernel_typed_ro()` returns an address for `arg`,
+ *   `pok_port_queuing_create_packed()` shall return the result of
+ *   `pok_port_queuing_create()` for `name`, `message_size`, `max_nb_message`,
+ *   `direction` and `discipline` of `arg`, and `id`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_01}
  *
  * @design
  * 1. Set `k_arg` to `jet_user_to_kernel_typed_ro(arg)`.
- * 2. If `k_arg` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_01},
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_02}
+ * 2. If `k_arg` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_01}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 3. Call `pok_port_queuing_create()` with the arguments `name`,
  *    `k_arg->message_size`, `k_arg->max_nb_message`, `k_arg->direction`,
  *    `k_arg->discipline` and `id`, and return its result.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_02}
  *
  * @calls
  * - `jet_user_to_kernel_ro()`
@@ -615,59 +869,192 @@ pok_ret_e pok_port_queuing_create_packed(
  * | `t` | `pok_thread_t *` | The current thread |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_RECEIVE_01}: `pok_port_queuing_receive()`
+ *   shall give the current process the first message of a created queuing
+ *   destination port at once if there is one and no process waits before it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_011}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_RECEIVE_02}: `pok_port_queuing_receive()`
+ *   shall make the current process wait, up to its time-out, when no message
+ *   can be given to it at once, and give the result of the wait.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_021}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_RECEIVE_03}: `pok_port_queuing_receive()`
+ *   shall queue a waiting process in the discipline of the port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_012}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_RECEIVE_04}: `pok_port_queuing_receive()`
+ *   shall refuse an identifier of no created port, a source port, a wait where
+ *   the process may not wait, and give an empty result without waiting for a
+ *   time-out of 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_007}
+ *   - \srqref{SRQ_JET_SYS_005}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_RECEIVE_05}: `pok_port_queuing_receive()`
+ *   shall refuse buffer, length or time-out addresses that the partition may
+ *   not access with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_01}: If `get_port_queuing()`
+ *   returns NULL for `id`, `pok_port_queuing_receive()` shall return
+ *   `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_02}: If the port exists and
+ *   `jet_user_to_kernel()` returns NULL for `data` and `max_message_size` of
+ *   its channel, `pok_port_queuing_receive()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_05}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_03}: If `data` is writable and
+ *   `jet_user_to_kernel_typed()` returns NULL for `len`,
+ *   `pok_port_queuing_receive()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_05}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_04}: If `len` is writable and
+ *   `jet_user_to_kernel_typed_ro()` returns NULL for `timeout`,
+ *   `pok_port_queuing_receive()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_05}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_05}: If these checks pass and
+ *   `direction` of the port is not `POK_PORT_DIRECTION_IN`,
+ *   `pok_port_queuing_receive()` shall return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_06}: If `direction` is
+ *   `POK_PORT_DIRECTION_IN`, `pok_port_queuing_receive()` shall call
+ *   `pok_preemption_local_disable()` before it reads the port and
+ *   `pok_preemption_local_enable()` before it returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_07}: If no message is available
+ *   (`pok_thread_wq_is_empty()` returns false for `waiters` of the port, or
+ *   `pok_channel_queuing_r_get_message()` returns NULL for its channel, with
+ *   `subscribe` true if and only if the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true) and the time-out (the value at
+ *   `timeout`) is 0, `pok_port_queuing_receive()` shall store 0 at `len` and
+ *   return `POK_ERRNO_EMPTY`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_08}: If no message is available
+ *   (`pok_thread_wq_is_empty()` returns false for `waiters` of the port, or
+ *   `pok_channel_queuing_r_get_message()` returns NULL for its channel, with
+ *   `subscribe` true if and only if the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true), the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns false, `pok_port_queuing_receive()`
+ *   shall store 0 at `len` and return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09}: If no message is available
+ *   (`pok_thread_wq_is_empty()` returns false for `waiters` of the port, or
+ *   `pok_channel_queuing_r_get_message()` returns NULL for its channel, with
+ *   `subscribe` true if and only if the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true), the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true, `pok_port_queuing_receive()`
+ *   shall set `wait_buffer.dest` of the current thread to the kernel address of
+ *   `data`, call `pok_thread_wq_add_common()` with the waiters of the port, the
+ *   thread and `discipline` of the port, and then `thread_wait_common()` with
+ *   the thread and the time-out.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_02}
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_03}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_10}: If `pok_thread_wq_is_empty()`
+ *   returns true for the waiters and `pok_channel_queuing_r_get_message()`
+ *   returns a message, `pok_port_queuing_receive()` shall set
+ *   `wait_buffer.dest` of the current thread to the kernel address of `data`
+ *   and call `port_queuing_receive()` with the port and the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_RECEIVE_11}: After the wait or the
+ *   receive, `pok_port_queuing_receive()` shall store at `len` `wait_len` of
+ *   the thread if its `wait_result` is `POK_ERRNO_OK` or `POK_ERRNO_TOOMANY`,
+ *   and 0 if it is another value, and return `wait_result`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_01}
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_RECEIVE_02}
  *
  * @design
  * 1. Call `get_port_queuing()` with the argument `id`, and store the result in
- *    `port_queuing`.
- * 2. If `port_queuing` is NULL:
+ *    `port_queuing`. \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_01},
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_02},
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_05}
+ * 2. If `port_queuing` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_01}
  *    1. Return `POK_ERRNO_PORT`.
  * 3. Call `jet_user_to_kernel()` with the arguments `data` and
  *    `port_queuing->channel->max_message_size`, and store the result in
- *    `k_data`.
- * 4. If `k_data` is NULL:
+ *    `k_data`. \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_02}
+ * 4. If `k_data` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_02}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 5. Set `k_len` to `jet_user_to_kernel_typed(len)`.
- * 6. If `k_len` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_03}
+ * 6. If `k_len` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_03}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 7. Set `k_timeout` to `jet_user_to_kernel_typed_ro(timeout)`.
- * 8. If `k_timeout` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_04}
+ * 8. If `k_timeout` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_04}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 9. Set `kernel_timeout` to the value at `k_timeout`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_07},
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_08},
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09}
  * 10. If `port_queuing->direction` is not equal to `POK_PORT_DIRECTION_IN`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_05}
  *     1. Return `POK_ERRNO_MODE`.
  * 11. Call `pok_preemption_local_disable()`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_06}
  * 12. Set `t` to `current_thread`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_10},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_11}
  * 13. If `kernel_timeout` is equal to `0`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_07}
  *     1. Set `ret` to `POK_ERRNO_EMPTY`.
  * 14. Otherwise, if `thread_is_waiting_allowed()` is false:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_08}
  *     1. Set `ret` to `POK_ERRNO_MODE`.
- * 15. Otherwise:
+ * 15. Otherwise: \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09}
  *     1. Set `ret` to `POK_ERRNO_OK`.
  * 16. If `pok_thread_wq_is_empty(&port_queuing->waiters)` is false or
  *     `(pok_channel_queuing_r_get_message(port_queuing->channel,`
  *     `&message_size, ret == POK_ERRNO_OK))` is NULL:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_07},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_08},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_10}
  *     1. If `ret` is not equal to `POK_ERRNO_OK`:
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_07},
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_08}
  *        1. Set `*k_len` to `0`.
  *        2. Go to the label `err`.
  *     2. Set `t->wait_buffer.dest` to `k_data`.
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09}
  *     3. Call `pok_thread_wq_add_common()` with the arguments the address of
  *        `port_queuing->waiters`, `t` and `port_queuing->discipline`.
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09}
  *     4. Call `thread_wait_common()` with the arguments `t` and
- *        `kernel_timeout`.
- *     5. Go to the label `out`.
+ *        `kernel_timeout`. \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09}
+ *     5. Go to the label `out`. \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09}
  * 17. Set `t->wait_buffer.dest` to `k_data`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_10}
  * 18. Call `port_queuing_receive()` with the arguments `port_queuing` and `t`.
- * 19. Label `out`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_10}
+ * 19. Label `out`: \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_09},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_10},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_11}
  * 20. Call `pok_preemption_local_enable()`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_06}
  * 21. Set `*k_len` to `t->wait_len` if (`t->wait_result` is equal to
  *     `POK_ERRNO_OK` or `t->wait_result` is equal to `POK_ERRNO_TOOMANY`),
- *     otherwise `0U`.
- * 22. Return `t->wait_result`.
- * 23. Label `err`:
+ *     otherwise `0U`. \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_11}
+ * 22. Return `t->wait_result`. \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_11}
+ * 23. Label `err`: \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_07},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_08}
  * 24. Call `pok_preemption_local_enable()`.
- * 25. Return `ret`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_06}
+ * 25. Return `ret`. \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_07},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_RECEIVE_08}
  *
  * @calls
  * - `get_port_queuing()`
@@ -828,57 +1215,182 @@ err:
  * | `t` | `pok_thread_t *` | The current thread |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_SEND_01}: `pok_port_queuing_send()` shall
+ *   put the message of the current process into a created queuing source port
+ *   at once if there is room and no process waits before it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_010}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_SEND_02}: `pok_port_queuing_send()` shall
+ *   make the current process wait, up to its time-out, when its message cannot
+ *   be put into the port at once, and give the result of the wait.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_020}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_SEND_03}: `pok_port_queuing_send()` shall
+ *   queue a waiting process in the discipline of the port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_012}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_SEND_04}: `pok_port_queuing_send()` shall
+ *   refuse an identifier of no created port, a destination port, a length of 0
+ *   or above the maximum message size, a wait where the process may not wait,
+ *   and report a full queue without waiting for a time-out of 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_007}
+ *   - \srqref{SRQ_JET_SYS_005}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_SEND_05}: `pok_port_queuing_send()` shall
+ *   refuse message or time-out addresses that the partition may not read with
+ *   `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_01}: If `get_port_queuing()` returns
+ *   NULL for `id`, `pok_port_queuing_send()` shall return `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_02}: If the port exists and its
+ *   `direction` is not `POK_PORT_DIRECTION_OUT`, `pok_port_queuing_send()`
+ *   shall return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_03}: If `direction` is
+ *   `POK_PORT_DIRECTION_OUT` and `len` is 0, `pok_port_queuing_send()` shall
+ *   return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_04}: If `direction` is
+ *   `POK_PORT_DIRECTION_OUT` and `len` is greater than `max_message_size` of
+ *   the channel, `pok_port_queuing_send()` shall return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_05}: If these checks pass and
+ *   `jet_user_to_kernel_ro()` returns NULL for `data` and `len`,
+ *   `pok_port_queuing_send()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_05}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_06}: If `data` is readable and
+ *   `jet_user_to_kernel_typed_ro()` returns NULL for `timeout`,
+ *   `pok_port_queuing_send()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_05}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_07}: If these checks pass,
+ *   `pok_port_queuing_send()` shall call `pok_preemption_local_disable()`
+ *   before it reads the port and `pok_preemption_local_enable()` before it
+ *   returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_08}: If there is no room
+ *   (`pok_thread_wq_is_empty()` returns false for `waiters` of the port, or
+ *   `pok_channel_queuing_s_get_message()` returns NULL for its channel, with
+ *   `subscribe` true if and only if the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true) and the time-out (the value at
+ *   `timeout`) is 0, `pok_port_queuing_send()` shall return `POK_ERRNO_FULL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_09}: If there is no room
+ *   (`pok_thread_wq_is_empty()` returns false for `waiters` of the port, or
+ *   `pok_channel_queuing_s_get_message()` returns NULL for its channel, with
+ *   `subscribe` true if and only if the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true), the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns false, `pok_port_queuing_send()`
+ *   shall return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_04}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_10}: If there is no room
+ *   (`pok_thread_wq_is_empty()` returns false for `waiters` of the port, or
+ *   `pok_channel_queuing_s_get_message()` returns NULL for its channel, with
+ *   `subscribe` true if and only if the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true), the time-out is not 0 and
+ *   `thread_is_waiting_allowed()` returns true, `pok_port_queuing_send()` shall
+ *   set `wait_len` of the current thread to `len` and its `wait_buffer.src` to
+ *   the kernel address of `data`, call `pok_thread_wq_add_common()` with the
+ *   waiters of the port, the thread and `discipline` of the port, then
+ *   `thread_wait_common()` with the thread and the time-out, and return
+ *   `wait_result` of the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_02}
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_03}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_SEND_11}: If `pok_thread_wq_is_empty()`
+ *   returns true for the waiters and `pok_channel_queuing_s_get_message()`
+ *   returns a message, `pok_port_queuing_send()` shall set `wait_len` of the
+ *   current thread to `len` and its `wait_buffer.src` to the kernel address of
+ *   `data`, call `port_queuing_send()` with the port and the thread, and return
+ *   `wait_result` of the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_SEND_01}
  *
  * @design
- * 1. Set `t` to `current_thread`.
+ * 1. Set `t` to `current_thread`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10},
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_11}
  * 2. Call `get_port_queuing()` with the argument `id`, and store the result in
- *    `port_queuing`.
- * 3. If `port_queuing` is NULL:
+ *    `port_queuing`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_01}
+ * 3. If `port_queuing` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_01}
  *    1. Return `POK_ERRNO_PORT`.
  * 4. If `port_queuing->direction` is not equal to `POK_PORT_DIRECTION_OUT`:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_02}
  *    1. Return `POK_ERRNO_MODE`.
- * 5. If `len` is equal to `0U`:
+ * 5. If `len` is equal to `0U`: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_03}
  *    1. Return `POK_ERRNO_EINVAL`.
  * 6. If `len` is greater than `port_queuing->channel->max_message_size`:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_04}
  *    1. Return `POK_ERRNO_EINVAL`.
  * 7. Call `jet_user_to_kernel_ro()` with the arguments `data` and `len`, and
- *    store the result in `k_data`.
- * 8. If `k_data` is NULL:
+ *    store the result in `k_data`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_05}
+ * 8. If `k_data` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_05}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 9. Set `k_timeout` to `jet_user_to_kernel_typed_ro(timeout)`.
- * 10. If `k_timeout` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_06}
+ * 10. If `k_timeout` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_06}
  *     1. Return `POK_ERRNO_EFAULT`.
  * 11. Set `kernel_timeout` to the value at `k_timeout`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_08},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_09},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
  * 12. Call `pok_preemption_local_disable()`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_07}
  * 13. If `kernel_timeout` is equal to `0`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_08}
  *     1. Set `ret` to `POK_ERRNO_FULL`.
  * 14. Otherwise, if `thread_is_waiting_allowed()` is false:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_09}
  *     1. Set `ret` to `POK_ERRNO_MODE`.
- * 15. Otherwise:
+ * 15. Otherwise: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
  *     1. Set `ret` to `POK_ERRNO_OK`.
  * 16. If `pok_thread_wq_is_empty(&port_queuing->waiters)` is false or
  *     `pok_channel_queuing_s_get_message(port_queuing->channel, ret ==`
- *     `POK_ERRNO_OK)` is NULL:
+ *     `POK_ERRNO_OK)` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_08},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_09},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
  *     1. If `ret` is not equal to `POK_ERRNO_OK`:
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_08},
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_09}
  *        1. Go to the label `err`.
- *     2. Set `t->wait_len` to `len`.
+ *     2. Set `t->wait_len` to `len`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
  *     3. Set `t->wait_buffer.src` to `k_data`.
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
  *     4. Call `pok_thread_wq_add_common()` with the arguments the address of
  *        `port_queuing->waiters`, `t` and `port_queuing->discipline`.
+ *        \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
  *     5. Call `thread_wait_common()` with the arguments `t` and
- *        `kernel_timeout`.
- *     6. Go to the label `out`.
- * 17. Set `t->wait_len` to `len`.
+ *        `kernel_timeout`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
+ *     6. Go to the label `out`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10}
+ * 17. Set `t->wait_len` to `len`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_11}
  * 18. Set `t->wait_buffer.src` to `k_data`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_11}
  * 19. Call `port_queuing_send()` with the arguments `port_queuing` and `t`.
- * 20. Label `out`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_11}
+ * 20. Label `out`: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_11}
  * 21. Call `pok_preemption_local_enable()`.
- * 22. Return `t->wait_result`.
- * 23. Label `err`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_07}
+ * 22. Return `t->wait_result`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_10},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_11}
+ * 23. Label `err`: \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_08},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_09}
  * 24. Call `pok_preemption_local_enable()`.
- * 25. Return `ret`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_07}
+ * 25. Return `ret`. \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_08},
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_SEND_09}
  *
  * @calls
  * - `get_port_queuing()`
@@ -1022,34 +1534,86 @@ err:
  * | `port_queuing` | `pok_port_queuing_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_STATUS_01}: `pok_port_queuing_status()`
+ *   shall give the maximum message size, the direction, the number of waiting
+ *   processes, and the maximum and present number of messages of a created
+ *   queuing port of the current partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_003}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_STATUS_02}: `pok_port_queuing_status()`
+ *   shall refuse a status address that the partition may not write and an
+ *   identifier of no created port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_005}
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_STATUS_01}: If
+ *   `jet_user_to_kernel_typed()` returns NULL for `status`,
+ *   `pok_port_queuing_status()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_STATUS_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_STATUS_02}: If `status` is writable and
+ *   `get_port_queuing()` returns NULL for `id`, `pok_port_queuing_status()`
+ *   shall return `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_STATUS_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_STATUS_03}: If both give an address,
+ *   `pok_port_queuing_status()` shall set `max_message_size` of the status to
+ *   that of the channel and `direction` to that of the port, then call
+ *   `pok_preemption_local_disable()`, set `waiting_processes` to the result of
+ *   `pok_thread_wq_get_nwaits()` for the waiters of the port, set the numbers
+ *   of messages as below, call `pok_preemption_local_enable()` and return
+ *   `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_STATUS_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_STATUS_04}: If `direction` of the port is
+ *   `POK_PORT_DIRECTION_IN`, `pok_port_queuing_status()` shall set
+ *   `max_nb_message` of the status to `recv.max_nb_message` of the channel and
+ *   `nb_message` to the result of `pok_channel_queuing_r_n_messages()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_STATUS_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_STATUS_05}: If `direction` of the port is
+ *   not `POK_PORT_DIRECTION_IN`, `pok_port_queuing_status()` shall set
+ *   `max_nb_message` of the status to `send.max_nb_message` of the channel and
+ *   `nb_message` to the result of `pok_channel_queuing_s_n_messages()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_STATUS_01}
  *
  * @design
  * 1. Set `k_status` to `jet_user_to_kernel_typed(status)`.
- * 2. If `k_status` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_01}
+ * 2. If `k_status` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_01}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 3. Call `get_port_queuing()` with the argument `id`, and store the result in
- *    `port_queuing`.
- * 4. If `port_queuing` is NULL:
+ *    `port_queuing`. \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_02}
+ * 4. If `port_queuing` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_02}
  *    1. Return `POK_ERRNO_PORT`.
  * 5. Set `channel` to `port_queuing->channel`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_03}
  * 6. Set `k_status->max_message_size` to `channel->max_message_size`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_03}
  * 7. Set `k_status->direction` to `port_queuing->direction`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_03}
  * 8. Call `pok_preemption_local_disable()`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_03}
  * 9. Call `pok_thread_wq_get_nwaits()` with the address of
  *    `port_queuing->waiters`, and store the result in
  *    `k_status->waiting_processes`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_03}
  * 10. If `port_queuing->direction` is equal to `POK_PORT_DIRECTION_IN`:
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_04}
  *     1. Set `k_status->max_nb_message` to `channel->recv.max_nb_message`.
  *     2. Call `pok_channel_queuing_r_n_messages()` with the argument `channel`,
  *        and store the result in `k_status->nb_message`.
- * 11. Otherwise:
+ * 11. Otherwise: \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_05}
  *     1. Set `k_status->max_nb_message` to `channel->send.max_nb_message`.
  *     2. Call `pok_channel_queuing_s_n_messages()` with the argument `channel`,
  *        and store the result in `k_status->nb_message`.
  * 12. Call `pok_preemption_local_enable()`.
- * 13. Return `POK_ERRNO_OK`.
+ *     \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_03}
+ * 13. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_QUEUING_STATUS_03}
  *
  * @calls
  * - `jet_user_to_kernel()`
@@ -1131,25 +1695,66 @@ pok_ret_e pok_port_queuing_status(
  * | `port_queuing` | `pok_port_queuing_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_ID_01}: `pok_port_queuing_id()` shall give
+ *   the identifier of a created queuing port of the current partition found by
+ *   its name.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_003}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_ID_02}: `pok_port_queuing_id()` shall
+ *   refuse a name or an identifier address that the partition may not access
+ *   with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_ID_01}: If `jet_user_to_kernel_ro()`
+ *   returns NULL for `name` and `MAX_NAME_LENGTH`, `pok_port_queuing_id()`
+ *   shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_ID_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_ID_02}: If the name is readable and
+ *   `jet_user_to_kernel_typed()` returns NULL for `id`, `pok_port_queuing_id()`
+ *   shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_ID_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_ID_03}: If both conversions give an
+ *   address and `find_port_queuing()` returns NULL, `pok_port_queuing_id()`
+ *   shall return `POK_ERRNO_UNAVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_ID_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_ID_04}: If `find_port_queuing()` returns a
+ *   port whose `is_created` is false, `pok_port_queuing_id()` shall return
+ *   `POK_ERRNO_UNAVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_ID_01}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_ID_05}: If `find_port_queuing()` returns a
+ *   port whose `is_created` is true, `pok_port_queuing_id()` shall store its
+ *   index in `ports_queuing` of the partition at `id` and return
+ *   `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_ID_01}
  *
  * @design
  * 1. Call `jet_user_to_kernel_ro()` with the arguments `name` and
  *    `MAX_NAME_LENGTH`, and store the result in `k_name`.
- * 2. If `k_name` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_ID_01}
+ * 2. If `k_name` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_ID_01}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 3. Set `k_id` to `jet_user_to_kernel_typed(id)`.
- * 4. If `k_id` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_ID_02}
+ * 4. If `k_id` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_ID_02}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 5. Call `find_port_queuing()` with the argument `k_name`, and store the
- *    result in `port_queuing`.
- * 6. If `port_queuing` is NULL:
+ *    result in `port_queuing`. \llrref{LLR_PORT_POK_PORT_QUEUING_ID_03}
+ * 6. If `port_queuing` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_ID_03}
  *    1. Return `POK_ERRNO_UNAVAILABLE`.
  * 7. If `port_queuing->is_created` is false:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_ID_04}
  *    1. Return `POK_ERRNO_UNAVAILABLE`.
  * 8. Set `*k_id` to `port_queuing - current_partition_arinc->ports_queuing`.
- * 9. Return `POK_ERRNO_OK`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_ID_05}
+ * 9. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_QUEUING_ID_05}
  *
  * @calls
  * - `jet_user_to_kernel_ro()`
@@ -1211,22 +1816,51 @@ pok_ret_e pok_port_queuing_id(
  * | `port_queuing` | `pok_port_queuing_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_CLEAR_01}: `pok_port_queuing_clear()`
+ *   shall discard the messages of a created queuing destination port of the
+ *   current partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_015}
+ * - \hlrid{HLR_PORT_POK_PORT_QUEUING_CLEAR_02}: `pok_port_queuing_clear()`
+ *   shall refuse an identifier of no created port and a source port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_005}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CLEAR_01}: If `get_port_queuing()` returns
+ *   NULL for `id`, `pok_port_queuing_clear()` shall return `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CLEAR_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CLEAR_02}: If the port exists and its
+ *   `direction` is not `POK_PORT_DIRECTION_IN`, `pok_port_queuing_clear()`
+ *   shall return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CLEAR_02}
+ * - \llrid{LLR_PORT_POK_PORT_QUEUING_CLEAR_03}: If `direction` is
+ *   `POK_PORT_DIRECTION_IN`, `pok_port_queuing_clear()` shall call
+ *   `pok_preemption_local_disable()`, `pok_channel_queuing_side_init()` with
+ *   the channel, its `recv` and the index of the port, and
+ *   `pok_preemption_local_enable()`, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_QUEUING_CLEAR_01}
  *
  * @design
  * 1. Call `get_port_queuing()` with the argument `id`, and store the result in
- *    `port_queuing`.
- * 2. If `port_queuing` is NULL:
+ *    `port_queuing`. \llrref{LLR_PORT_POK_PORT_QUEUING_CLEAR_01}
+ * 2. If `port_queuing` is NULL: \llrref{LLR_PORT_POK_PORT_QUEUING_CLEAR_01}
  *    1. Return `POK_ERRNO_PORT`.
  * 3. If `port_queuing->direction` is not equal to `POK_PORT_DIRECTION_IN`:
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CLEAR_02}
  *    1. Return `POK_ERRNO_MODE`.
  * 4. Call `pok_preemption_local_disable()`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CLEAR_03}
  * 5. Call `pok_channel_queuing_side_init()` with the arguments
  *    `port_queuing->channel`, the address of `port_queuing->channel->recv` and
  *    `port_queuing - current_partition_arinc->ports_queuing`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CLEAR_03}
  * 6. Call `pok_preemption_local_enable()`.
- * 7. Return `POK_ERRNO_OK`.
+ *    \llrref{LLR_PORT_POK_PORT_QUEUING_CLEAR_03}
+ * 7. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_QUEUING_CLEAR_03}
  *
  * @calls
  * - `get_port_queuing()`
@@ -1281,21 +1915,50 @@ pok_ret_e pok_port_queuing_clear(pok_port_id_t id)
  * | `ports_sampling_end` | `pok_port_sampling_t *` | The end of the partition's sampling ports |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_FIND_PORT_SAMPLING_01}: `find_port_sampling()` shall find a
+ *   sampling port of the configuration of the current partition by its name,
+ *   without regard to case.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_017}
+ *   - \srqref{SRQ_JET_CFG_004}
  *
  * @llr
+ * - \llrid{LLR_PORT_FIND_PORT_SAMPLING_01}: `find_port_sampling()` shall copy
+ *   the `MAX_NAME_LENGTH` bytes at `k_name` to a kernel buffer with `memcpy()`
+ *   before it compares them.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_FIND_PORT_SAMPLING_01}
+ * - \llrid{LLR_PORT_FIND_PORT_SAMPLING_02}: If `pok_compare_names()` returns 0
+ *   for `name` of one of the `nports_sampling` elements of `ports_sampling` of
+ *   the partition and the buffer, `find_port_sampling()` shall return the
+ *   address of the first such port.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_FIND_PORT_SAMPLING_01}
+ * - \llrid{LLR_PORT_FIND_PORT_SAMPLING_03}: If `pok_compare_names()` returns a
+ *   value other than 0 for each of them, `find_port_sampling()` shall return
+ *   NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_FIND_PORT_SAMPLING_01}
  *
  * @design
  * 1. Set `port_sampling` to `current_partition_arinc->ports_sampling`.
+ *    \llrref{LLR_PORT_FIND_PORT_SAMPLING_02},
+ *    \llrref{LLR_PORT_FIND_PORT_SAMPLING_03}
  * 2. Set `ports_sampling_end` to
  *    `port_sampling + current_partition_arinc->nports_sampling`.
+ *    \llrref{LLR_PORT_FIND_PORT_SAMPLING_02},
+ *    \llrref{LLR_PORT_FIND_PORT_SAMPLING_03}
  * 3. Call `memcpy()` with the arguments `kernel_name`, `k_name` and
- *    `MAX_NAME_LENGTH`.
+ *    `MAX_NAME_LENGTH`. \llrref{LLR_PORT_FIND_PORT_SAMPLING_01}
  * 4. While `port_sampling` is less than `ports_sampling_end`, repeat (after
  *    each pass: increment `port_sampling`):
+ *    \llrref{LLR_PORT_FIND_PORT_SAMPLING_02},
+ *    \llrref{LLR_PORT_FIND_PORT_SAMPLING_03}
  *    1. If `pok_compare_names(port_sampling->name, kernel_name)` is equal to
- *       `0`:
+ *       `0`: \llrref{LLR_PORT_FIND_PORT_SAMPLING_02}
  *       1. Return `port_sampling`.
- * 5. Return `NULL`.
+ * 5. Return `NULL`. \llrref{LLR_PORT_FIND_PORT_SAMPLING_03}
  *
  * @calls
  * - `memcpy()`
@@ -1348,17 +2011,42 @@ static pok_port_sampling_t* find_port_sampling(const char* JET_KUSER k_name)
  * | `port_sampling` | `pok_port_sampling_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_GET_PORT_SAMPLING_01}: `get_port_sampling()` shall give a
+ *   created sampling port of the current partition by its identifier, and none
+ *   for an identifier of no port of the partition or of a port not created.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_005}
+ *   - \srqref{SRQ_JET_SYS_005}
  *
  * @llr
+ * - \llrid{LLR_PORT_GET_PORT_SAMPLING_01}: If `id` is not less than
+ *   `nports_sampling` of the partition, `get_port_sampling()` shall return
+ *   NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_GET_PORT_SAMPLING_01}
+ * - \llrid{LLR_PORT_GET_PORT_SAMPLING_02}: If `id` is less than
+ *   `nports_sampling` and `is_created` of `ports_sampling[id]` is true,
+ *   `get_port_sampling()` shall return its address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_GET_PORT_SAMPLING_01}
+ * - \llrid{LLR_PORT_GET_PORT_SAMPLING_03}: If `id` is less than
+ *   `nports_sampling` and `is_created` of `ports_sampling[id]` is false,
+ *   `get_port_sampling()` shall return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_GET_PORT_SAMPLING_01}
  *
  * @design
  * 1. If `id` is greater than or equal to
  *    `current_partition_arinc->nports_sampling`:
+ *    \llrref{LLR_PORT_GET_PORT_SAMPLING_01}
  *    1. Return `NULL`.
  * 2. Set `port_sampling` to the address of
  *    `current_partition_arinc->ports_sampling[id]`.
+ *    \llrref{LLR_PORT_GET_PORT_SAMPLING_02},
+ *    \llrref{LLR_PORT_GET_PORT_SAMPLING_03}
  * 3. Return `port_sampling` if `port_sampling->is_created` is true, otherwise
- *    `NULL`.
+ *    `NULL`. \llrref{LLR_PORT_GET_PORT_SAMPLING_02},
+ *    \llrref{LLR_PORT_GET_PORT_SAMPLING_03}
  *
  * @calls
  * None.
@@ -1395,11 +2083,20 @@ static pok_port_sampling_t* get_port_sampling(pok_port_id_t id)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_INIT_01}: `pok_port_sampling_init()`
+ *   shall make a sampling port one that is not created.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_004}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_INIT_01}: `pok_port_sampling_init()`
+ *   shall set `is_created` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_INIT_01}
  *
  * @design
  * 1. Set `port_sampling->is_created` to `FALSE`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_INIT_01}
  *
  * @calls
  * None.
@@ -1447,47 +2144,145 @@ void pok_port_sampling_init(pok_port_sampling_t* port_sampling)
  * | `port_sampling` | `pok_port_sampling_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}: `pok_port_sampling_create()`
+ *   shall create a sampling port of the current partition outside `NORMAL`
+ *   mode, if its name is that of a sampling port of the partition in the
+ *   configuration, not yet created, with the configured maximum message size
+ *   and direction and a finite, positive refresh period; and give its
+ *   identifier.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_017}
+ *   - \srqref{SRQ_JET_IPC_019}
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_CREATE_02}: `pok_port_sampling_create()`
+ *   shall refuse name, refresh period or identifier addresses that the
+ *   partition may not access with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_01}: If `mode` of the partition is
+ *   `POK_PARTITION_MODE_NORMAL`, `pok_port_sampling_create()` shall return
+ *   `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_02}: If `mode` is not
+ *   `POK_PARTITION_MODE_NORMAL` and `jet_user_to_kernel_ro()` returns NULL for
+ *   `name` and `MAX_NAME_LENGTH`, `pok_port_sampling_create()` shall return
+ *   `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_03}: If the name is readable and
+ *   `jet_user_to_kernel_typed_ro()` returns NULL for `refresh`,
+ *   `pok_port_sampling_create()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_04}: If `refresh` is readable and
+ *   `jet_user_to_kernel_typed()` returns NULL for `id`,
+ *   `pok_port_sampling_create()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_05}: If these conversions give
+ *   addresses and `find_port_sampling()` returns NULL,
+ *   `pok_port_sampling_create()` shall return `POK_ERRNO_UNAVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_06}: If `find_port_sampling()`
+ *   returns a port whose `is_created` is true, `pok_port_sampling_create()`
+ *   shall return `POK_ERRNO_EXISTS`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_07}: If the port found is not
+ *   created and `size` is not `max_message_size` of its channel,
+ *   `pok_port_sampling_create()` shall return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_08}: If `size` is
+ *   `max_message_size` of the channel and `direction` is not `direction` of the
+ *   port, `pok_port_sampling_create()` shall return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_09}: If `direction` is that of the
+ *   port and `pok_time_is_infinity()` returns true for the refresh period (the
+ *   value at `refresh`) or the period is 0, `pok_port_sampling_create()` shall
+ *   return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_10}: If all these checks pass and
+ *   `direction` of the port is `POK_PORT_DIRECTION_OUT`,
+ *   `pok_port_sampling_create()` shall set `is_created` of the port to `TRUE`,
+ *   its `refresh_period` to the period and `last_message_validity` to `FALSE`,
+ *   call `pok_channel_sampling_s_clear_message()` with the channel, store the
+ *   index of the port in `ports_sampling` at `id`, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}: If all these checks pass and
+ *   `direction` of the port is not `POK_PORT_DIRECTION_OUT`,
+ *   `pok_port_sampling_create()` shall do the same with
+ *   `pok_channel_sampling_r_clear_message()` in place of
+ *   `pok_channel_sampling_s_clear_message()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CREATE_01}
  *
  * @design
  * 1. If `current_partition_arinc->mode` is equal to
- *    `POK_PARTITION_MODE_NORMAL`:
+ *    `POK_PARTITION_MODE_NORMAL`: \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_01}
  *    1. Return `POK_ERRNO_MODE`.
  * 2. Call `jet_user_to_kernel_ro()` with the arguments `name` and
  *    `MAX_NAME_LENGTH`, and store the result in `k_name`.
- * 3. If `k_name` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_02}
+ * 3. If `k_name` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_02}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 4. Set `k_refresh` to `jet_user_to_kernel_typed_ro(refresh)`.
- * 5. If `k_refresh` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_03}
+ * 5. If `k_refresh` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_03}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 6. Set `k_id` to `jet_user_to_kernel_typed(id)`.
- * 7. If `k_id` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_04}
+ * 7. If `k_id` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_04}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 8. Set `kernel_refresh` to the value at `k_refresh`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_09},
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_10},
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}
  * 9. Call `find_port_sampling()` with the argument `k_name`, and store the
- *    result in `port_sampling`.
- * 10. If `port_sampling` is NULL:
+ *    result in `port_sampling`. \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_05}
+ * 10. If `port_sampling` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_05}
  *     1. Return `POK_ERRNO_UNAVAILABLE`.
  * 11. If `port_sampling->is_created` is true:
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_06}
  *     1. Return `POK_ERRNO_EXISTS`.
  * 12. If `size` is not equal to `port_sampling->channel->max_message_size`:
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_07}
  *     1. Return `POK_ERRNO_EINVAL`.
  * 13. If `direction` is not equal to `port_sampling->direction`:
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_08}
  *     1. Return `POK_ERRNO_EINVAL`.
  * 14. If `pok_time_is_infinity(kernel_refresh) || (kernel_refresh == 0)` holds:
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_09}
  *     1. Return `POK_ERRNO_EINVAL`.
  * 15. Set `port_sampling->is_created` to `TRUE`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_10},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}
  * 16. Set `port_sampling->refresh_period` to `kernel_refresh`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_10},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}
  * 17. Set `port_sampling->last_message_validity` to `FALSE`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_10},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}
  * 18. If `port_sampling->direction` is equal to `POK_PORT_DIRECTION_OUT`:
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_10}
  *     1. Call `pok_channel_sampling_s_clear_message()` with the argument
  *        `port_sampling->channel`.
- * 19. Otherwise:
+ * 19. Otherwise: \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}
  *     1. Call `pok_channel_sampling_r_clear_message()` with the argument
  *        `port_sampling->channel`.
  * 20. Set `*k_id` to `port_sampling - current_partition_arinc->ports_sampling`.
- * 21. Return `POK_ERRNO_OK`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_10},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}
+ * 21. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_10},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_CREATE_11}
  *
  * @calls
  * - `jet_user_to_kernel_ro()`
@@ -1597,31 +2392,80 @@ pok_ret_e pok_port_sampling_create(
  * | `port_sampling` | `pok_port_sampling_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_WRITE_01}: `pok_port_sampling_write()`
+ *   shall write a message to a created sampling source port of the current
+ *   partition, replacing the message of the channel, with the time of writing.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_018}
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_WRITE_02}: `pok_port_sampling_write()`
+ *   shall refuse an identifier of no created port, a length of 0 or above the
+ *   maximum message size, a destination port, and a message that the partition
+ *   may not read.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_005}
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_WRITE_01}: If `get_port_sampling()`
+ *   returns NULL for `id`, `pok_port_sampling_write()` shall return
+ *   `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_WRITE_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_WRITE_02}: If the port exists and `len`
+ *   is 0 or greater than `max_message_size` of its channel,
+ *   `pok_port_sampling_write()` shall return `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_WRITE_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_WRITE_03}: If `len` is valid and
+ *   `direction` of the port is not `POK_PORT_DIRECTION_OUT`,
+ *   `pok_port_sampling_write()` shall return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_WRITE_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_WRITE_04}: If `direction` is
+ *   `POK_PORT_DIRECTION_OUT` and `jet_user_to_kernel_ro()` returns NULL for
+ *   `data` and `len`, `pok_port_sampling_write()` shall return
+ *   `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_WRITE_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_WRITE_05}: If these checks pass,
+ *   `pok_port_sampling_write()` shall call `pok_preemption_local_disable()`,
+ *   copy `len` bytes of the data to the result of
+ *   `pok_channel_sampling_s_get_message()` for the channel with `memcpy()`,
+ *   call `pok_channel_sampling_send_message()` with the channel and `len`, then
+ *   `pok_preemption_local_enable()`, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_WRITE_01}
  *
  * @design
  * 1. Call `get_port_sampling()` with the argument `id`, and store the result in
- *    `port_sampling`.
- * 2. If `port_sampling` is NULL:
+ *    `port_sampling`. \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_01}
+ * 2. If `port_sampling` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_01}
  *    1. Return `POK_ERRNO_PORT`.
  * 3. If `len` is equal to `0U` or `len` is greater than
  *    `port_sampling->channel->max_message_size`:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_02}
  *    1. Return `POK_ERRNO_EINVAL`.
  * 4. If `port_sampling->direction` is not equal to `POK_PORT_DIRECTION_OUT`:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_03}
  *    1. Return `POK_ERRNO_MODE`.
  * 5. Call `jet_user_to_kernel_ro()` with the arguments `data` and `len`, and
- *    store the result in `k_data`.
- * 6. If `k_data` is NULL:
+ *    store the result in `k_data`. \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_04}
+ * 6. If `k_data` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_04}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 7. Call `pok_preemption_local_disable()`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_05}
  * 8. Call `pok_channel_sampling_s_get_message()` with the argument
  *    `port_sampling->channel`, and store the result in `message`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_05}
  * 9. Call `memcpy()` with the arguments `message`, `k_data` and `len`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_05}
  * 10. Call `pok_channel_sampling_send_message()` with the arguments
  *     `port_sampling->channel` and `len`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_05}
  * 11. Call `pok_preemption_local_enable()`.
- * 12. Return `POK_ERRNO_OK`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_05}
+ * 12. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_SAMPLING_WRITE_05}
  *
  * @calls
  * - `get_port_sampling()`
@@ -1709,32 +2553,112 @@ pok_ret_e pok_port_sampling_write(
  * | `ts` | `pok_time_t` | The time the message was written |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_READ_01}: `pok_port_sampling_read()`
+ *   shall give the current process the latest message of a created sampling
+ *   destination port, with its length, without removing it, and whether it is
+ *   valid: not older than the refresh period of the port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_007}
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_READ_02}: `pok_port_sampling_read()`
+ *   shall report an empty port, with a length of 0 and an invalid message.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_007}
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_READ_03}: `pok_port_sampling_read()`
+ *   shall refuse an identifier of no created port, a source port, and buffer,
+ *   length or validity addresses that the partition may not write.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_005}
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_01}: If `get_port_sampling()`
+ *   returns NULL for `id`, `pok_port_sampling_read()` shall return
+ *   `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_03}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_02}: If the port exists and its
+ *   `direction` is not `POK_PORT_DIRECTION_IN`, `pok_port_sampling_read()`
+ *   shall return `POK_ERRNO_DIRECTION`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_03}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_03}: If `direction` is
+ *   `POK_PORT_DIRECTION_IN` and `jet_user_to_kernel()` returns NULL for `data`
+ *   and `max_message_size` of the channel, `pok_port_sampling_read()` shall
+ *   return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_03}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_04}: If `data` is writable and
+ *   `jet_user_to_kernel_typed()` returns NULL for `len`,
+ *   `pok_port_sampling_read()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_03}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_05}: If `len` is writable and
+ *   `jet_user_to_kernel_typed()` returns NULL for `valid`,
+ *   `pok_port_sampling_read()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_03}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_06}: If these checks pass,
+ *   `pok_port_sampling_read()` shall call `pok_preemption_local_disable()`
+ *   before it reads the channel and `pok_preemption_local_enable()` before it
+ *   returns, and store `last_message_validity` of the port at `valid` after it
+ *   has set it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_07}: If
+ *   `pok_channel_sampling_r_get_message()` returns a message and the result of
+ *   `jet_system_time()` minus its time is not greater than `refresh_period` of
+ *   the port, `pok_port_sampling_read()` shall copy the message to `data` with
+ *   `memcpy()`, store its size at `len`, set `last_message_validity` to `TRUE`
+ *   and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_08}: If
+ *   `pok_channel_sampling_r_get_message()` returns a message and the result of
+ *   `jet_system_time()` minus its time is greater than `refresh_period`,
+ *   `pok_port_sampling_read()` shall copy the message to `data` with
+ *   `memcpy()`, store its size at `len`, set `last_message_validity` to `FALSE`
+ *   and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_READ_09}: If
+ *   `pok_channel_sampling_r_get_message()` returns NULL,
+ *   `pok_port_sampling_read()` shall store 0 at `len`, set
+ *   `last_message_validity` to `FALSE` and return `POK_ERRNO_EMPTY`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_READ_02}
  *
  * @design
  * 1. Call `get_port_sampling()` with the argument `id`, and store the result in
- *    `port_sampling`.
- * 2. If `port_sampling` is NULL:
+ *    `port_sampling`. \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_01}
+ * 2. If `port_sampling` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_01}
  *    1. Return `POK_ERRNO_PORT`.
  * 3. If `port_sampling->direction` is not equal to `POK_PORT_DIRECTION_IN`:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_02}
  *    1. Return `POK_ERRNO_DIRECTION`.
  * 4. Call `jet_user_to_kernel()` with the arguments `data` and
  *    `port_sampling->channel->max_message_size`, and store the result in
- *    `k_data`.
- * 5. If `k_data` is NULL:
+ *    `k_data`. \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_03}
+ * 5. If `k_data` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_03}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 6. Set `k_len` to `jet_user_to_kernel_typed(len)`.
- * 7. If `k_len` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_04}
+ * 7. If `k_len` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_04}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 8. Set `k_valid` to `jet_user_to_kernel_typed(valid)`.
- * 9. If `k_valid` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_05}
+ * 9. If `k_valid` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_05}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 10. Call `pok_preemption_local_disable()`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_06}
  * 11. Call `pok_channel_sampling_r_get_message()` with the arguments
  *     `port_sampling->channel`, the address of `message_size` and the address
  *     of `ts`, and store the result in `message`.
- * 12. If `message` is not NULL:
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_07},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_08},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_09}
+ * 12. If `message` is not NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_07},
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_08}
  *     1. Call `memcpy()` with the arguments `k_data`, `message` and
  *        `message_size`.
  *     2. Set `*k_len` to `(pok_port_size_t)message_size`.
@@ -1743,13 +2667,15 @@ pok_ret_e pok_port_sampling_write(
  *        `(current_time - ts)` is less than or equal to
  *        `port_sampling->refresh_period`, otherwise `FALSE`.
  *     5. Set `ret` to `POK_ERRNO_OK`.
- * 13. Otherwise:
+ * 13. Otherwise: \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_09}
  *     1. Set `*k_len` to `0`.
  *     2. Set `port_sampling->last_message_validity` to `FALSE`.
  *     3. Set `ret` to `POK_ERRNO_EMPTY`.
  * 14. Set `*k_valid` to `port_sampling->last_message_validity`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_06}
  * 15. Call `pok_preemption_local_enable()`.
- * 16. Return `ret`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_06}
+ * 16. Return `ret`. \llrref{LLR_PORT_POK_PORT_SAMPLING_READ_06}
  *
  * @calls
  * - `get_port_sampling()`
@@ -1862,25 +2788,66 @@ pok_ret_e pok_port_sampling_read(
  * | `port_sampling` | `pok_port_sampling_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_ID_01}: `pok_port_sampling_id()` shall
+ *   give the identifier of a created sampling port of the current partition
+ *   found by its name.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_003}
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_ID_02}: `pok_port_sampling_id()` shall
+ *   refuse a name or an identifier address that the partition may not access
+ *   with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_ID_01}: If `jet_user_to_kernel_ro()`
+ *   returns NULL for `name` and `MAX_NAME_LENGTH`, `pok_port_sampling_id()`
+ *   shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_ID_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_ID_02}: If the name is readable and
+ *   `jet_user_to_kernel_typed()` returns NULL for `id`,
+ *   `pok_port_sampling_id()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_ID_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_ID_03}: If both conversions give an
+ *   address and `find_port_sampling()` returns NULL, `pok_port_sampling_id()`
+ *   shall return `POK_ERRNO_UNAVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_ID_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_ID_04}: If `find_port_sampling()` returns
+ *   a port whose `is_created` is false, `pok_port_sampling_id()` shall return
+ *   `POK_ERRNO_UNAVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_ID_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_ID_05}: If `find_port_sampling()` returns
+ *   a port whose `is_created` is true, `pok_port_sampling_id()` shall store its
+ *   index in `ports_sampling` of the partition at `id` and return
+ *   `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_ID_01}
  *
  * @design
  * 1. Call `jet_user_to_kernel_ro()` with the arguments `name` and
  *    `MAX_NAME_LENGTH`, and store the result in `k_name`.
- * 2. If `k_name` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_01}
+ * 2. If `k_name` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_01}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 3. Set `k_id` to `jet_user_to_kernel_typed(id)`.
- * 4. If `k_id` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_02}
+ * 4. If `k_id` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_02}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 5. Call `find_port_sampling()` with the argument `k_name`, and store the
- *    result in `port_sampling`.
- * 6. If `port_sampling` is NULL:
+ *    result in `port_sampling`. \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_03}
+ * 6. If `port_sampling` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_03}
  *    1. Return `POK_ERRNO_UNAVAILABLE`.
  * 7. If `port_sampling->is_created` is false:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_04}
  *    1. Return `POK_ERRNO_UNAVAILABLE`.
  * 8. Set `*k_id` to `port_sampling - current_partition_arinc->ports_sampling`.
- * 9. Return `POK_ERRNO_OK`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_05}
+ * 9. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_SAMPLING_ID_05}
  *
  * @calls
  * - `jet_user_to_kernel_ro()`
@@ -1944,24 +2911,62 @@ pok_ret_e pok_port_sampling_id(
  * | `port_sampling` | `pok_port_sampling_t *` | The port |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_STATUS_01}: `pok_port_sampling_status()`
+ *   shall give the maximum message size, the direction, the refresh period and
+ *   the validity of the last message read of a created sampling port of the
+ *   current partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_003}
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_STATUS_02}: `pok_port_sampling_status()`
+ *   shall refuse an identifier of no created port and a status address that the
+ *   partition may not write.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_005}
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_STATUS_01}: If `get_port_sampling()`
+ *   returns NULL for `id`, `pok_port_sampling_status()` shall return
+ *   `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_STATUS_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_STATUS_02}: If the port exists and
+ *   `jet_user_to_kernel_typed()` returns NULL for `status`,
+ *   `pok_port_sampling_status()` shall return `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_STATUS_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}: If both give an address,
+ *   `pok_port_sampling_status()` shall call `pok_preemption_local_disable()`,
+ *   set `size` of the status to `max_message_size` of the channel, `direction`
+ *   to that of the port, `refresh` to its `refresh_period` and `validity` to
+ *   its `last_message_validity`, call `pok_preemption_local_enable()`, and
+ *   return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_STATUS_01}
  *
  * @design
  * 1. Call `get_port_sampling()` with the argument `id`, and store the result in
- *    `port_sampling`.
- * 2. If `port_sampling` is NULL:
+ *    `port_sampling`. \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_01}
+ * 2. If `port_sampling` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_01}
  *    1. Return `POK_ERRNO_PORT`.
  * 3. Set `k_status` to `jet_user_to_kernel_typed(status)`.
- * 4. If `k_status` is NULL:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_02}
+ * 4. If `k_status` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_02}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 5. Call `pok_preemption_local_disable()`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}
  * 6. Set `k_status->size` to `port_sampling->channel->max_message_size`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}
  * 7. Set `k_status->direction` to `port_sampling->direction`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}
  * 8. Set `k_status->refresh` to `port_sampling->refresh_period`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}
  * 9. Set `k_status->validity` to `port_sampling->last_message_validity`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}
  * 10. Call `pok_preemption_local_enable()`.
- * 11. Return `POK_ERRNO_OK`.
+ *     \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}
+ * 11. Return `POK_ERRNO_OK`. \llrref{LLR_PORT_POK_PORT_SAMPLING_STATUS_03}
  *
  * @calls
  * - `get_port_sampling()`
@@ -2027,22 +3032,64 @@ pok_ret_e pok_port_sampling_status (
  * | `ret` | `pok_ret_e` | The result |
  *
  * @hlr
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_CHECK_01}: `pok_port_sampling_check()`
+ *   shall tell whether a created sampling destination port of the current
+ *   partition has a message that has not been read yet.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_008}
+ * - \hlrid{HLR_PORT_POK_PORT_SAMPLING_CHECK_02}: `pok_port_sampling_check()`
+ *   shall refuse an identifier of no created port and a source port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_005}
  *
  * @llr
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CHECK_01}: If `get_port_sampling()`
+ *   returns NULL for `id`, `pok_port_sampling_check()` shall return
+ *   `POK_ERRNO_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CHECK_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CHECK_02}: If the port exists and its
+ *   `direction` is not `POK_PORT_DIRECTION_IN`, `pok_port_sampling_check()`
+ *   shall return `POK_ERRNO_MODE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CHECK_02}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CHECK_03}: If `direction` is
+ *   `POK_PORT_DIRECTION_IN`, `pok_port_sampling_check()` shall call
+ *   `pok_preemption_local_disable()` before and `pok_preemption_local_enable()`
+ *   after the call of `pok_channel_sampling_r_check_new_message()` for the
+ *   channel.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CHECK_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CHECK_04}: If
+ *   `pok_channel_sampling_r_check_new_message()` returns true,
+ *   `pok_port_sampling_check()` shall return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CHECK_01}
+ * - \llrid{LLR_PORT_POK_PORT_SAMPLING_CHECK_05}: If
+ *   `pok_channel_sampling_r_check_new_message()` returns false,
+ *   `pok_port_sampling_check()` shall return `POK_ERRNO_EMPTY`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PORT_POK_PORT_SAMPLING_CHECK_01}
  *
  * @design
  * 1. Call `get_port_sampling()` with the argument `id`, and store the result in
- *    `port_sampling`.
- * 2. If `port_sampling` is NULL:
+ *    `port_sampling`. \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_01}
+ * 2. If `port_sampling` is NULL: \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_01}
  *    1. Return `POK_ERRNO_PORT`.
  * 3. If `port_sampling->direction` is not equal to `POK_PORT_DIRECTION_IN`:
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_02}
  *    1. Return `POK_ERRNO_MODE`.
  * 4. Call `pok_preemption_local_disable()`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_03}
  * 5. Set `ret` to `POK_ERRNO_OK` if
  *    `pok_channel_sampling_r_check_new_message(port_sampling->channel)` is
  *    true, otherwise `POK_ERRNO_EMPTY`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_04},
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_05}
  * 6. Call `pok_preemption_local_enable()`.
- * 7. Return `ret`.
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_03}
+ * 7. Return `ret`. \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_04},
+ *    \llrref{LLR_PORT_POK_PORT_SAMPLING_CHECK_05}
  *
  * @calls
  * - `get_port_sampling()`

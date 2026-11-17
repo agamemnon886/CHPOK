@@ -34,6 +34,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/uart.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -64,12 +68,20 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_UART_UART_OUT_01}: `uart_out()` shall write a register of a
+ *   16550 UART.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_001}
  *
  * @llr
+ * - \llrid{LLR_UART_UART_OUT_01}: `uart_out()` shall call `x86_outb()` once
+ *   with `port` plus `reg`, truncated to 16 bits, and `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_UART_UART_OUT_01}
  *
  * @design
  * 1. Call `x86_outb()` with the arguments `(uint16_t) (port + reg)` and
- *    `value`.
+ *    `value`. \llrref{LLR_UART_UART_OUT_01}
  *
  * @calls
  * - `x86_outb()`
@@ -98,17 +110,35 @@ static void uart_out(uint16_t port, uint16_t reg, uint8_t value)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_UART_X86_64_UART_INIT_01}: `uart_init()` shall set up a 16550
+ *   UART for the console of the hypervisor: 38400 baud, 8 data bits, no parity,
+ *   one stop bit, FIFOs on, no interrupts.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_001}
  *
  * @llr
+ * - \llrid{LLR_UART_X86_64_UART_INIT_01}: `uart_init()` shall write to the UART
+ *   at `port` with `uart_out()`, in this order: `0x00` to `UART_IER`, `0x80` to
+ *   `UART_LCR`, `0x03` to `UART_DLL`, `0x00` to `UART_DLM`, `0x03` to
+ *   `UART_LCR`, `0xC7` to `UART_FCR` and `0x03` to `UART_MCR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_UART_X86_64_UART_INIT_01}
  *
  * @design
  * 1. Call `uart_out()` with the arguments `port`, `UART_IER` and `0x00U`.
+ *    \llrref{LLR_UART_X86_64_UART_INIT_01}
  * 2. Call `uart_out()` with the arguments `port`, `UART_LCR` and `0x80U`.
+ *    \llrref{LLR_UART_X86_64_UART_INIT_01}
  * 3. Call `uart_out()` with the arguments `port`, `UART_DLL` and `0x03U`.
+ *    \llrref{LLR_UART_X86_64_UART_INIT_01}
  * 4. Call `uart_out()` with the arguments `port`, `UART_DLM` and `0x00U`.
+ *    \llrref{LLR_UART_X86_64_UART_INIT_01}
  * 5. Call `uart_out()` with the arguments `port`, `UART_LCR` and `0x03U`.
+ *    \llrref{LLR_UART_X86_64_UART_INIT_01}
  * 6. Call `uart_out()` with the arguments `port`, `UART_FCR` and `0xC7U`.
+ *    \llrref{LLR_UART_X86_64_UART_INIT_01}
  * 7. Call `uart_out()` with the arguments `port`, `UART_MCR` and `0x03U`.
+ *    \llrref{LLR_UART_X86_64_UART_INIT_01}
  *
  * @calls
  * - `uart_out()`
@@ -143,14 +173,29 @@ void uart_init(uint16_t port)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_UART_X86_64_UART_PUTC_01}: `uart_putc()` shall write a character
+ *   to a 16550 UART, waiting for room.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_001}
  *
  * @llr
+ * - \llrid{LLR_UART_X86_64_UART_PUTC_01}: `uart_putc()` shall call
+ *   `x86_pause()` while `UART_LSR_THRE` is 0 in the byte that `x86_inb()` reads
+ *   from `port` plus `UART_LSR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_UART_X86_64_UART_PUTC_01}
+ * - \llrid{LLR_UART_X86_64_UART_PUTC_02}: When `UART_LSR_THRE` is set,
+ *   `uart_putc()` shall call `uart_out()` once with `port`, `UART_THR` and the
+ *   character `c`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_UART_X86_64_UART_PUTC_01}
  *
  * @design
  * 1. While `(x86_inb((uint16_t) (port + UART_LSR)) & UART_LSR_THRE)` is equal
- *    to `0U`:
+ *    to `0U`: \llrref{LLR_UART_X86_64_UART_PUTC_01}
  *    1. Call `x86_pause()`.
  * 2. Call `uart_out()` with the arguments `port`, `UART_THR` and `(uint8_t) c`.
+ *    \llrref{LLR_UART_X86_64_UART_PUTC_02}
  *
  * @calls
  * - `x86_inb()`
@@ -187,27 +232,44 @@ void uart_putc(uint16_t port, char c)
  * | `name` | `const char *` | The name |
  *
  * @hlr
+ * - \hlrid{HLR_UART_X86_64_HV_PORT_NAME_01}: `hv_port_name()` shall give the
+ *   name of a host serial port for the messages: COM1 to COM4, or none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_006}
+ *   - \srqref{SRQ_HV_CFG_004}
  *
  * @llr
+ * - \llrid{LLR_UART_X86_64_HV_PORT_NAME_01}: If `port` is `HV_PORT_COM1`,
+ *   `HV_PORT_COM2`, `HV_PORT_COM3` or `HV_PORT_COM4`, `hv_port_name()` shall
+ *   return `"COM1"`, `"COM2"`, `"COM3"` or `"COM4"`, in this order.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_UART_X86_64_HV_PORT_NAME_01}
+ * - \llrid{LLR_UART_X86_64_HV_PORT_NAME_02}: If `port` is none of
+ *   `HV_PORT_COM1`, `HV_PORT_COM2`, `HV_PORT_COM3` and `HV_PORT_COM4`,
+ *   `hv_port_name()` shall return `"none"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_UART_X86_64_HV_PORT_NAME_01}
  *
  * @design
- * 1. Depending on `port`:
- *    1. Case `HV_PORT_COM1`:
+ * 1. Depending on `port`: \llrref{LLR_UART_X86_64_HV_PORT_NAME_01},
+ *    \llrref{LLR_UART_X86_64_HV_PORT_NAME_02}
+ *    1. Case `HV_PORT_COM1`: \llrref{LLR_UART_X86_64_HV_PORT_NAME_01}
  *       1. Set `name` to `"COM1"`.
  *       2. Leave the switch.
- *    2. Case `HV_PORT_COM2`:
+ *    2. Case `HV_PORT_COM2`: \llrref{LLR_UART_X86_64_HV_PORT_NAME_01}
  *       1. Set `name` to `"COM2"`.
  *       2. Leave the switch.
- *    3. Case `HV_PORT_COM3`:
+ *    3. Case `HV_PORT_COM3`: \llrref{LLR_UART_X86_64_HV_PORT_NAME_01}
  *       1. Set `name` to `"COM3"`.
  *       2. Leave the switch.
- *    4. Case `HV_PORT_COM4`:
+ *    4. Case `HV_PORT_COM4`: \llrref{LLR_UART_X86_64_HV_PORT_NAME_01}
  *       1. Set `name` to `"COM4"`.
  *       2. Leave the switch.
- *    5. Otherwise (default):
+ *    5. Otherwise (default): \llrref{LLR_UART_X86_64_HV_PORT_NAME_02}
  *       1. Set `name` to `"none"`.
  *       2. Leave the switch.
- * 2. Return `name`.
+ * 2. Return `name`. \llrref{LLR_UART_X86_64_HV_PORT_NAME_01},
+ *    \llrref{LLR_UART_X86_64_HV_PORT_NAME_02}
  *
  * @calls
  * None.

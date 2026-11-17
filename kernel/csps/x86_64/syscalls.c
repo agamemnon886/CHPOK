@@ -26,6 +26,16 @@
  * pok_ret_e (was pok_ret_t), pok_syscall_id_e (was pok_syscall_id_t).
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/x86_64/syscalls.c (the CPU support packages are in kernel/csps).
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs. A system call whose arguments the
+ * partition may not access returns POK_ERRNO_EFAULT (was POK_ERRNO_EINVAL), as
+ * for the other bad addresses.
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
@@ -72,23 +82,62 @@
  * | `syscall_ret` | `pok_ret_e` | The result |
  *
  * @hlr
+ * - \hlrid{HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01}: `process_syscall()` shall
+ *   take a system call from the software interrupt: the identifier in RAX and
+ *   the address of the arguments in RBX, and give the result back in RAX.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_002}
+ *   - \srqref{SRQ_JET_SYS_009}
+ *   - \srqref{SRQ_JET_SYS_003}
+ * - \hlrid{HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}: `process_syscall()` shall
+ *   refuse arguments that the partition may not access with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_005}
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
  *
  * @llr
+ * - \llrid{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01}: If
+ *   `jet_user_to_kernel_typed()` gives NULL for the address in `rbx` of
+ *   `frame`, `process_syscall()` shall set `rax` of `frame` to
+ *   `POK_ERRNO_EFAULT`, sign-extended to 64 bits, without calling
+ *   `pok_core_syscall()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
+ * - \llrid{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}: If
+ *   `jet_user_to_kernel_typed()` gives an address other than NULL for the
+ *   address in `rbx` of `frame`, `process_syscall()` shall call
+ *   `pok_core_syscall()` once with the identifier in `rax` of `frame`, that
+ *   address and the address of a `pok_syscall_info_t` whose `partition`,
+ *   `base_addr` and `thread` are 0, and set `rax` of `frame` to its result,
+ *   sign-extended to 64 bits.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01}
  *
  * @design
  * 1. Set `syscall_info.partition` to `0`.
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
  * 2. Set `syscall_info.base_addr` to `0`.
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
  * 3. Set `syscall_info.thread` to `0`.
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
  * 4. Set `syscall_id` to `(pok_syscall_id_e) frame->rax`.
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
  * 5. Set `syscall_args_user` to `(void*)frame->rbx`.
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01},
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
  * 6. Set `syscall_args` to `jet_user_to_kernel_typed(syscall_args_user)`.
- * 7. If `syscall_args` is NULL:
- *    1. Set `syscall_ret` to `POK_ERRNO_EINVAL`.
- * 8. Otherwise:
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01},
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
+ * 7. If `syscall_args` is NULL: \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01}
+ *    1. Set `syscall_ret` to `POK_ERRNO_EFAULT`.
+ * 8. Otherwise: \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
  *    1. Call `pok_core_syscall()` with the arguments `syscall_id`,
  *       `syscall_args` and the address of `syscall_info`, and store the result
  *       in `syscall_ret`.
  * 9. Set `frame->rax` to `(uint64_t)(int64_t)syscall_ret`.
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_01},
+ *    \llrref{LLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02}
  *
  * @calls
  * - `jet_user_to_kernel()`
@@ -122,7 +171,7 @@ void process_syscall(interrupt_frame* frame)
    syscall_args = jet_user_to_kernel_typed(syscall_args_user);
    if(syscall_args == NULL)
    {
-         syscall_ret = POK_ERRNO_EINVAL;
+         syscall_ret = POK_ERRNO_EFAULT;
    }
    else
    {

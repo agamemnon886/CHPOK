@@ -37,6 +37,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
  * jet_partition_event_type_e (was jet_partition_event_type_t).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -86,30 +96,64 @@
  * | `message_alignment` | `const uint32_t` | The alignment of each message |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}:
+ *   `pok_channel_queuing_init()` shall give a queuing channel, at boot, the
+ *   room for the messages of both of its sides, empty.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
+ *   - \srqref{SRQ_JET_MEM_010}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}:
+ *   `pok_channel_queuing_init()` shall set `max_nb_message` of `channel` to the
+ *   sum of `max_nb_message` of `recv` and of `send`, `next_message` of `send`
+ *   and of `recv` and `border` to 0, and `message_stride` to `max_message_size`
+ *   rounded up to the alignment of `int32_t` (`ALIGN_VAL()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}:
+ *   `pok_channel_queuing_init()` shall set `messages` of `channel` to the
+ *   result of `ja_mem_alloc_aligned()` for `message_stride` times
+ *   `max_nb_message` and the alignment of `int32_t`, `message_sizes` to the
+ *   result of `ja_mem_alloc_aligned()` for the size of a message size times
+ *   `max_nb_message` and its alignment, `generation` of `send` and of `recv` to
+ *   0, their `is_notify` to `FALSE` and `message_discarded` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
  *
  * @design
  * 1. Set `channel->max_nb_message` to
  *    `channel->recv.max_nb_message + channel->send.max_nb_message`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
  * 2. Set `channel->send.next_message` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
  * 3. Set `channel->recv.next_message` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
  * 4. Set `channel->border` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
  * 5. Set `message_alignment` to `__alignof__(int32_t)`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
  * 6. Call `ALIGN_VAL()` with the arguments `channel->max_message_size` and
  *    `message_alignment`, and store the result in `channel->message_stride`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01}
  * 7. Call `ja_mem_alloc_aligned()` with the arguments
  *    `channel->message_stride * channel->max_nb_message` and
  *    `message_alignment`, and store the result in `channel->messages`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}
  * 8. Call `ja_mem_alloc_aligned()` with the arguments
  *    `sizeof(*channel->message_sizes) * channel->max_nb_message` and
  *    `__alignof__(*channel->message_sizes)`, and store the result in
- *    `channel->message_sizes`.
+ *    `channel->message_sizes`. \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}
  * 9. Set `channel->send.generation` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}
  * 10. Set `channel->send.is_notify` to `FALSE`.
+ *     \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}
  * 11. Set `channel->recv.generation` to `0`.
+ *     \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}
  * 12. Set `channel->recv.is_notify` to `FALSE`.
+ *     \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}
  * 13. Set `channel->message_discarded` to `FALSE`.
+ *     \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_02}
  *
  * @calls
  * - `ALIGN_VAL()`
@@ -170,14 +214,34 @@ void pok_channel_queuing_init(pok_channel_queuing_t* channel)
  * | `sum` | `uint16_t` | The position, before wrapping |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_01}:
+ *   `channel_queuing_cyclic_add()` shall give the position that follows a
+ *   position of the ring of a queuing channel by a number of messages, wrapping
+ *   around.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_01}: If `pos` plus `index` is
+ *   less than `max_nb_message` of `channel`, `channel_queuing_cyclic_add()`
+ *   shall return `pos` plus `index`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_01}
+ * - \llrid{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_02}: If `pos` plus `index` is
+ *   not less than `max_nb_message` of `channel`, `channel_queuing_cyclic_add()`
+ *   shall return `pos` plus `index` minus `max_nb_message`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_01}
  *
  * @design
  * 1. Set `sum` to `pos + index`.
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_01},
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_02}
  * 2. If `sum` is greater than or equal to `channel->max_nb_message`:
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_02}
  *    1. Subtract `channel->max_nb_message` from `sum`.
- * 3. Return `sum`.
+ * 3. Return `sum`. \llrref{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_01},
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_02}
  *
  * @calls
  * None.
@@ -216,12 +280,29 @@ uint16_t channel_queuing_cyclic_add(pok_channel_queuing_t* channel,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_01}:
+ *   `channel_queuing_cyclic_sub()` shall give the number of messages from one
+ *   position of the ring of a queuing channel to another.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_01}: If `pos_end` is not less
+ *   than `pos_start`, `channel_queuing_cyclic_sub()` shall return `pos_end`
+ *   minus `pos_start`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_01}
+ * - \llrid{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_02}: If `pos_end` is less
+ *   than `pos_start`, `channel_queuing_cyclic_sub()` shall return `pos_end`
+ *   plus `max_nb_message` of `channel` minus `pos_start`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_01}
  *
  * @design
  * 1. Return `(pos_end - pos_start)` if `pos_end` is greater than or equal to
  *    `pos_start`, otherwise `(pos_end + channel->max_nb_message - pos_start)`.
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_01},
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_02}
  *
  * @calls
  * None.
@@ -256,15 +337,25 @@ pok_message_range_t channel_queuing_cyclic_sub(pok_channel_queuing_t* channel,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_CHANNEL_QUEUING_MESSAGE_AT_01}:
+ *   `channel_queuing_message_at()` shall give the buffer of the message at a
+ *   position of the ring of a queuing channel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_CHANNEL_QUEUING_MESSAGE_AT_01}:
+ *   `channel_queuing_message_at()` shall return the address of the element
+ *   `message_stride` times `pos` of `messages` of `channel`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_CHANNEL_QUEUING_MESSAGE_AT_01}
  *
  * @design
- * 1. Check that `pos < channel->max_nb_message` holds (assert: stop otherwise).
- * 2. Return the address of `channel->messages[channel->message_stride * pos]`.
+ * 1. Return the address of `channel->messages[channel->message_stride * pos]`.
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_MESSAGE_AT_01}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 static inline char* channel_queuing_message_at(
     pok_channel_queuing_t* channel, pok_message_range_t pos)
@@ -293,11 +384,24 @@ static inline char* channel_queuing_message_at(
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_CHANNEL_QUEUING_SIDE_NOTIFY_01}:
+ *   `channel_queuing_side_notify()` shall tell the partition of a side of a
+ *   queuing channel, by an event, that the channel made its port usable, if
+ *   that side asked for it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_013}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_CHANNEL_QUEUING_SIDE_NOTIFY_01}: If and only if
+ *   `is_notify` of `side` is true, `channel_queuing_side_notify()` shall set it
+ *   to `FALSE` and call `pok_partition_add_event()` once with `part` of `side`,
+ *   `event_type` and `handler_id` of `side`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_CHANNEL_QUEUING_SIDE_NOTIFY_01}
  *
  * @design
  * 1. If `side->is_notify` is true:
+ *    \llrref{LLR_CHANNEL_CHANNEL_QUEUING_SIDE_NOTIFY_01}
  *    1. Set `side->is_notify` to `FALSE`.
  *    2. Call `pok_partition_add_event()` with the arguments `side->part`,
  *       `event_type` and `side->handler_id`.
@@ -337,16 +441,37 @@ static inline void channel_queuing_side_notify(pok_channel_queuing_side_t* side,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}:
+ *   `pok_channel_queuing_side_init()` shall attach one side of a queuing
+ *   channel to the port of the current start of its partition, when the port is
+ *   created or cleared, with no message for it to take.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_015}
+ *   - \srqref{SRQ_JET_IPC_004}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}:
+ *   `pok_channel_queuing_side_init()` shall call `pok_preemption_disable()`,
+ *   set `next_message` of `side` to `border` of `channel`, its `is_notify` to
+ *   `FALSE`, its `generation` to `partition_generation` of its `part` and its
+ *   `handler_id` to `handler_id`, and call `__pok_preemption_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}
  * 2. Set `side->next_message` to `channel->border`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}
  * 3. Set `side->is_notify` to `FALSE`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}
  * 4. Set `side->generation` to `side->part->partition_generation`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}
  * 5. Set `side->handler_id` to `handler_id`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}
  * 6. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -387,16 +512,31 @@ void pok_channel_queuing_side_init(pok_channel_queuing_t* channel,
  * | `n_messages` | `size_t` | The number of messages |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01}:
+ *   `pok_channel_queuing_r_n_messages()` shall give the number of messages that
+ *   the receiver of a queuing channel may take.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_003}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01}:
+ *   `pok_channel_queuing_r_n_messages()` shall call `pok_preemption_disable()`,
+ *   then `channel_queuing_cyclic_sub()` with `channel`, `border` and
+ *   `recv.next_message`, then `__pok_preemption_enable()`, and return the
+ *   result of `channel_queuing_cyclic_sub()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01}
  * 2. Call `channel_queuing_cyclic_sub()` with the arguments `channel`,
  *    `channel->border` and `channel->recv.next_message`, and store the result
- *    in `n_messages`.
+ *    in `n_messages`. \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01}
  * 3. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01}
  * 4. Return `n_messages`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -441,21 +581,68 @@ pok_message_range_t pok_channel_queuing_r_n_messages(pok_channel_queuing_t* chan
  * | `message` | `const char *` | The message, or NULL |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01}:
+ *   `pok_channel_queuing_r_get_message()` shall give the first message that the
+ *   receiver of a queuing channel may take, with its size, without taking it,
+ *   or none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
+ *   - \srqref{SRQ_JET_IPC_011}
+ *   - \srqref{SRQ_JET_IPC_021}
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_02}:
+ *   `pok_channel_queuing_r_get_message()` shall, when there is no message, let
+ *   the receiver ask to be told when one comes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_013}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01}:
+ *   `pok_channel_queuing_r_get_message()` shall call `pok_preemption_disable()`
+ *   before it reads the channel and `__pok_preemption_enable()` after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_02}: If
+ *   `recv.next_message` of `channel` is not `border`,
+ *   `pok_channel_queuing_r_get_message()` shall store
+ *   `message_sizes[recv.next_message]` at `size` and return the result of
+ *   `channel_queuing_message_at()` for `recv.next_message`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_03}: If
+ *   `recv.next_message` is `border` and `subscribe` is true,
+ *   `pok_channel_queuing_r_get_message()` shall set `recv.is_notify` to `TRUE`
+ *   and return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_02}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_04}: If
+ *   `recv.next_message` is `border` and `subscribe` is false,
+ *   `pok_channel_queuing_r_get_message()` shall leave `recv.is_notify` as it is
+ *   and return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_02}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01}
  * 2. If `channel->recv.next_message` is not equal to `channel->border`:
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_02}
  *    1. Call `channel_queuing_message_at()` with the arguments `channel` and
  *       `channel->recv.next_message`, and store the result in `message`.
  *    2. Set `*size` to `channel->message_sizes[channel->recv.next_message]`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_03},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_04}
  *    1. Set `message` to `NULL`.
  *    2. If `subscribe` is true:
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_03},
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_04}
  *       1. Set `channel->recv.is_notify` to `TRUE`.
+ *          \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_03}
  * 4. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01}
  * 5. Return `message`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_03},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_04}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -512,29 +699,79 @@ const char* pok_channel_queuing_r_get_message(
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01}:
+ *   `pok_channel_queuing_r_consume_message()` shall remove the first message
+ *   that the receiver of a queuing channel may take, so that it is delivered
+ *   once.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
+ *   - \srqref{SRQ_JET_IPC_011}
+ *   - \srqref{SRQ_JET_IPC_021}
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02}:
+ *   `pok_channel_queuing_r_consume_message()` shall give the receiver the next
+ *   message that the sender holds and tell the sender that it has room again.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_013}
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_03}:
+ *   `pok_channel_queuing_r_consume_message()` shall tell the receiver whether
+ *   messages were discarded since its last receive.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_022}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01}:
+ *   `pok_channel_queuing_r_consume_message()` shall call
+ *   `pok_preemption_disable()` first, set `recv.next_message` of `channel` to
+ *   the result of `channel_queuing_cyclic_add()` for it and 1, and call
+ *   `pok_preemption_enable()` at the end.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02}: If
+ *   `partition_generation` of `send.part` is `send.generation` and `border` is
+ *   not `send.next_message`, `pok_channel_queuing_r_consume_message()` shall
+ *   set `border` to the result of `channel_queuing_cyclic_add()` for it and 1,
+ *   and call `channel_queuing_side_notify()` with `send` and
+ *   `JET_PARTITION_EVENT_TYPE_PORT_SEND_AVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_03}: If
+ *   `partition_generation` of `send.part` is not `send.generation`, or `border`
+ *   is `send.next_message`, `pok_channel_queuing_r_consume_message()` shall
+ *   leave `border` as it is and not call `channel_queuing_side_notify()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_04}:
+ *   `pok_channel_queuing_r_consume_message()` shall store `message_discarded`
+ *   of `channel` at `message_discarded` and set it to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_03}
  *
  * @design
- * 1. Check that `channel->recv.next_message != channel->border` holds (assert:
- *    stop otherwise).
- * 2. Call `pok_preemption_disable()`.
- * 3. Call `channel_queuing_cyclic_add()` with the arguments `channel`,
+ * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01}
+ * 2. Call `channel_queuing_cyclic_add()` with the arguments `channel`,
  *    `channel->recv.next_message` and `1`, and store the result in
  *    `channel->recv.next_message`.
- * 4. If `channel->send.part->partition_generation` is equal to
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01}
+ * 3. If `channel->send.part->partition_generation` is equal to
  *    `channel->send.generation` and `channel->border` is not equal to
  *    `channel->send.next_message`:
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_03}
  *    1. Call `channel_queuing_cyclic_add()` with the arguments `channel`,
  *       `channel->border` and `1`, and store the result in `channel->border`.
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02}
  *    2. Call `channel_queuing_side_notify()` with the arguments the address of
  *       `channel->send` and `JET_PARTITION_EVENT_TYPE_PORT_SEND_AVAILABLE`.
- * 5. Set `*message_discarded` to `channel->message_discarded`.
- * 6. Set `channel->message_discarded` to `FALSE`.
- * 7. Call `pok_preemption_enable()`.
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02}
+ * 4. Set `*message_discarded` to `channel->message_discarded`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_04}
+ * 5. Set `channel->message_discarded` to `FALSE`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_04}
+ * 6. Call `pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `pok_preemption_disable()`
  * - `channel_queuing_cyclic_add()`
  * - `channel_queuing_side_notify()`
@@ -590,23 +827,70 @@ void pok_channel_queuing_r_consume_message(
  * | `n_used` | `pok_message_range_t` | The messages the sender holds |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01}:
+ *   `pok_channel_queuing_s_get_message()` shall give the sender of a queuing
+ *   channel the room for a new message, or none if its side is full.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_010}
+ *   - \srqref{SRQ_JET_IPC_020}
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02}:
+ *   `pok_channel_queuing_s_get_message()` shall, when there is no room, let the
+ *   sender ask to be told when there is.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_013}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01}:
+ *   `pok_channel_queuing_s_get_message()` shall call `pok_preemption_disable()`
+ *   before it reads the channel and `__pok_preemption_enable()` after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02}: If the number of
+ *   messages from `border` to `send.next_message`
+ *   (`channel_queuing_cyclic_sub()`) is less than `send.max_nb_message`,
+ *   `pok_channel_queuing_s_get_message()` shall return the result of
+ *   `channel_queuing_message_at()` for `send.next_message`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_03}: If that number is
+ *   not less than `send.max_nb_message` and `subscribe` is true,
+ *   `pok_channel_queuing_s_get_message()` shall set `send.is_notify` to `TRUE`
+ *   and return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_04}: If that number is
+ *   not less than `send.max_nb_message` and `subscribe` is false,
+ *   `pok_channel_queuing_s_get_message()` shall leave `send.is_notify` as it is
+ *   and return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01}
  * 2. Call `channel_queuing_cyclic_sub()` with the arguments `channel`,
  *    `channel->send.next_message` and `channel->border`, and store the result
- *    in `n_used`.
+ *    in `n_used`. \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_03},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_04}
  * 3. If `n_used` is less than `channel->send.max_nb_message`:
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02}
  *    1. Call `channel_queuing_message_at()` with the arguments `channel` and
  *       `channel->send.next_message`, and store the result in `message`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_03},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_04}
  *    1. Set `message` to `NULL`.
  *    2. If `subscribe` is true:
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_03},
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_04}
  *       1. Set `channel->send.is_notify` to `TRUE`.
+ *          \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_03}
  * 5. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01}
  * 6. Return `message`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_03},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_04}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -668,45 +952,115 @@ char* pok_channel_queuing_s_get_message(
  * | `nb_message_receive` | `pok_message_range_t` | The messages the receiver may take |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}:
+ *   `pok_channel_queuing_s_produce_message()` shall add the message that the
+ *   sender wrote to the queue of a queuing channel, after the messages sent
+ *   before, and give it to the receiver when the receiver has room.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_009}
+ *   - \srqref{SRQ_JET_IPC_010}
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02}:
+ *   `pok_channel_queuing_s_produce_message()` shall, when the receiver has no
+ *   room and the channel discards on overflow, discard the new message and note
+ *   it for the receiver.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_014}
+ *   - \srqref{SRQ_JET_IPC_022}
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03}:
+ *   `pok_channel_queuing_s_produce_message()` shall tell the receiver that a
+ *   message came, if it asked for it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_013}
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_04}:
+ *   `pok_channel_queuing_s_produce_message()` shall not let a receiver of an
+ *   old generation of its partition hold the sender back.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_004}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}:
+ *   `pok_channel_queuing_s_produce_message()` shall call
+ *   `pok_preemption_disable()` first, set `message_sizes[send.next_message]` of
+ *   `channel` to `size`, set `send.next_message` to the result of
+ *   `channel_queuing_cyclic_add()` for it and 1, and call
+ *   `pok_preemption_enable()` at the end.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02}: If
+ *   `partition_generation` of `recv.part` is `recv.generation` and the number
+ *   of messages from `recv.next_message` to `border`
+ *   (`channel_queuing_cyclic_sub()`) is less than `recv.max_nb_message`,
+ *   `pok_channel_queuing_s_produce_message()` shall set `border` to
+ *   `send.next_message` and call `channel_queuing_side_notify()` with `recv`
+ *   and `JET_PARTITION_EVENT_TYPE_PORT_RECEIVE_AVAILABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03}: If
+ *   `partition_generation` of `recv.part` is `recv.generation`, that number is
+ *   not less than `recv.max_nb_message` and `overflow_strategy` is
+ *   `JET_CHANNEL_QUEUING_RECEIVER_DISCARD`,
+ *   `pok_channel_queuing_s_produce_message()` shall set `send.next_message` to
+ *   `border` and `message_discarded` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_04}: If
+ *   `partition_generation` of `recv.part` is `recv.generation`, that number is
+ *   not less than `recv.max_nb_message` and `overflow_strategy` is not
+ *   `JET_CHANNEL_QUEUING_RECEIVER_DISCARD`,
+ *   `pok_channel_queuing_s_produce_message()` shall leave `border`,
+ *   `send.next_message` and `message_discarded` as they are after the advance.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_05}: If
+ *   `partition_generation` of `recv.part` is not `recv.generation`,
+ *   `pok_channel_queuing_s_produce_message()` shall set `border` to
+ *   `send.next_message` without calling `channel_queuing_side_notify()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_04}
  *
  * @design
- * 1. Check that
- *    `channel_queuing_cyclic_sub(channel, channel->send.next_message,`
- *    `channel->border) < channel->send.max_nb_message` holds (assert: stop
- *    otherwise).
- * 2. Check that `size > 0U` holds (assert: stop otherwise).
- * 3. Check that `size <= channel->max_message_size` holds (assert: stop
- *    otherwise).
- * 4. Call `pok_preemption_disable()`.
- * 5. Set `channel->message_sizes[channel->send.next_message]` to `size`.
- * 6. Call `channel_queuing_cyclic_add()` with the arguments `channel`,
+ * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}
+ * 2. Set `channel->message_sizes[channel->send.next_message]` to `size`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}
+ * 3. Call `channel_queuing_cyclic_add()` with the arguments `channel`,
  *    `channel->send.next_message` and `1`, and store the result in
  *    `channel->send.next_message`.
- * 7. If `channel->recv.part->partition_generation` is equal to
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}
+ * 4. If `channel->recv.part->partition_generation` is equal to
  *    `channel->recv.generation`:
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_04},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_05}
  *    1. Call `channel_queuing_cyclic_sub()` with the arguments `channel`,
  *       `channel->border` and `channel->recv.next_message`, and store the
  *       result in `nb_message_receive`.
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02},
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03},
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_04}
  *    2. If `nb_message_receive` is less than `channel->recv.max_nb_message`:
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02}
  *       1. Set `channel->border` to `channel->send.next_message`.
  *       2. Call `channel_queuing_side_notify()` with the arguments the address
  *          of `channel->recv` and
  *          `JET_PARTITION_EVENT_TYPE_PORT_RECEIVE_AVAILABLE`.
  *    3. Otherwise, if `channel->overflow_strategy` is equal to
  *       `JET_CHANNEL_QUEUING_RECEIVER_DISCARD`:
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03},
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_04}
  *       1. Set `channel->send.next_message` to `channel->border`.
+ *          \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03}
  *       2. Set `channel->message_discarded` to `TRUE`.
- *    4. Otherwise:
- *       1. Do nothing.
- * 8. Otherwise:
+ *          \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03}
+ * 5. Otherwise: \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_05}
  *    1. Set `channel->border` to `channel->send.next_message`.
- * 9. Call `pok_preemption_enable()`.
+ * 6. Call `pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01}
  *
  * @calls
  * - `channel_queuing_cyclic_sub()`
- * - `pok_assertion_fail()`
  * - `pok_preemption_disable()`
  * - `channel_queuing_cyclic_add()`
  * - `channel_queuing_side_notify()`
@@ -785,16 +1139,31 @@ void pok_channel_queuing_s_produce_message(
  * | `n_messages` | `pok_message_range_t` | The number of messages |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01}:
+ *   `pok_channel_queuing_s_n_messages()` shall give the number of messages that
+ *   the sender of a queuing channel holds, not yet given to the receiver.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_003}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01}:
+ *   `pok_channel_queuing_s_n_messages()` shall call `pok_preemption_disable()`,
+ *   then `channel_queuing_cyclic_sub()` with `channel`, `send.next_message` and
+ *   `border`, then `__pok_preemption_enable()`, and return the result of
+ *   `channel_queuing_cyclic_sub()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01}
  * 2. Call `channel_queuing_cyclic_sub()` with the arguments `channel`,
  *    `channel->send.next_message` and `channel->border`, and store the result
- *    in `n_messages`.
+ *    in `n_messages`. \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01}
  * 3. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01}
  * 4. Return `n_messages`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -836,20 +1205,41 @@ pok_message_range_t pok_channel_queuing_s_n_messages(pok_channel_queuing_t* chan
  * | `message_alignment` | `const uint32_t` | The alignment of each buffer |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}:
+ *   `pok_channel_sampling_init()` shall give a sampling channel, at boot, three
+ *   message buffers and no message.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_006}
+ *   - \srqref{SRQ_JET_MEM_010}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}:
+ *   `pok_channel_sampling_init()` shall set `message_stride` of `channel` to
+ *   `max_message_size` rounded up to the alignment of `int32_t`
+ *   (`ALIGN_VAL()`), `messages` to the result of `ja_mem_alloc_aligned()` for 3
+ *   times `message_stride` and that alignment, `read_pos_next` and `read_pos`
+ *   to 0, `message_sizes[0]` to 0 and `write_pos` to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  *
  * @design
  * 1. Set `message_alignment` to `__alignof__(int32_t)`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  * 2. Call `ALIGN_VAL()` with the arguments `channel->max_message_size` and
  *    `message_alignment`, and store the result in `channel->message_stride`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  * 3. Call `ja_mem_alloc_aligned()` with the arguments
  *    `3U * channel->message_stride` and `message_alignment`, and store the
  *    result in `channel->messages`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  * 4. Set `channel->read_pos_next` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  * 5. Set `channel->read_pos` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  * 6. Set `channel->message_sizes[0]` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  * 7. Set `channel->write_pos` to `1`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01}
  *
  * @calls
  * - `ALIGN_VAL()`
@@ -894,16 +1284,26 @@ void pok_channel_sampling_init(pok_channel_sampling_t* channel)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_CHANNEL_SAMPLING_MESSAGE_AT_01}:
+ *   `channel_sampling_message_at()` shall give one of the three buffers of a
+ *   sampling channel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_006}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_CHANNEL_SAMPLING_MESSAGE_AT_01}:
+ *   `channel_sampling_message_at()` shall return the address of the element
+ *   `pos` times `message_stride` of `messages` of `channel`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_CHANNEL_SAMPLING_MESSAGE_AT_01}
  *
  * @design
- * 1. Check that `(pos >= 0) && (pos <= 2)` holds (assert: stop otherwise).
- * 2. Return the address of
+ * 1. Return the address of
  *    `channel->messages[(size_t)pos * channel->message_stride]`.
+ *    \llrref{LLR_CHANNEL_CHANNEL_SAMPLING_MESSAGE_AT_01}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 static char* channel_sampling_message_at(
     pok_channel_sampling_t* channel, int32_t pos)
@@ -940,21 +1340,56 @@ static char* channel_sampling_message_at(
  * | `read_pos` | `uint8_t` | The buffer of the message |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}:
+ *   `pok_channel_sampling_r_get_message()` shall give the latest message of a
+ *   sampling channel, with its size and time of writing, without removing it,
+ *   or none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_007}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}:
+ *   `pok_channel_sampling_r_get_message()` shall set `read_pos` of `channel` to
+ *   `read_pos_next`, between a call of `pok_preemption_disable()` and a call of
+ *   `__pok_preemption_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_02}: If
+ *   `message_sizes[read_pos]` is 0, `pok_channel_sampling_r_get_message()`
+ *   shall return NULL without writing at `size` and `timestamp`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_03}: If
+ *   `message_sizes[read_pos]` is not 0, `pok_channel_sampling_r_get_message()`
+ *   shall store it at `size` and `timestamps[read_pos]` at `timestamp`, and
+ *   return the result of `channel_sampling_message_at()` for `read_pos`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}
  * 2. Set `channel->read_pos` to `channel->read_pos_next`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}
  * 3. Set `read_pos` to `channel->read_pos`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}
  * 4. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01}
  * 5. Set `message_size` to `channel->message_sizes[read_pos]`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_03}
  * 6. If `message_size` is equal to `0U`:
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_03}
  *    1. Return `NULL`.
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_02}
  * 7. Set `*size` to `message_size`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_03}
  * 8. Set `*timestamp` to `channel->timestamps[read_pos]`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_03}
  * 9. Call `channel_sampling_message_at()` with the arguments `channel` and
  *    `read_pos`, and return its result.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_03}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -1002,13 +1437,28 @@ const char* pok_channel_sampling_r_get_message(
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01}:
+ *   `pok_channel_sampling_r_clear_message()` shall clear the message being read
+ *   of a sampling channel when its destination port is created.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_004}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01}:
+ *   `pok_channel_sampling_r_clear_message()` shall call
+ *   `pok_preemption_disable()`, set `message_sizes[read_pos]` of `channel` to
+ *   0, and call `__pok_preemption_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01}
  * 2. Set `channel->message_sizes[channel->read_pos]` to `0`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01}
  * 3. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -1044,17 +1494,49 @@ void pok_channel_sampling_r_clear_message(pok_channel_sampling_t* channel)
  * | `ret` | `pok_bool_t` | The result |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01}:
+ *   `pok_channel_sampling_r_check_new_message()` shall tell whether a message
+ *   was written to a sampling channel since it was last read, and make it the
+ *   one being read.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_008}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01}:
+ *   `pok_channel_sampling_r_check_new_message()` shall call
+ *   `pok_preemption_disable()` before it reads the positions and
+ *   `__pok_preemption_enable()` after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_02}: If
+ *   `read_pos` of `channel` is not `read_pos_next`,
+ *   `pok_channel_sampling_r_check_new_message()` shall set `read_pos` to
+ *   `read_pos_next` and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01}
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_03}: If
+ *   `read_pos` of `channel` is `read_pos_next`,
+ *   `pok_channel_sampling_r_check_new_message()` shall return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01}
  *
  * @design
  * 1. Set `ret` to `FALSE`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_03}
  * 2. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01}
  * 3. If `channel->read_pos` is not equal to `channel->read_pos_next`:
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_03}
  *    1. Set `ret` to `TRUE`.
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_02}
  *    2. Set `channel->read_pos` to `channel->read_pos_next`.
+ *       \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_02}
  * 4. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01}
  * 5. Return `ret`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_02},
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_03}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -1096,12 +1578,23 @@ pok_bool_t pok_channel_sampling_r_check_new_message(pok_channel_sampling_t* chan
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_SAMPLING_S_GET_MESSAGE_01}:
+ *   `pok_channel_sampling_s_get_message()` shall give the buffer that the
+ *   sender of a sampling channel writes its next message into.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_018}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_S_GET_MESSAGE_01}:
+ *   `pok_channel_sampling_s_get_message()` shall return the result of
+ *   `channel_sampling_message_at()` for `channel` and its `write_pos`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_S_GET_MESSAGE_01}
  *
  * @design
  * 1. Call `channel_sampling_message_at()` with the arguments `channel` and
  *    `channel->write_pos`, and return its result.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_S_GET_MESSAGE_01}
  *
  * @calls
  * - `channel_sampling_message_at()`
@@ -1135,21 +1628,42 @@ char* pok_channel_sampling_s_get_message(
  * | `read_pos_next` | `uint8_t` | The buffer just published |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}:
+ *   `pok_channel_sampling_send_message()` shall publish the message that the
+ *   sender wrote, with its size and the present time, as the latest message of
+ *   a sampling channel, replacing the one before, and give the sender a buffer
+ *   that is neither being read nor published.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_006}
+ *   - \srqref{SRQ_JET_IPC_018}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}:
+ *   `pok_channel_sampling_send_message()` shall call
+ *   `pok_preemption_disable()`, set `read_pos_next` of `channel` to
+ *   `write_pos`, set `timestamps` and `message_sizes` of that position to the
+ *   result of `jet_system_time()` and `size`, set `write_pos` to 3 minus
+ *   `read_pos` minus that position, and call `__pok_preemption_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
  *
  * @design
- * 1. Check that `size != 0U` holds (assert: stop otherwise).
- * 2. Call `pok_preemption_disable()`.
- * 3. Set `read_pos_next` to `channel->write_pos`.
- * 4. Set `channel->read_pos_next` to `read_pos_next`.
- * 5. Set `channel->timestamps[read_pos_next]` to `jet_system_time()`.
- * 6. Set `channel->message_sizes[read_pos_next]` to `size`.
- * 7. Set `channel->write_pos` to `3U - channel->read_pos - read_pos_next`.
- * 8. Call `__pok_preemption_enable()`.
+ * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
+ * 2. Set `read_pos_next` to `channel->write_pos`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
+ * 3. Set `channel->read_pos_next` to `read_pos_next`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
+ * 4. Set `channel->timestamps[read_pos_next]` to `jet_system_time()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
+ * 5. Set `channel->message_sizes[read_pos_next]` to `size`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
+ * 6. Set `channel->write_pos` to `3U - channel->read_pos - read_pos_next`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
+ * 7. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `pok_preemption_disable()`
  * - `ja_system_time()`
  * - `__pok_preemption_enable()`
@@ -1197,13 +1711,29 @@ void pok_channel_sampling_send_message(
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01}:
+ *   `pok_channel_sampling_s_clear_message()` shall withdraw the published
+ *   message of a sampling channel that was not read yet, when its source port
+ *   is created.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_IPC_002}
+ *   - \srqref{SRQ_JET_IPC_004}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01}:
+ *   `pok_channel_sampling_s_clear_message()` shall call
+ *   `pok_preemption_disable()`, set `read_pos_next` of `channel` to `read_pos`,
+ *   and call `__pok_preemption_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01}
  *
  * @design
  * 1. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01}
  * 2. Set `channel->read_pos_next` to `channel->read_pos`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01}
  * 3. Call `__pok_preemption_enable()`.
+ *    \llrref{LLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -1236,16 +1766,31 @@ void pok_channel_sampling_s_clear_message(pok_channel_sampling_t* channel)
  * | `i` | `uint32_t` | The index of a channel |
  *
  * @hlr
+ * - \hlrid{HLR_CHANNEL_POK_CHANNELS_INIT_ALL_01}: `pok_channels_init_all()`
+ *   shall initialize every queuing and sampling channel of the configuration at
+ *   boot.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_002}
+ *   - \srqref{SRQ_JET_IPC_001}
+ *   - \srqref{SRQ_JET_IPC_016}
  *
  * @llr
+ * - \llrid{LLR_CHANNEL_POK_CHANNELS_INIT_ALL_01}: `pok_channels_init_all()`
+ *   shall call `pok_channel_queuing_init()` for each of the
+ *   `pok_channels_queuing_n` queuing channels and `pok_channel_sampling_init()`
+ *   for each of the `pok_channels_sampling_n` sampling channels.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CHANNEL_POK_CHANNELS_INIT_ALL_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `pok_channels_queuing_n`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_CHANNEL_POK_CHANNELS_INIT_ALL_01}
  *    1. Call `pok_channel_queuing_init()` with the address of
  *       `pok_channels_queuing[i]`.
  * 2. Set `i` to `0U`; then while `i` is less than `pok_channels_sampling_n`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_CHANNEL_POK_CHANNELS_INIT_ALL_01}
  *    1. Call `pok_channel_sampling_init()` with the address of
  *       `pok_channels_sampling[i]`.
  *

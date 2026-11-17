@@ -36,6 +36,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-14: the string literals of the Design
  * steps are wrapped at their spaces, each in one code span (they were cut
  * inside names).
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE). Long lines are wrapped at 80 columns.
  */
@@ -114,60 +122,170 @@
  * | `user_dest` | `char *` | The user address of a segment |
  *
  * @hlr
+ * - \hlrid{HLR_LOADER_JET_LOADER_ELF_LOAD_01}: `jet_loader_elf_load()` shall
+ *   take the ELF image of a partition from the archive of the kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_002}
+ *   - \srqref{SRQ_JET_GEN_004}
+ * - \hlrid{HLR_LOADER_JET_LOADER_ELF_LOAD_02}: `jet_loader_elf_load()` shall
+ *   copy each loadable segment of the image to its address in the memory space
+ *   of the partition and clear the rest of the segment's memory.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_002}
+ * - \hlrid{HLR_LOADER_JET_LOADER_ELF_LOAD_03}: `jet_loader_elf_load()` shall
+ *   give the entry point of the image.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_002}
+ * - \hlrid{HLR_LOADER_JET_LOADER_ELF_LOAD_04}: `jet_loader_elf_load()` shall
+ *   raise a partition load error for an image that is not an ELF image, that
+ *   has a segment whose file size exceeds its memory size, or whose segments
+ *   lie outside the memory space, before it copies any segment.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_003}
+ *   - \srqref{SRQ_JET_PART_012}
+ * - \hlrid{HLR_LOADER_JET_LOADER_ELF_LOAD_05}: `jet_loader_elf_load()` shall
+ *   raise a configuration error for an image that is larger than the memory
+ *   space of the partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CFG_003}
  *
  * @llr
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_01}: `jet_loader_elf_load()` shall
+ *   call `ja_space_layout_get()` once with `space_id`, and take as the image
+ *   the `pok_elf_sizes[elf_id]` bytes that start at `__archive2_begin` plus the
+ *   sum of the first `elf_id` elements of `pok_elf_sizes`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_01}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_02}: If `pok_elf_sizes[elf_id]` is
+ *   greater than the size of the layout, `jet_loader_elf_load()` shall call
+ *   `printf()` with `"Attempt to load elf %%u of size %%zx into space of size
+ *   %%zx.\n"`, `elf_id`, that size and the size of the layout, and then
+ *   `pok_raise_error()` with `POK_ERROR_ID_CONFIG_ERROR`, `FALSE` and NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_05}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_03}: If the first four bytes of
+ *   `e_ident` of the ELF header of the image are not `0x7f`, `0x45`, `0x4c` and
+ *   `0x46`, `jet_loader_elf_load()` shall call `printf()` with `"Partition's
+ *   ELF has incorrect format"` and then `pok_raise_error()` with
+ *   `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_04}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_04}: `jet_loader_elf_load()` shall
+ *   store `e_entry` of the ELF header at `entry`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_03}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_05}: For each of the `e_phnum`
+ *   program headers (at `e_phoff` in the image) whose `p_type` is `PT_LOAD` and
+ *   whose `p_filesz` is greater than its `p_memsz`, `jet_loader_elf_load()`
+ *   shall call `printf()` with `"Partition's ELF has section with 'filesz=%%zu'
+ *   which is more than 'memsz=%%zu'.\n"`, `p_filesz` and `p_memsz`, and then
+ *   `pok_raise_error()` with `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_04}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_06}: For each program header whose
+ *   `p_type` is `PT_LOAD` and whose `p_vaddr` is less than the user address of
+ *   the layout, `jet_loader_elf_load()` shall call `printf()` with
+ *   `"Partition's ELF maps to virtual address %%p, but space starts with
+ *   %%p.\n"`, `p_vaddr` and the user address, and then `pok_raise_error()` with
+ *   `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_04}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_07}: If the highest end (`p_vaddr`
+ *   plus `p_memsz`) of the `PT_LOAD` segments is greater than the user address
+ *   of the layout plus its size, `jet_loader_elf_load()` shall call `printf()`
+ *   with `"ERROR: Elf maps up to virtual address %%p, which is above section's
+ *   start by 0x%%zx. But size of the section is only 0x%%zx.\n"`, that end, the
+ *   end minus the user address and the size of the layout, then `printf()` with
+ *   `"HINT: Probably, you need to configure more space for the partition.\n"`,
+ *   and then `pok_raise_error()` with `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE`
+ *   and NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_04}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_08}: After these checks,
+ *   `jet_loader_elf_load()` shall, for each program header whose `p_type` is
+ *   `PT_LOAD`, copy with `memcpy()` its `p_filesz` bytes at `p_offset` in the
+ *   image to the kernel address of its `p_vaddr` (the kernel address of the
+ *   layout plus `p_vaddr` minus its user address), and set the `p_memsz` minus
+ *   `p_filesz` bytes after them to 0 with `memset()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_02}
+ * - \llrid{LLR_LOADER_JET_LOADER_ELF_LOAD_09}: `jet_loader_elf_load()` shall
+ *   neither check nor copy a program header whose `p_type` is not `PT_LOAD`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOADER_JET_LOADER_ELF_LOAD_02}
  *
  * @design
  * 1. Call `ja_space_layout_get()` with the arguments `space_id` and the address
- *    of `space_layout`.
- * 2. Set `elf_offset` to `0`.
+ *    of `space_layout`. \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_01}
+ * 2. Set `elf_offset` to `0`. \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_01}
  * 3. Set `i` to `0`; then while `i` is less than `elf_id`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_01}
  *    1. Add `pok_elf_sizes[i]` to `elf_offset`.
  * 4. Set `elf_size` to `pok_elf_sizes[elf_id]`.
+ *    \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_01}
  * 5. If `elf_size` is greater than `space_layout.size`:
+ *    \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_02}
  *    1. Call `printf()` with the arguments
  *       `"Attempt to load elf %%u of size %%zx into space of size %%zx.\n"`,
  *       `elf_id`, `elf_size` and `space_layout.size`.
  *    2. Call `pok_raise_error()` with the arguments
  *       `POK_ERROR_ID_CONFIG_ERROR`, `FALSE` and `NULL`.
  * 6. Set `elf_start` to `&__archive2_begin + elf_offset`.
+ *    \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_01}
  * 7. Set `elf_header` to `(const Elf_Ehdr*)elf_start`.
+ *    \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_03}
  * 8. If `elf_header->e_ident[0]` is not equal to `0x7fU` or
  *    `elf_header->e_ident[1]` is not equal to `0x45U` or
  *    `elf_header->e_ident[2]` is not equal to `0x4cU` or
  *    `elf_header->e_ident[3]` is not equal to `0x46U`:
+ *    \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_03}
  *    1. Call `printf()` with the argument
  *       `"Partition's ELF has incorrect format"`.
  *    2. Call `pok_raise_error()` with the arguments
  *       `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
  * 9. Set `*entry` to `(void (*)(void)) elf_header->e_entry`.
+ *    \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_04}
  * 10. Set `elf_phdr` to `(const Elf_Phdr*)(elf_start + elf_header->e_phoff)`.
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_05},
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_06},
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_07},
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_08}
  * 11. Set `elf_end_user` to `space_layout.user_addr`.
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_07}
  * 12. Set `i` to `0U`; then while `i` is less than `elf_header->e_phnum`,
  *     repeat (after each pass: increment `i`):
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_05},
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_06},
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_07},
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_09}
  *     1. If `elf_phdr[i].p_type` is not equal to `PT_LOAD`:
+ *        \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_09}
  *        1. Go on with the next pass of the loop.
  *     2. Set `user_dest` to `(char *)elf_phdr[i].p_vaddr`.
  *     3. Set `filesz` to `elf_phdr[i].p_filesz`.
  *     4. Set `memsz` to `elf_phdr[i].p_memsz`.
  *     5. If `filesz` is greater than `memsz`:
+ *        \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_05}
  *        1. Call `printf()` with the arguments
  *           `"Partition's ELF has section with 'filesz=%%zu' which is more "`
  *           `"than 'memsz=%%zu'.\n"`, `filesz` and `memsz`.
  *        2. Call `pok_raise_error()` with the arguments
  *           `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
  *     6. If `user_dest` is less than `space_layout.user_addr`:
+ *        \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_06}
  *        1. Call `printf()` with the arguments
  *           `"Partition's ELF maps to virtual address %%p, but space starts "`
  *           `"with %%p.\n"`, `user_dest` and `space_layout.user_addr`.
  *        2. Call `pok_raise_error()` with the arguments
  *           `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
  *     7. Set `elf_section_end_user` to `user_dest + memsz`.
+ *        \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_07}
  *     8. If `elf_end_user` is less than `elf_section_end_user`:
+ *        \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_07}
  *        1. Set `elf_end_user` to `elf_section_end_user`.
  * 13. If `elf_end_user` is greater than
  *     `(space_layout.user_addr + space_layout.size)`:
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_07}
  *     1. Set `elf_span` to `elf_end_user - space_layout.user_addr`.
  *     2. Call `printf()` with the arguments
  *        `"ERROR: Elf maps up to virtual address %%p, which is above
@@ -181,28 +299,25 @@
  *        `POK_ERROR_ID_PARTLOAD_ERROR`, `FALSE` and `NULL`.
  * 14. Set `i` to `0U`; then while `i` is less than `elf_header->e_phnum`,
  *     repeat (after each pass: increment `i`):
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_08},
+ *     \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_09}
  *     1. If `elf_phdr[i].p_type` is not equal to `PT_LOAD`:
+ *        \llrref{LLR_LOADER_JET_LOADER_ELF_LOAD_09}
  *        1. Go on with the next pass of the loop.
  *     2. Set `user_dest` to `(char *)elf_phdr[i].p_vaddr`.
  *     3. Set `filesz` to `elf_phdr[i].p_filesz`.
  *     4. Set `memsz` to `elf_phdr[i].p_memsz`.
- *     5. Check that
- *        `(user_dest >= space_layout.user_addr) && ((user_dest + filesz) <=`
- *        `(space_layout.user_addr + space_layout.size)) && ((user_dest +`
- *        `memsz) <= (space_layout.user_addr + space_layout.size))` holds
- *        (assert: stop otherwise).
- *     6. Set `kernel_dest` to
+ *     5. Set `kernel_dest` to
  *        `space_layout.kernel_addr + (user_dest - space_layout.user_addr)`.
- *     7. Call `memcpy()` with the arguments `kernel_dest`,
+ *     6. Call `memcpy()` with the arguments `kernel_dest`,
  *        `elf_phdr[i].p_offset + elf_start` and `filesz`.
- *     8. Call `memset()` with the arguments `kernel_dest + filesz`, `0` and
+ *     7. Call `memset()` with the arguments `kernel_dest + filesz`, `0` and
  *        `memsz - filesz`.
  *
  * @calls
  * - `ja_space_layout_get()`
  * - `printf()`
  * - `pok_raise_error()`
- * - `pok_assertion_fail()`
  * - `memcpy()`
  * - `memset()`
  */

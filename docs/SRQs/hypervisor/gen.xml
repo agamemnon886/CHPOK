@@ -34,7 +34,7 @@
   <para>These requirements apply to the hypervisor as a whole.</para>
 
   <section xml:id="SRQ_HV_GEN_001" role="requirement">
-    <title>SRQ_HV_GEN_001</title>
+    <title><phrase role="srq">SRQ_HV_GEN_001</phrase></title>
     <para>The hypervisor shall provide the same behaviour on x86_64 and
       on arm64 for the same configuration, except where this document
       says otherwise.</para>
@@ -46,10 +46,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_GEN_002" role="requirement">
-    <title>SRQ_HV_GEN_002</title>
+    <title><phrase role="srq">SRQ_HV_GEN_002</phrase></title>
     <para>The hypervisor shall run under QEMU with the software emulation
       of the processor (TCG), on x86_64 with SVM and nested paging and on
       arm64 with the virtualization extensions and a GICv2.</para>
@@ -61,13 +66,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_CHECK_GIC_01
+        HLR_SVM_SVM_SUPPORTED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_GEN_003" role="requirement">
-    <title>SRQ_HV_GEN_003</title>
+    <title><phrase role="srq">SRQ_HV_GEN_003</phrase></title>
     <para>The hypervisor shall consist only of code under the
-      BSD-2-Clause or POK licence, and shall include nothing from the
-      JetOS kernel.</para>
+    BSD-2-Clause or POK licence.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The hypervisor stays BSD-only, so the code that it shares
@@ -77,10 +86,35 @@
       <title>Verification</title>
       <para>Review.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_GEN_006" role="requirement">
+    <title><phrase role="srq">SRQ_HV_GEN_006</phrase></title>
+    <para>The hypervisor shall include nothing from the JetOS
+    kernel.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The hypervisor stays BSD-only, so the code that it shares
+        with the kernel has to be.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Review.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_GEN_004" role="requirement">
-    <title>SRQ_HV_GEN_004</title>
+    <title><phrase role="srq">SRQ_HV_GEN_004</phrase></title>
     <para>The build of the hypervisor shall make, with its image, a
       script that runs it in QEMU with the right CPUs, memory and serial
       ports for the configuration.</para>
@@ -92,10 +126,15 @@
       <title>Verification</title>
       <para>Review.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_GEN_005" role="requirement">
-    <title>SRQ_HV_GEN_005</title>
+    <title><phrase role="srq">SRQ_HV_GEN_005</phrase></title>
     <para>The hypervisor shall be developed according to the MISRA C:2025
       guidelines, with each deviation documented where it is made.</para>
     <formalpara>
@@ -105,6 +144,11 @@
     <formalpara>
       <title>Verification</title>
       <para>Analysis.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
     </formalpara>
   </section>
 </chapter>

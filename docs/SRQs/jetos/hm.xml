@@ -47,7 +47,7 @@
     process.</para>
 
   <section xml:id="SRQ_JET_HM_001" role="requirement">
-    <title>SRQ_JET_HM_001</title>
+    <title><phrase role="srq">SRQ_JET_HM_001</phrase></title>
     <para>JetOS shall detect and report as errors, when they happen in a
       partition: a fault of the memory protection (memory violation), an
       arithmetic fault (numeric error), an invalid instruction or request
@@ -62,10 +62,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_ERROR_ID_FOR_01
+        HLR_ERROR_POK_RAISE_ERROR_01
+        HLR_ERROR_POK_RAISE_ERROR_02
+        HLR_INTERRUPT_PROCESS_EXCEPTION_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_002" role="requirement">
-    <title>SRQ_JET_HM_002</title>
+    <title><phrase role="srq">SRQ_JET_HM_002</phrase></title>
     <para>JetOS shall decide, from the configuration, whether an error in
       a system state is an error of the module or of the partition.</para>
     <formalpara>
@@ -76,10 +83,18 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_GET_CURRENT_STATE_01
+        HLR_ERROR_PROCESS_ERROR_MODULE_01
+        HLR_ERROR_POK_RAISE_ERROR_01
+        HLR_ERROR_POK_RAISE_ERROR_02
+        HLR_ERROR_POK_RAISE_ERROR_BY_PARTITION_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_003" role="requirement">
-    <title>SRQ_JET_HM_003</title>
+    <title><phrase role="srq">SRQ_JET_HM_003</phrase></title>
     <para>JetOS shall handle an error of the module at once, by the
       action that the table of the module gives: ignore it, restart the
       module (every partition is loaded again and starts in
@@ -93,17 +108,26 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_GET_MODULE_ACTION_01
+        HLR_ERROR_PERFORM_MODULE_ACTION_01
+        HLR_ERROR_PROCESS_ERROR_MODULE_02
+        HLR_ERROR_POK_RAISE_ERROR_BY_PARTITION_01
+        HLR_KERNEL_POK_KERNEL_RESTART_01
+        HLR_KERNEL_POK_KERNEL_STOP_01
+        HLR_PARTITION_FOR_EACH_PARTITION_01
+        HLR_SCHED_POK_PARTITION_RESET_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_004" role="requirement">
-    <title>SRQ_JET_HM_004</title>
+    <title><phrase role="srq">SRQ_JET_HM_004</phrase></title>
     <para>JetOS shall handle an error of a partition by the action that
-      the table of the partition gives: ignore it, stop the partition
-      (<literal>IDLE</literal> mode), or restart it in
-      <literal>COLD_START</literal> or <literal>WARM_START</literal>
-      mode; stopping is the action if the table says nothing; and shall
-      report a restart on the console, with the description of the error,
-      and record it as the reason of the start.</para>
+    the table of the partition gives: ignore it, stop the partition
+    (<literal>IDLE</literal> mode), or restart it in
+    <literal>COLD_START</literal> or <literal>WARM_START</literal> mode;
+    stopping is the action if the table says nothing.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The partition level recovers without disturbing the others.</para>
@@ -112,15 +136,48 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_TAKE_FIXED_ACTION_01
+        HLR_ERROR_ARINC_TAKE_PARTITION_ACTION_01
+        HLR_ERROR_ARINC_PROCESS_ERROR_PARTITION_02
+        HLR_ERROR_ARINC_POK_PARTITION_ARINC_PROCESS_ERROR_01
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_OS_ERROR_02
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_OS_ERROR_03
+        HLR_PARTITION_ARINC_POK_PARTITION_ARINC_IDLE_01
+        HLR_PARTITION_ARINC_POK_PARTITION_ARINC_RESET_01
+        HLR_SCHED_INTRA_PARTITION_SWITCH_02
+        HLR_SCHED_POK_PARTITION_RESTART_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_011" role="requirement">
+    <title><phrase role="srq">SRQ_JET_HM_011</phrase></title>
+    <para>JetOS shall report a restart of a partition for an error on
+    the console, with the description of the error, and record it as the
+    reason of the start.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The operator and the restarted partition must know why it
+      was restarted.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_GET_ERROR_DESCRIPTION_01
+        HLR_ERROR_ARINC_TAKE_FIXED_ACTION_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_005" role="requirement">
-    <title>SRQ_JET_HM_005</title>
+    <title><phrase role="srq">SRQ_JET_HM_005</phrase></title>
     <para>JetOS shall, for an error that arises in a process in
-      <literal>NORMAL</literal> mode of a partition that has an error
-      handler, leave its handling to the error handler, which gets it as
-      the next error to handle; otherwise the table of the partition
-      shall decide.</para>
+    <literal>NORMAL</literal> mode of a partition that has an error
+    handler, leave its handling to the error handler, which gets it as
+    the next error to handle.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The application can handle the errors of its processes.</para>
@@ -129,10 +186,47 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_PROCESS_ERROR_PARTITION_01
+        HLR_ERROR_ARINC_THREAD_ADD_ERROR_BIT_01
+        HLR_ERROR_ARINC_THREAD_ADD_ERROR_BIT_02
+        HLR_ERROR_ARINC_THREAD_EMIT_SYNC_ERROR_01
+        HLR_ERROR_ARINC_POK_PARTITION_ARINC_PROCESS_ERROR_01
+        HLR_ERROR_ARINC_POK_THREAD_EMIT_DEADLINE_MISSED_01
+        HLR_ERROR_ARINC_POK_THREAD_EMIT_DEADLINE_OOR_01
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_APPLICATION_ERROR_02
+        HLR_SCHED_ARINC_SCHED_ARINC_03</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_HM_012" role="requirement">
+    <title><phrase role="srq">SRQ_JET_HM_012</phrase></title>
+    <para>JetOS shall leave the handling of an error of a partition to
+    the table of the partition when the error does not arise in a
+    process in <literal>NORMAL</literal> mode or the partition has no
+    error handler.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Without an error handler to take it, the error is handled at
+      the partition level.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_POK_PARTITION_ARINC_PROCESS_ERROR_01
+        HLR_ERROR_ARINC_POK_THREAD_EMIT_DEADLINE_MISSED_01
+        HLR_ERROR_ARINC_POK_THREAD_EMIT_DEADLINE_OOR_01
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_APPLICATION_ERROR_01
+        HLR_ERROR_ARINC_PROCESS_ERROR_PARTITION_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_006" role="requirement">
-    <title>SRQ_JET_HM_006</title>
+    <title><phrase role="srq">SRQ_JET_HM_006</phrase></title>
     <para>JetOS shall let a partition create one error handler process,
       which has the highest priority of the partition (above all the
       priorities that the application can give), and configure its
@@ -146,10 +240,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_POK_ERROR_THREAD_CREATE_01
+        HLR_ERROR_ARINC_POK_ERROR_THREAD_CONFIGURE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_007" role="requirement">
-    <title>SRQ_JET_HM_007</title>
+    <title><phrase role="srq">SRQ_JET_HM_007</phrase></title>
     <para>JetOS shall give the error handler, on request, the next error
       to handle with its identifier, message, the process concerned and
       the failed address; a synchronous error of a process first, then a
@@ -162,10 +261,21 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_GET_ERROR_KIND_01
+        HLR_ERROR_ARINC_GET_ERROR_DESCRIPTION_01
+        HLR_ERROR_ARINC_THREAD_CLEAR_ERROR_BIT_01
+        HLR_ERROR_ARINC_THREAD_EMIT_SYNC_ERROR_01
+        HLR_ERROR_ARINC_COPY_ERROR_TO_USER_01
+        HLR_ERROR_ARINC_POK_ERROR_GET_01
+        HLR_ERROR_ARINC_ERROR_IGNORE_SYNC_01
+        HLR_THREAD_POK_THREAD_STOP_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_008" role="requirement">
-    <title>SRQ_JET_HM_008</title>
+    <title><phrase role="srq">SRQ_JET_HM_008</phrase></title>
     <para>JetOS shall let a partition raise an application error with a
       message and an error of the operating system code of the partition,
       and report a message of the application on the console with the
@@ -179,10 +289,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_POK_ERROR_RAISE_APPLICATION_ERROR_01
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_APPLICATION_ERROR_02
+        HLR_ERROR_ARINC_POK_ERROR_REPORT_APPLICATION_MESSAGE_01
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_OS_ERROR_01
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_OS_ERROR_02
+        HLR_THREAD_ASSERT_THREAD_ID_01
+        HLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_009" role="requirement">
-    <title>SRQ_JET_HM_009</title>
+    <title><phrase role="srq">SRQ_JET_HM_009</phrase></title>
     <para>JetOS shall handle the errors that remain when the error
       handler stops as errors of the partition, through its table.</para>
     <formalpara>
@@ -193,10 +313,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ERROR_ARINC_PROCESS_ERROR_PARTITION_02
+        HLR_ERROR_ARINC_THREAD_SET_UNRECOVERABLE_01
+        HLR_ERROR_ARINC_POK_THREAD_EMIT_DEADLINE_OOR_01
+        HLR_ERROR_ARINC_ERROR_CHECK_AFTER_HANDLER_01
+        HLR_ERROR_ARINC_ERROR_IGNORE_SYNC_01
+        HLR_THREAD_POK_THREAD_STOP_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_HM_010" role="requirement">
-    <title>SRQ_JET_HM_010</title>
+    <title><phrase role="srq">SRQ_JET_HM_010</phrase></title>
     <para>JetOS shall treat an error that is found in the monitor, the
       debugger or the idle partition as fatal.</para>
     <formalpara>
@@ -207,6 +336,12 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PARTITION_IDLE_PARTITION_IDLE_PROCESS_ERROR_01
+        HLR_GDB_GDB_PROCESS_ERROR_01
+        HLR_MONITOR_MONITOR_PROCESS_ERROR_01</para>
     </formalpara>
   </section>
 </chapter>

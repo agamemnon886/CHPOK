@@ -34,6 +34,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/idt.c (the code of the processor architecture is in
  * hypervisor/csps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -69,13 +77,28 @@ static idt_gate_t idt[IDT_ENTRIES] HV_ALIGNED(16);
  * | `handler` | `uint64_t` | The address of the vector's stub |
  *
  * @hlr
+ * - \hlrid{HLR_IDT_HV_IDT_INIT_01}: `hv_idt_init()` shall make every interrupt
+ *   and exception vector of the hypervisor enter its handler, with interrupts
+ *   disabled, at privilege level 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_011}
+ *   - \srqref{SRQ_HV_INT_012}
  *
  * @llr
+ * - \llrid{LLR_IDT_HV_IDT_INIT_01}: For each vector below `IDT_ENTRIES`,
+ *   `hv_idt_init()` shall set, in the entry of `idt` for it, `offset_low`,
+ *   `offset_mid` and `offset_high` to the bits 15 to 0, 31 to 16 and 63 to 32
+ *   of the address of `hv_isr_stubs` plus the vector times `ISR_STUB_SIZE`,
+ *   `selector` to `GDT_CODE64`, `type` to `IDT_INTERRUPT_GATE`, and `ist` and
+ *   `reserved` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_IDT_HV_IDT_INIT_01}
  *
  * @design
- * 1. Set `stubs` to `(uintptr_t) hv_isr_stubs`.
+ * 1. Set `stubs` to `(uintptr_t) hv_isr_stubs`. \llrref{LLR_IDT_HV_IDT_INIT_01}
  * 2. Set `vector` to `0U`; then while `vector` is less than `IDT_ENTRIES`,
  *    repeat (after each pass: increment `vector`):
+ *    \llrref{LLR_IDT_HV_IDT_INIT_01}
  *    1. Set `handler` to `stubs + ((uintptr_t) vector * ISR_STUB_SIZE)`.
  *    2. Set `idt[vector].offset_low` to `(uint16_t) handler`.
  *    3. Set `idt[vector].selector` to `(uint16_t) GDT_CODE64`.
@@ -127,13 +150,25 @@ void hv_idt_init(void)
  * | `desc` | `idt_descriptor_t` | The operand of lidt: limit and base |
  *
  * @hlr
+ * - \hlrid{HLR_IDT_HV_IDT_LOAD_01}: `hv_idt_load()` shall load the interrupt
+ *   table on the calling CPU.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_011}
+ *   - \srqref{SRQ_HV_INT_012}
  *
  * @llr
+ * - \llrid{LLR_IDT_HV_IDT_LOAD_01}: `hv_idt_load()` shall execute `lidt` once
+ *   with a descriptor whose `limit` is the size of `idt` minus 1 and whose
+ *   `base` is the address of `idt`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_IDT_HV_IDT_LOAD_01}
  *
  * @design
  * 1. Set `desc.limit` to `(uint16_t) (sizeof(idt) - 1U)`.
+ *    \llrref{LLR_IDT_HV_IDT_LOAD_01}
  * 2. Set `desc.base` to `(uint64_t) (uintptr_t) idt`.
- * 3. Execute the assembly code `lidt %0`.
+ *    \llrref{LLR_IDT_HV_IDT_LOAD_01}
+ * 3. Execute the assembly code `lidt %0`. \llrref{LLR_IDT_HV_IDT_LOAD_01}
  *
  * @calls
  * None.
@@ -170,12 +205,19 @@ void hv_idt_load(void)
  * | `value` | `uint64_t` | The value read |
  *
  * @hlr
+ * - \hlrid{HLR_IDT_READ_CR2_01}: `read_cr2()` shall give the address of the
+ *   last page fault.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_003}
  *
  * @llr
+ * - \llrid{LLR_IDT_READ_CR2_01}: `read_cr2()` shall return the value of CR2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_IDT_READ_CR2_01}
  *
  * @design
- * 1. Execute the assembly code `mov %%%cr2, %0`.
- * 2. Return `value`.
+ * 1. Execute the assembly code `mov %%%cr2, %0`. \llrref{LLR_IDT_READ_CR2_01}
+ * 2. Return `value`. \llrref{LLR_IDT_READ_CR2_01}
  *
  * @calls
  * None.
@@ -211,27 +253,68 @@ static uint64_t read_cr2(void)
  * | `cpu` | `hv_cpu_t *` | This CPU |
  *
  * @hlr
+ * - \hlrid{HLR_IDT_HV_INTERRUPT_01}: `hv_interrupt()` shall count the ticks of
+ *   the local APIC timer, ignore a spurious interrupt and the interrupts of the
+ *   legacy controllers, report any other interrupt and go on.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
+ *   - \srqref{SRQ_HV_INT_011}
+ * - \hlrid{HLR_IDT_HV_INTERRUPT_02}: `hv_interrupt()` shall report an exception
+ *   of the hypervisor itself, with its registers, as a fatal error.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_003}
  *
  * @llr
+ * - \llrid{LLR_IDT_HV_INTERRUPT_01}: If the vector of the frame is
+ *   `HV_VECTOR_TIMER`, `hv_interrupt()` shall increment `timer_ticks` of the
+ *   CPU that `hv_this_cpu()` returns and call `lapic_eoi()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_IDT_HV_INTERRUPT_01}
+ * - \llrid{LLR_IDT_HV_INTERRUPT_02}: If the vector of the frame is
+ *   `HV_VECTOR_SPURIOUS`, or is from `LEGACY_PIC_FIRST` to `LEGACY_PIC_LAST`,
+ *   `hv_interrupt()` shall return without calling `hv_printf()` or
+ *   `lapic_eoi()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_IDT_HV_INTERRUPT_01}
+ * - \llrid{LLR_IDT_HV_INTERRUPT_03}: If the vector of the frame is less than
+ *   `EXCEPTION_VECTORS` and is neither `HV_VECTOR_TIMER` nor
+ *   `HV_VECTOR_SPURIOUS` nor from `LEGACY_PIC_FIRST` to `LEGACY_PIC_LAST`,
+ *   `hv_interrupt()` shall call `hv_printf()` with `"[hv] exception %%lu, error
+ *   code 0x%%lx, at RIP 0x%%lx, RSP 0x%%lx, CR2 0x%%lx\n"`, the vector,
+ *   `error_code`, `rip` and `rsp` of the frame and the result of `read_cr2()`,
+ *   and then `hv_fatal()` with `"exception in the hypervisor"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_IDT_HV_INTERRUPT_02}
+ * - \llrid{LLR_IDT_HV_INTERRUPT_04}: If the vector of the frame is
+ *   `EXCEPTION_VECTORS` or more and is neither `HV_VECTOR_TIMER` nor
+ *   `HV_VECTOR_SPURIOUS` nor from `LEGACY_PIC_FIRST` to `LEGACY_PIC_LAST`,
+ *   `hv_interrupt()` shall call `hv_printf()` with `"[hv] unexpected interrupt
+ *   %%lu\n"` and the vector, and then `lapic_eoi()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_IDT_HV_INTERRUPT_01}
  *
  * @design
- * 1. Set `vector` to `frame->vector`.
+ * 1. Set `vector` to `frame->vector`. \llrref{LLR_IDT_HV_INTERRUPT_01},
+ *    \llrref{LLR_IDT_HV_INTERRUPT_02}, \llrref{LLR_IDT_HV_INTERRUPT_03},
+ *    \llrref{LLR_IDT_HV_INTERRUPT_04}
  * 2. If `vector` is equal to `HV_VECTOR_TIMER`:
+ *    \llrref{LLR_IDT_HV_INTERRUPT_01}
  *    1. Call `hv_this_cpu()`, and store the result in `cpu`.
  *    2. Increment `cpu->arch.timer_ticks`.
  *    3. Call `lapic_eoi()`.
  * 3. Otherwise, if `vector` is equal to `HV_VECTOR_SPURIOUS`:
- *    1. Do nothing.
+ *    \llrref{LLR_IDT_HV_INTERRUPT_02}
  * 4. Otherwise, if `vector` is greater than or equal to `LEGACY_PIC_FIRST` and
  *    `vector` is less than or equal to `LEGACY_PIC_LAST`:
- *    1. Do nothing.
+ *    \llrref{LLR_IDT_HV_INTERRUPT_02}
  * 5. Otherwise, if `vector` is less than `EXCEPTION_VECTORS`:
+ *    \llrref{LLR_IDT_HV_INTERRUPT_03}
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] exception %%lu, error code 0x%%lx, at RIP 0x%%lx, "`
  *       `"RSP 0x%%lx, CR2 0x%%lx\n"`, `vector`, `frame->error_code`,
  *       `frame->rip`, `frame->rsp` and `read_cr2()`.
  *    2. Call `hv_fatal()` with the argument `"exception in the hypervisor"`.
- * 6. Otherwise:
+ * 6. Otherwise: \llrref{LLR_IDT_HV_INTERRUPT_04}
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] unexpected interrupt %%lu\n"` and `vector`.
  *    2. Call `lapic_eoi()`.

@@ -36,7 +36,7 @@
   scheduler and to the partitions.</para>
 
   <section xml:id="SRQ_JET_TIME_001" role="requirement">
-    <title>SRQ_JET_TIME_001</title>
+    <title><phrase role="srq">SRQ_JET_TIME_001</phrase></title>
     <para>JetOS shall maintain a system time, in nanoseconds since the
     start of the module, that never decreases.</para>
     <formalpara>
@@ -49,13 +49,21 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_READ_CNTVCT_01
+        HLR_BSP_READ_CNTFRQ_01
+        HLR_BSP_JA_SYSTEM_TIME_01
+        HLR_PIT_READ_TSC_01
+        HLR_PIT_CALIBRATE_TSC_01
+        HLR_PIT_JA_SYSTEM_TIME_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_TIME_002" role="requirement">
-    <title>SRQ_JET_TIME_002</title>
-    <para>JetOS shall give the system time to a partition that asks
-    for the time of the real-time clock, and shall refuse a request
-    for any other clock with an error.</para>
+    <title><phrase role="srq">SRQ_JET_TIME_002</phrase></title>
+    <para>JetOS shall give the system time to a partition that asks for
+    the time of the real-time clock.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The partition library builds its time services on the
@@ -65,10 +73,34 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_03
+        HLR_TIME_POK_CLOCK_GETTIME_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_TIME_007" role="requirement">
+    <title><phrase role="srq">SRQ_JET_TIME_007</phrase></title>
+    <para>JetOS shall refuse with an error a request of a partition for
+    the time of any other clock.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>No other clock exists in the module.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_03
+        HLR_TIME_POK_CLOCK_GETTIME_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_TIME_003" role="requirement">
-    <title>SRQ_JET_TIME_003</title>
+    <title><phrase role="srq">SRQ_JET_TIME_003</phrase></title>
     <para>JetOS shall give the calendar time, in seconds, to a
     partition that asks for it: the calendar time read at the start of
     the module plus the system time.</para>
@@ -81,10 +113,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_JA_CALENDAR_TIME_01
+        HLR_PIT_JA_CALENDAR_TIME_01
+        HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_03
+        HLR_TIME_JET_TIME_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_TIME_004" role="requirement">
-    <title>SRQ_JET_TIME_004</title>
+    <title><phrase role="srq">SRQ_JET_TIME_004</phrase></title>
     <para>JetOS shall re-evaluate its scheduling decisions at every
     tick of a periodic timer of the board, whose frequency is fixed
     when JetOS is built.</para>
@@ -97,14 +136,26 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_WRITE_CNTV_CVAL_01
+        HLR_BSP_WRITE_CNTV_CTL_01
+        HLR_BSP_READ_CNTV_CTL_01
+        HLR_BSP_TIMER_INIT_01
+        HLR_BSP_SET_NEXT_TICK_01
+        HLR_BSP_JA_BSP_PROCESS_IRQ_02
+        HLR_PIT_JA_BSP_PROCESS_TIMER_01
+        HLR_PIT_POK_X86_QEMU_TIMER_INIT_01
+        HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_01
+        HLR_TIME_JET_ON_TICK_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_TIME_005" role="requirement">
-    <title>SRQ_JET_TIME_005</title>
+    <title><phrase role="srq">SRQ_JET_TIME_005</phrase></title>
     <para>JetOS shall let the kernel and the partitions arrange for
-      something to happen at a time (a time-out, a release, a deadline),
-      and shall make it happen at that time or later, never before, in
-      the order of the times.</para>
+    something to happen at a time (a time-out, a release, a
+    deadline).</para>
     <formalpara>
       <title>Rationale</title>
       <para>All time-related services are built on such delayed events.</para>
@@ -113,10 +164,45 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_DELAYED_EVENT_DELAYED_EVENT_QUEUE_INIT_01
+        HLR_DELAYED_EVENT_DELAYED_EVENT_INIT_01
+        HLR_DELAYED_EVENT_DELAYED_EVENT_ADD_01
+        HLR_DELAYED_EVENT_DELAYED_EVENT_ADD_02
+        HLR_DELAYED_EVENT_DELAYED_EVENT_REMOVE_01
+        HLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_01
+        HLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_CANCEL_01
+        HLR_THREAD_INTERNAL_THREAD_WAIT_TIMED_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_TIME_008" role="requirement">
+    <title><phrase role="srq">SRQ_JET_TIME_008</phrase></title>
+    <para>JetOS shall make what was arranged for a time happen at that
+    time or later, never before, in the order of the times.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A time-out or a release that came early would break the
+      timing of the application.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_DELAYED_EVENT_DELAYED_EVENT_QUEUE_CHECK_01
+        HLR_DELAYED_EVENT_DELAYED_EVENT_ADD_01
+        HLR_DELAYED_EVENT_DELAYED_EVENT_QUEUE_GET_CHECK_TIME_01
+        HLR_PARTITION_POK_PARTITION_SET_TIMER_01
+        HLR_SCHED_ARINC_SCHED_ARINC_01
+        HLR_THREAD_INTERNAL_THREAD_PROCESS_DELAYED_EVENT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_TIME_006" role="requirement">
-    <title>SRQ_JET_TIME_006</title>
+    <title><phrase role="srq">SRQ_JET_TIME_006</phrase></title>
     <para>JetOS shall take the calendar time at the start of the module
       from the real-time clock of the board if the board has one, and
       from a fixed date if it has not.</para>
@@ -127,6 +213,11 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_ARM64_JA_BSP_INIT_02
+        HLR_PIT_JA_CALENDAR_TIME_01</para>
     </formalpara>
   </section>
 </chapter>

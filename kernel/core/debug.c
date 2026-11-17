@@ -36,6 +36,16 @@
  * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
  * have a step for the declaration of a local variable; the @locals table
  * describes it, and an initialized one is set in a step.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -84,14 +94,23 @@
  * | `i` | `int32_t` | The index of the character |
  *
  * @hlr
+ * - \hlrid{HLR_DEBUG_DEBUG_STRLEN_01}: `debug_strlen()` shall give the number
+ *   of characters of a string before its NUL, without the C library, for the
+ *   fatal stop.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_011}
  *
  * @llr
+ * - \llrid{LLR_DEBUG_DEBUG_STRLEN_01}: `debug_strlen()` shall count the
+ *   characters from the first one until the first `'\0'` and return the count.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_DEBUG_STRLEN_01}
  *
  * @design
- * 1. Set `i` to `0`.
- * 2. While `str[i]` is not equal to `'\0'`:
+ * 1. Set `i` to `0`. \llrref{LLR_DEBUG_DEBUG_STRLEN_01}
+ * 2. While `str[i]` is not equal to `'\0'`: \llrref{LLR_DEBUG_DEBUG_STRLEN_01}
  *    1. Increment `i`.
- * 3. Return `i`.
+ * 3. Return `i`. \llrref{LLR_DEBUG_DEBUG_STRLEN_01}
  *
  * @calls
  * None.
@@ -121,11 +140,20 @@ int32_t debug_strlen (const char* str)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_DEBUG_POK_DEBUG_PRINT_CURRENT_STATE_01}:
+ *   `pok_debug_print_current_state()` shall do nothing (its printing of the
+ *   state of the current partition and thread is disabled).
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_011}
  *
  * @llr
+ * - \llrid{LLR_DEBUG_POK_DEBUG_PRINT_CURRENT_STATE_01}:
+ *   `pok_debug_print_current_state()` shall return without any effect.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_POK_DEBUG_PRINT_CURRENT_STATE_01}
  *
  * @design
- * 1. Do nothing.
+ * 1. Do nothing. \llrref{LLR_DEBUG_POK_DEBUG_PRINT_CURRENT_STATE_01}
  *
  * @calls
  * None.
@@ -186,17 +214,40 @@ void pok_debug_print_current_state (void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_DEBUG_POK_FATAL_01}: `pok_fatal()` shall write `"FATAL ERROR: "`
+ *   and the message of a fatal error to the main console, from any context of
+ *   the kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_011}
+ *   - \srqref{SRQ_JET_BOOT_005}
+ *   - \srqref{SRQ_JET_INT_004}
+ * - \hlrid{HLR_DEBUG_POK_FATAL_02}: `pok_fatal()` shall then stop the kernel,
+ *   halting the processor for good.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_011}
+ *   - \srqref{SRQ_JET_BOOT_008}
+ *   - \srqref{SRQ_JET_INT_004}
  *
  * @llr
+ * - \llrid{LLR_DEBUG_POK_FATAL_01}: `pok_fatal()` shall call, in this order,
+ *   `ja_preempt_disable()`, `jet_console_write()` with `"FATAL ERROR: \n"` and
+ *   13 (without the line feed), `jet_console_write()` with `message` and the
+ *   result of `debug_strlen()` for it, `pok_debug_print_current_state()` (the
+ *   macro `POK_DEBUG_PRINT_CURRENT_STATE`, with `POK_NEEDS_DEBUG` only) and
+ *   `ja_inf_loop()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_POK_FATAL_01}
+ *   - \hlrref{HLR_DEBUG_POK_FATAL_02}
  *
  * @design
- * 1. Call `ja_preempt_disable()`.
+ * 1. Call `ja_preempt_disable()`. \llrref{LLR_DEBUG_POK_FATAL_01}
  * 2. Call `jet_console_write()` with the arguments `"FATAL ERROR: \n"` and
- *    `13`.
+ *    `13`. \llrref{LLR_DEBUG_POK_FATAL_01}
  * 3. Call `jet_console_write()` with the arguments `message` and
- *    `debug_strlen(message)`.
+ *    `debug_strlen(message)`. \llrref{LLR_DEBUG_POK_FATAL_01}
  * 4. Use the macro `POK_DEBUG_PRINT_CURRENT_STATE`.
- * 5. Call `ja_inf_loop()`.
+ *    \llrref{LLR_DEBUG_POK_FATAL_01}
+ * 5. Call `ja_inf_loop()`. \llrref{LLR_DEBUG_POK_FATAL_01}
  *
  * @calls
  * - `ja_preempt_disable()`
@@ -244,30 +295,79 @@ _Noreturn void pok_fatal (const char* message)
  * | `pc` | `const uint8_t *` | The memory, as bytes |
  *
  * @hlr
+ * - \hlrid{HLR_DEBUG_HEXDUMP_01}: `hexdump()` shall print a block of memory on
+ *   the console: 16 bytes per line in hexadecimal, after the offset of the
+ *   line, followed by the bytes as characters, with a dot for each byte that is
+ *   not printable.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_012}
  *
  * @llr
+ * - \llrid{LLR_DEBUG_HEXDUMP_01}: If `len` is 0, `hexdump()` shall call
+ *   `printf()` once with `"Len is zero\n"` and return.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_HEXDUMP_01}
+ * - \llrid{LLR_DEBUG_HEXDUMP_02}: For each index `i` less than `len` that is a
+ *   multiple of 16 and not 0, `hexdump()` shall call `printf()` with a format
+ *   of two spaces and `"%%s\n"`, and the characters of the line before.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_HEXDUMP_01}
+ * - \llrid{LLR_DEBUG_HEXDUMP_03}: For each index `i` less than `len` that is a
+ *   multiple of 16, `hexdump()` shall then call `printf()` with a format of two
+ *   spaces and `"%04x "`, and `i`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_HEXDUMP_01}
+ * - \llrid{LLR_DEBUG_HEXDUMP_04}: For each index `i` less than `len`,
+ *   `hexdump()` shall call `printf()` with `" %02x"` and the byte `i` at
+ *   `addr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_HEXDUMP_01}
+ * - \llrid{LLR_DEBUG_HEXDUMP_05}: If the byte `i` is less than `0x20` or
+ *   greater than `0x7e`, `hexdump()` shall put `'.'` at the index `i % 16` of
+ *   the characters of the line, followed by `'\0'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_HEXDUMP_01}
+ * - \llrid{LLR_DEBUG_HEXDUMP_06}: If the byte `i` is from `0x20` to `0x7e`,
+ *   `hexdump()` shall put the byte at the index `i % 16` of the characters of
+ *   the line, followed by `'\0'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_HEXDUMP_01}
+ * - \llrid{LLR_DEBUG_HEXDUMP_07}: If `len` is not 0, `hexdump()` shall, after
+ *   the bytes, call `printf()` with three spaces for each index from `len` up
+ *   to the next multiple of 16, and then with a format of two spaces and
+ *   `"%%s\n"`, and the characters of the line.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_DEBUG_HEXDUMP_01}
  *
  * @design
- * 1. Set `pc` to `(const uint8_t*)addr`.
- * 2. If `len` is equal to `0`:
+ * 1. Set `pc` to `(const uint8_t*)addr`. \llrref{LLR_DEBUG_HEXDUMP_04},
+ *    \llrref{LLR_DEBUG_HEXDUMP_05}, \llrref{LLR_DEBUG_HEXDUMP_06}
+ * 2. If `len` is equal to `0`: \llrref{LLR_DEBUG_HEXDUMP_01}
  *    1. Call `printf()` with the argument `"Len is zero\n"`.
  *    2. Return.
  * 3. Set `i` to `0`; then while `i` is less than `len`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_DEBUG_HEXDUMP_02},
+ *    \llrref{LLR_DEBUG_HEXDUMP_03}, \llrref{LLR_DEBUG_HEXDUMP_04},
+ *    \llrref{LLR_DEBUG_HEXDUMP_05}, \llrref{LLR_DEBUG_HEXDUMP_06}
  *    1. If `(i % 16)` is equal to `0`:
- *       1. If `i` is not equal to `0`:
+ *       1. If `i` is not equal to `0`: \llrref{LLR_DEBUG_HEXDUMP_02}
  *          1. Call `printf()` with the arguments `" %%s\n"` and `buff`.
  *       2. Call `printf()` with the arguments `" %04x "` and `i`.
+ *          \llrref{LLR_DEBUG_HEXDUMP_03}
  *    2. Call `printf()` with the arguments `" %02x"` and `pc[i]`.
+ *       \llrref{LLR_DEBUG_HEXDUMP_04}
  *    3. If `pc[i]` is less than `0x20U` or `pc[i]` is greater than `0x7eU`:
+ *       \llrref{LLR_DEBUG_HEXDUMP_05}
  *       1. Set `buff[i % 16]` to `'.'`.
- *    4. Otherwise:
+ *    4. Otherwise: \llrref{LLR_DEBUG_HEXDUMP_06}
  *       1. Set `buff[i % 16]` to `pc[i]`.
- *    5. Set `buff[(i % 16) + 1]` to `'\0'`.
- * 4. While `(i % 16)` is not equal to `0`:
+ *    5. Set `buff[(i % 16) + 1]` to `'\0'`. \llrref{LLR_DEBUG_HEXDUMP_05},
+ *       \llrref{LLR_DEBUG_HEXDUMP_06}
+ * 4. While `(i % 16)` is not equal to `0`: \llrref{LLR_DEBUG_HEXDUMP_07}
  *    1. Call `printf()` with the argument `" "`.
  *    2. Increment `i`.
  * 5. Call `printf()` with the arguments `" %%s\n"` and `buff`.
+ *    \llrref{LLR_DEBUG_HEXDUMP_07}
  *
  * @calls
  * - `printf()`

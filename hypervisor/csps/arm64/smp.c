@@ -33,6 +33,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/smp.c (the code of the processor architecture is in
  * hypervisor/csps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -67,16 +71,30 @@
  * | `waited` | `uint64_t` | The time waited so far, in microseconds |
  *
  * @hlr
+ * - \hlrid{HLR_SMP_ARM64_WAIT_ONLINE_01}: `wait_online()` shall wait, up to a
+ *   time, for a CPU to come online, and tell whether it did.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_SMP_ARM64_WAIT_ONLINE_01}: `wait_online()` shall call
+ *   `hv_udelay()` with 10 while `online` of the CPU is 0 and the microseconds
+ *   waited, 10 for each call, are fewer than `microseconds`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_ARM64_WAIT_ONLINE_01}
+ * - \llrid{LLR_SMP_ARM64_WAIT_ONLINE_02}: `wait_online()` shall then return
+ *   true if `online` of the CPU is not 0, and false if it is 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_ARM64_WAIT_ONLINE_01}
  *
  * @design
- * 1. Set `waited` to `0U`.
+ * 1. Set `waited` to `0U`. \llrref{LLR_SMP_ARM64_WAIT_ONLINE_01}
  * 2. While `cpu->online` is equal to `0U` and `waited` is less than
- *    `microseconds`:
+ *    `microseconds`: \llrref{LLR_SMP_ARM64_WAIT_ONLINE_01}
  *    1. Call `hv_udelay()` with the argument `10U`.
  *    2. Add `10U` to `waited`.
- * 3. Return `cpu->online != 0U`.
+ * 3. Return `cpu->online != 0U`. \llrref{LLR_SMP_ARM64_WAIT_ONLINE_02}
  *
  * @calls
  * - `hv_udelay()`
@@ -114,23 +132,64 @@ static bool wait_online(const hv_cpu_t *cpu, uint64_t microseconds)
  * | `result` | `int64_t` | The PSCI result |
  *
  * @hlr
+ * - \hlrid{HLR_SMP_ARM64_HV_SMP_START_01}: `hv_smp_start()` shall start the
+ *   other physical CPUs that the VMs need, one after another, by the PSCI call
+ *   CPU_ON.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
+ * - \hlrid{HLR_SMP_ARM64_HV_SMP_START_02}: `hv_smp_start()` shall stop with a
+ *   message if a CPU does not start.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_SMP_ARM64_HV_SMP_START_01}: `hv_smp_start()` shall set `online`
+ *   of `hv_cpus[0]` to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_ARM64_HV_SMP_START_01}
+ * - \llrid{LLR_SMP_ARM64_HV_SMP_START_02}: For each CPU `i` from 1 to
+ *   `hv_nb_cpus` minus 1, in order, `hv_smp_start()` shall call
+ *   `psci_host_cpu_on()` once with `hw_id` of the CPU, the address of
+ *   `hv_secondary_entry` and `i`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_ARM64_HV_SMP_START_01}
+ * - \llrid{LLR_SMP_ARM64_HV_SMP_START_03}: If `psci_host_cpu_on()` returns a
+ *   value other than 0, `hv_smp_start()` shall call `hv_printf()` with `"[hv]
+ *   CPU %%u (MPIDR 0x%%x): PSCI CPU_ON failed (%%ld)\n"`, `i`, `hw_id` of the
+ *   CPU and that value, and then `hv_fatal()` with `"CPU start-up failed"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_ARM64_HV_SMP_START_02}
+ * - \llrid{LLR_SMP_ARM64_HV_SMP_START_04}: If `psci_host_cpu_on()` returns 0
+ *   and `wait_online()` returns false for the CPU and `START_TIMEOUT_US`,
+ *   `hv_smp_start()` shall call `hv_printf()` with `"[hv] CPU %%u (MPIDR 0x%%x)
+ *   doesn't start\n"`, `i` and `hw_id` of the CPU, and then `hv_fatal()` with
+ *   `"CPU start-up failed"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_ARM64_HV_SMP_START_02}
+ * - \llrid{LLR_SMP_ARM64_HV_SMP_START_05}: If `psci_host_cpu_on()` returns 0
+ *   and `wait_online()` returns true for the CPU and `START_TIMEOUT_US`,
+ *   `hv_smp_start()` shall go on with the next CPU, without calling
+ *   `hv_fatal()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_ARM64_HV_SMP_START_01}
  *
  * @design
  * 1. Set `entry` to `(uint64_t) (uintptr_t) &hv_secondary_entry`.
- * 2. Set `hv_cpus[0].online` to `1U`.
+ *    \llrref{LLR_SMP_ARM64_HV_SMP_START_02}
+ * 2. Set `hv_cpus[0].online` to `1U`. \llrref{LLR_SMP_ARM64_HV_SMP_START_01}
  * 3. Set `i` to `1U`; then while `i` is less than `hv_nb_cpus`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_SMP_ARM64_HV_SMP_START_02}
  *    1. Set `cpu` to the address of `hv_cpus[i]`.
  *    2. Call `psci_host_cpu_on()` with the arguments `cpu->hw_id`, `entry` and
  *       `i`, and store the result in `result`.
- *    3. If `result` is not equal to `0`:
+ *    3. If `result` is not equal to `0`: \llrref{LLR_SMP_ARM64_HV_SMP_START_03}
  *       1. Call `hv_printf()` with the arguments
  *          `"[hv] CPU %%u (MPIDR 0x%%x): PSCI CPU_ON failed (%%ld)\n"`, `i`,
  *          `cpu->hw_id` and `result`.
  *       2. Call `hv_fatal()` with the argument `"CPU start-up failed"`.
  *    4. If `wait_online(cpu, START_TIMEOUT_US)` is false:
+ *       \llrref{LLR_SMP_ARM64_HV_SMP_START_04},
+ *       \llrref{LLR_SMP_ARM64_HV_SMP_START_05}
  *       1. Call `hv_printf()` with the arguments
  *          `"[hv] CPU %%u (MPIDR 0x%%x) doesn't start\n"`, `i` and
  *          `cpu->hw_id`.

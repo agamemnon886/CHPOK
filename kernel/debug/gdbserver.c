@@ -40,6 +40,16 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/libc/gdbserver.c (kernel/libc is split up: the GDB server, the
  * monitor and readline are in kernel/debug).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -243,11 +253,26 @@ static gdb_search_t gdb_search;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PARTITION_IS_KERNEL_01}:
+ *   `gdb_partition_is_kernel()` shall tell whether a partition is a kernel-only
+ *   partition, one without a memory space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PARTITION_IS_KERNEL_01}: If `space_id` of `part`
+ *   is 0, `gdb_partition_is_kernel()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PARTITION_IS_KERNEL_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PARTITION_IS_KERNEL_02}: If `space_id` of `part`
+ *   is not 0, `gdb_partition_is_kernel()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PARTITION_IS_KERNEL_01}
  *
  * @design
  * 1. Return `part->space_id == 0U`.
+ *    \llrref{LLR_GDBSERVER_GDB_PARTITION_IS_KERNEL_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PARTITION_IS_KERNEL_02}
  *
  * @calls
  * None.
@@ -278,16 +303,48 @@ static pok_bool_t gdb_partition_is_kernel(const pok_partition_t* part)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SEARCH_CB_01}: `gdb_search_cb()` shall count the
+ *   partitions of the kind searched for, and note the one at the index wanted
+ *   and the index of the partition wanted.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SEARCH_CB_01}: If the result of
+ *   `gdb_partition_is_kernel()` for `part` is equal to `gdb_search.is_kernel`,
+ *   `gdb_search_cb()` shall increment `gdb_search.count`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SEARCH_CB_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SEARCH_CB_02}: For such a partition, if and only
+ *   if `gdb_search.count` before the increment is `gdb_search.index`,
+ *   `gdb_search_cb()` shall set `gdb_search.found` to `part`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SEARCH_CB_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SEARCH_CB_03}: For such a partition, if and only
+ *   if `part` is `gdb_search.wanted`, `gdb_search_cb()` shall set
+ *   `gdb_search.found_index` to `gdb_search.count` before the increment.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SEARCH_CB_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SEARCH_CB_04}: If the result of
+ *   `gdb_partition_is_kernel()` for `part` is not equal to
+ *   `gdb_search.is_kernel`, `gdb_search_cb()` shall leave `gdb_search` as it
+ *   is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SEARCH_CB_01}
  *
  * @design
  * 1. If `gdb_partition_is_kernel(part)` is equal to `gdb_search.is_kernel`:
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_CB_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_CB_02},
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_CB_03},
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_CB_04}
  *    1. If `gdb_search.count` is equal to `gdb_search.index`:
+ *       \llrref{LLR_GDBSERVER_GDB_SEARCH_CB_02}
  *       1. Set `gdb_search.found` to `part`.
  *    2. If `part` is equal to `gdb_search.wanted`:
+ *       \llrref{LLR_GDBSERVER_GDB_SEARCH_CB_03}
  *       1. Set `gdb_search.found_index` to `gdb_search.count`.
- *    3. Increment `gdb_search.count`.
+ *    3. Increment `gdb_search.count`. \llrref{LLR_GDBSERVER_GDB_SEARCH_CB_01}
  *
  * @calls
  * - `gdb_partition_is_kernel()`
@@ -329,17 +386,34 @@ static void gdb_search_cb(pok_partition_t* part)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SEARCH_RUN_01}: `gdb_search_run()` shall search
+ *   the partitions of one kind, kernel-only or user, in their order, for an
+ *   index or for a partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SEARCH_RUN_01}: `gdb_search_run()` shall set, in
+ *   `gdb_search`, `is_kernel`, `index` and `wanted` to the arguments of the
+ *   same names, `count` to 0, `found` to NULL and `found_index` to
+ *   `GDB_NO_INDEX`, and then call `for_each_partition()` once with
+ *   `gdb_search_cb`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SEARCH_RUN_01}
  *
  * @design
  * 1. Set `gdb_search.is_kernel` to `is_kernel`.
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_RUN_01}
  * 2. Set `gdb_search.index` to `index`.
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_RUN_01}
  * 3. Set `gdb_search.wanted` to `wanted`.
- * 4. Set `gdb_search.count` to `0U`.
- * 5. Set `gdb_search.found` to `NULL`.
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_RUN_01}
+ * 4. Set `gdb_search.count` to `0U`. \llrref{LLR_GDBSERVER_GDB_SEARCH_RUN_01}
+ * 5. Set `gdb_search.found` to `NULL`. \llrref{LLR_GDBSERVER_GDB_SEARCH_RUN_01}
  * 6. Set `gdb_search.found_index` to `GDB_NO_INDEX`.
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_RUN_01}
  * 7. Call `for_each_partition()` with the address of `gdb_search_cb`.
+ *    \llrref{LLR_GDBSERVER_GDB_SEARCH_RUN_01}
  *
  * @calls
  * - `for_each_partition()`
@@ -380,13 +454,23 @@ static void gdb_search_run(pok_bool_t is_kernel, uint32_t index,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PARTITION_AT_01}: `gdb_partition_at()` shall give
+ *   the partition of a kind at an index among the partitions of that kind, or
+ *   none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PARTITION_AT_01}: `gdb_partition_at()` shall call
+ *   `gdb_search_run()` once with `is_kernel`, `index` and NULL, and return
+ *   `gdb_search.found`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PARTITION_AT_01}
  *
  * @design
  * 1. Call `gdb_search_run()` with the arguments `is_kernel`, `index` and
- *    `NULL`.
- * 2. Return `gdb_search.found`.
+ *    `NULL`. \llrref{LLR_GDBSERVER_GDB_PARTITION_AT_01}
+ * 2. Return `gdb_search.found`. \llrref{LLR_GDBSERVER_GDB_PARTITION_AT_01}
  *
  * @calls
  * - `gdb_search_run()`
@@ -420,13 +504,22 @@ static pok_partition_t* gdb_partition_at(pok_bool_t is_kernel,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PARTITION_COUNT_01}: `gdb_partition_count()` shall
+ *   give the number of partitions of a kind.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PARTITION_COUNT_01}: `gdb_partition_count()` shall
+ *   call `gdb_search_run()` once with `is_kernel`, `GDB_NO_INDEX` and NULL, and
+ *   return `gdb_search.count`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PARTITION_COUNT_01}
  *
  * @design
  * 1. Call `gdb_search_run()` with the arguments `is_kernel`, `GDB_NO_INDEX` and
- *    `NULL`.
- * 2. Return `gdb_search.count`.
+ *    `NULL`. \llrref{LLR_GDBSERVER_GDB_PARTITION_COUNT_01}
+ * 2. Return `gdb_search.count`. \llrref{LLR_GDBSERVER_GDB_PARTITION_COUNT_01}
  *
  * @calls
  * - `gdb_search_run()`
@@ -459,13 +552,24 @@ static uint32_t gdb_partition_count(pok_bool_t is_kernel)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PARTITION_INDEX_01}: `gdb_partition_index()` shall
+ *   give the index of a partition among the partitions of its kind.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PARTITION_INDEX_01}: `gdb_partition_index()` shall
+ *   call `gdb_search_run()` once with the result of `gdb_partition_is_kernel()`
+ *   for `part`, `GDB_NO_INDEX` and `part`, and return `gdb_search.found_index`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PARTITION_INDEX_01}
  *
  * @design
  * 1. Call `gdb_search_run()` with the arguments
  *    `gdb_partition_is_kernel(part)`, `GDB_NO_INDEX` and `part`.
+ *    \llrref{LLR_GDBSERVER_GDB_PARTITION_INDEX_01}
  * 2. Return `gdb_search.found_index`.
+ *    \llrref{LLR_GDBSERVER_GDB_PARTITION_INDEX_01}
  *
  * @calls
  * - `gdb_search_run()`
@@ -500,14 +604,33 @@ static uint32_t gdb_partition_index(const pok_partition_t* part)
  * | `pid` | `uint32_t` | The process ID |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PARTITION_PID_01}: `gdb_partition_pid()` shall
+ *   give the debugger process of a partition: 1 for a kernel-only partition,
+ *   and 2 plus its index for a user partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PARTITION_PID_01}: If `gdb_partition_is_kernel()`
+ *   returns true for `part`, `gdb_partition_pid()` shall return
+ *   `GDB_PID_KERNEL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PARTITION_PID_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PARTITION_PID_02}: If `gdb_partition_is_kernel()`
+ *   returns false for `part`, `gdb_partition_pid()` shall return the result of
+ *   `gdb_partition_index()` for `part` plus 2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PARTITION_PID_01}
  *
  * @design
- * 1. Set `pid` to `GDB_PID_KERNEL`.
+ * 1. Set `pid` to `GDB_PID_KERNEL`. \llrref{LLR_GDBSERVER_GDB_PARTITION_PID_01}
  * 2. If `gdb_partition_is_kernel(part)` is false:
+ *    \llrref{LLR_GDBSERVER_GDB_PARTITION_PID_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PARTITION_PID_02}
  *    1. Set `pid` to `gdb_partition_index(part) + 2U`.
- * 3. Return `pid`.
+ *       \llrref{LLR_GDBSERVER_GDB_PARTITION_PID_02}
+ * 3. Return `pid`. \llrref{LLR_GDBSERVER_GDB_PARTITION_PID_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PARTITION_PID_02}
  *
  * @calls
  * - `gdb_partition_is_kernel()`
@@ -546,16 +669,33 @@ static uint32_t gdb_partition_pid(const pok_partition_t* part)
  * | `part` | `pok_partition_t *` | The partition |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PROCESS_PARTITION_01}: `gdb_process_partition()`
+ *   shall give the user partition of a debugger process from 2 on, or none.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_PARTITION_01}: If `pid` is 2 or more and
+ *   is not greater than `GDB_PID_MAX`, `gdb_process_partition()` shall return
+ *   the result of `gdb_partition_at()` for `FALSE` and `pid` minus 2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_PARTITION_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_PARTITION_02}: If `pid` is less than 2 or
+ *   is greater than `GDB_PID_MAX`, `gdb_process_partition()` shall return NULL
+ *   without calling `gdb_partition_at()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_PARTITION_01}
  *
  * @design
- * 1. Set `part` to `NULL`.
+ * 1. Set `part` to `NULL`. \llrref{LLR_GDBSERVER_GDB_PROCESS_PARTITION_02}
  * 2. If `pid` is greater than or equal to `2U` and `pid` is less than or equal
- *    to `GDB_PID_MAX`:
+ *    to `GDB_PID_MAX`: \llrref{LLR_GDBSERVER_GDB_PROCESS_PARTITION_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_PARTITION_02}
  *    1. Call `gdb_partition_at()` with the arguments `FALSE` and `pid - 2U`,
  *       and store the result in `part`.
- * 3. Return `part`.
+ *       \llrref{LLR_GDBSERVER_GDB_PROCESS_PARTITION_01}
+ * 3. Return `part`. \llrref{LLR_GDBSERVER_GDB_PROCESS_PARTITION_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_PARTITION_02}
  *
  * @calls
  * - `gdb_partition_at()`
@@ -586,11 +726,20 @@ static pok_partition_t* gdb_process_partition(uint32_t pid)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PROCESS_LAST_01}: `gdb_process_last()` shall give
+ *   the last debugger process identifier: 1 plus the number of user partitions.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_LAST_01}: `gdb_process_last()` shall
+ *   return the result of `gdb_partition_count()` for `FALSE` plus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_LAST_01}
  *
  * @design
  * 1. Return `gdb_partition_count(FALSE) + 1U`.
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_LAST_01}
  *
  * @calls
  * - `gdb_partition_count()`
@@ -625,15 +774,41 @@ static uint32_t gdb_process_last(void)
  * | `threads` | `int32_t` | The partition's number of threads |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PROCESS_THREADS_01}: `gdb_process_threads()` shall
+ *   give the number of threads of a debugger process: the kernel-only
+ *   partitions for process 1, and the threads of the partition otherwise, 0 for
+ *   no such process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_THREADS_01}: If `pid` is `GDB_PID_KERNEL`,
+ *   `gdb_process_threads()` shall return the result of `gdb_partition_count()`
+ *   for `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_THREADS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_THREADS_02}: If `pid` is not
+ *   `GDB_PID_KERNEL`, `gdb_process_partition()` returns a partition for `pid`,
+ *   and the function `get_number_of_threads` of its `part_sched_ops` returns a
+ *   value greater than 0 for it, `gdb_process_threads()` shall return that
+ *   value.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_THREADS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_THREADS_03}: If `pid` is not
+ *   `GDB_PID_KERNEL`, and `gdb_process_partition()` returns NULL for `pid` or
+ *   the function `get_number_of_threads` returns a value that is not greater
+ *   than 0, `gdb_process_threads()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_THREADS_01}
  *
  * @design
- * 1. Set `n` to `0U`.
+ * 1. Set `n` to `0U`. \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_03}
  * 2. If `pid` is equal to `GDB_PID_KERNEL`:
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_01}
  *    1. Call `gdb_partition_count()` with the argument `TRUE`, and store the
  *       result in `n`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_02},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_03}
  *    1. Call `gdb_process_partition()` with the argument `pid`, and store the
  *       result in `part`.
  *    2. If `part` is not NULL:
@@ -641,7 +816,10 @@ static uint32_t gdb_process_last(void)
  *          the argument `part`, and store the result in `threads`.
  *       2. If `threads` is greater than `0`:
  *          1. Set `n` to `(uint32_t)threads`.
- * 4. Return `n`.
+ *             \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_02}
+ * 4. Return `n`. \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_02},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_THREADS_03}
  *
  * @calls
  * - `gdb_partition_count()`
@@ -696,13 +874,28 @@ static uint32_t gdb_process_threads(uint32_t pid)
  * | `index` | `uint32_t` | The index |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_THREAD_INDEX_01}: `gdb_thread_index()` shall give
+ *   the index of a debugger thread in its partition, 0 for a thread of the
+ *   kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_INDEX_01}: If `pid` of `t` is
+ *   `GDB_PID_KERNEL`, `gdb_thread_index()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_INDEX_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_INDEX_02}: If `pid` of `t` is not
+ *   `GDB_PID_KERNEL`, `gdb_thread_index()` shall return `tid` of `t` minus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_INDEX_01}
  *
  * @design
  * 1. Set `index` to `0U` if `t->pid` is equal to `GDB_PID_KERNEL`, otherwise
- *    `(t->tid - 1U)`.
- * 2. Return `(int32_t)index`.
+ *    `(t->tid - 1U)`. \llrref{LLR_GDBSERVER_GDB_THREAD_INDEX_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_INDEX_02}
+ * 2. Return `(int32_t)index`. \llrref{LLR_GDBSERVER_GDB_THREAD_INDEX_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_INDEX_02}
  *
  * @calls
  * None.
@@ -743,34 +936,79 @@ static int32_t gdb_thread_index(const gdb_thread_t* t)
  * | `thread_index` | `uint32_t` | The thread ID minus 1 |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_THREAD_FIND_01}: `gdb_thread_find()` shall find
+ *   the thread that a debugger process and thread identifier name, and tell
+ *   whether it exists.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_FIND_01}: If `tid` is 0 or is greater than
+ *   the result of `gdb_process_threads()` for `pid`, `gdb_thread_find()` shall
+ *   return `FALSE` and leave the thread at `t` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_FIND_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_FIND_02}: If `tid` is not 0 and is not
+ *   greater than the result of `gdb_process_threads()` for `pid`, and `pid` is
+ *   `GDB_PID_KERNEL`, `gdb_thread_find()` shall take as the partition the
+ *   result of `gdb_partition_at()` for `TRUE` and `tid` minus 1, and 0 as the
+ *   index.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_FIND_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_FIND_03}: If `tid` is not 0 and is not
+ *   greater than the result of `gdb_process_threads()` for `pid`, and `pid` is
+ *   not `GDB_PID_KERNEL`, `gdb_thread_find()` shall take as the partition the
+ *   result of `gdb_process_partition()` for `pid`, and `tid` minus 1 as the
+ *   index.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_FIND_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_FIND_04}: If the partition taken is not
+ *   NULL and the function `get_thread_at_index` of its `part_sched_ops` returns
+ *   0 for the partition, the index and the address of a private pointer,
+ *   `gdb_thread_find()` shall set, at `t`, `pid` and `tid` to the arguments of
+ *   the same names, `part` to the partition and `part_private` to the private
+ *   pointer, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_FIND_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_FIND_05}: If the partition taken is NULL,
+ *   or the function `get_thread_at_index` returns a value other than 0,
+ *   `gdb_thread_find()` shall return `FALSE` and leave the thread at `t` as it
+ *   is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_FIND_01}
  *
  * @design
- * 1. Set `found` to `FALSE`.
- * 2. Set `part` to `NULL`.
- * 3. Set `index` to `0`.
+ * 1. Set `found` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_05}
+ * 2. Set `part` to `NULL`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_02},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_03}
+ * 3. Set `index` to `0`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_02},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_03}
  * 4. If `tid` is equal to `0U` or `tid` is greater than
- *    `gdb_process_threads(pid)`:
- *    1. Do nothing.
+ *    `gdb_process_threads(pid)`: \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_01}
  * 5. Otherwise, if `pid` is equal to `GDB_PID_KERNEL`:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_02}
  *    1. Call `gdb_partition_at()` with the arguments `TRUE` and `tid - 1U`, and
  *       store the result in `part`.
- * 6. Otherwise:
+ * 6. Otherwise: \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_03}
  *    1. Set `thread_index` to `tid - 1U`.
  *    2. Call `gdb_process_partition()` with the argument `pid`, and store the
  *       result in `part`.
  *    3. Set `index` to `(int32_t)thread_index`.
- * 7. If `part` is not NULL:
+ * 7. If `part` is not NULL: \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_04},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_05}
  *    1. Set `private` to `NULL`.
  *    2. If `part->part_sched_ops->get_thread_at_index(part, index, &private)`
  *       is equal to `0`:
- *       1. Set `t->pid` to `pid`.
- *       2. Set `t->tid` to `tid`.
- *       3. Set `t->part` to `part`.
+ *       1. Set `t->pid` to `pid`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_04}
+ *       2. Set `t->tid` to `tid`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_04}
+ *       3. Set `t->part` to `part`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_04}
  *       4. Set `t->part_private` to `private`.
- *       5. Set `found` to `TRUE`.
- * 8. Return `found`.
+ *          \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_04}
+ *       5. Set `found` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_04}
+ * 8. Return `found`. \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_04},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FIND_05}
  *
  * @calls
  * - `gdb_process_threads()`
@@ -840,11 +1078,26 @@ static pok_bool_t gdb_thread_find(gdb_thread_t* t, uint32_t pid,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_THREAD_EQUAL_01}: `gdb_thread_equal()` shall tell
+ *   whether two debugger threads are the same.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_EQUAL_01}: If `pid` and `tid` of `t1` are
+ *   equal to `pid` and `tid` of `t2`, `gdb_thread_equal()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_EQUAL_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_EQUAL_02}: If `pid` of `t1` differs from
+ *   `pid` of `t2`, or `tid` of `t1` differs from `tid` of `t2`,
+ *   `gdb_thread_equal()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_EQUAL_01}
  *
  * @design
  * 1. Return `(t1->pid == t2->pid) && (t1->tid == t2->tid)`.
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_EQUAL_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_EQUAL_02}
  *
  * @calls
  * None.
@@ -882,14 +1135,48 @@ static pok_bool_t gdb_thread_equal(const gdb_thread_t* t1,
  * | `tid` | `uint32_t` | The thread ID |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01}:
+ *   `gdb_process_current_tid()` shall give the current thread of a debugger
+ *   process: the stopped thread for its own process, the current thread of the
+ *   partition otherwise, and 1 by default.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01}: If `pid` is
+ *   `gdb_current.pid`, `gdb_process_current_tid()` shall return
+ *   `gdb_current.tid`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_02}: If `pid` is not
+ *   `gdb_current.pid` and is `GDB_PID_KERNEL`, `gdb_process_current_tid()`
+ *   shall return 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_03}: If `pid` is neither
+ *   `gdb_current.pid` nor `GDB_PID_KERNEL`, `gdb_process_partition()` returns a
+ *   partition for `pid`, and the function `get_current_thread_index` of its
+ *   `part_sched_ops` returns a value that is not less than 0,
+ *   `gdb_process_current_tid()` shall return that value plus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_04}: If `pid` is neither
+ *   `gdb_current.pid` nor `GDB_PID_KERNEL`, and `gdb_process_partition()`
+ *   returns NULL for `pid` or the function `get_current_thread_index` returns a
+ *   value less than 0, `gdb_process_current_tid()` shall return 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01}
  *
  * @design
- * 1. Set `tid` to `1U`.
+ * 1. Set `tid` to `1U`. \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_02},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_04}
  * 2. If `pid` is equal to `gdb_current.pid`:
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01}
  *    1. Set `tid` to `gdb_current.tid`.
  * 3. Otherwise, if `pid` is not equal to `GDB_PID_KERNEL`:
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_02},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_03},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_04}
  *    1. Call `gdb_process_partition()` with the argument `pid`, and store the
  *       result in `part`.
  *    2. If `part` is not NULL:
@@ -897,9 +1184,11 @@ static pok_bool_t gdb_thread_equal(const gdb_thread_t* t1,
  *          with the argument `part`, and store the result in `index`.
  *       2. If `index` is greater than or equal to `0`:
  *          1. Set `tid` to `(uint32_t)index + 1U`.
- * 4. Otherwise:
- *    1. Do nothing.
- * 5. Return `tid`.
+ *             \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_03}
+ * 4. Return `tid`. \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_02},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_03},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_CURRENT_TID_04}
  *
  * @calls
  * - `gdb_process_partition()`
@@ -964,33 +1253,95 @@ static uint32_t gdb_process_current_tid(uint32_t pid)
  * | `tid` | `uint32_t` | The thread ID |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}: `gdb_thread_get_current()`
+ *   shall give the debugger thread that runs in a stopped context: the GDB
+ *   partition for the boot, the idle partition and the code of the kernel run
+ *   by a user partition, and the partition's current thread otherwise.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}: If `current_partition` is
+ *   NULL, or `gdb_partition_is_kernel()` returns true for it and
+ *   `gdb_partition_index()` returns `GDB_NO_INDEX` for it,
+ *   `gdb_thread_get_current()` shall take `partition_gdb` as the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_02}: If `current_partition` is
+ *   not NULL, `gdb_partition_is_kernel()` returns false for it and
+ *   `ja_gdb_context_is_user()` returns false for `ctx`,
+ *   `gdb_thread_get_current()` shall take `partition_gdb` as the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_03}: If `current_partition` is
+ *   not NULL, and `gdb_partition_is_kernel()` returns true for it while
+ *   `gdb_partition_index()` gives an index other than `GDB_NO_INDEX`, or
+ *   `gdb_partition_is_kernel()` returns false for it while
+ *   `ja_gdb_context_is_user()` returns true for `ctx`,
+ *   `gdb_thread_get_current()` shall take `current_partition` as the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_04}: If the result of
+ *   `gdb_partition_pid()` for the partition is `GDB_PID_KERNEL`,
+ *   `gdb_thread_get_current()` shall take as the thread ID the result of
+ *   `gdb_partition_index()` for the partition plus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_05}: If the result of
+ *   `gdb_partition_pid()` for the partition is not `GDB_PID_KERNEL`,
+ *   `gdb_thread_get_current()` shall take as the thread ID the result of the
+ *   function `get_current_thread_index` of `part_sched_ops` of the partition
+ *   plus 1 if that result is not less than 0, and 1 if it is less than 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_06}: If `gdb_thread_find()`
+ *   returns false for `t`, that process ID and that thread ID,
+ *   `gdb_thread_get_current()` shall set, at `t`, `pid` and `tid` to them,
+ *   `part` to the partition and `part_private` to NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_07}: If `gdb_thread_find()`
+ *   returns true for `t`, that process ID and that thread ID,
+ *   `gdb_thread_get_current()` shall leave the thread that it stored at `t` as
+ *   it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
  *
  * @design
  * 1. Set `part` to `current_partition`.
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_03}
  * 2. If `part` is NULL or (`gdb_partition_is_kernel(part) &&
  *    (gdb_partition_index(part) == GDB_NO_INDEX)` holds):
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_01}
  *    1. Set `part` to the address of `partition_gdb`.
  * 3. Otherwise, if `gdb_partition_is_kernel(part)` is false and
  *    `ja_gdb_context_is_user(ctx)` is false:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_03}
  *    1. Set `part` to the address of `partition_gdb`.
- * 4. Otherwise:
- *    1. Do nothing.
- * 5. Call `gdb_partition_pid()` with the argument `part`, and store the result
- *    in `pid`.
- * 6. If `pid` is equal to `GDB_PID_KERNEL`:
+ *       \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_02}
+ * 4. Call `gdb_partition_pid()` with the argument `part`, and store the result
+ *    in `pid`. \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_04},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_05}
+ * 5. If `pid` is equal to `GDB_PID_KERNEL`:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_04}
  *    1. Set `tid` to `gdb_partition_index(part) + 1U`.
- * 7. Otherwise:
+ * 6. Otherwise: \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_05}
  *    1. Call the function `part->part_sched_ops->get_current_thread_index` with
  *       the argument `part`, and store the result in `index`.
  *    2. Set `tid` to `((uint32_t)index + 1U)` if `index` is greater than or
  *       equal to `0`, otherwise `1U`.
- * 8. If `gdb_thread_find(t, pid, tid)` is false:
- *    1. Set `t->pid` to `pid`.
- *    2. Set `t->tid` to `tid`.
+ * 7. If `gdb_thread_find(t, pid, tid)` is false:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_06},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_07}
+ *    1. Set `t->pid` to `pid`. \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_06}
+ *    2. Set `t->tid` to `tid`. \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_06}
  *    3. Set `t->part` to `part`.
+ *       \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_06}
  *    4. Set `t->part_private` to `NULL`.
+ *       \llrref{LLR_GDBSERVER_GDB_THREAD_GET_CURRENT_06}
  *
  * @calls
  * - `gdb_partition_is_kernel()`
@@ -1083,28 +1434,79 @@ static void gdb_thread_get_current(gdb_thread_t* t,
  * | `tid` | `uint32_t` | The thread ID |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}: `gdb_thread_resolve()` shall
+ *   find the thread that a thread reference of a packet names, -1 or 0 meaning
+ *   the current process or thread, and tell whether it exists.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_RESOLVE_01}: If `pid` of `ref` is greater
+ *   than `GDB_PID_MAX`, `gdb_thread_resolve()` shall return `FALSE` without
+ *   calling `gdb_thread_find()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_RESOLVE_02}: If `pid` of `ref` is greater
+ *   than 0 and is not greater than `GDB_PID_MAX`, `gdb_thread_resolve()` shall
+ *   take it as the process.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_RESOLVE_03}: If `pid` of `ref` is not
+ *   greater than 0, `gdb_thread_resolve()` shall take `gdb_current.pid` as the
+ *   process.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_RESOLVE_04}: If `tid` of `ref` is not
+ *   greater than 0, `gdb_thread_resolve()` shall take as the thread the result
+ *   of `gdb_process_current_tid()` for the process.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_RESOLVE_05}: If `tid` of `ref` is greater
+ *   than 0 and is not greater than `GDB_NO_INDEX`, `gdb_thread_resolve()` shall
+ *   take it as the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_RESOLVE_06}: If `tid` of `ref` is greater
+ *   than `GDB_NO_INDEX`, `gdb_thread_resolve()` shall take 0 as the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_RESOLVE_07}: If `pid` of `ref` is not
+ *   greater than `GDB_PID_MAX`, `gdb_thread_resolve()` shall return the result
+ *   of `gdb_thread_find()` for `t`, the process and the thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
  *
  * @design
- * 1. Set `found` to `FALSE`.
+ * 1. Set `found` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
  * 2. Set `pid` to `gdb_current.pid`.
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_03}
  * 3. If `ref->pid` is greater than `(int64_t)GDB_PID_MAX`:
- *    1. Do nothing.
- * 4. Otherwise:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_01}
+ * 4. Otherwise: \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_02},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_03},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_04},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_05},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_06},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_07}
  *    1. If `ref->pid` is greater than `0`:
+ *       \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_02},
+ *       \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_03}
  *       1. Set `pid` to `(uint32_t)ref->pid`.
+ *          \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_02}
  *    2. If `ref->tid` is less than or equal to `0`:
+ *       \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_04}
  *       1. Call `gdb_process_current_tid()` with the argument `pid`, and store
  *          the result in `tid`.
  *    3. Otherwise, if `ref->tid` is less than or equal to
- *       `(int64_t)GDB_NO_INDEX`:
+ *       `(int64_t)GDB_NO_INDEX`: \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_05}
  *       1. Set `tid` to `(uint32_t)ref->tid`.
- *    4. Otherwise:
+ *    4. Otherwise: \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_06}
  *       1. Set `tid` to `0U`.
  *    5. Call `gdb_thread_find()` with the arguments `t`, `pid` and `tid`, and
  *       store the result in `found`.
- * 5. Return `found`.
+ *       \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_07}
+ * 5. Return `found`. \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_RESOLVE_07}
  *
  * @calls
  * - `gdb_process_current_tid()`
@@ -1170,33 +1572,108 @@ static pok_bool_t gdb_thread_resolve(gdb_thread_t* t,
  * | `part` | `pok_partition_t *` | The thread's partition |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_THREAD_REGS_01}: `gdb_thread_regs()` shall give
+ *   the registers of a debugger thread: the stopped context for the stopped
+ *   thread, and the contexts saved for the partitions and their threads
+ *   otherwise.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_REGS_01}: If `gdb_thread_equal()` returns
+ *   true for `t` and `gdb_current`, `gdb_thread_regs()` shall return
+ *   `gdb_stop_ctx`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_REGS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_REGS_02}: If `gdb_thread_equal()` returns
+ *   false and `pid` of `t` is `GDB_PID_KERNEL`, `gdb_thread_regs()` shall
+ *   return `entry_sp` of the partition of `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_REGS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_REGS_03}: If neither holds, the partition
+ *   of `t` is `current_partition`, the result of `gdb_process_current_tid()`
+ *   for `pid` of `t` is `tid` of `t`, and `entry_sp_user` of the partition is
+ *   not NULL, `gdb_thread_regs()` shall return `entry_sp_user` of the
+ *   partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_REGS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_REGS_04}: If neither holds, the partition
+ *   of `t` is `current_partition`, the result of `gdb_process_current_tid()`
+ *   for `pid` of `t` is `tid` of `t`, and `entry_sp_user` of the partition is
+ *   NULL, `gdb_thread_regs()` shall return the result of the function
+ *   `get_thread_registers` of `part_sched_ops` of the partition for the
+ *   partition, the result of `gdb_thread_index()` for `t` and `part_private` of
+ *   `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_REGS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_REGS_05}: If neither holds, the partition
+ *   of `t` is not `current_partition`, the result of
+ *   `gdb_process_current_tid()` for `pid` of `t` is `tid` of `t`, `entry_sp` of
+ *   the partition is not NULL, `ja_gdb_context_is_user()` returns false for it
+ *   and `entry_sp_user` of the partition is not NULL, `gdb_thread_regs()` shall
+ *   return `entry_sp_user` of the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_REGS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_REGS_06}: If neither holds, the partition
+ *   of `t` is not `current_partition`, the result of
+ *   `gdb_process_current_tid()` for `pid` of `t` is `tid` of `t`, and
+ *   `entry_sp` of the partition is NULL, or `ja_gdb_context_is_user()` returns
+ *   true for it, or `entry_sp_user` of the partition is NULL,
+ *   `gdb_thread_regs()` shall return `entry_sp` of the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_REGS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_REGS_07}: If neither holds and the result
+ *   of `gdb_process_current_tid()` for `pid` of `t` is not `tid` of `t`,
+ *   `gdb_thread_regs()` shall return the result of the function
+ *   `get_thread_registers` of `part_sched_ops` of the partition for the
+ *   partition, the result of `gdb_thread_index()` for `t` and `part_private` of
+ *   `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_REGS_01}
  *
  * @design
- * 1. Set `part` to `t->part`.
+ * 1. Set `part` to `t->part`. \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_02},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_03},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_04},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_05},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_06},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_07}
  * 2. If `gdb_thread_equal(t, &gdb_current)` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_01}
  *    1. Set `ctx` to `gdb_stop_ctx`.
  * 3. Otherwise, if `t->pid` is equal to `GDB_PID_KERNEL`:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_02}
  *    1. Set `ctx` to `part->entry_sp`.
  * 4. Otherwise, if `part` is equal to `current_partition` and
  *    `gdb_process_current_tid(t->pid)` is equal to `t->tid`:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_03},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_04}
  *    1. Set `ctx` to `part->entry_sp_user`.
  *    2. If `ctx` is NULL:
  *       1. Call the function `part->part_sched_ops->get_thread_registers` with
  *          the arguments `part`, `gdb_thread_index(t)` and `t->part_private`,
  *          and store the result in `ctx`.
+ *          \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_04}
  * 5. Otherwise, if `part` is not equal to `current_partition` and
  *    `gdb_process_current_tid(t->pid)` is equal to `t->tid`:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_05},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_06}
  *    1. Set `ctx` to `part->entry_sp`.
  *    2. If `ctx` is not NULL and `ja_gdb_context_is_user(ctx)` is false and
  *       `part->entry_sp_user` is not NULL:
  *       1. Set `ctx` to `part->entry_sp_user`.
- * 6. Otherwise:
+ *          \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_05}
+ * 6. Otherwise: \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_07}
  *    1. Call the function `part->part_sched_ops->get_thread_registers` with the
  *       arguments `part`, `gdb_thread_index(t)` and `t->part_private`, and
  *       store the result in `ctx`.
- * 7. Return `ctx`.
+ * 7. Return `ctx`. \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_02},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_03},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_04},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_05},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_06},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_REGS_07}
  *
  * @calls
  * - `gdb_thread_equal()`
@@ -1282,18 +1759,39 @@ static interrupt_frame* gdb_thread_regs(
  * | `ops` | `const pok_part_sched_ops_t *` | The partition's scheduler operations |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_THREAD_FP_01}: `gdb_thread_fp()` shall give the
+ *   floating point store of a user thread, if its partition keeps one.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_FP_01}: If `pid` of `t` is not
+ *   `GDB_PID_KERNEL` and `get_thread_fp_store` of `part_sched_ops` of the
+ *   partition of `t` is not NULL, `gdb_thread_fp()` shall return the result of
+ *   that function for the partition, the result of `gdb_thread_index()` for `t`
+ *   and `part_private` of `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_FP_01}
+ * - \llrid{LLR_GDBSERVER_GDB_THREAD_FP_02}: If `pid` of `t` is `GDB_PID_KERNEL`
+ *   or `get_thread_fp_store` of `part_sched_ops` of the partition of `t` is
+ *   NULL, `gdb_thread_fp()` shall return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_THREAD_FP_01}
  *
  * @design
- * 1. Set `fp` to `NULL`.
+ * 1. Set `fp` to `NULL`. \llrref{LLR_GDBSERVER_GDB_THREAD_FP_02}
  * 2. Set `ops` to `t->part->part_sched_ops`.
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FP_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FP_02}
  * 3. If `t->pid` is not equal to `GDB_PID_KERNEL` and
  *    `ops->get_thread_fp_store` is not NULL:
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FP_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FP_02}
  *    1. Call the function `ops->get_thread_fp_store` with the arguments
  *       `t->part`, `gdb_thread_index(t)` and `t->part_private`, and store the
- *       result in `fp`.
- * 4. Return `fp`.
+ *       result in `fp`. \llrref{LLR_GDBSERVER_GDB_THREAD_FP_01}
+ * 4. Return `fp`. \llrref{LLR_GDBSERVER_GDB_THREAD_FP_01},
+ *    \llrref{LLR_GDBSERVER_GDB_THREAD_FP_02}
  *
  * @calls
  * - `ops->get_thread_fp_store()` (indirect)
@@ -1340,11 +1838,27 @@ static jet_fp_store_t* gdb_thread_fp(const gdb_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_IS_ATTACHED_01}: `gdb_is_attached()` shall tell
+ *   whether the debugger is attached to a process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_IS_ATTACHED_01}: If `pid` is not greater than
+ *   `GDB_PID_MAX` and `gdb_attached[pid]` is true, `gdb_is_attached()` shall
+ *   return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_IS_ATTACHED_01}
+ * - \llrid{LLR_GDBSERVER_GDB_IS_ATTACHED_02}: If `pid` is greater than
+ *   `GDB_PID_MAX`, or `gdb_attached[pid]` is false, `gdb_is_attached()` shall
+ *   return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_IS_ATTACHED_01}
  *
  * @design
  * 1. Return `(pid <= GDB_PID_MAX) && gdb_attached[pid]`.
+ *    \llrref{LLR_GDBSERVER_GDB_IS_ATTACHED_01},
+ *    \llrref{LLR_GDBSERVER_GDB_IS_ATTACHED_02}
  *
  * @calls
  * None.
@@ -1374,11 +1888,20 @@ static pok_bool_t gdb_is_attached(uint32_t pid)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_ATTACH_01}: `gdb_attach()` shall attach the
+ *   debugger to a process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_ATTACH_01}: If and only if `pid` is not greater
+ *   than `GDB_PID_MAX`, `gdb_attach()` shall set `gdb_attached[pid]` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_ATTACH_01}
  *
  * @design
  * 1. If `pid` is less than or equal to `GDB_PID_MAX`:
+ *    \llrref{LLR_GDBSERVER_GDB_ATTACH_01}
  *    1. Set `gdb_attached[pid]` to `TRUE`.
  *
  * @calls
@@ -1408,12 +1931,22 @@ static void gdb_attach(uint32_t pid)
  * | `pid` | `uint32_t` | The process ID |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_DETACH_ALL_01}: `gdb_detach_all()` shall detach
+ *   the debugger from every process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
+ *   - \srqref{SRQ_JET_DBG_015}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_DETACH_ALL_01}: `gdb_detach_all()` shall set each
+ *   of the elements 0 to `GDB_PID_MAX` of `gdb_attached` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_DETACH_ALL_01}
  *
  * @design
  * 1. Set `pid` to `0U`; then while `pid` is less than or equal to
  *    `GDB_PID_MAX`, repeat (after each pass: increment `pid`):
+ *    \llrref{LLR_GDBSERVER_GDB_DETACH_ALL_01}
  *    1. Set `gdb_attached[pid]` to `FALSE`.
  *
  * @calls
@@ -1447,16 +1980,35 @@ static void gdb_detach_all(void)
  * | `pid` | `uint32_t` | The process ID |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_ATTACHED_NONE_01}: `gdb_attached_none()` shall
+ *   tell whether the debugger is attached to no process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
+ *   - \srqref{SRQ_JET_DBG_015}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_ATTACHED_NONE_01}: If one of the elements 0 to
+ *   `GDB_PID_MAX` of `gdb_attached` is true, `gdb_attached_none()` shall return
+ *   `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_ATTACHED_NONE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_ATTACHED_NONE_02}: If all the elements 0 to
+ *   `GDB_PID_MAX` of `gdb_attached` are false, `gdb_attached_none()` shall
+ *   return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_ATTACHED_NONE_01}
  *
  * @design
- * 1. Set `none` to `TRUE`.
+ * 1. Set `none` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_ATTACHED_NONE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_ATTACHED_NONE_02}
  * 2. Set `pid` to `0U`; then while `pid` is less than or equal to
  *    `GDB_PID_MAX`, repeat (after each pass: increment `pid`):
+ *    \llrref{LLR_GDBSERVER_GDB_ATTACHED_NONE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_ATTACHED_NONE_02}
  *    1. If `gdb_attached[pid]` is true:
  *       1. Set `none` to `FALSE`.
- * 3. Return `none`.
+ * 3. Return `none`. \llrref{LLR_GDBSERVER_GDB_ATTACHED_NONE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_ATTACHED_NONE_02}
  *
  * @calls
  * None.
@@ -1499,21 +2051,60 @@ static pok_bool_t gdb_attached_none(void)
  * | `next` | `uint32_t` | The next process ID |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PROCESS_NEXT_01}: `gdb_process_next()` shall give
+ *   the next debugger process in the order of the thread list: the user
+ *   partitions, then process 1, then the end.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_NEXT_01}: If `pid` is 0 and the result of
+ *   `gdb_process_last()` is 2 or more, `gdb_process_next()` shall return 2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_NEXT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_NEXT_02}: If `pid` is 0 and the result of
+ *   `gdb_process_last()` is less than 2, `gdb_process_next()` shall return
+ *   `GDB_PID_KERNEL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_NEXT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_NEXT_03}: If `pid` is `GDB_PID_KERNEL`,
+ *   `gdb_process_next()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_NEXT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_NEXT_04}: If `pid` is neither 0 nor
+ *   `GDB_PID_KERNEL` and is less than the result of `gdb_process_last()`,
+ *   `gdb_process_next()` shall return `pid` plus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_NEXT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PROCESS_NEXT_05}: If `pid` is neither 0 nor
+ *   `GDB_PID_KERNEL` and is not less than the result of `gdb_process_last()`,
+ *   `gdb_process_next()` shall return `GDB_PID_KERNEL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PROCESS_NEXT_01}
  *
  * @design
  * 1. Call `gdb_process_last()`, and store the result in `last`.
- * 2. If `pid` is equal to `0U`:
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_04},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_05}
+ * 2. If `pid` is equal to `0U`: \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_02}
  *    1. Set `next` to `2U` if `last` is greater than or equal to `2U`,
  *       otherwise `GDB_PID_KERNEL`.
  * 3. Otherwise, if `pid` is equal to `GDB_PID_KERNEL`:
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_03}
  *    1. Set `next` to `0U`.
  * 4. Otherwise, if `pid` is less than `last`:
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_04}
  *    1. Set `next` to `pid + 1U`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_05}
  *    1. Set `next` to `GDB_PID_KERNEL`.
- * 6. Return `next`.
+ * 6. Return `next`. \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_01},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_03},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_04},
+ *    \llrref{LLR_GDBSERVER_GDB_PROCESS_NEXT_05}
  *
  * @calls
  * - `gdb_process_last()`
@@ -1554,18 +2145,41 @@ static uint32_t gdb_process_next(uint32_t pid)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_LIST_NEXT_01}: `gdb_list_next()` shall move the
+ *   list of threads to the next thread of an attached process, and tell whether
+ *   there is one.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
+ *   - \srqref{SRQ_JET_DBG_007}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_LIST_NEXT_01}: `gdb_list_next()` shall increment
+ *   `gdb_list_tid` and then, while `gdb_list_pid` is not 0 and either
+ *   `gdb_is_attached()` returns false for it or `gdb_list_tid` is greater than
+ *   the result of `gdb_process_threads()` for it, set `gdb_list_pid` to the
+ *   result of `gdb_process_next()` for it and `gdb_list_tid` to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_LIST_NEXT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_LIST_NEXT_02}: If `gdb_list_pid` is then not 0,
+ *   `gdb_list_next()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_LIST_NEXT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_LIST_NEXT_03}: If `gdb_list_pid` is then 0,
+ *   `gdb_list_next()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_LIST_NEXT_01}
  *
  * @design
- * 1. Increment `gdb_list_tid`.
+ * 1. Increment `gdb_list_tid`. \llrref{LLR_GDBSERVER_GDB_LIST_NEXT_01}
  * 2. While `gdb_list_pid` is not equal to `0U` and
  *    (`gdb_is_attached(gdb_list_pid)` is false or `gdb_list_tid` is greater
  *    than `gdb_process_threads(gdb_list_pid)`):
+ *    \llrref{LLR_GDBSERVER_GDB_LIST_NEXT_01}
  *    1. Call `gdb_process_next()` with the argument `gdb_list_pid`, and store
  *       the result in `gdb_list_pid`.
  *    2. Set `gdb_list_tid` to `1U`.
- * 3. Return `gdb_list_pid != 0U`.
+ * 3. Return `gdb_list_pid != 0U`. \llrref{LLR_GDBSERVER_GDB_LIST_NEXT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_LIST_NEXT_03}
  *
  * @calls
  * - `gdb_is_attached()`
@@ -1616,18 +2230,39 @@ static pok_bool_t gdb_list_next(void)
  * | `i` | `uint32_t` | The index of a breakpoint |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_FIND_01}: `gdb_sw_find()` shall find the
+ *   software breakpoint at an address of a memory space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_FIND_01}: If one of the `GDB_SW_BREAKPOINTS`
+ *   elements of `gdb_sw_breakpoints` has `used` true, `space_id` equal to
+ *   `space_id` and `addr` equal to `addr`, `gdb_sw_find()` shall return the
+ *   address of the last such element.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_FIND_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SW_FIND_02}: If every element of
+ *   `gdb_sw_breakpoints` has `used` false, or a `space_id` other than
+ *   `space_id`, or an `addr` other than `addr`, `gdb_sw_find()` shall return
+ *   NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_FIND_01}
  *
  * @design
- * 1. Set `bp` to `NULL`.
+ * 1. Set `bp` to `NULL`. \llrref{LLR_GDBSERVER_GDB_SW_FIND_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_FIND_02}
  * 2. Set `i` to `0U`; then while `i` is less than `GDB_SW_BREAKPOINTS`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDBSERVER_GDB_SW_FIND_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_FIND_02}
  *    1. If `gdb_sw_breakpoints[i].used` is true and
  *       `gdb_sw_breakpoints[i].space_id` is equal to `space_id` and
  *       `gdb_sw_breakpoints[i].addr` is equal to `addr`:
+ *       \llrref{LLR_GDBSERVER_GDB_SW_FIND_01}
  *       1. Set `bp` to the address of `gdb_sw_breakpoints[i]`.
- * 3. Return `bp`.
+ * 3. Return `bp`. \llrref{LLR_GDBSERVER_GDB_SW_FIND_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_FIND_02}
  *
  * @calls
  * None.
@@ -1676,23 +2311,45 @@ static gdb_sw_breakpoint_t* gdb_sw_find(jet_space_id space_id,
  * | `written` | `pok_bool_t` | Whether it was written |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_WRITE_01}: `gdb_sw_write()` shall write a
+ *   software breakpoint into the code of a memory space, keeping the code under
+ *   it, and tell whether it could.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_WRITE_01}: If `ja_addr_to_gdb()` returns an
+ *   address for `addr` of `bp`, `JA_GDB_BREAKPOINT_SIZE` and `space_id` of
+ *   `bp`, `gdb_sw_write()` shall copy the `JA_GDB_BREAKPOINT_SIZE` bytes there
+ *   to `saved` of `bp`, replace them with the bytes of
+ *   `ja_gdb_breakpoint_insn`, call `ja_gdb_sync_icache()` with the address and
+ *   `JA_GDB_BREAKPOINT_SIZE`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_WRITE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SW_WRITE_02}: If `ja_addr_to_gdb()` returns NULL
+ *   for `addr` of `bp`, `JA_GDB_BREAKPOINT_SIZE` and `space_id` of `bp`,
+ *   `gdb_sw_write()` shall return `FALSE` and leave `bp` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_WRITE_01}
  *
  * @design
  * 1. Call `ja_addr_to_gdb()` with the arguments `bp->addr`,
  *    `JA_GDB_BREAKPOINT_SIZE` and `bp->space_id`, and store the result in
- *    `code`.
- * 2. Set `written` to `FALSE`.
- * 3. If `code` is not NULL:
+ *    `code`. \llrref{LLR_GDBSERVER_GDB_SW_WRITE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_WRITE_02}
+ * 2. Set `written` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_SW_WRITE_02}
+ * 3. If `code` is not NULL: \llrref{LLR_GDBSERVER_GDB_SW_WRITE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_WRITE_02}
  *    1. Set `i` to `0U`; then while `i` is less than `JA_GDB_BREAKPOINT_SIZE`,
  *       repeat (after each pass: increment `i`):
+ *       \llrref{LLR_GDBSERVER_GDB_SW_WRITE_01}
  *       1. Set `bp->saved[i]` to `code[i]`.
  *       2. Set `code[i]` to `ja_gdb_breakpoint_insn[i]`.
  *    2. Call `ja_gdb_sync_icache()` with the arguments `code` and
- *       `JA_GDB_BREAKPOINT_SIZE`.
- *    3. Set `written` to `TRUE`.
- * 4. Return `written`.
+ *       `JA_GDB_BREAKPOINT_SIZE`. \llrref{LLR_GDBSERVER_GDB_SW_WRITE_01}
+ *    3. Set `written` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_SW_WRITE_01}
+ * 4. Return `written`. \llrref{LLR_GDBSERVER_GDB_SW_WRITE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_WRITE_02}
  *
  * @calls
  * - `ja_addr_to_gdb()`
@@ -1739,14 +2396,25 @@ static pok_bool_t gdb_sw_write(gdb_sw_breakpoint_t* bp)
  * | `i` | `uint32_t` | The index of a byte |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_RESTORE_01}: `gdb_sw_restore()` shall put back
+ *   the code under a software breakpoint.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_RESTORE_01}: If and only if `ja_addr_to_gdb()`
+ *   returns an address for `addr` of `bp`, `JA_GDB_BREAKPOINT_SIZE` and
+ *   `space_id` of `bp`, `gdb_sw_restore()` shall copy the
+ *   `JA_GDB_BREAKPOINT_SIZE` bytes of `saved` of `bp` there and call
+ *   `ja_gdb_sync_icache()` with the address and `JA_GDB_BREAKPOINT_SIZE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_RESTORE_01}
  *
  * @design
  * 1. Call `ja_addr_to_gdb()` with the arguments `bp->addr`,
  *    `JA_GDB_BREAKPOINT_SIZE` and `bp->space_id`, and store the result in
- *    `code`.
- * 2. If `code` is not NULL:
+ *    `code`. \llrref{LLR_GDBSERVER_GDB_SW_RESTORE_01}
+ * 2. If `code` is not NULL: \llrref{LLR_GDBSERVER_GDB_SW_RESTORE_01}
  *    1. Set `i` to `0U`; then while `i` is less than `JA_GDB_BREAKPOINT_SIZE`,
  *       repeat (after each pass: increment `i`):
  *       1. Set `code[i]` to `bp->saved[i]`.
@@ -1801,28 +2469,76 @@ static void gdb_sw_restore(const gdb_sw_breakpoint_t* bp)
  * | `inserted` | `pok_bool_t` | Whether it is in place |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_INSERT_01}: `gdb_sw_insert()` shall insert a
+ *   software breakpoint of the size of the architecture at an aligned address
+ *   of a memory space, keep one that is already there, and tell whether it is
+ *   in place.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_INSERT_01}: If `kind` is not
+ *   `JA_GDB_BREAKPOINT_SIZE`, `gdb_sw_insert()` shall return `FALSE` and leave
+ *   `gdb_sw_breakpoints` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_INSERT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SW_INSERT_02}: If `kind` is
+ *   `JA_GDB_BREAKPOINT_SIZE` and `addr` is not a multiple of
+ *   `JA_GDB_BREAKPOINT_SIZE`, `gdb_sw_insert()` shall return `FALSE` and leave
+ *   `gdb_sw_breakpoints` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_INSERT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SW_INSERT_03}: If `kind` is
+ *   `JA_GDB_BREAKPOINT_SIZE`, `addr` is a multiple of it and `gdb_sw_find()`
+ *   returns an element for `space_id` and `addr`, `gdb_sw_insert()` shall
+ *   return `TRUE` and leave `gdb_sw_breakpoints` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_INSERT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SW_INSERT_04}: If `kind` is
+ *   `JA_GDB_BREAKPOINT_SIZE`, `addr` is a multiple of it and `gdb_sw_find()`
+ *   returns NULL for `space_id` and `addr`, `gdb_sw_insert()` shall, for the
+ *   elements of `gdb_sw_breakpoints` whose `used` is false, in their order, set
+ *   `space_id` and `addr` of the element to the arguments, call
+ *   `gdb_sw_write()` with it and set its `used` to the result, until a result
+ *   is true, and return the last result.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_INSERT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SW_INSERT_05}: If `kind` is
+ *   `JA_GDB_BREAKPOINT_SIZE`, `addr` is a multiple of it, `gdb_sw_find()`
+ *   returns NULL and `used` of every element of `gdb_sw_breakpoints` is true,
+ *   `gdb_sw_insert()` shall return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_INSERT_01}
  *
  * @design
- * 1. Set `inserted` to `FALSE`.
+ * 1. Set `inserted` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_SW_INSERT_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_05}
  * 2. If `kind` is not equal to `JA_GDB_BREAKPOINT_SIZE`:
- *    1. Do nothing.
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_01}
  * 3. Otherwise, if `(addr % JA_GDB_BREAKPOINT_SIZE)` is not equal to `0U`:
- *    1. Do nothing.
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_02}
  * 4. Otherwise, if `gdb_sw_find(space_id, addr)` is not NULL:
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_03}
  *    1. Set `inserted` to `TRUE`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_GDBSERVER_GDB_SW_INSERT_04},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_05}
  *    1. Set `i` to `0U`; then while `i` is less than `GDB_SW_BREAKPOINTS` and
  *       `inserted` is false, repeat (after each pass: increment `i`):
  *       1. Set `bp` to the address of `gdb_sw_breakpoints[i]`.
  *       2. If `bp->used` is false:
  *          1. Set `bp->space_id` to `space_id`.
- *          2. Set `bp->addr` to `addr`.
+ *             \llrref{LLR_GDBSERVER_GDB_SW_INSERT_04}
+ *          2. Set `bp->addr` to `addr`. \llrref{LLR_GDBSERVER_GDB_SW_INSERT_04}
  *          3. Call `gdb_sw_write()` with the argument `bp`, and store the
- *             result in `inserted`.
+ *             result in `inserted`. \llrref{LLR_GDBSERVER_GDB_SW_INSERT_04}
  *          4. Set `bp->used` to `inserted`.
- * 6. Return `inserted`.
+ *             \llrref{LLR_GDBSERVER_GDB_SW_INSERT_04}
+ * 6. Return `inserted`. \llrref{LLR_GDBSERVER_GDB_SW_INSERT_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_03},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_04},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_INSERT_05}
  *
  * @calls
  * - `gdb_sw_find()`
@@ -1888,18 +2604,38 @@ static pok_bool_t gdb_sw_insert(jet_space_id space_id, uintptr_t addr,
  * | `removed` | `pok_bool_t` | Whether it was removed |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_REMOVE_01}: `gdb_sw_remove()` shall remove the
+ *   software breakpoint at an address of a memory space, putting back the code,
+ *   and tell whether there was one.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_REMOVE_01}: If `gdb_sw_find()` returns an
+ *   element for `space_id` and `addr`, `gdb_sw_remove()` shall call
+ *   `gdb_sw_restore()` once with it, set its `used` to `FALSE`, and return
+ *   `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_REMOVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_SW_REMOVE_02}: If `gdb_sw_find()` returns NULL for
+ *   `space_id` and `addr`, `gdb_sw_remove()` shall return `FALSE` without
+ *   calling `gdb_sw_restore()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_REMOVE_01}
  *
  * @design
  * 1. Call `gdb_sw_find()` with the arguments `space_id` and `addr`, and store
- *    the result in `bp`.
- * 2. Set `removed` to `FALSE`.
- * 3. If `bp` is not NULL:
+ *    the result in `bp`. \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_02}
+ * 2. Set `removed` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_02}
+ * 3. If `bp` is not NULL: \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_02}
  *    1. Call `gdb_sw_restore()` with the argument `bp`.
- *    2. Set `bp->used` to `FALSE`.
- *    3. Set `removed` to `TRUE`.
- * 4. Return `removed`.
+ *       \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_01}
+ *    2. Set `bp->used` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_01}
+ *    3. Set `removed` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_01}
+ * 4. Return `removed`. \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_02}
  *
  * @calls
  * - `gdb_sw_find()`
@@ -1937,12 +2673,23 @@ static pok_bool_t gdb_sw_remove(jet_space_id space_id, uintptr_t addr)
  * | `i` | `uint32_t` | The index of a breakpoint |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_REMOVE_ALL_01}: `gdb_sw_remove_all()` shall
+ *   remove every software breakpoint at the end of the session.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_015}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_REMOVE_ALL_01}: For each of the
+ *   `GDB_SW_BREAKPOINTS` elements of `gdb_sw_breakpoints`, if and only if its
+ *   `used` is true, `gdb_sw_remove_all()` shall call `gdb_sw_restore()` with it
+ *   and set its `used` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_REMOVE_ALL_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `GDB_SW_BREAKPOINTS`, repeat
  *    (after each pass: increment `i`):
+ *    \llrref{LLR_GDBSERVER_GDB_SW_REMOVE_ALL_01}
  *    1. If `gdb_sw_breakpoints[i].used` is true:
  *       1. Call `gdb_sw_restore()` with the address of `gdb_sw_breakpoints[i]`.
  *       2. Set `gdb_sw_breakpoints[i].used` to `FALSE`.
@@ -1984,11 +2731,28 @@ static void gdb_sw_remove_all(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_JET_GDB_IS_BREAKPOINT_01}: `jet_gdb_is_breakpoint()`
+ *   shall tell the trap handler of the architecture whether a software
+ *   breakpoint of the debugger is at an address of a memory space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_JET_GDB_IS_BREAKPOINT_01}: If `gdb_sw_find()` returns
+ *   an element for `space_id` and `addr`, `jet_gdb_is_breakpoint()` shall
+ *   return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_IS_BREAKPOINT_01}
+ * - \llrid{LLR_GDBSERVER_JET_GDB_IS_BREAKPOINT_02}: If `gdb_sw_find()` returns
+ *   NULL for `space_id` and `addr`, `jet_gdb_is_breakpoint()` shall return
+ *   false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_IS_BREAKPOINT_01}
  *
  * @design
  * 1. Return `gdb_sw_find(space_id, addr) != NULL`.
+ *    \llrref{LLR_GDBSERVER_JET_GDB_IS_BREAKPOINT_01},
+ *    \llrref{LLR_GDBSERVER_JET_GDB_IS_BREAKPOINT_02}
  *
  * @calls
  * - `gdb_sw_find()`
@@ -2022,12 +2786,24 @@ pok_bool_t jet_gdb_is_breakpoint(jet_space_id space_id, uintptr_t addr)
  * | `i` | `uint32_t` | The index of a breakpoint |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_JET_GDB_SPACE_LOADED_01}: `jet_gdb_space_loaded()`
+ *   shall write the software breakpoints of a memory space again after its
+ *   image was loaded, so that they stay across a restart of the partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_JET_GDB_SPACE_LOADED_01}: For each of the
+ *   `GDB_SW_BREAKPOINTS` elements of `gdb_sw_breakpoints`, if and only if its
+ *   `used` is true and its `space_id` is `space_id`, `jet_gdb_space_loaded()`
+ *   shall call `gdb_sw_write()` with it and set its `used` to the result.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_SPACE_LOADED_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `GDB_SW_BREAKPOINTS`, repeat
  *    (after each pass: increment `i`):
+ *    \llrref{LLR_GDBSERVER_JET_GDB_SPACE_LOADED_01}
  *    1. Set `bp` to the address of `gdb_sw_breakpoints[i]`.
  *    2. If `bp->used` is true and `bp->space_id` is equal to `space_id`:
  *       1. Call `gdb_sw_write()` with the argument `bp`, and store the result
@@ -2078,12 +2854,26 @@ void jet_gdb_space_loaded(jet_space_id space_id)
  * | `j` | `uint32_t` | The index of a byte of the breakpoint |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_HIDE_01}: `gdb_sw_hide()` shall show the
+ *   debugger, in the memory that it reads, the code under the software
+ *   breakpoints instead of the breakpoints.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_HIDE_01}: For each byte `j`, less than
+ *   `JA_GDB_BREAKPOINT_SIZE`, of each element of `gdb_sw_breakpoints` whose
+ *   `used` is true and whose `space_id` is `space_id`, if and only if the
+ *   address of the byte (`addr` of the element plus `j`) is not less than
+ *   `addr` and is less than `addr` plus `len`, `gdb_sw_hide()` shall store
+ *   `saved[j]` of the element in `mem` at the index of that address minus
+ *   `addr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_HIDE_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `GDB_SW_BREAKPOINTS`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDBSERVER_GDB_SW_HIDE_01}
  *    1. Set `bp` to the address of `gdb_sw_breakpoints[i]`.
  *    2. Set `j` to `0U`; then while `bp->used` is true and `bp->space_id` is
  *       equal to `space_id` and `j` is less than `JA_GDB_BREAKPOINT_SIZE`,
@@ -2145,12 +2935,27 @@ static void gdb_sw_hide(jet_space_id space_id, uintptr_t addr, uint8_t* mem,
  * | `j` | `uint32_t` | The index of a byte of the breakpoint |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SW_REWRITE_01}: `gdb_sw_rewrite()` shall keep the
+ *   software breakpoints in memory that the debugger writes: the new bytes
+ *   become the code under them.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SW_REWRITE_01}: For each byte `j`, less than
+ *   `JA_GDB_BREAKPOINT_SIZE`, of each element of `gdb_sw_breakpoints` whose
+ *   `used` is true and whose `space_id` is `space_id`, if and only if the
+ *   address of the byte (`addr` of the element plus `j`) is not less than
+ *   `addr` and is less than `addr` plus `len`, `gdb_sw_rewrite()` shall set
+ *   `saved[j]` of the element to the byte of `mem` at the index of that address
+ *   minus `addr`, and then replace that byte of `mem` with
+ *   `ja_gdb_breakpoint_insn[j]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SW_REWRITE_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `GDB_SW_BREAKPOINTS`, repeat
- *    (after each pass: increment `i`):
+ *    (after each pass: increment `i`): \llrref{LLR_GDBSERVER_GDB_SW_REWRITE_01}
  *    1. Set `bp` to the address of `gdb_sw_breakpoints[i]`.
  *    2. Set `j` to `0U`; then while `bp->used` is true and `bp->space_id` is
  *       equal to `space_id` and `j` is less than `JA_GDB_BREAKPOINT_SIZE`,
@@ -2208,11 +3013,20 @@ static void gdb_sw_rewrite(jet_space_id space_id, uintptr_t addr,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PUT_CHARS_01}: `gdb_put_chars()` shall send
+ *   characters to the debugger over the debug console.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PUT_CHARS_01}: `gdb_put_chars()` shall call
+ *   `pok_cons_write_1()` once with `s` and `len`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PUT_CHARS_01}
  *
  * @design
  * 1. Call `pok_cons_write_1()` with the arguments `s` and `len`.
+ *    \llrref{LLR_GDBSERVER_GDB_PUT_CHARS_01}
  *
  * @calls
  * - `pok_cons_write_1()`
@@ -2241,16 +3055,32 @@ static void gdb_put_chars(const char* s, size_t len)
  * | `c` | `int32_t` | The character |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_GET_CHAR_01}: `gdb_get_char()` shall give the next
+ *   character from the debugger, starting with one that was read ahead.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_GET_CHAR_01}: If `gdb_pushback` is not less than
+ *   0, `gdb_get_char()` shall return it and set `gdb_pushback` to -1, without
+ *   calling `getchar2()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_CHAR_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_CHAR_02}: If `gdb_pushback` is less than 0,
+ *   `gdb_get_char()` shall return the result of `getchar2()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_CHAR_01}
  *
  * @design
- * 1. Set `c` to `gdb_pushback`.
+ * 1. Set `c` to `gdb_pushback`. \llrref{LLR_GDBSERVER_GDB_GET_CHAR_01},
+ *    \llrref{LLR_GDBSERVER_GDB_GET_CHAR_02}
  * 2. If `c` is greater than or equal to `0`:
+ *    \llrref{LLR_GDBSERVER_GDB_GET_CHAR_01}
  *    1. Set `gdb_pushback` to `-1`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_GDBSERVER_GDB_GET_CHAR_02}
  *    1. Call `getchar2()`, and store the result in `c`.
- * 4. Return `c`.
+ * 4. Return `c`. \llrref{LLR_GDBSERVER_GDB_GET_CHAR_01},
+ *    \llrref{LLR_GDBSERVER_GDB_GET_CHAR_02}
  *
  * @calls
  * - `getchar2()`
@@ -2290,23 +3120,48 @@ static int32_t gdb_get_char(void)
  * | `value` | `int32_t` | The value |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_HEX_VALUE_01}: `gdb_hex_value()` shall give the
+ *   value of a hexadecimal digit of the protocol, or -1 for another character.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_HEX_VALUE_01}: If `c` is from `'0'` to `'9'`,
+ *   `gdb_hex_value()` shall return `c` minus `'0'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HEX_VALUE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HEX_VALUE_02}: If `c` is from `'a'` to `'f'`,
+ *   `gdb_hex_value()` shall return `c` minus `'a'` plus 10.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HEX_VALUE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HEX_VALUE_03}: If `c` is from `'A'` to `'F'`,
+ *   `gdb_hex_value()` shall return `c` minus `'A'` plus 10.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HEX_VALUE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HEX_VALUE_04}: If `c` is not from `'0'` to `'9'`,
+ *   not from `'a'` to `'f'` and not from `'A'` to `'F'`, `gdb_hex_value()`
+ *   shall return -1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HEX_VALUE_01}
  *
  * @design
- * 1. Set `value` to `-1`.
+ * 1. Set `value` to `-1`. \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_04}
  * 2. If `c` is greater than or equal to `(int32_t)'0'` and `c` is less than or
- *    equal to `(int32_t)'9'`:
+ *    equal to `(int32_t)'9'`: \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_01}
  *    1. Set `value` to `c - (int32_t)'0'`.
  * 3. Otherwise, if `c` is greater than or equal to `(int32_t)'a'` and `c` is
  *    less than or equal to `(int32_t)'f'`:
+ *    \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_02}
  *    1. Set `value` to `(c - (int32_t)'a') + 10`.
  * 4. Otherwise, if `c` is greater than or equal to `(int32_t)'A'` and `c` is
  *    less than or equal to `(int32_t)'F'`:
+ *    \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_03},
+ *    \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_04}
  *    1. Set `value` to `(c - (int32_t)'A') + 10`.
- * 5. Otherwise:
- *    1. Do nothing.
- * 6. Return `value`.
+ * 5. Return `value`. \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_01},
+ *    \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_02},
+ *    \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_03},
+ *    \llrref{LLR_GDBSERVER_GDB_HEX_VALUE_04}
  *
  * @calls
  * None.
@@ -2358,46 +3213,106 @@ static int32_t gdb_hex_value(int32_t c)
  * | `sum` | `uint8_t` | The checksum of the data |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_GET_PACKET_DATA_01}: `gdb_get_packet_data()` shall
+ *   read the data of a packet up to its `'#'` and its checksum, acknowledge a
+ *   good packet with `'+'` and a bad or too long one with `'-'`, and tell
+ *   whether it was good.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ * - \hlrid{HLR_GDBSERVER_GDB_GET_PACKET_DATA_02}: `gdb_get_packet_data()` shall
+ *   start the packet again at a `'$'` in its data.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_DATA_01}: `gdb_get_packet_data()` shall
+ *   read characters with `gdb_get_char()` until one of them is `'#'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_DATA_02}: If a character read is `'$'`,
+ *   `gdb_get_packet_data()` shall start again: with no data, the sum 0 and no
+ *   overflow.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_DATA_02}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_DATA_03}: If a character read is
+ *   neither `'#'` nor `'$'` and fewer than `GDB_PACKET_SIZE` characters of data
+ *   are stored, `gdb_get_packet_data()` shall add it to the sum, modulo 256,
+ *   and store it at the next index of `gdb_in`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_DATA_04}: If a character read is
+ *   neither `'#'` nor `'$'` and `GDB_PACKET_SIZE` characters of data are
+ *   stored, `gdb_get_packet_data()` shall add it to the sum, modulo 256, and
+ *   note an overflow, without storing it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_DATA_05}: After the `'#'`,
+ *   `gdb_get_packet_data()` shall read two characters with `gdb_get_char()` and
+ *   take their values (`gdb_hex_value()`) as the high and the low digit of the
+ *   checksum.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_DATA_06}: If there is no overflow, both
+ *   values are not less than 0 and the high value times 16 plus the low value
+ *   is the sum, `gdb_get_packet_data()` shall store `'\0'` after the data in
+ *   `gdb_in`, set `gdb_in_len` to the length of the data and `gdb_in_pos` to 0,
+ *   call `gdb_put_chars()` with `"+"` and 1, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_DATA_07}: If there is an overflow, or
+ *   one of the two values is less than 0, or the high value times 16 plus the
+ *   low value is not the sum, `gdb_get_packet_data()` shall call
+ *   `gdb_put_chars()` with `"-"` and 1, and return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
  *
  * @design
- * 1. Set `len` to `0U`.
- * 2. Set `sum` to `0U`.
- * 3. Set `overflow` to `FALSE`.
- * 4. Set `end` to `FALSE`.
- * 5. Set `received` to `FALSE`.
- * 6. While `end` is false:
+ * 1. Set `len` to `0U`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_03}
+ * 2. Set `sum` to `0U`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_03}
+ * 3. Set `overflow` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_04},
+ *    \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_06}
+ * 4. Set `end` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
+ * 5. Set `received` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_07}
+ * 6. While `end` is false: \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_01},
+ *    \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_02},
+ *    \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_03},
+ *    \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_04}
  *    1. Call `gdb_get_char()`, and store the result in `c`.
  *    2. If `c` is equal to `(int32_t)'#'`:
+ *       \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_01}
  *       1. Set `end` to `TRUE`.
  *    3. Otherwise, if `c` is equal to `(int32_t)'$'`:
+ *       \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_02}
  *       1. Set `len` to `0U`.
  *       2. Set `sum` to `0U`.
  *       3. Set `overflow` to `FALSE`.
- *    4. Otherwise:
+ *    4. Otherwise: \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_03},
+ *       \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_04}
  *       1. Set `sum` to `(uint8_t)(sum + (uint8_t)c)`.
  *       2. If `len` is less than `GDB_PACKET_SIZE`:
+ *          \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_03}
  *          1. Set `gdb_in[len]` to `(char)c`.
  *          2. Increment `len`.
- *       3. Otherwise:
+ *       3. Otherwise: \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_04}
  *          1. Set `overflow` to `TRUE`.
  * 7. Call `gdb_hex_value()` with the argument `gdb_get_char()`, and store the
- *    result in `high`.
+ *    result in `high`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_05}
  * 8. Call `gdb_hex_value()` with the argument `gdb_get_char()`, and store the
- *    result in `low`.
+ *    result in `low`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_05}
  * 9. Set `checksum` to `(high * 16) + low`.
+ *    \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_05}
  * 10. If `overflow` is false and `high` is greater than or equal to `0` and
  *     `low` is greater than or equal to `0` and `checksum` is equal to
- *     `(int32_t)sum`:
+ *     `(int32_t)sum`: \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_06}
  *     1. Set `gdb_in[len]` to `'\0'`.
  *     2. Set `gdb_in_len` to `len`.
  *     3. Set `gdb_in_pos` to `0U`.
  *     4. Call `gdb_put_chars()` with the arguments `"+"` and `1U`.
  *     5. Set `received` to `TRUE`.
- * 11. Otherwise:
+ * 11. Otherwise: \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_07}
  *     1. Call `gdb_put_chars()` with the arguments `"-"` and `1U`.
- * 12. Return `received`.
+ * 12. Return `received`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_06},
+ *     \llrref{LLR_GDBSERVER_GDB_GET_PACKET_DATA_07}
  *
  * @calls
  * - `gdb_get_char()`
@@ -2481,19 +3396,46 @@ static pok_bool_t gdb_get_packet_data(void)
  * | `received` | `pok_bool_t` | Whether a packet was received |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_GET_PACKET_01}: `gdb_get_packet()` shall wait for
+ *   a good packet from the debugger, noting an interrupt request that comes
+ *   before it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_01}: `gdb_get_packet()` shall read
+ *   characters with `gdb_get_char()` until `gdb_get_packet_data()` returns
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_02}: If a character read is `'$'`,
+ *   `gdb_get_packet()` shall call `gdb_get_packet_data()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_03}: If a character read is
+ *   `GDB_CHAR_INTERRUPT`, `gdb_get_packet()` shall set `gdb_interrupt_pending`
+ *   to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_GET_PACKET_04}: If a character read is neither
+ *   `'$'` nor `GDB_CHAR_INTERRUPT`, `gdb_get_packet()` shall read the next
+ *   character and leave `gdb_interrupt_pending` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_GET_PACKET_01}
  *
  * @design
- * 1. Set `received` to `FALSE`.
- * 2. While `received` is false:
+ * 1. Set `received` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_GET_PACKET_01}
+ * 2. While `received` is false: \llrref{LLR_GDBSERVER_GDB_GET_PACKET_01}
  *    1. Call `gdb_get_char()`, and store the result in `c`.
  *    2. If `c` is equal to `(int32_t)'$'`:
+ *       \llrref{LLR_GDBSERVER_GDB_GET_PACKET_02}
  *       1. Call `gdb_get_packet_data()`, and store the result in `received`.
  *    3. Otherwise, if `c` is equal to `GDB_CHAR_INTERRUPT`:
+ *       \llrref{LLR_GDBSERVER_GDB_GET_PACKET_03},
+ *       \llrref{LLR_GDBSERVER_GDB_GET_PACKET_04}
  *       1. Set `gdb_interrupt_pending` to `TRUE`.
- *    4. Otherwise:
- *       1. Do nothing.
+ *          \llrref{LLR_GDBSERVER_GDB_GET_PACKET_03}
  *
  * @calls
  * - `gdb_get_char()`
@@ -2538,21 +3480,54 @@ static void gdb_get_packet(void)
  * | `c` | `int32_t` | The character read |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_WAIT_ACK_01}: `gdb_wait_ack()` shall wait for the
+ *   acknowledgment of a packet sent, a new packet counting as a positive one,
+ *   and note an interrupt request.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_WAIT_ACK_01}: If a character read with
+ *   `gdb_get_char()` is `'+'` or `'-'`, `gdb_wait_ack()` shall return it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_WAIT_ACK_01}
+ * - \llrid{LLR_GDBSERVER_GDB_WAIT_ACK_02}: If a character read is `'$'`,
+ *   `gdb_wait_ack()` shall set `gdb_pushback` to it and return `'+'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_WAIT_ACK_01}
+ * - \llrid{LLR_GDBSERVER_GDB_WAIT_ACK_03}: If a character read is none of
+ *   `'+'`, `'-'` and `'$'`, `gdb_wait_ack()` shall read the next character with
+ *   `gdb_get_char()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_WAIT_ACK_01}
+ * - \llrid{LLR_GDBSERVER_GDB_WAIT_ACK_04}: If and only if a character read that
+ *   is none of `'+'`, `'-'` and `'$'` is `GDB_CHAR_INTERRUPT`, `gdb_wait_ack()`
+ *   shall set `gdb_interrupt_pending` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_WAIT_ACK_01}
  *
  * @design
  * 1. Call `gdb_get_char()`, and store the result in `c`.
+ *    \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_01}
  * 2. While `c` is not equal to `(int32_t)'+'` and `c` is not equal to
- *    `(int32_t)'-'`:
+ *    `(int32_t)'-'`: \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_01},
+ *    \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_02},
+ *    \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_03},
+ *    \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_04}
  *    1. If `c` is equal to `(int32_t)'$'`:
+ *       \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_02}
  *       1. Set `gdb_pushback` to `c`.
  *       2. Set `c` to `(int32_t)'+'`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_03},
+ *       \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_04}
  *       1. If `c` is equal to `GDB_CHAR_INTERRUPT`:
+ *          \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_04}
  *          1. Set `gdb_interrupt_pending` to `TRUE`.
  *       2. Call `gdb_get_char()`, and store the result in `c`.
- * 3. Return `c`.
+ *          \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_03}
+ * 3. Return `c`. \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_01},
+ *    \llrref{LLR_GDBSERVER_GDB_WAIT_ACK_02}
  *
  * @calls
  * - `gdb_get_char()`
@@ -2604,27 +3579,44 @@ static int32_t gdb_wait_ack(void)
  * | `sum` | `uint8_t` | The checksum of the data |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_PUT_PACKET_01}: `gdb_put_packet()` shall send the
+ *   reply as a packet, with its checksum, until the debugger acknowledges it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_PUT_PACKET_01}: `gdb_put_packet()` shall build a
+ *   frame of `'$'`, the `gdb_out_len` characters of `gdb_out`, `'#'`, and the
+ *   two characters of `gdb_hex_chars` for the high and the low 4 bits of the
+ *   sum of these characters modulo 256.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_PUT_PACKET_02}: `gdb_put_packet()` shall call
+ *   `gdb_put_chars()` with the frame and its length and then `gdb_wait_ack()`,
+ *   and do so again until `gdb_wait_ack()` returns `'+'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_PUT_PACKET_01}
  *
  * @design
- * 1. Set `len` to `0U`.
- * 2. Set `sum` to `0U`.
- * 3. Set `acked` to `FALSE`.
- * 4. Set `frame[len]` to `'$'`.
- * 5. Increment `len`.
+ * 1. Set `len` to `0U`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * 2. Set `sum` to `0U`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * 3. Set `acked` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_02}
+ * 4. Set `frame[len]` to `'$'`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * 5. Increment `len`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
  * 6. Set `i` to `0U`; then while `i` is less than `gdb_out_len`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
  *    1. Set `frame[len]` to `gdb_out[i]`.
  *    2. Increment `len`.
  *    3. Set `sum` to `(uint8_t)(sum + (uint8_t)gdb_out[i])`.
- * 7. Set `frame[len]` to `'#'`.
- * 8. Increment `len`.
+ * 7. Set `frame[len]` to `'#'`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * 8. Increment `len`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
  * 9. Set `frame[len]` to `gdb_hex_chars[sum >> 4]`.
- * 10. Increment `len`.
+ *    \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * 10. Increment `len`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
  * 11. Set `frame[len]` to `gdb_hex_chars[sum & 0xFU]`.
- * 12. Increment `len`.
- * 13. While `acked` is false:
+ *     \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * 12. Increment `len`. \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_01}
+ * 13. While `acked` is false: \llrref{LLR_GDBSERVER_GDB_PUT_PACKET_02}
  *     1. Call `gdb_put_chars()` with the arguments `frame` and `len`.
  *     2. Set `acked` to `(gdb_wait_ack() == (int32_t)'+')`.
  *
@@ -2680,11 +3672,19 @@ static void gdb_put_packet(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_RESET_01}: `out_reset()` shall make the reply
+ *   packet empty.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_RESET_01}: `out_reset()` shall set `gdb_out_len`
+ *   to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_RESET_01}
  *
  * @design
- * 1. Set `gdb_out_len` to `0U`.
+ * 1. Set `gdb_out_len` to `0U`. \llrref{LLR_GDBSERVER_OUT_RESET_01}
  *
  * @calls
  * None.
@@ -2715,11 +3715,21 @@ static void out_reset(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_CHAR_01}: `out_char()` shall add a character to
+ *   the reply packet while it has room.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_CHAR_01}: If and only if `gdb_out_len` is less
+ *   than `GDB_PACKET_SIZE`, `out_char()` shall store `c` at
+ *   `gdb_out[gdb_out_len]` and increment `gdb_out_len`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_CHAR_01}
  *
  * @design
  * 1. If `gdb_out_len` is less than `GDB_PACKET_SIZE`:
+ *    \llrref{LLR_GDBSERVER_OUT_CHAR_01}
  *    1. Set `gdb_out[gdb_out_len]` to `c`.
  *    2. Increment `gdb_out_len`.
  *
@@ -2755,12 +3765,20 @@ static void out_char(char c)
  * | `i` | `size_t` | The index of the character |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_STR_01}: `out_str()` shall add a string to the
+ *   reply packet.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_STR_01}: `out_str()` shall call `out_char()` with
+ *   each character of `s` before its `'\0'`, in their order.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_STR_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `s[i]` is not equal to `'\0'`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_GDBSERVER_OUT_STR_01}
  *    1. Call `out_char()` with the argument `s[i]`.
  *
  * @calls
@@ -2794,12 +3812,23 @@ static void out_str(const char* s)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_BYTE_01}: `out_byte()` shall add a byte to the
+ *   reply packet as two hexadecimal digits.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_BYTE_01}: `out_byte()` shall call `out_char()`
+ *   with the character of `gdb_hex_chars` for the high 4 bits of `b`, and then
+ *   with the one for its low 4 bits.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_BYTE_01}
  *
  * @design
  * 1. Call `out_char()` with the argument `gdb_hex_chars[b >> 4]`.
+ *    \llrref{LLR_GDBSERVER_OUT_BYTE_01}
  * 2. Call `out_char()` with the argument `gdb_hex_chars[b & 0xFU]`.
+ *    \llrref{LLR_GDBSERVER_OUT_BYTE_01}
  *
  * @calls
  * - `out_char()`
@@ -2831,12 +3860,21 @@ static void out_byte(uint8_t b)
  * | `i` | `size_t` | The index of the byte |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_BYTES_01}: `out_bytes()` shall add bytes to the
+ *   reply packet in hexadecimal.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_BYTES_01}: `out_bytes()` shall call `out_byte()`
+ *   with each of the `len` bytes of `data`, in their order.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_BYTES_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `len`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_GDBSERVER_OUT_BYTES_01}
  *    1. Call `out_byte()` with the argument `data[i]`.
  *
  * @calls
@@ -2870,12 +3908,20 @@ static void out_bytes(const uint8_t* data, size_t len)
  * | `i` | `size_t` | The index of the byte |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_UNAVAILABLE_01}: `out_unavailable()` shall add to
+ *   the reply packet the marks of bytes that cannot be read.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_UNAVAILABLE_01}: `out_unavailable()` shall call
+ *   `out_str()` with `"xx"` `len` times.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_UNAVAILABLE_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `len`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_GDBSERVER_OUT_UNAVAILABLE_01}
  *    1. Call `out_str()` with the argument `"xx"`.
  *
  * @calls
@@ -2914,20 +3960,38 @@ static void out_unavailable(size_t len)
  * | `started` | `pok_bool_t` | Whether a digit was written |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_HEX_01}: `out_hex()` shall add a number to the
+ *   reply packet in hexadecimal, without leading zeros.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_HEX_01}: `out_hex()` shall call `out_char()` with
+ *   the character of `gdb_hex_chars` for each of the 16 hexadecimal digits of
+ *   `value`, from the highest one on, that is not 0, or follows a digit given
+ *   before, or is the last digit.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_HEX_01}
+ * - \llrid{LLR_GDBSERVER_OUT_HEX_02}: `out_hex()` shall not call `out_char()`
+ *   for a digit of `value` that is 0, has no digit given before it and is not
+ *   the last digit.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_HEX_01}
  *
  * @design
- * 1. Set `started` to `FALSE`.
+ * 1. Set `started` to `FALSE`. \llrref{LLR_GDBSERVER_OUT_HEX_01},
+ *    \llrref{LLR_GDBSERVER_OUT_HEX_02}
  * 2. Set `shift` to `64U`; then while `shift` is greater than `0U`, repeat
  *    (after each pass: subtract `4U` from `shift`):
+ *    \llrref{LLR_GDBSERVER_OUT_HEX_01}, \llrref{LLR_GDBSERVER_OUT_HEX_02}
  *    1. Set `digit_shift` to `shift - 4U`.
  *    2. Set `digit` to `value >> digit_shift`.
  *    3. Keep only the bits `0xFU` of `digit`.
  *    4. If `digit` is not equal to `0U` or `started` is true or `shift` is
  *       equal to `4U`:
  *       1. Call `out_char()` with the argument `gdb_hex_chars[digit]`.
- *       2. Set `started` to `TRUE`.
+ *          \llrref{LLR_GDBSERVER_OUT_HEX_01}
+ *       2. Set `started` to `TRUE`. \llrref{LLR_GDBSERVER_OUT_HEX_01}
  *
  * @calls
  * - `out_char()`
@@ -2969,14 +4033,27 @@ static void out_hex(uint64_t value)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_THREAD_ID_01}: `out_thread_id()` shall add a
+ *   thread identifier to the reply packet as `p<pid>.<tid>`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_THREAD_ID_01}: `out_thread_id()` shall call, in
+ *   this order, `out_char()` with `'p'`, `out_hex()` with `pid` of `t`,
+ *   `out_char()` with `'.'` and `out_hex()` with `tid` of `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_THREAD_ID_01}
  *
  * @design
  * 1. Call `out_char()` with the argument `'p'`.
+ *    \llrref{LLR_GDBSERVER_OUT_THREAD_ID_01}
  * 2. Call `out_hex()` with the argument `t->pid`.
+ *    \llrref{LLR_GDBSERVER_OUT_THREAD_ID_01}
  * 3. Call `out_char()` with the argument `'.'`.
+ *    \llrref{LLR_GDBSERVER_OUT_THREAD_ID_01}
  * 4. Call `out_hex()` with the argument `t->tid`.
+ *    \llrref{LLR_GDBSERVER_OUT_THREAD_ID_01}
  *
  * @calls
  * - `out_char()`
@@ -3013,13 +4090,22 @@ static void out_thread_id(const gdb_thread_t* t)
  * | `bytes` | `const uint8_t *` | The bytes |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_OUT_PRINT_CB_01}: `out_print_cb()` shall add the
+ *   description of a thread, which a partition gives, to the reply packet in
+ *   hexadecimal.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_OUT_PRINT_CB_01}: `out_print_cb()` shall call
+ *   `out_bytes()` once with `data` and `len`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_OUT_PRINT_CB_01}
  *
  * @design
- * 1. Set `bytes` to `data`.
- * 2. Mark `cb_data` as not used.
- * 3. Call `out_bytes()` with the arguments `bytes` and `len`.
+ * 1. Set `bytes` to `data`. \llrref{LLR_GDBSERVER_OUT_PRINT_CB_01}
+ * 2. Call `out_bytes()` with the arguments `bytes` and `len`.
+ *    \llrref{LLR_GDBSERVER_OUT_PRINT_CB_01}
  *
  * @calls
  * - `out_bytes()`
@@ -3055,12 +4141,25 @@ static void out_print_cb(const void* data, size_t len, void* cb_data)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_PEEK_01}: `in_peek()` shall give the next character
+ *   of the packet received without reading it, or NUL at its end.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_PEEK_01}: If `gdb_in_pos` is less than
+ *   `gdb_in_len`, `in_peek()` shall return `gdb_in[gdb_in_pos]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_PEEK_01}
+ * - \llrid{LLR_GDBSERVER_IN_PEEK_02}: If `gdb_in_pos` is not less than
+ *   `gdb_in_len`, `in_peek()` shall return `'\0'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_PEEK_01}
  *
  * @design
  * 1. Return `gdb_in[gdb_in_pos]` if `gdb_in_pos` is less than `gdb_in_len`,
- *    otherwise `'\0'`.
+ *    otherwise `'\0'`. \llrref{LLR_GDBSERVER_IN_PEEK_01},
+ *    \llrref{LLR_GDBSERVER_IN_PEEK_02}
  *
  * @calls
  * None.
@@ -3086,11 +4185,20 @@ static char in_peek(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_SKIP_01}: `in_skip()` shall skip the next character
+ *   of the packet received.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_SKIP_01}: If and only if `gdb_in_pos` is less than
+ *   `gdb_in_len`, `in_skip()` shall increment `gdb_in_pos`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_SKIP_01}
  *
  * @design
  * 1. If `gdb_in_pos` is less than `gdb_in_len`:
+ *    \llrref{LLR_GDBSERVER_IN_SKIP_01}
  *    1. Increment `gdb_in_pos`.
  *
  * @calls
@@ -3129,14 +4237,32 @@ static void in_skip(void)
  * | `found` | `pok_bool_t` | Whether it was there |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_EXPECT_01}: `in_expect()` shall read the next
+ *   character of the packet received if it is the one expected, and tell
+ *   whether it was.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_EXPECT_01}: If `gdb_in_pos` is less than
+ *   `gdb_in_len` and `gdb_in[gdb_in_pos]` is `c`, `in_expect()` shall increment
+ *   `gdb_in_pos` and return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_EXPECT_01}
+ * - \llrid{LLR_GDBSERVER_IN_EXPECT_02}: If `gdb_in_pos` is not less than
+ *   `gdb_in_len`, or `gdb_in[gdb_in_pos]` is not `c`, `in_expect()` shall
+ *   return false and leave `gdb_in_pos` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_EXPECT_01}
  *
  * @design
  * 1. Set `found` to `(gdb_in_pos < gdb_in_len) && (gdb_in[gdb_in_pos] == c)`.
- * 2. If `found` is true:
- *    1. Increment `gdb_in_pos`.
- * 3. Return `found`.
+ *    \llrref{LLR_GDBSERVER_IN_EXPECT_01}, \llrref{LLR_GDBSERVER_IN_EXPECT_02}
+ * 2. If `found` is true: \llrref{LLR_GDBSERVER_IN_EXPECT_01},
+ *    \llrref{LLR_GDBSERVER_IN_EXPECT_02}
+ *    1. Increment `gdb_in_pos`. \llrref{LLR_GDBSERVER_IN_EXPECT_01}
+ * 3. Return `found`. \llrref{LLR_GDBSERVER_IN_EXPECT_01},
+ *    \llrref{LLR_GDBSERVER_IN_EXPECT_02}
  *
  * @calls
  * None.
@@ -3179,17 +4305,38 @@ static pok_bool_t in_expect(char c)
  * | `len` | `size_t` | Its length |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_PREFIX_01}: `in_prefix()` shall read a string from
+ *   the packet received if the packet continues with it, and tell whether it
+ *   did.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_PREFIX_01}: If at least as many characters as the
+ *   length of `prefix` (`strlen()`) remain from `gdb_in_pos` to `gdb_in_len`
+ *   and `strncmp()` returns 0 for them and `prefix`, `in_prefix()` shall add
+ *   that length to `gdb_in_pos` and return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_PREFIX_01}
+ * - \llrid{LLR_GDBSERVER_IN_PREFIX_02}: If fewer characters than the length of
+ *   `prefix` remain from `gdb_in_pos` to `gdb_in_len`, or `strncmp()` returns a
+ *   value other than 0 for them and `prefix`, `in_prefix()` shall return false
+ *   and leave `gdb_in_pos` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_PREFIX_01}
  *
  * @design
  * 1. Call `strlen()` with the argument `prefix`, and store the result in `len`.
+ *    \llrref{LLR_GDBSERVER_IN_PREFIX_01}, \llrref{LLR_GDBSERVER_IN_PREFIX_02}
  * 2. Set `found` to
  *    `((gdb_in_len - gdb_in_pos) >= len) && (strncmp(&gdb_in[gdb_in_pos],`
- *    `prefix, len) == 0)`.
- * 3. If `found` is true:
- *    1. Add `len` to `gdb_in_pos`.
- * 4. Return `found`.
+ *    `prefix, len) == 0)`. \llrref{LLR_GDBSERVER_IN_PREFIX_01},
+ *    \llrref{LLR_GDBSERVER_IN_PREFIX_02}
+ * 3. If `found` is true: \llrref{LLR_GDBSERVER_IN_PREFIX_01},
+ *    \llrref{LLR_GDBSERVER_IN_PREFIX_02}
+ *    1. Add `len` to `gdb_in_pos`. \llrref{LLR_GDBSERVER_IN_PREFIX_01}
+ * 4. Return `found`. \llrref{LLR_GDBSERVER_IN_PREFIX_01},
+ *    \llrref{LLR_GDBSERVER_IN_PREFIX_02}
  *
  * @calls
  * - `strlen()`
@@ -3235,25 +4382,51 @@ static pok_bool_t in_prefix(const char* prefix)
  * | `v` | `uintptr_t` | The number |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_HEX_01}: `in_hex()` shall read a hexadecimal number
+ *   from the packet received, and tell whether it had digits and fit in an
+ *   address.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_SYS_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_HEX_01}: `in_hex()` shall read the hexadecimal
+ *   digits from `gdb_in_pos` on (the characters for which `gdb_hex_value()` of
+ *   `in_peek()` is not less than 0), advance `gdb_in_pos` past them, and store
+ *   at `value` the number that they make, with only its low bits if it does not
+ *   fit.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_HEX_01}
+ * - \llrid{LLR_GDBSERVER_IN_HEX_02}: If there is at least one digit and no
+ *   digit is added to a value greater than the largest `uintptr_t` shifted
+ *   right by 4 bits, `in_hex()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_HEX_01}
+ * - \llrid{LLR_GDBSERVER_IN_HEX_03}: If there is no digit, or a digit is added
+ *   to a value greater than the largest `uintptr_t` shifted right by 4 bits,
+ *   `in_hex()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_HEX_01}
  *
  * @design
- * 1. Set `v` to `0U`.
- * 2. Set `digits` to `0U`.
- * 3. Set `overflow` to `FALSE`.
+ * 1. Set `v` to `0U`. \llrref{LLR_GDBSERVER_IN_HEX_01}
+ * 2. Set `digits` to `0U`. \llrref{LLR_GDBSERVER_IN_HEX_01}
+ * 3. Set `overflow` to `FALSE`. \llrref{LLR_GDBSERVER_IN_HEX_01}
  * 4. Call `gdb_hex_value()` with the argument `(int32_t)in_peek()`, and store
- *    the result in `digit`.
+ *    the result in `digit`. \llrref{LLR_GDBSERVER_IN_HEX_01}
  * 5. While `digit` is greater than or equal to `0`:
+ *    \llrref{LLR_GDBSERVER_IN_HEX_01}
  *    1. If `v` is greater than `(~(uintptr_t)0U >> 4)`:
+ *       \llrref{LLR_GDBSERVER_IN_HEX_02}, \llrref{LLR_GDBSERVER_IN_HEX_03}
  *       1. Set `overflow` to `TRUE`.
  *    2. Set `v` to `(v << 4) | (uintptr_t)digit`.
  *    3. Increment `digits`.
  *    4. Increment `gdb_in_pos`.
  *    5. Call `gdb_hex_value()` with the argument `(int32_t)in_peek()`, and
  *       store the result in `digit`.
- * 6. Set `*value` to `v`.
- * 7. Return `(digits != 0U) && !overflow`.
+ * 6. Set `*value` to `v`. \llrref{LLR_GDBSERVER_IN_HEX_01}
+ * 7. Return `(digits != 0U) && !overflow`. \llrref{LLR_GDBSERVER_IN_HEX_02},
+ *    \llrref{LLR_GDBSERVER_IN_HEX_03}
  *
  * @calls
  * - `gdb_hex_value()`
@@ -3312,25 +4485,58 @@ static pok_bool_t in_hex(uintptr_t* value)
  * | `value` | `int32_t` | The byte |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_BYTES_01}: `in_bytes()` shall read bytes in
+ *   hexadecimal from the packet received, and tell whether they were all there.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_BYTES_01}: If fewer than 2 times `len` characters
+ *   remain from `gdb_in_pos` to `gdb_in_len`, `in_bytes()` shall return false
+ *   without reading them.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_BYTES_01}
+ * - \llrid{LLR_GDBSERVER_IN_BYTES_02}: If at least 2 times `len` characters
+ *   remain, `in_bytes()` shall, for each `i` less than `len` for which
+ *   `gdb_hex_value()` is not less than 0 for the next two characters of
+ *   `gdb_in` and for those of the bytes before, store at `data[i]` the byte of
+ *   these two characters (the value of the first times 16 plus the value of the
+ *   second) and add 2 to `gdb_in_pos`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_BYTES_01}
+ * - \llrid{LLR_GDBSERVER_IN_BYTES_03}: If at least 2 times `len` characters
+ *   remain and `gdb_hex_value()` is not less than 0 for each of the next 2
+ *   times `len` characters of `gdb_in`, `in_bytes()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_BYTES_01}
+ * - \llrid{LLR_GDBSERVER_IN_BYTES_04}: If `gdb_hex_value()` is less than 0 for
+ *   one of the two characters of a byte, `in_bytes()` shall return false
+ *   without storing that byte or the bytes after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_BYTES_01}
  *
  * @design
  * 1. Set `ok` to `(gdb_in_len - gdb_in_pos) >= (2U * len)`.
+ *    \llrref{LLR_GDBSERVER_IN_BYTES_01}, \llrref{LLR_GDBSERVER_IN_BYTES_02},
+ *    \llrref{LLR_GDBSERVER_IN_BYTES_03}
  * 2. Set `i` to `0U`; then while `ok` is true and `i` is less than `len`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_GDBSERVER_IN_BYTES_02}, \llrref{LLR_GDBSERVER_IN_BYTES_03},
+ *    \llrref{LLR_GDBSERVER_IN_BYTES_04}
  *    1. Call `gdb_hex_value()` with the argument `(int32_t)gdb_in[gdb_in_pos]`,
  *       and store the result in `high`.
  *    2. Call `gdb_hex_value()` with the argument
  *       `(int32_t)gdb_in[gdb_in_pos + 1U]`, and store the result in `low`.
  *    3. If `high` is greater than or equal to `0` and `low` is greater than or
- *       equal to `0`:
+ *       equal to `0`: \llrref{LLR_GDBSERVER_IN_BYTES_02}
  *       1. Set `value` to `(high * 16) + low`.
  *       2. Set `data[i]` to `(uint8_t)value`.
  *       3. Add `2U` to `gdb_in_pos`.
- *    4. Otherwise:
+ *    4. Otherwise: \llrref{LLR_GDBSERVER_IN_BYTES_04}
  *       1. Set `ok` to `FALSE`.
- * 3. Return `ok`.
+ * 3. Return `ok`. \llrref{LLR_GDBSERVER_IN_BYTES_01},
+ *    \llrref{LLR_GDBSERVER_IN_BYTES_03}, \llrref{LLR_GDBSERVER_IN_BYTES_04}
  *
  * @calls
  * - `gdb_hex_value()`
@@ -3383,17 +4589,47 @@ static pok_bool_t in_bytes(uint8_t* data, size_t len)
  * | `value` | `uintptr_t` | The number read |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_ID_01}: `in_id()` shall read a process or thread
+ *   identifier from the packet received, -1 meaning all, and tell whether it is
+ *   good.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_ID_01}: If `in_expect()` returns true for `'-'`,
+ *   and `in_hex()` returns true and gives 1, `in_id()` shall store -1 at `id`
+ *   and return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_ID_01}
+ * - \llrid{LLR_GDBSERVER_IN_ID_02}: If `in_expect()` returns true for `'-'`,
+ *   and `in_hex()` returns false or gives a value other than 1, `in_id()` shall
+ *   store -1 at `id` and return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_ID_01}
+ * - \llrid{LLR_GDBSERVER_IN_ID_03}: If `in_expect()` returns false for `'-'`,
+ *   and `in_hex()` returns true and gives a value that is not greater than
+ *   `GDB_NO_INDEX`, `in_id()` shall store that value at `id` and return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_ID_01}
+ * - \llrid{LLR_GDBSERVER_IN_ID_04}: If `in_expect()` returns false for `'-'`,
+ *   and `in_hex()` returns false or gives a value greater than `GDB_NO_INDEX`,
+ *   `in_id()` shall store the value that `in_hex()` gives at `id` and return
+ *   false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_ID_01}
  *
  * @design
- * 1. If `in_expect('-')` is true:
+ * 1. If `in_expect('-')` is true: \llrref{LLR_GDBSERVER_IN_ID_01},
+ *    \llrref{LLR_GDBSERVER_IN_ID_02}
  *    1. Set `ok` to `in_hex(&value) && (value == 1U)`.
  *    2. Set `*id` to `-1`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_IN_ID_03},
+ *    \llrref{LLR_GDBSERVER_IN_ID_04}
  *    1. Set `ok` to `in_hex(&value) && (value <= GDB_NO_INDEX)`.
  *    2. Set `*id` to `(int64_t)value`.
- * 3. Return `ok`.
+ * 3. Return `ok`. \llrref{LLR_GDBSERVER_IN_ID_01},
+ *    \llrref{LLR_GDBSERVER_IN_ID_02}, \llrref{LLR_GDBSERVER_IN_ID_03},
+ *    \llrref{LLR_GDBSERVER_IN_ID_04}
  *
  * @calls
  * - `in_expect()`
@@ -3441,25 +4677,63 @@ static pok_bool_t in_id(int64_t* id)
  * | `ok` | `pok_bool_t` | Whether it is good |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_THREAD_REF_01}: `in_thread_ref()` shall read a
+ *   thread reference from the packet received: `p<pid>.<tid>`, `p<pid>` for all
+ *   its threads, or `<tid>`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_THREAD_REF_01}: If `in_expect()` returns false for
+ *   `'p'`, `in_thread_ref()` shall set `pid` of `ref` to 0 and return the
+ *   result of `in_id()` for `tid` of `ref`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_THREAD_REF_01}
+ * - \llrid{LLR_GDBSERVER_IN_THREAD_REF_02}: If `in_expect()` returns true for
+ *   `'p'` and `in_id()` returns false for `pid` of `ref`, `in_thread_ref()`
+ *   shall set `tid` of `ref` to 0 and return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_THREAD_REF_01}
+ * - \llrid{LLR_GDBSERVER_IN_THREAD_REF_03}: If `in_expect()` returns true for
+ *   `'p'`, `in_id()` returns true for `pid` of `ref` and `in_expect()` returns
+ *   true for `'.'`, `in_thread_ref()` shall return the result of `in_id()` for
+ *   `tid` of `ref`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_THREAD_REF_01}
+ * - \llrid{LLR_GDBSERVER_IN_THREAD_REF_04}: If `in_expect()` returns true for
+ *   `'p'`, `in_id()` returns true for `pid` of `ref` and `in_expect()` returns
+ *   false for `'.'`, `in_thread_ref()` shall set `tid` of `ref` to -1 and
+ *   return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_THREAD_REF_01}
  *
  * @design
- * 1. Set `ref->pid` to `0`.
- * 2. Set `ref->tid` to `0`.
- * 3. If `in_expect('p')` is true:
+ * 1. Set `ref->pid` to `0`. \llrref{LLR_GDBSERVER_IN_THREAD_REF_01},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_02},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_03},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_04}
+ * 2. Set `ref->tid` to `0`. \llrref{LLR_GDBSERVER_IN_THREAD_REF_01},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_02},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_03},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_04}
+ * 3. If `in_expect('p')` is true: \llrref{LLR_GDBSERVER_IN_THREAD_REF_02},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_03},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_04}
  *    1. Call `in_id()` with the address of `ref->pid`, and store the result in
  *       `ok`.
  *    2. If `ok` is true:
- *       1. If `in_expect('.')` is true:
+ *       1. If `in_expect('.')` is true: \llrref{LLR_GDBSERVER_IN_THREAD_REF_03}
  *          1. Call `in_id()` with the address of `ref->tid`, and store the
  *             result in `ok`.
- *       2. Otherwise:
+ *       2. Otherwise: \llrref{LLR_GDBSERVER_IN_THREAD_REF_04}
  *          1. Set `ref->tid` to `-1`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_GDBSERVER_IN_THREAD_REF_01}
  *    1. Call `in_id()` with the address of `ref->tid`, and store the result in
  *       `ok`.
- * 5. Return `ok`.
+ * 5. Return `ok`. \llrref{LLR_GDBSERVER_IN_THREAD_REF_01},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_02},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_03},
+ *    \llrref{LLR_GDBSERVER_IN_THREAD_REF_04}
  *
  * @calls
  * - `in_expect()`
@@ -3523,24 +4797,49 @@ static pok_bool_t in_thread_ref(gdb_thread_ref_t* ref)
  * | `start` | `size_t` | The start of a feature in the list |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_IN_HAS_FEATURE_01}: `in_has_feature()` shall tell
+ *   whether the rest of the packet received names a feature in its list of
+ *   features.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_IN_HAS_FEATURE_01}: If, after a `':'` or a `';'` of
+ *   `gdb_in` from `gdb_in_pos` on, the characters of the length of `feature`
+ *   (`strlen()`) end at or before `gdb_in_len`, `strncmp()` returns 0 for them
+ *   and `feature`, and they end at `gdb_in_len` or a `';'` follows them,
+ *   `in_has_feature()` shall return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_HAS_FEATURE_01}
+ * - \llrid{LLR_GDBSERVER_IN_HAS_FEATURE_02}: If, after every `':'` and `';'` of
+ *   `gdb_in` from `gdb_in_pos` on, the characters of the length of `feature`
+ *   end after `gdb_in_len`, or `strncmp()` returns a value other than 0 for
+ *   them and `feature`, or a character other than `';'` follows them,
+ *   `in_has_feature()` shall return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_IN_HAS_FEATURE_01}
  *
  * @design
  * 1. Call `strlen()` with the argument `feature`, and store the result in
- *    `len`.
- * 2. Set `found` to `FALSE`.
- * 3. Set `pos` to `gdb_in_pos`.
+ *    `len`. \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_01},
+ *    \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_02}
+ * 2. Set `found` to `FALSE`. \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_01},
+ *    \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_02}
+ * 3. Set `pos` to `gdb_in_pos`. \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_01},
+ *    \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_02}
  * 4. While `pos` is less than `gdb_in_len`:
+ *    \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_01},
+ *    \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_02}
  *    1. If `gdb_in[pos]` is equal to `':'` or `gdb_in[pos]` is equal to `';'`:
  *       1. Set `start` to `pos + 1U`.
  *       2. Set `end` to `start + len`.
  *       3. If `end` is less than or equal to `gdb_in_len` and
  *          `strncmp(&gdb_in[start], feature, len)` is equal to `0` and (`end`
  *          is equal to `gdb_in_len` or `gdb_in[end]` is equal to `';'`):
- *          1. Set `found` to `TRUE`.
+ *          1. Set `found` to `TRUE`. \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_01}
  *    2. Increment `pos`.
- * 5. Return `found`.
+ * 5. Return `found`. \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_01},
+ *    \llrref{LLR_GDBSERVER_IN_HAS_FEATURE_02}
  *
  * @calls
  * - `strlen()`
@@ -3598,17 +4897,35 @@ static pok_bool_t in_has_feature(const char* feature)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SESSION_START_01}: `gdb_session_start()` shall
+ *   start a session of the debugger at its first packet: no stop reply owed, no
+ *   interrupt pending, no stop reason features, and the debugger attached to
+ *   the current process only.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SESSION_START_01}: `gdb_session_start()` shall set
+ *   `gdb_session` to `TRUE` and `gdb_stop_reply_pending`,
+ *   `gdb_interrupt_pending`, `gdb_swbreak_feature` and `gdb_hwbreak_feature` to
+ *   `FALSE`, and then call `gdb_detach_all()` and `gdb_attach()` with
+ *   `gdb_current.pid`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SESSION_START_01}
  *
  * @design
- * 1. Set `gdb_session` to `TRUE`.
+ * 1. Set `gdb_session` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_SESSION_START_01}
  * 2. Set `gdb_stop_reply_pending` to `FALSE`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_START_01}
  * 3. Set `gdb_interrupt_pending` to `FALSE`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_START_01}
  * 4. Set `gdb_swbreak_feature` to `FALSE`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_START_01}
  * 5. Set `gdb_hwbreak_feature` to `FALSE`.
- * 6. Call `gdb_detach_all()`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_START_01}
+ * 6. Call `gdb_detach_all()`. \llrref{LLR_GDBSERVER_GDB_SESSION_START_01}
  * 7. Call `gdb_attach()` with the argument `gdb_current.pid`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_START_01}
  *
  * @calls
  * - `gdb_detach_all()`
@@ -3644,17 +4961,31 @@ static void gdb_session_start(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SESSION_END_01}: `gdb_session_end()` shall end the
+ *   session of the debugger: remove all its breakpoints and watchpoints, detach
+ *   it from every process and cancel a step in progress.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_015}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SESSION_END_01}: `gdb_session_end()` shall call,
+ *   in this order, `gdb_sw_remove_all()`, `ja_gdb_hw_remove_all()` and
+ *   `gdb_detach_all()`, and then set `gdb_session`, `gdb_stop_reply_pending`
+ *   and `gdb_interrupt_pending` to `FALSE` and `gdb_step_cancelled` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SESSION_END_01}
  *
  * @design
- * 1. Call `gdb_sw_remove_all()`.
- * 2. Call `ja_gdb_hw_remove_all()`.
- * 3. Call `gdb_detach_all()`.
- * 4. Set `gdb_session` to `FALSE`.
+ * 1. Call `gdb_sw_remove_all()`. \llrref{LLR_GDBSERVER_GDB_SESSION_END_01}
+ * 2. Call `ja_gdb_hw_remove_all()`. \llrref{LLR_GDBSERVER_GDB_SESSION_END_01}
+ * 3. Call `gdb_detach_all()`. \llrref{LLR_GDBSERVER_GDB_SESSION_END_01}
+ * 4. Set `gdb_session` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_SESSION_END_01}
  * 5. Set `gdb_stop_reply_pending` to `FALSE`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_END_01}
  * 6. Set `gdb_interrupt_pending` to `FALSE`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_END_01}
  * 7. Set `gdb_step_cancelled` to `TRUE`.
+ *    \llrref{LLR_GDBSERVER_GDB_SESSION_END_01}
  *
  * @calls
  * - `gdb_sw_remove_all()`
@@ -3705,18 +5036,73 @@ static void gdb_session_end(void)
  * | `value` | `uint8_t[16]` | The value of a register |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}: `gdb_out_stop_reply()` shall
+ *   tell the debugger why and where the module stopped: the signal, the thread,
+ *   its frame pointer, stack pointer and program counter, and a breakpoint or
+ *   watchpoint (with its address) as the reason; and attach the debugger to the
+ *   thread's process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}: `gdb_out_stop_reply()` shall
+ *   call, in this order, `out_char()` with `'T'`, `out_byte()` with
+ *   `gdb_stop_signal`, `out_str()` with `"thread:"`, `out_thread_id()` with the
+ *   address of `gdb_current`, and `out_char()` with `';'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_02}: For each of `JA_GDB_REG_FP`,
+ *   `JA_GDB_REG_SP` and `JA_GDB_REG_PC`, in this order, if and only if
+ *   `ja_gdb_register_get()` returns true for `gdb_stop_ctx`, NULL, the register
+ *   and a buffer, `gdb_out_stop_reply()` shall call `out_byte()` with the
+ *   number of the register, `out_char()` with `':'`, `out_bytes()` with the
+ *   buffer and the result of `ja_gdb_register_size()` for the register, and
+ *   `out_char()` with `';'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_03}: If `gdb_stop_reason` is
+ *   `JET_GDB_STOP_SW_BREAKPOINT`, `gdb_out_stop_reply()` shall call `out_str()`
+ *   with `"swbreak:;"` if and only if `gdb_swbreak_feature` is true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_04}: If `gdb_stop_reason` is
+ *   `JET_GDB_STOP_HW_BREAKPOINT`, `gdb_out_stop_reply()` shall call `out_str()`
+ *   with `"hwbreak:;"` if and only if `gdb_hwbreak_feature` is true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_05}: If `gdb_stop_reason` is
+ *   `JET_GDB_STOP_WATCH`, `JET_GDB_STOP_RWATCH` or `JET_GDB_STOP_AWATCH`,
+ *   `gdb_out_stop_reply()` shall call `out_str()` with `"watch:"`, `"rwatch:"`
+ *   or `"awatch:"`, in this order, and then `out_hex()` with `gdb_stop_addr`
+ *   and `out_char()` with `';'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_06}: If `gdb_stop_reason` is none
+ *   of `JET_GDB_STOP_SW_BREAKPOINT`, `JET_GDB_STOP_HW_BREAKPOINT`,
+ *   `JET_GDB_STOP_WATCH`, `JET_GDB_STOP_RWATCH` and `JET_GDB_STOP_AWATCH`,
+ *   `gdb_out_stop_reply()` shall add nothing for the reason.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_07}: `gdb_out_stop_reply()` shall
+ *   end with a call of `gdb_attach()` with `gdb_current.pid`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
  *
  * @design
  * 1. Call `out_char()` with the argument `'T'`.
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
  * 2. Call `out_byte()` with the argument `(uint8_t)gdb_stop_signal`.
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
  * 3. Call `out_str()` with the argument `"thread:"`.
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
  * 4. Call `out_thread_id()` with the address of `gdb_current`.
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
  * 5. Call `out_char()` with the argument `';'`.
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_01}
  * 6. Set `i` to `0U`; then while `i` is less than
  *    `(sizeof(expedited) / sizeof(expedited[0]))`, repeat (after each pass:
- *    increment `i`):
+ *    increment `i`): \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_02}
  *    1. Set `regno` to `expedited[i]`.
  *    2. If `ja_gdb_register_get(gdb_stop_ctx, NULL, regno, value)` is true:
  *       1. Call `out_byte()` with the argument `(uint8_t)regno`.
@@ -3725,32 +5111,41 @@ static void gdb_session_end(void)
  *          `ja_gdb_register_size(regno)`.
  *       4. Call `out_char()` with the argument `';'`.
  * 7. Depending on `gdb_stop_reason`:
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_03},
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_04},
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_05},
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_06}
  *    1. Case `JET_GDB_STOP_SW_BREAKPOINT`:
+ *       \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_03}
  *       1. If `gdb_swbreak_feature` is true:
  *          1. Call `out_str()` with the argument `"swbreak:;"`.
  *       2. Leave the switch.
  *    2. Case `JET_GDB_STOP_HW_BREAKPOINT`:
+ *       \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_04}
  *       1. If `gdb_hwbreak_feature` is true:
  *          1. Call `out_str()` with the argument `"hwbreak:;"`.
  *       2. Leave the switch.
- *    3. Case `JET_GDB_STOP_WATCH`:
+ *    3. Case `JET_GDB_STOP_WATCH`: \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_05}
  *       1. Call `out_str()` with the argument `"watch:"`.
  *       2. Call `out_hex()` with the argument `gdb_stop_addr`.
  *       3. Call `out_char()` with the argument `';'`.
  *       4. Leave the switch.
  *    4. Case `JET_GDB_STOP_RWATCH`:
+ *       \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_05}
  *       1. Call `out_str()` with the argument `"rwatch:"`.
  *       2. Call `out_hex()` with the argument `gdb_stop_addr`.
  *       3. Call `out_char()` with the argument `';'`.
  *       4. Leave the switch.
  *    5. Case `JET_GDB_STOP_AWATCH`:
+ *       \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_05}
  *       1. Call `out_str()` with the argument `"awatch:"`.
  *       2. Call `out_hex()` with the argument `gdb_stop_addr`.
  *       3. Call `out_char()` with the argument `';'`.
  *       4. Leave the switch.
- *    6. Otherwise (default):
+ *    6. Otherwise (default): \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_06}
  *       1. Leave the switch.
  * 8. Call `gdb_attach()` with the argument `gdb_current.pid`.
+ *    \llrref{LLR_GDBSERVER_GDB_OUT_STOP_REPLY_07}
  *
  * @calls
  * - `out_char()`
@@ -3843,20 +5238,49 @@ static void gdb_out_stop_reply(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_SUPPORTED_01}: `gdb_cmd_supported()` shall
+ *   answer the debugger's list of features with the packet size, multiprocess,
+ *   and the stop reasons that both support.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SUPPORTED_01}: `gdb_cmd_supported()` shall set
+ *   `gdb_swbreak_feature` to the result of `in_has_feature()` for `"swbreak+"`
+ *   and `gdb_hwbreak_feature` to its result for `"hwbreak+"`, and then call
+ *   `out_str()` with `"PacketSize="`, `out_hex()` with `GDB_PACKET_SIZE` and
+ *   `out_str()` with `";multiprocess+"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SUPPORTED_02}: If and only if
+ *   `gdb_swbreak_feature` is then true, `gdb_cmd_supported()` shall call
+ *   `out_str()` with `";swbreak+"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SUPPORTED_03}: If and only if
+ *   `gdb_hwbreak_feature` is then true, `gdb_cmd_supported()` shall call
+ *   `out_str()` with `";hwbreak+"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
  *
  * @design
  * 1. Call `in_has_feature()` with the argument `"swbreak+"`, and store the
  *    result in `gdb_swbreak_feature`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
  * 2. Call `in_has_feature()` with the argument `"hwbreak+"`, and store the
  *    result in `gdb_hwbreak_feature`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
  * 3. Call `out_str()` with the argument `"PacketSize="`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
  * 4. Call `out_hex()` with the argument `GDB_PACKET_SIZE`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
  * 5. Call `out_str()` with the argument `";multiprocess+"`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SUPPORTED_01}
  * 6. If `gdb_swbreak_feature` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SUPPORTED_02}
  *    1. Call `out_str()` with the argument `";swbreak+"`.
  * 7. If `gdb_hwbreak_feature` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SUPPORTED_03}
  *    1. Call `out_str()` with the argument `";hwbreak+"`.
  *
  * @calls
@@ -3901,24 +5325,70 @@ static void gdb_cmd_supported(void)
  * | `t` | `gdb_thread_t` | A thread |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}: `gdb_cmd_thread_info()` shall
+ *   give the debugger the next threads of the processes that it is attached to,
+ *   as many as fit in a packet, or the end of the list.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}: If `gdb_list_next()` returns
+ *   false, `gdb_cmd_thread_info()` shall call `out_char()` once with `'l'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_02}: If `gdb_list_next()` returns
+ *   true, `gdb_cmd_thread_info()` shall call `out_char()` with `'m'` and then,
+ *   while there is a next thread and `gdb_out_len` plus 32 is less than
+ *   `GDB_PACKET_SIZE`, call `out_thread_id()` with the thread `gdb_list_pid`,
+ *   `gdb_list_tid` if `gdb_thread_find()` returns true for it, and call
+ *   `gdb_list_next()` again if `gdb_out_len` plus 32 is still less than
+ *   `GDB_PACKET_SIZE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_03}: If and only if `gdb_out_len`
+ *   is greater than 1 before a thread is added, `gdb_cmd_thread_info()` shall
+ *   first call `out_char()` with `','`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_04}: If `gdb_thread_find()`
+ *   returns false for a thread of the list, `gdb_cmd_thread_info()` shall add
+ *   nothing for it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_05}: If and only if `gdb_out_len`
+ *   is 1 after the list, `gdb_cmd_thread_info()` shall call `out_reset()` and
+ *   then `out_char()` with `'l'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}
  *
  * @design
  * 1. Call `gdb_list_next()`, and store the result in `more`.
- * 2. If `more` is false:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_02}
+ * 2. If `more` is false: \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_01}
  *    1. Call `out_char()` with the argument `'l'`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_02},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_04},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_05}
  *    1. Call `out_char()` with the argument `'m'`.
  *    2. While `more` is true and `(gdb_out_len + 32U)` is less than
- *       `GDB_PACKET_SIZE`:
+ *       `GDB_PACKET_SIZE`: \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_02},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_03},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_04}
  *       1. If `gdb_thread_find(&t, gdb_list_pid, gdb_list_tid)` is true:
+ *          \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_02},
+ *          \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_04}
  *          1. If `gdb_out_len` is greater than `1U`:
+ *             \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_03}
  *             1. Call `out_char()` with the argument `','`.
  *          2. Call `out_thread_id()` with the address of `t`.
+ *             \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_02}
  *       2. Set `more` to
  *          `((gdb_out_len + 32U) < GDB_PACKET_SIZE) && gdb_list_next()`.
+ *          \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_02}
  *    3. If `gdb_out_len` is equal to `1U`:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_INFO_05}
  *       1. Call `out_reset()`.
  *       2. Call `out_char()` with the argument `'l'`.
  *
@@ -3983,11 +5453,32 @@ static void gdb_cmd_thread_info(void)
  * | `t` | `gdb_thread_t` | The thread |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_THREAD_EXTRA_INFO_01}:
+ *   `gdb_cmd_thread_extra_info()` shall give the debugger the name of the
+ *   partition and the description of a thread, in hexadecimal.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_EXTRA_INFO_01}: If `in_thread_ref()`
+ *   returns true and `gdb_thread_resolve()` returns true for the reference,
+ *   `gdb_cmd_thread_extra_info()` shall call `out_byte()` with each character
+ *   of `name` of the partition of the thread before its `'\0'`, at most
+ *   `MAX_NAME_LENGTH` of them, then `out_byte()` with `'.'`, and then the
+ *   function `get_thread_info` of `part_sched_ops` of the partition with the
+ *   partition, the result of `gdb_thread_index()` for the thread, its
+ *   `part_private`, `out_print_cb` and NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_EXTRA_INFO_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_EXTRA_INFO_02}: If `in_thread_ref()`
+ *   returns false, or `gdb_thread_resolve()` returns false for the reference,
+ *   `gdb_cmd_thread_extra_info()` shall call `out_str()` with `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_EXTRA_INFO_01}
  *
  * @design
  * 1. If `in_thread_ref(&ref) && gdb_thread_resolve(&t, &ref)` holds:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_EXTRA_INFO_01}
  *    1. Set `name` to `t.part->name`.
  *    2. Set `i` to `0U`; then while `i` is less than `(size_t)MAX_NAME_LENGTH`
  *       and `name[i]` is not equal to `'\0'`, repeat (after each pass:
@@ -3997,7 +5488,7 @@ static void gdb_cmd_thread_info(void)
  *    4. Call the function `t.part->part_sched_ops->get_thread_info` with the
  *       arguments `t.part`, `gdb_thread_index(&t)`, `t.part_private`, the
  *       address of `out_print_cb` and `NULL`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_EXTRA_INFO_02}
  *    1. Call `out_str()` with the argument `"E01"`.
  *
  * @calls
@@ -4050,30 +5541,86 @@ static void gdb_cmd_thread_extra_info(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_QUERY_01}: `gdb_cmd_query()` shall answer the
+ *   query packets: the features, the thread list, the thread descriptions,
+ *   whether attached, symbols and the current thread.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_002}
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_QUERY_02}: `gdb_cmd_query()` shall give an
+ *   empty reply to the other query packets.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_01}: If `in_prefix()` returns true for
+ *   `"Supported"`, `gdb_cmd_query()` shall call `gdb_cmd_supported()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_02}: If `in_prefix()` returns true for
+ *   `"fThreadInfo"`, `gdb_cmd_query()` shall set `gdb_list_pid` to the result
+ *   of `gdb_process_next()` for 0 and `gdb_list_tid` to 0, and call
+ *   `gdb_cmd_thread_info()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_03}: If `in_prefix()` returns true for
+ *   `"sThreadInfo"`, `gdb_cmd_query()` shall call `gdb_cmd_thread_info()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_04}: If `in_prefix()` returns true for
+ *   `"ThreadExtraInfo,"`, `gdb_cmd_query()` shall call
+ *   `gdb_cmd_thread_extra_info()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_05}: If `in_prefix()` returns true for
+ *   `"Attached"`, `gdb_cmd_query()` shall call `out_char()` with `'1'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_06}: If `in_prefix()` returns true for
+ *   `"Symbol::"`, `gdb_cmd_query()` shall call `out_str()` with `"OK"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_07}: If `in_prefix()` returns false for
+ *   these six prefixes and true for `"C"`, and `in_peek()` then returns `'\0'`,
+ *   `gdb_cmd_query()` shall call `out_str()` with `"QC"` and `out_thread_id()`
+ *   with the address of `gdb_selected`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_QUERY_08}: If `in_prefix()` returns false for
+ *   these six prefixes, and it returns false for `"C"` or `in_peek()` does not
+ *   return `'\0'` after it, `gdb_cmd_query()` shall add nothing to the reply.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_QUERY_02}
  *
  * @design
  * 1. If `in_prefix("Supported")` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_01}
  *    1. Call `gdb_cmd_supported()`.
  * 2. Otherwise, if `in_prefix("fThreadInfo")` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_02}
  *    1. Call `gdb_process_next()` with the argument `0U`, and store the result
  *       in `gdb_list_pid`.
  *    2. Set `gdb_list_tid` to `0U`.
  *    3. Call `gdb_cmd_thread_info()`.
  * 3. Otherwise, if `in_prefix("sThreadInfo")` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_03}
  *    1. Call `gdb_cmd_thread_info()`.
  * 4. Otherwise, if `in_prefix("ThreadExtraInfo,")` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_04}
  *    1. Call `gdb_cmd_thread_extra_info()`.
  * 5. Otherwise, if `in_prefix("Attached")` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_05}
  *    1. Call `out_char()` with the argument `'1'`.
  * 6. Otherwise, if `in_prefix("Symbol::")` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_06}
  *    1. Call `out_str()` with the argument `"OK"`.
  * 7. Otherwise, if `in_prefix("C") && (in_peek() == '\0')` holds:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_07},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_08}
  *    1. Call `out_str()` with the argument `"QC"`.
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_07}
  *    2. Call `out_thread_id()` with the address of `gdb_selected`.
- * 8. Otherwise:
- *    1. Do nothing.
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_QUERY_07}
  *
  * @calls
  * - `in_prefix()`
@@ -4146,24 +5693,70 @@ static void gdb_cmd_query(void)
  * | `t` | `gdb_thread_t` | The thread |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_SET_THREAD_01}: `gdb_cmd_set_thread()` shall
+ *   select the thread of the register and memory requests (`Hg`), and accept
+ *   the thread for resuming (`Hc`), as the whole module resumes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SET_THREAD_01}: If `in_thread_ref()` returns
+ *   false after the operation character (`in_peek()`, `in_skip()`),
+ *   `gdb_cmd_set_thread()` shall call `out_str()` with `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SET_THREAD_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SET_THREAD_02}: If `in_thread_ref()` returns
+ *   true and the operation character is `'c'`, `gdb_cmd_set_thread()` shall
+ *   call `out_str()` with `"OK"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SET_THREAD_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SET_THREAD_03}: If `in_thread_ref()` returns
+ *   true, the operation character is `'g'` and `gdb_thread_resolve()` returns
+ *   true for the reference, `gdb_cmd_set_thread()` shall set `gdb_selected` to
+ *   the thread and call `out_str()` with `"OK"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SET_THREAD_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SET_THREAD_04}: If `in_thread_ref()` returns
+ *   true, the operation character is `'g'` and `gdb_thread_resolve()` returns
+ *   false for the reference, `gdb_cmd_set_thread()` shall call `out_str()` with
+ *   `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SET_THREAD_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_SET_THREAD_05}: If `in_thread_ref()` returns
+ *   true and the operation character is neither `'c'` nor `'g'`,
+ *   `gdb_cmd_set_thread()` shall add nothing to the reply.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_SET_THREAD_01}
  *
  * @design
  * 1. Call `in_peek()`, and store the result in `op`.
- * 2. Call `in_skip()`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_02},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_04},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_05}
+ * 2. Call `in_skip()`. \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_02},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_04},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_05}
  * 3. If `in_thread_ref(&ref)` is false:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_01}
  *    1. Call `out_str()` with the argument `"E01"`.
  * 4. Otherwise, if `op` is equal to `'c'`:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_02}
  *    1. Call `out_str()` with the argument `"OK"`.
  * 5. Otherwise, if `op` is equal to `'g'`:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_04},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_05}
  *    1. If `gdb_thread_resolve(&t, &ref)` is true:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_03}
  *       1. Set `gdb_selected` to `t`.
  *       2. Call `out_str()` with the argument `"OK"`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_SET_THREAD_04}
  *       1. Call `out_str()` with the argument `"E01"`.
- * 6. Otherwise:
- *    1. Do nothing.
  *
  * @calls
  * - `in_peek()`
@@ -4221,14 +5814,32 @@ static void gdb_cmd_set_thread(void)
  * | `t` | `gdb_thread_t` | The thread |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_THREAD_ALIVE_01}: `gdb_cmd_thread_alive()`
+ *   shall tell the debugger whether a thread exists in a process that it is
+ *   attached to.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_002}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_ALIVE_01}: If `in_thread_ref()` returns
+ *   true, `gdb_thread_resolve()` returns true for the reference and
+ *   `gdb_is_attached()` returns true for `pid` of the thread,
+ *   `gdb_cmd_thread_alive()` shall call `out_str()` with `"OK"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_ALIVE_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_THREAD_ALIVE_02}: If `in_thread_ref()` returns
+ *   false, or `gdb_thread_resolve()` returns false for the reference, or
+ *   `gdb_is_attached()` returns false for `pid` of the thread,
+ *   `gdb_cmd_thread_alive()` shall call `out_str()` with `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_THREAD_ALIVE_01}
  *
  * @design
  * 1. If `in_thread_ref(&ref) && gdb_thread_resolve(&t, &ref) &&`
  *    `gdb_is_attached(t.pid)` holds:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_ALIVE_01}
  *    1. Call `out_str()` with the argument `"OK"`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_THREAD_ALIVE_02}
  *    1. Call `out_str()` with the argument `"E01"`.
  *
  * @calls
@@ -4275,21 +5886,45 @@ static void gdb_cmd_thread_alive(void)
  * | `value` | `uint8_t[16]` | The value of a register |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01}: `gdb_cmd_read_registers()`
+ *   shall give the debugger the registers of the selected thread, marking those
+ *   that cannot be read.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01}: For each register `regno`
+ *   less than `JA_GDB_NUM_REGS`, in their order, for which
+ *   `ja_gdb_register_get()` returns true for the context of `gdb_selected`
+ *   (`gdb_thread_regs()`), its FP store (`gdb_thread_fp()`), `regno` and a
+ *   buffer, `gdb_cmd_read_registers()` shall call `out_bytes()` with the buffer
+ *   and the result of `ja_gdb_register_size()` for `regno`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_02}: For each register `regno`
+ *   less than `JA_GDB_NUM_REGS` for which `ja_gdb_register_get()` returns
+ *   false, `gdb_cmd_read_registers()` shall call `out_unavailable()` with the
+ *   result of `ja_gdb_register_size()` for `regno`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01}
  *
  * @design
  * 1. Call `gdb_thread_regs()` with the address of `gdb_selected`, and store the
- *    result in `ctx`.
+ *    result in `ctx`. \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_02}
  * 2. Call `gdb_thread_fp()` with the address of `gdb_selected`, and store the
- *    result in `fp`.
+ *    result in `fp`. \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_02}
  * 3. Set `regno` to `0U`; then while `regno` is less than `JA_GDB_NUM_REGS`,
  *    repeat (after each pass: increment `regno`):
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_02}
  *    1. Call `ja_gdb_register_size()` with the argument `regno`, and store the
  *       result in `size`.
  *    2. If `ja_gdb_register_get(ctx, fp, regno, value)` is true:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_01}
  *       1. Call `out_bytes()` with the arguments `value` and `size`.
- *    3. Otherwise:
+ *    3. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_READ_REGISTERS_02}
  *       1. Call `out_unavailable()` with the argument `size`.
  *
  * @calls
@@ -4345,35 +5980,97 @@ static void gdb_cmd_read_registers(void)
  * | `value` | `uint8_t[16]` | The value of a register |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}:
+ *   `gdb_cmd_write_registers()` shall write the registers that the debugger
+ *   gives into the selected thread, keeping those marked `"xx"`, and only into
+ *   a user context or the stopped context.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}: If the context of
+ *   `gdb_selected` (`gdb_thread_regs()`) is not NULL, is not `gdb_stop_ctx` and
+ *   `ja_gdb_context_is_user()` returns false for it,
+ *   `gdb_cmd_write_registers()` shall give NULL to `ja_gdb_register_set()` as
+ *   the context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_02}: If the context of
+ *   `gdb_selected` is NULL, or is `gdb_stop_ctx`, or `ja_gdb_context_is_user()`
+ *   returns true for it, `gdb_cmd_write_registers()` shall give it to
+ *   `ja_gdb_register_set()` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_03}: For each register `regno`
+ *   less than `JA_GDB_NUM_REGS`, in their order, while the packet is good and
+ *   `gdb_in_pos` is less than `gdb_in_len`: if `in_peek()` returns `'x'` and at
+ *   least 2 times the size of the register (`ja_gdb_register_size()`)
+ *   characters remain, `gdb_cmd_write_registers()` shall add that number to
+ *   `gdb_in_pos` without writing the register.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_04}: If `in_peek()` returns
+ *   `'x'` for a register and fewer than 2 times its size characters remain,
+ *   `gdb_cmd_write_registers()` shall take the packet as bad.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_05}: If `in_peek()` does not
+ *   return `'x'` for a register and `in_bytes()` returns true for a buffer and
+ *   its size, `gdb_cmd_write_registers()` shall call `ja_gdb_register_set()`
+ *   with the context, the FP store of `gdb_selected` (`gdb_thread_fp()`),
+ *   `regno` and the buffer.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_06}: If `in_peek()` does not
+ *   return `'x'` for a register and `in_bytes()` returns false for a buffer and
+ *   its size, `gdb_cmd_write_registers()` shall take the packet as bad.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_07}:
+ *   `gdb_cmd_write_registers()` shall then set `gdb_registers_changed` to
+ *   `TRUE`, and call `out_str()` with `"OK"` if the packet is good, and with
+ *   `"E01"` if it is bad.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
  *
  * @design
  * 1. Call `gdb_thread_regs()` with the address of `gdb_selected`, and store the
- *    result in `ctx`.
+ *    result in `ctx`. \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_02}
  * 2. Call `gdb_thread_fp()` with the address of `gdb_selected`, and store the
- *    result in `fp`.
+ *    result in `fp`. \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_05}
  * 3. If `ctx` is not NULL and `ctx` is not equal to `gdb_stop_ctx` and
  *    `ja_gdb_context_is_user(ctx)` is false:
- *    1. Set `ctx` to `NULL`.
- * 4. Set `ok` to `TRUE`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_02}
+ *    1. Set `ctx` to `NULL`. \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_01}
+ * 4. Set `ok` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_07}
  * 5. Set `regno` to `0U`; then while `ok` is true and `regno` is less than
  *    `JA_GDB_NUM_REGS` and `gdb_in_pos` is less than `gdb_in_len`, repeat
  *    (after each pass: increment `regno`):
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_04},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_05},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_06}
  *    1. Call `ja_gdb_register_size()` with the argument `regno`, and store the
  *       result in `size`.
  *    2. If `in_peek()` is equal to `'x'`:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_03},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_04}
  *       1. Set `ok` to `(gdb_in_len - gdb_in_pos) >= (2U * size)`.
  *       2. If `ok` is true:
  *          1. Add `2U * size` to `gdb_in_pos`.
+ *             \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_03}
  *    3. Otherwise, if `in_bytes(value, size)` is true:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_05}
  *       1. Call `ja_gdb_register_set()` with the arguments `ctx`, `fp`, `regno`
  *          and `value`.
- *    4. Otherwise:
+ *    4. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_06}
  *       1. Set `ok` to `FALSE`.
  * 6. Set `gdb_registers_changed` to `TRUE`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_07}
  * 7. Call `out_str()` with the argument `"OK"` if `ok` is true, otherwise
- *    `"E01"`.
+ *    `"E01"`. \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_REGISTERS_07}
  *
  * @calls
  * - `gdb_thread_regs()`
@@ -4442,11 +6139,20 @@ static void gdb_cmd_write_registers(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_SELECTED_SPACE_01}: `gdb_selected_space()` shall
+ *   give the memory space of the selected thread.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_SELECTED_SPACE_01}: `gdb_selected_space()` shall
+ *   return `space_id` of the partition of `gdb_selected`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_SELECTED_SPACE_01}
  *
  * @design
  * 1. Return `gdb_selected.part->space_id`.
+ *    \llrref{LLR_GDBSERVER_GDB_SELECTED_SPACE_01}
  *
  * @calls
  * None.
@@ -4478,17 +6184,64 @@ static jet_space_id gdb_selected_space(void)
  * | `space_id` | `jet_space_id` | The memory space |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}: `gdb_cmd_read_memory()` shall
+ *   give the debugger the memory of the space of the selected thread, as much
+ *   of it as can be read, showing the code under the software breakpoints.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}: If `in_hex()` returns false
+ *   for the address, or `in_expect()` returns false for `','`, or `in_hex()`
+ *   returns false for the length, `gdb_cmd_read_memory()` shall call
+ *   `out_str()` with `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_02}: If the packet is good,
+ *   `gdb_cmd_read_memory()` shall take as the size the length if it is less
+ *   than `GDB_PACKET_SIZE / 2`, and `GDB_PACKET_SIZE / 2` if it is not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_03}: If `ja_addr_to_gdb_ro()`
+ *   returns an address for the address, the size and the result of
+ *   `gdb_selected_space()`, `gdb_cmd_read_memory()` shall copy the bytes there
+ *   to a buffer with `memcpy()`, call `gdb_sw_hide()` with the space, the
+ *   address, the buffer and the size, and then `out_bytes()` with the buffer
+ *   and the size.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_04}: If and only if
+ *   `ja_addr_to_gdb_ro()` returns NULL and the size is greater than 1,
+ *   `gdb_cmd_read_memory()` shall reduce the size to the number of bytes, from
+ *   the address on, for each of which `ja_addr_to_gdb_ro()` returns an address
+ *   for 1 byte, and call `ja_addr_to_gdb_ro()` again with the address and that
+ *   size.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_05}: If the last result of
+ *   `ja_addr_to_gdb_ro()` for the address and the size is NULL,
+ *   `gdb_cmd_read_memory()` shall call `out_str()` with `"E03"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}
  *
  * @design
  * 1. If `in_hex(&addr) && in_expect(',') && in_hex(&len)` holds:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_02},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_04},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_05}
  *    1. Call `gdb_selected_space()`, and store the result in `space_id`.
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_03}
  *    2. Set `size` to `len` if `len` is less than `(GDB_PACKET_SIZE / 2U)`,
  *       otherwise `(GDB_PACKET_SIZE / 2U)`.
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_02}
  *    3. Call `ja_addr_to_gdb_ro()` with the arguments `addr`, `size` and
  *       `space_id`, and store the result in `mem`.
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_03},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_04},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_05}
  *    4. If `mem` is NULL and `size` is greater than `1U`:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_04}
  *       1. Set `readable` to `0U`.
  *       2. While `readable` is less than `size` and
  *          `ja_addr_to_gdb_ro(addr + readable, 1U, space_id)` is not NULL:
@@ -4496,14 +6249,14 @@ static jet_space_id gdb_selected_space(void)
  *       3. Set `size` to `readable`.
  *       4. Call `ja_addr_to_gdb_ro()` with the arguments `addr`, `size` and
  *          `space_id`, and store the result in `mem`.
- *    5. If `mem` is not NULL:
+ *    5. If `mem` is not NULL: \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_03}
  *       1. Call `memcpy()` with the arguments `copy`, `mem` and `size`.
  *       2. Call `gdb_sw_hide()` with the arguments `space_id`, `addr`, `copy`
  *          and `size`.
  *       3. Call `out_bytes()` with the arguments `copy` and `size`.
- *    6. Otherwise:
+ *    6. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_05}
  *       1. Call `out_str()` with the argument `"E03"`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_READ_MEMORY_01}
  *    1. Call `out_str()` with the argument `"E01"`.
  *
  * @calls
@@ -4583,26 +6336,65 @@ static void gdb_cmd_read_memory(void)
  * | `space_id` | `jet_space_id` | The memory space |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_01}: `gdb_cmd_write_memory()`
+ *   shall write the bytes that the debugger gives into the memory of the space
+ *   of the selected thread, keeping the breakpoints, and make the instruction
+ *   cache see them.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_01}: If `in_hex()` returns false
+ *   for the address, or `in_expect()` returns false for `','`, or `in_hex()`
+ *   returns false for the length, or `in_expect()` returns false for `':'`, or
+ *   the length is greater than `GDB_PACKET_SIZE / 2`, or the number of
+ *   characters that remain is not 2 times the length, `gdb_cmd_write_memory()`
+ *   shall call `out_str()` with `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_02}: If the packet is good and
+ *   the length is 0, `gdb_cmd_write_memory()` shall call `out_str()` with
+ *   `"OK"` and write no memory.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_03}: If the packet is good, the
+ *   length is not 0, `ja_addr_to_gdb()` returns an address for the address, the
+ *   length and the result of `gdb_selected_space()`, and `in_bytes()` returns
+ *   true for that memory and the length, `gdb_cmd_write_memory()` shall call
+ *   `gdb_sw_rewrite()` with the space, the address, the memory and the length,
+ *   then `ja_gdb_sync_icache()` with the memory and the length, and `out_str()`
+ *   with `"OK"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_04}: If the packet is good, the
+ *   length is not 0, and `ja_addr_to_gdb()` returns NULL or `in_bytes()`
+ *   returns false, `gdb_cmd_write_memory()` shall call `out_str()` with
+ *   `"E03"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_01}
  *
  * @design
  * 1. If `in_hex(&addr) && in_expect(',') && in_hex(&len) && in_expect(':') &&`
  *    `(len <= (GDB_PACKET_SIZE / 2U)) && ((gdb_in_len - gdb_in_pos) == (2U *`
- *    `len))` holds:
+ *    `len))` holds: \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_02},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_04}
  *    1. Call `gdb_selected_space()`, and store the result in `space_id`.
  *    2. Call `ja_addr_to_gdb()` with the arguments `addr`, `len` and
  *       `space_id`, and store the result in `mem`.
  *    3. If `len` is equal to `0U`:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_02}
  *       1. Call `out_str()` with the argument `"OK"`.
  *    4. Otherwise, if `mem` is not NULL and `in_bytes(mem, len)` is true:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_03}
  *       1. Call `gdb_sw_rewrite()` with the arguments `space_id`, `addr`, `mem`
  *          and `len`.
  *       2. Call `ja_gdb_sync_icache()` with the arguments `mem` and `len`.
  *       3. Call `out_str()` with the argument `"OK"`.
- *    5. Otherwise:
+ *    5. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_04}
  *       1. Call `out_str()` with the argument `"E03"`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_WRITE_MEMORY_01}
  *    1. Call `out_str()` with the argument `"E01"`.
  *
  * @calls
@@ -4676,44 +6468,96 @@ static void gdb_cmd_write_memory(void)
  * | `type` | `uintptr_t` | The type |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}: `gdb_cmd_breakpoint()` shall
+ *   insert or remove a software breakpoint (type 0) or, as far as the processor
+ *   supports it, a hardware breakpoint (1) or a write, read or access
+ *   watchpoint (2 to 4), in the space of the selected thread.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_005}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}: If `in_hex()` returns false
+ *   for the type, or `in_expect()` returns false for `','`, or `in_hex()`
+ *   returns false for the address, or `in_expect()` returns false for the
+ *   second `','`, or `in_hex()` returns false for the kind,
+ *   `gdb_cmd_breakpoint()` shall call `out_str()` with `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_02}: If the packet is good and the
+ *   type is 0, `gdb_cmd_breakpoint()` shall take as the result that of
+ *   `gdb_sw_insert()` for the result of `gdb_selected_space()`, the address and
+ *   the kind if `insert` is true, and that of `gdb_sw_remove()` for the space
+ *   and the address if `insert` is false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03}: If the packet is good and the
+ *   type is 1, 2, 3 or 4, `gdb_cmd_breakpoint()` shall take as the result that
+ *   of `ja_gdb_hw_insert()` if `insert` is true, and that of
+ *   `ja_gdb_hw_remove()` if `insert` is false, for `JA_GDB_HW_EXEC`,
+ *   `JA_GDB_HW_WRITE`, `JA_GDB_HW_READ` or `JA_GDB_HW_ACCESS`, in this order,
+ *   the address, the kind and the result of `gdb_selected_space()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_04}: If the packet is good, the
+ *   type is from 0 to 4 and the result is true, `gdb_cmd_breakpoint()` shall
+ *   call `out_str()` with `"OK"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_05}: If the packet is good, the
+ *   type is from 0 to 4 and the result is false, `gdb_cmd_breakpoint()` shall
+ *   call `out_str()` with `"E22"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_06}: If the packet is good and the
+ *   type is greater than 4, `gdb_cmd_breakpoint()` shall add nothing to the
+ *   reply and call none of `gdb_sw_insert()`, `gdb_sw_remove()`,
+ *   `ja_gdb_hw_insert()` and `ja_gdb_hw_remove()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}
  *
  * @design
  * 1. If `in_hex(&type) && in_expect(',') && in_hex(&addr) && in_expect(',') &&`
- *    `in_hex(&kind)` holds:
+ *    `in_hex(&kind)` holds: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_02},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_04},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_05},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_06}
  *    1. Call `gdb_selected_space()`, and store the result in `space_id`.
  *    2. Set `ok` to `FALSE`.
  *    3. Set `supported` to `TRUE`.
  *    4. Set `hw_type` to `JA_GDB_HW_EXEC`.
- *    5. Depending on `type`:
- *       1. Case `0U`:
+ *    5. Depending on `type`: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_02},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_06}
+ *       1. Case `0U`: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_02}
  *          1. Set `ok` to `gdb_sw_insert(space_id, addr, kind)` if `insert` is
  *             true, otherwise `gdb_sw_remove(space_id, addr)`.
  *          2. Leave the switch.
- *       2. Case `1U`:
+ *       2. Case `1U`: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03}
  *          1. Set `hw_type` to `JA_GDB_HW_EXEC`.
  *          2. Leave the switch.
- *       3. Case `2U`:
+ *       3. Case `2U`: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03}
  *          1. Set `hw_type` to `JA_GDB_HW_WRITE`.
  *          2. Leave the switch.
- *       4. Case `3U`:
+ *       4. Case `3U`: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03}
  *          1. Set `hw_type` to `JA_GDB_HW_READ`.
  *          2. Leave the switch.
- *       5. Case `4U`:
+ *       5. Case `4U`: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03}
  *          1. Set `hw_type` to `JA_GDB_HW_ACCESS`.
  *          2. Leave the switch.
- *       6. Otherwise (default):
+ *       6. Otherwise (default): \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_06}
  *          1. Set `supported` to `FALSE`.
  *          2. Leave the switch.
  *    6. If `supported` is true and `type` is not equal to `0U`:
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_03}
  *       1. Set `ok` to `ja_gdb_hw_insert(hw_type, addr, kind, space_id)` if
  *          `insert` is true, otherwise
  *          `ja_gdb_hw_remove(hw_type, addr, kind, space_id)`.
- *    7. If `supported` is true:
+ *    7. If `supported` is true: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_04},
+ *       \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_05}
  *       1. Call `out_str()` with the argument `"OK"` if `ok` is true, otherwise
  *          `"E22"`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_BREAKPOINT_01}
  *    1. Call `out_str()` with the argument `"E01"`.
  *
  * @calls
@@ -4799,25 +6643,57 @@ static void gdb_cmd_breakpoint(pok_bool_t insert)
  * | `value` | `uintptr_t` | The number read |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_RESUME_01}: `gdb_cmd_resume()` shall prepare
+ *   the module to resume, at a new address if the debugger gives one, one
+ *   instruction at a time for a step, with a stop reply owed.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_RESUME_01}: If `with_signal` is true,
+ *   `gdb_cmd_resume()` shall call `in_hex()` once for the signal, and take an
+ *   address as given if `in_expect()` then returns true for `';'` and
+ *   `in_hex()` returns true after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_RESUME_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_RESUME_02}: If `with_signal` is false,
+ *   `gdb_cmd_resume()` shall take an address as given if `in_hex()` returns
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_RESUME_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_RESUME_03}: If and only if an address is
+ *   given, `gdb_cmd_resume()` shall call `ja_gdb_pc_set()` with `gdb_stop_ctx`
+ *   and the address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_RESUME_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_RESUME_04}: If and only if `step` is true,
+ *   `gdb_cmd_resume()` shall call `ja_gdb_single_step()` with `gdb_stop_ctx`
+ *   and `TRUE`, and set `gdb_step_pending` to `TRUE`, `gdb_step_cancelled` to
+ *   `FALSE` and `gdb_step_thread` to `gdb_current`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_RESUME_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_RESUME_05}: `gdb_cmd_resume()` shall set
+ *   `gdb_stop_reply_pending` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_RESUME_01}
  *
  * @design
- * 1. If `with_signal` is true:
+ * 1. If `with_signal` is true: \llrref{LLR_GDBSERVER_GDB_CMD_RESUME_01}
  *    1. Call `in_hex()` with the address of `value`.
  *    2. Set `has_addr` to `in_expect(';') && in_hex(&value)`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_RESUME_02}
  *    1. Call `in_hex()` with the address of `value`, and store the result in
  *       `has_addr`.
- * 3. If `has_addr` is true:
+ * 3. If `has_addr` is true: \llrref{LLR_GDBSERVER_GDB_CMD_RESUME_03}
  *    1. Call `ja_gdb_pc_set()` with the arguments `gdb_stop_ctx` and `value`.
- * 4. If `step` is true:
+ * 4. If `step` is true: \llrref{LLR_GDBSERVER_GDB_CMD_RESUME_04}
  *    1. Call `ja_gdb_single_step()` with the arguments `gdb_stop_ctx` and
  *       `TRUE`.
  *    2. Set `gdb_step_pending` to `TRUE`.
  *    3. Set `gdb_step_cancelled` to `FALSE`.
  *    4. Set `gdb_step_thread` to `gdb_current`.
  * 5. Set `gdb_stop_reply_pending` to `TRUE`.
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_RESUME_05}
  *
  * @calls
  * - `in_hex()`
@@ -4880,16 +6756,40 @@ static void gdb_cmd_resume(pok_bool_t with_signal, pok_bool_t step)
  * | `gone` | `pok_bool_t` | Whether no process is attached |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_DETACH_01}: `gdb_detach()` shall detach the
+ *   debugger from a process and end the session when it is attached to none,
+ *   and tell whether it ended.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
+ *   - \srqref{SRQ_JET_DBG_015}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_DETACH_01}: If and only if `pid` is not greater
+ *   than `GDB_PID_MAX`, `gdb_detach()` shall set `gdb_attached[pid]` to
+ *   `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_DETACH_01}
+ * - \llrid{LLR_GDBSERVER_GDB_DETACH_02}: If `gdb_attached_none()` then returns
+ *   true, `gdb_detach()` shall call `gdb_session_end()` and return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_DETACH_01}
+ * - \llrid{LLR_GDBSERVER_GDB_DETACH_03}: If `gdb_attached_none()` then returns
+ *   false, `gdb_detach()` shall return false without calling
+ *   `gdb_session_end()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_DETACH_01}
  *
  * @design
  * 1. If `pid` is less than or equal to `GDB_PID_MAX`:
+ *    \llrref{LLR_GDBSERVER_GDB_DETACH_01}
  *    1. Set `gdb_attached[pid]` to `FALSE`.
  * 2. Call `gdb_attached_none()`, and store the result in `gone`.
- * 3. If `gone` is true:
- *    1. Call `gdb_session_end()`.
- * 4. Return `gone`.
+ *    \llrref{LLR_GDBSERVER_GDB_DETACH_02}, \llrref{LLR_GDBSERVER_GDB_DETACH_03}
+ * 3. If `gone` is true: \llrref{LLR_GDBSERVER_GDB_DETACH_02},
+ *    \llrref{LLR_GDBSERVER_GDB_DETACH_03}
+ *    1. Call `gdb_session_end()`. \llrref{LLR_GDBSERVER_GDB_DETACH_02}
+ * 4. Return `gone`. \llrref{LLR_GDBSERVER_GDB_DETACH_02},
+ *    \llrref{LLR_GDBSERVER_GDB_DETACH_03}
  *
  * @calls
  * - `gdb_attached_none()`
@@ -4929,12 +6829,33 @@ static pok_bool_t gdb_detach(uint32_t pid)
  * | `t` | `gdb_thread_t` | The thread |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_ATTACH_01}: `gdb_cmd_attach()` shall attach
+ *   the debugger to a process and select its current thread.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_ATTACH_01}: If `in_hex()` returns true for the
+ *   process ID, the ID is not greater than `GDB_PID_MAX` and
+ *   `gdb_thread_find()` returns true for the ID and the result of
+ *   `gdb_process_current_tid()` for it, `gdb_cmd_attach()` shall call
+ *   `gdb_attach()` with `pid` of the thread found, set `gdb_selected` to the
+ *   thread, and call `out_char()` with `'T'`, `out_byte()` with
+ *   `GDB_SIGNAL_NONE`, `out_str()` with `"thread:"`, `out_thread_id()` with the
+ *   thread and `out_char()` with `';'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_ATTACH_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_ATTACH_02}: If `in_hex()` returns false for
+ *   the process ID, or the ID is greater than `GDB_PID_MAX`, or
+ *   `gdb_thread_find()` returns false, `gdb_cmd_attach()` shall call
+ *   `out_str()` with `"E01"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_ATTACH_01}
  *
  * @design
  * 1. If `in_hex(&pid) && (pid <= GDB_PID_MAX) && gdb_thread_find(&t,`
  *    `(uint32_t)pid, gdb_process_current_tid((uint32_t)pid))` holds:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_ATTACH_01}
  *    1. Call `gdb_attach()` with the argument `t.pid`.
  *    2. Set `gdb_selected` to `t`.
  *    3. Call `out_char()` with the argument `'T'`.
@@ -4942,7 +6863,7 @@ static pok_bool_t gdb_detach(uint32_t pid)
  *    5. Call `out_str()` with the argument `"thread:"`.
  *    6. Call `out_thread_id()` with the address of `t`.
  *    7. Call `out_char()` with the argument `';'`.
- * 2. Otherwise:
+ * 2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_ATTACH_02}
  *    1. Call `out_str()` with the argument `"E01"`.
  *
  * @calls
@@ -4996,24 +6917,54 @@ static void gdb_cmd_attach(void)
  * | `resume` | `pok_bool_t` | Whether the system resumes |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_V_01}: `gdb_cmd_v()` shall answer the attach
+ *   and kill requests (a kill detaching from the process), and tell whether the
+ *   module resumes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_V_01}: If `in_prefix()` returns true for
+ *   `"Attach;"`, `gdb_cmd_v()` shall call `gdb_cmd_attach()` and return
+ *   `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_V_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_V_02}: If `in_prefix()` returns true for
+ *   `"Kill;"` and `in_hex()` returns true for a process ID, `gdb_cmd_v()` shall
+ *   call `gdb_detach()` with the ID if it is not greater than `GDB_PID_MAX`,
+ *   and with 0 if it is, call `out_str()` with `"OK"`, and return the result of
+ *   `gdb_detach()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_V_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_V_03}: If `in_prefix()` returns true for
+ *   `"Kill;"` and `in_hex()` returns false, `gdb_cmd_v()` shall call
+ *   `out_str()` with `"E01"` and return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_V_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_V_04}: If `in_prefix()` returns false for
+ *   `"Attach;"` and for `"Kill;"`, `gdb_cmd_v()` shall return `FALSE` and add
+ *   nothing to the reply.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_V_01}
  *
  * @design
- * 1. Set `resume` to `FALSE`.
- * 2. If `in_prefix("Attach;")` is true:
+ * 1. Set `resume` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_CMD_V_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_V_03}, \llrref{LLR_GDBSERVER_GDB_CMD_V_04}
+ * 2. If `in_prefix("Attach;")` is true: \llrref{LLR_GDBSERVER_GDB_CMD_V_01}
  *    1. Call `gdb_cmd_attach()`.
  * 3. Otherwise, if `in_prefix("Kill;")` is true:
- *    1. If `in_hex(&pid)` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_V_02}, \llrref{LLR_GDBSERVER_GDB_CMD_V_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_V_04}
+ *    1. If `in_hex(&pid)` is true: \llrref{LLR_GDBSERVER_GDB_CMD_V_02}
  *       1. Call `gdb_detach()` with the argument `(uint32_t)pid` if `pid` is
  *          less than or equal to `GDB_PID_MAX`, otherwise `0U`, and store the
  *          result in `resume`.
  *       2. Call `out_str()` with the argument `"OK"`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_V_03}
  *       1. Call `out_str()` with the argument `"E01"`.
- * 4. Otherwise:
- *    1. Do nothing.
- * 5. Return `resume`.
+ * 4. Return `resume`. \llrref{LLR_GDBSERVER_GDB_CMD_V_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_V_02}, \llrref{LLR_GDBSERVER_GDB_CMD_V_03},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_V_04}
  *
  * @calls
  * - `in_prefix()`
@@ -5066,23 +7017,49 @@ static pok_bool_t gdb_cmd_v(void)
  * | `resume` | `pok_bool_t` | Whether the system resumes |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_CMD_DETACH_01}: `gdb_cmd_detach()` shall end the
+ *   session or detach the debugger from one process, and tell whether the
+ *   module resumes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_007}
+ *   - \srqref{SRQ_JET_DBG_015}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_DETACH_01}: If `in_expect()` returns false for
+ *   `';'`, `gdb_cmd_detach()` shall call `gdb_session_end()` and `out_str()`
+ *   with `"OK"`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_DETACH_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_DETACH_02}: If `in_expect()` returns true for
+ *   `';'` and `in_hex()` returns true for a process ID, `gdb_cmd_detach()`
+ *   shall call `gdb_detach()` with the ID if it is not greater than
+ *   `GDB_PID_MAX`, and with 0 if it is, call `out_str()` with `"OK"`, and
+ *   return the result of `gdb_detach()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_DETACH_01}
+ * - \llrid{LLR_GDBSERVER_GDB_CMD_DETACH_03}: If `in_expect()` returns true for
+ *   `';'` and `in_hex()` returns false, `gdb_cmd_detach()` shall call
+ *   `out_str()` with `"E01"` and return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_CMD_DETACH_01}
  *
  * @design
- * 1. Set `resume` to `FALSE`.
- * 2. If `in_expect(';')` is false:
+ * 1. Set `resume` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_CMD_DETACH_03}
+ * 2. If `in_expect(';')` is false: \llrref{LLR_GDBSERVER_GDB_CMD_DETACH_01}
  *    1. Call `gdb_session_end()`.
  *    2. Set `resume` to `TRUE`.
  *    3. Call `out_str()` with the argument `"OK"`.
  * 3. Otherwise, if `in_hex(&pid)` is true:
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_DETACH_02}
  *    1. Call `gdb_detach()` with the argument `(uint32_t)pid` if `pid` is less
  *       than or equal to `GDB_PID_MAX`, otherwise `0U`, and store the result in
  *       `resume`.
  *    2. Call `out_str()` with the argument `"OK"`.
- * 4. Otherwise:
+ * 4. Otherwise: \llrref{LLR_GDBSERVER_GDB_CMD_DETACH_03}
  *    1. Call `out_str()` with the argument `"E01"`.
- * 5. Return `resume`.
+ * 5. Return `resume`. \llrref{LLR_GDBSERVER_GDB_CMD_DETACH_01},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_DETACH_02},
+ *    \llrref{LLR_GDBSERVER_GDB_CMD_DETACH_03}
  *
  * @calls
  * - `in_expect()`
@@ -5140,57 +7117,141 @@ static pok_bool_t gdb_cmd_detach(void)
  * | `resume` | `pok_bool_t` | Whether the system resumes |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}: `gdb_handle_packet()` shall
+ *   handle a request of the debugger, send its reply, and tell whether the
+ *   module resumes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_006}
+ * - \hlrid{HLR_GDBSERVER_GDB_HANDLE_PACKET_02}: `gdb_handle_packet()` shall
+ *   answer a resume request only when the module stops again.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
+ * - \hlrid{HLR_GDBSERVER_GDB_HANDLE_PACKET_03}: `gdb_handle_packet()` shall
+ *   stop the module at once, with a stop reply, on a resume request that comes
+ *   after an interrupt request.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_01}: `gdb_handle_packet()` shall
+ *   take the first character of the packet as the command (`in_peek()`,
+ *   `in_skip()`) and call `out_reset()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}: If the command is `'?'`, `'q'`,
+ *   `'H'`, `'T'`, `'g'`, `'G'`, `'m'` or `'M'`, `gdb_handle_packet()` shall
+ *   call `gdb_out_stop_reply()`, `gdb_cmd_query()`, `gdb_cmd_set_thread()`,
+ *   `gdb_cmd_thread_alive()`, `gdb_cmd_read_registers()`,
+ *   `gdb_cmd_write_registers()`, `gdb_cmd_read_memory()` or
+ *   `gdb_cmd_write_memory()`, in this order, then `gdb_put_packet()`, and
+ *   return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_03}: If the command is `'!'`,
+ *   `gdb_handle_packet()` shall call `out_str()` with `"OK"`, then
+ *   `gdb_put_packet()`, and return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_04}: If the command is `'Z'` or
+ *   `'z'`, `gdb_handle_packet()` shall call `gdb_cmd_breakpoint()` with `TRUE`
+ *   or `FALSE`, in this order, then `gdb_put_packet()`, and return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_05}: If the command is `'v'` or
+ *   `'D'`, `gdb_handle_packet()` shall call `gdb_cmd_v()` or
+ *   `gdb_cmd_detach()`, in this order, then `gdb_put_packet()`, and return the
+ *   result of that function.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_06}: If the command is `'c'`, `'C'`,
+ *   `'s'` or `'S'` and `gdb_interrupt_pending` is true, `gdb_handle_packet()`
+ *   shall set `gdb_interrupt_pending` to `FALSE`, call `gdb_cmd_resume()` with
+ *   whether the command is `'C'` or `'S'` and `FALSE`, set
+ *   `gdb_stop_reply_pending` to `FALSE`, `gdb_stop_signal` to `GDB_SIGNAL_INT`
+ *   and `gdb_stop_reason` to `JET_GDB_STOP_REQUEST`, call
+ *   `gdb_out_stop_reply()` and `gdb_put_packet()`, and return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_03}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_07}: If the command is `'c'`, `'C'`,
+ *   `'s'` or `'S'` and `gdb_interrupt_pending` is false, `gdb_handle_packet()`
+ *   shall call `gdb_cmd_resume()` with whether the command is `'C'` or `'S'`
+ *   and whether it is `'s'` or `'S'`, and return `TRUE` without calling
+ *   `gdb_put_packet()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_02}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_08}: If the command is `'k'`,
+ *   `gdb_handle_packet()` shall call `gdb_session_end()` and return `TRUE`
+ *   without calling `gdb_put_packet()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * - \llrid{LLR_GDBSERVER_GDB_HANDLE_PACKET_09}: If the command is none of
+ *   `'?'`, `'!'`, `'q'`, `'H'`, `'T'`, `'g'`, `'G'`, `'m'`, `'M'`, `'Z'`,
+ *   `'z'`, `'v'`, `'D'`, `'c'`, `'C'`, `'s'`, `'S'` and `'k'`,
+ *   `gdb_handle_packet()` shall call `gdb_put_packet()` with an empty reply and
+ *   return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_HANDLE_PACKET_01}
  *
  * @design
- * 1. Set `resume` to `FALSE`.
- * 2. Set `reply` to `TRUE`.
+ * 1. Set `resume` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * 2. Set `reply` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_01}
  * 3. Call `in_peek()`, and store the result in `cmd`.
- * 4. Call `in_skip()`.
- * 5. Call `out_reset()`.
- * 6. Depending on `cmd`:
- *    1. Case `'?'`:
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * 4. Call `in_skip()`. \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * 5. Call `out_reset()`. \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_01}
+ * 6. Depending on `cmd`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_03},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_04},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_05},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_06},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_07},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_08},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_09}
+ *    1. Case `'?'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_out_stop_reply()`.
  *       2. Leave the switch.
- *    2. Case `'!'`:
+ *    2. Case `'!'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_03}
  *       1. Call `out_str()` with the argument `"OK"`.
  *       2. Leave the switch.
- *    3. Case `'q'`:
+ *    3. Case `'q'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_cmd_query()`.
  *       2. Leave the switch.
- *    4. Case `'H'`:
+ *    4. Case `'H'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_cmd_set_thread()`.
  *       2. Leave the switch.
- *    5. Case `'T'`:
+ *    5. Case `'T'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_cmd_thread_alive()`.
  *       2. Leave the switch.
- *    6. Case `'g'`:
+ *    6. Case `'g'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_cmd_read_registers()`.
  *       2. Leave the switch.
- *    7. Case `'G'`:
+ *    7. Case `'G'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_cmd_write_registers()`.
  *       2. Leave the switch.
- *    8. Case `'m'`:
+ *    8. Case `'m'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_cmd_read_memory()`.
  *       2. Leave the switch.
- *    9. Case `'M'`:
+ *    9. Case `'M'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02}
  *       1. Call `gdb_cmd_write_memory()`.
  *       2. Leave the switch.
- *    10. Case `'Z'`:
+ *    10. Case `'Z'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_04}
  *        1. Call `gdb_cmd_breakpoint()` with the argument `TRUE`.
  *        2. Leave the switch.
- *    11. Case `'z'`:
+ *    11. Case `'z'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_04}
  *        1. Call `gdb_cmd_breakpoint()` with the argument `FALSE`.
  *        2. Leave the switch.
- *    12. Case `'v'`:
+ *    12. Case `'v'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_05}
  *        1. Call `gdb_cmd_v()`, and store the result in `resume`.
  *        2. Leave the switch.
- *    13. Case `'D'`:
+ *    13. Case `'D'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_05}
  *        1. Call `gdb_cmd_detach()`, and store the result in `resume`.
  *        2. Leave the switch.
  *    14. Case `'c'` or `'C'` or `'s'` or `'S'`:
+ *        \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_06},
+ *        \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_07}
  *        1. If `gdb_interrupt_pending` is true:
+ *           \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_06}
  *           1. Set `gdb_interrupt_pending` to `FALSE`.
  *           2. Call `gdb_cmd_resume()` with the arguments
  *              `(cmd == 'C') || (cmd == 'S')` and `FALSE`.
@@ -5198,23 +7259,37 @@ static pok_bool_t gdb_cmd_detach(void)
  *           4. Set `gdb_stop_signal` to `GDB_SIGNAL_INT`.
  *           5. Set `gdb_stop_reason` to `JET_GDB_STOP_REQUEST`.
  *           6. Call `gdb_out_stop_reply()`.
- *        2. Otherwise:
+ *        2. Otherwise: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_07}
  *           1. Call `gdb_cmd_resume()` with the arguments
  *              `(cmd == 'C') || (cmd == 'S')` and
  *              `(cmd == 's') || (cmd == 'S')`.
  *           2. Set `resume` to `TRUE`.
  *           3. Set `reply` to `FALSE`.
  *        3. Leave the switch.
- *    15. Case `'k'`:
+ *    15. Case `'k'`: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_08}
  *        1. Call `gdb_session_end()`.
  *        2. Set `resume` to `TRUE`.
  *        3. Set `reply` to `FALSE`.
  *        4. Leave the switch.
- *    16. Otherwise (default):
+ *    16. Otherwise (default): \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_09}
  *        1. Leave the switch.
- * 7. If `reply` is true:
+ * 7. If `reply` is true: \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_03},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_04},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_05},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_06},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_07},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_08},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_09}
  *    1. Call `gdb_put_packet()`.
- * 8. Return `resume`.
+ * 8. Return `resume`. \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_02},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_03},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_04},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_05},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_06},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_07},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_08},
+ *    \llrref{LLR_GDBSERVER_GDB_HANDLE_PACKET_09}
  *
  * @calls
  * - `in_peek()`
@@ -5342,43 +7417,120 @@ static pok_bool_t gdb_handle_packet(void)
  * | `resume` | `pok_bool_t` | Whether the system resumes |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_STOP_01}: `gdb_stop()` shall hold the stopped
+ *   module for the debugger, with the system time stopped, until the debugger
+ *   resumes it, the time stopped not being counted.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_003}
+ *   - \srqref{SRQ_JET_DBG_013}
+ * - \hlrid{HLR_GDBSERVER_GDB_STOP_02}: `gdb_stop()` shall send the stop reply
+ *   that is owed and handle requests of the debugger until it resumes the
+ *   module, starting a session at the first request.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_006}
+ * - \hlrid{HLR_GDBSERVER_GDB_STOP_03}: `gdb_stop()` shall show the debugger the
+ *   floating point state of the processor and load it again if the debugger
+ *   changed registers.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_01}: `gdb_stop()` shall first set
+ *   `gdb_in_server` to `TRUE` and call `ja_system_time_stop()` and
+ *   `ja_gdb_hw_enter()`, and at the end call `ja_gdb_hw_leave()` and
+ *   `ja_system_time_resume()` and set `gdb_in_server` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_01}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_02}: `gdb_stop()` shall call `jet_fp_sync()`
+ *   once after `ja_gdb_hw_enter()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_03}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_03}: If and only if `gdb_registers_changed`
+ *   is true when a packet resumes the module, `gdb_stop()` shall call
+ *   `jet_fp_reload()` before `ja_gdb_hw_leave()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_03}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_04}: `gdb_stop()` shall set `gdb_stop_ctx` to
+ *   `ctx`, `gdb_current` and `gdb_selected` to the thread at `current`,
+ *   `gdb_stop_signal` to `signal`, `gdb_stop_reason` to `reason`,
+ *   `gdb_stop_addr` to `addr` and `gdb_registers_changed` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_02}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_05}: If `gdb_step_pending` is true, `reason`
+ *   is `JET_GDB_STOP_STEP` and `gdb_thread_equal()` returns true for `current`
+ *   and `gdb_step_thread`, `gdb_stop()` shall set `gdb_step_pending` to
+ *   `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_02}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_06}: If `gdb_step_pending` is true, and
+ *   `reason` is not `JET_GDB_STOP_STEP` or `gdb_thread_equal()` returns false
+ *   for `current` and `gdb_step_thread`, `gdb_stop()` shall set
+ *   `gdb_step_cancelled` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_02}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_07}: If `gdb_step_pending` is false,
+ *   `gdb_stop()` shall leave `gdb_step_pending` and `gdb_step_cancelled` as
+ *   they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_02}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_08}: If and only if `gdb_stop_reply_pending`
+ *   is true, `gdb_stop()` shall call `out_reset()`, `gdb_out_stop_reply()` and
+ *   `gdb_put_packet()`, and set `gdb_stop_reply_pending` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_02}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_09}: `gdb_stop()` shall then call
+ *   `gdb_get_packet()` and `gdb_handle_packet()`, and do so again until
+ *   `gdb_handle_packet()` returns true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_02}
+ * - \llrid{LLR_GDBSERVER_GDB_STOP_10}: If and only if `gdb_session` is false
+ *   after `gdb_get_packet()`, `gdb_stop()` shall call `gdb_session_start()`
+ *   before `gdb_handle_packet()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_STOP_02}
  *
  * @design
- * 1. Set `resume` to `FALSE`.
- * 2. Set `gdb_in_server` to `TRUE`.
- * 3. Call `ja_system_time_stop()`.
- * 4. Call `ja_gdb_hw_enter()`.
- * 5. Call `jet_fp_sync()`.
- * 6. Set `gdb_stop_ctx` to `ctx`.
+ * 1. Set `resume` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_STOP_09}
+ * 2. Set `gdb_in_server` to `TRUE`. \llrref{LLR_GDBSERVER_GDB_STOP_01}
+ * 3. Call `ja_system_time_stop()`. \llrref{LLR_GDBSERVER_GDB_STOP_01}
+ * 4. Call `ja_gdb_hw_enter()`. \llrref{LLR_GDBSERVER_GDB_STOP_01}
+ * 5. Call `jet_fp_sync()`. \llrref{LLR_GDBSERVER_GDB_STOP_02}
+ * 6. Set `gdb_stop_ctx` to `ctx`. \llrref{LLR_GDBSERVER_GDB_STOP_04}
  * 7. Set `gdb_current` to the value at `current`.
+ *    \llrref{LLR_GDBSERVER_GDB_STOP_04}
  * 8. Set `gdb_selected` to the value at `current`.
- * 9. Set `gdb_stop_signal` to `signal`.
- * 10. Set `gdb_stop_reason` to `reason`.
- * 11. Set `gdb_stop_addr` to `addr`.
+ *    \llrref{LLR_GDBSERVER_GDB_STOP_04}
+ * 9. Set `gdb_stop_signal` to `signal`. \llrref{LLR_GDBSERVER_GDB_STOP_04}
+ * 10. Set `gdb_stop_reason` to `reason`. \llrref{LLR_GDBSERVER_GDB_STOP_04}
+ * 11. Set `gdb_stop_addr` to `addr`. \llrref{LLR_GDBSERVER_GDB_STOP_04}
  * 12. Set `gdb_registers_changed` to `FALSE`.
- * 13. If `gdb_step_pending` is true:
+ *     \llrref{LLR_GDBSERVER_GDB_STOP_04}
+ * 13. If `gdb_step_pending` is true: \llrref{LLR_GDBSERVER_GDB_STOP_05},
+ *     \llrref{LLR_GDBSERVER_GDB_STOP_06}, \llrref{LLR_GDBSERVER_GDB_STOP_07}
  *     1. If `reason` is equal to `JET_GDB_STOP_STEP` and
  *        `gdb_thread_equal(current, &gdb_step_thread)` is true:
+ *        \llrref{LLR_GDBSERVER_GDB_STOP_05}
  *        1. Set `gdb_step_pending` to `FALSE`.
- *     2. Otherwise:
+ *     2. Otherwise: \llrref{LLR_GDBSERVER_GDB_STOP_06}
  *        1. Set `gdb_step_cancelled` to `TRUE`.
- * 14. If `gdb_stop_reply_pending` is true:
+ * 14. If `gdb_stop_reply_pending` is true: \llrref{LLR_GDBSERVER_GDB_STOP_08}
  *     1. Call `out_reset()`.
  *     2. Call `gdb_out_stop_reply()`.
  *     3. Call `gdb_put_packet()`.
  *     4. Set `gdb_stop_reply_pending` to `FALSE`.
- * 15. While `resume` is false:
- *     1. Call `gdb_get_packet()`.
- *     2. If `gdb_session` is false:
+ * 15. While `resume` is false: \llrref{LLR_GDBSERVER_GDB_STOP_09},
+ *     \llrref{LLR_GDBSERVER_GDB_STOP_10}
+ *     1. Call `gdb_get_packet()`. \llrref{LLR_GDBSERVER_GDB_STOP_09}
+ *     2. If `gdb_session` is false: \llrref{LLR_GDBSERVER_GDB_STOP_10}
  *        1. Call `gdb_session_start()`.
  *     3. Call `gdb_handle_packet()`, and store the result in `resume`.
- * 16. If `gdb_registers_changed` is true:
+ *        \llrref{LLR_GDBSERVER_GDB_STOP_09}
+ * 16. If `gdb_registers_changed` is true: \llrref{LLR_GDBSERVER_GDB_STOP_03}
  *     1. Call `jet_fp_reload()`.
- * 17. Call `ja_gdb_hw_leave()`.
- * 18. Call `ja_system_time_resume()`.
- * 19. Set `gdb_in_server` to `FALSE`.
+ * 17. Call `ja_gdb_hw_leave()`. \llrref{LLR_GDBSERVER_GDB_STOP_01}
+ * 18. Call `ja_system_time_resume()`. \llrref{LLR_GDBSERVER_GDB_STOP_01}
+ * 19. Set `gdb_in_server` to `FALSE`. \llrref{LLR_GDBSERVER_GDB_STOP_01}
  *
  * @calls
  * - `ja_system_time_stop()`
@@ -5477,23 +7629,70 @@ static void gdb_stop(interrupt_frame* ctx,
  * | `signal` | `uint32_t` | The signal |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}: `gdb_request_signal()` shall
+ *   give the signal of a stop that a character of the debugger asked for: an
+ *   interrupt during a session stops with SIGINT, and the start of a packet is
+ *   read ahead and ends an old session.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}: `gdb_request_signal()` shall
+ *   take the character in `gdb_request_char` and set `gdb_request_char` to -1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
+ * - \llrid{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_02}: If the character is
+ *   `GDB_CHAR_INTERRUPT` and `gdb_session` is true, `gdb_request_signal()`
+ *   shall set `gdb_interrupt_pending` to `FALSE` and return `GDB_SIGNAL_INT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
+ * - \llrid{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_03}: If the character is
+ *   `GDB_CHAR_INTERRUPT` and `gdb_session` is false, `gdb_request_signal()`
+ *   shall set `gdb_interrupt_pending` to `FALSE` and return `GDB_SIGNAL_TRAP`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
+ * - \llrid{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_04}: If the character is not
+ *   `GDB_CHAR_INTERRUPT`, `gdb_request_signal()` shall return
+ *   `GDB_SIGNAL_TRAP`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
+ * - \llrid{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_05}: If the character is not
+ *   `GDB_CHAR_INTERRUPT`, `gdb_request_signal()` shall set `gdb_pushback` to it
+ *   if and only if it is not less than 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
+ * - \llrid{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_06}: If the character is not
+ *   `GDB_CHAR_INTERRUPT`, `gdb_request_signal()` shall call `gdb_session_end()`
+ *   if and only if `gdb_session` is true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
  *
  * @design
  * 1. Set `c` to `gdb_request_char`.
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
  * 2. Set `signal` to `GDB_SIGNAL_TRAP`.
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_03},
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_04}
  * 3. Set `gdb_request_char` to `-1`.
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_01}
  * 4. If `c` is equal to `GDB_CHAR_INTERRUPT`:
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_02},
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_03}
  *    1. If `gdb_session` is true:
  *       1. Set `signal` to `GDB_SIGNAL_INT`.
+ *          \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_02}
  *    2. Set `gdb_interrupt_pending` to `FALSE`.
- * 5. Otherwise:
+ * 5. Otherwise: \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_04},
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_05},
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_06}
  *    1. If `c` is greater than or equal to `0`:
+ *       \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_05}
  *       1. Set `gdb_pushback` to `c`.
- *    2. If `gdb_session` is true:
+ *    2. If `gdb_session` is true: \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_06}
  *       1. Call `gdb_session_end()`.
- * 6. Return `signal`.
+ * 6. Return `signal`. \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_02},
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_03},
+ *    \llrref{LLR_GDBSERVER_GDB_REQUEST_SIGNAL_04}
  *
  * @calls
  * - `gdb_session_end()`
@@ -5560,35 +7759,92 @@ static uint32_t gdb_request_signal(void)
  * | `signal` | `uint32_t` | The signal of a request |
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_JET_GDB_TRAP_01}: `jet_gdb_trap()` shall stop the
+ *   module for the debugger at a request, a breakpoint, a watchpoint or the end
+ *   of a step during a session, and tell the trap handler whether the trap was
+ *   the debugger's.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_014}
+ *   - \srqref{SRQ_JET_DBG_006}
+ * - \hlrid{HLR_GDBSERVER_JET_GDB_TRAP_02}: `jet_gdb_trap()` shall treat a trap
+ *   inside the GDB server as fatal.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_011}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_JET_GDB_TRAP_01}: If `gdb_in_server` is true,
+ *   `jet_gdb_trap()` shall call `pok_fatal()` with `"GDB: trap inside the GDB
+ *   server"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_TRAP_02}
+ * - \llrid{LLR_GDBSERVER_JET_GDB_TRAP_02}: `jet_gdb_trap()` shall take the
+ *   current thread with `gdb_thread_get_current()` for `ctx`, and take
+ *   `gdb_step_thread` in its place if and only if `reason` is
+ *   `JET_GDB_STOP_STEP`, `gdb_step_pending` is true, `pid` of the current
+ *   thread is `GDB_PID_KERNEL` and `pid` of `gdb_step_thread` is
+ *   `GDB_PID_KERNEL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_TRAP_01}
+ * - \llrid{LLR_GDBSERVER_JET_GDB_TRAP_03}: If `reason` is
+ *   `JET_GDB_STOP_REQUEST`, `jet_gdb_trap()` shall call `gdb_stop()` once with
+ *   `ctx`, the thread, the result of `gdb_request_signal()`, `reason` and
+ *   `addr`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_TRAP_01}
+ * - \llrid{LLR_GDBSERVER_JET_GDB_TRAP_04}: If `reason` is `JET_GDB_STOP_STEP`,
+ *   `gdb_step_pending` is true, `gdb_step_cancelled` is true or `gdb_session`
+ *   is false, and `gdb_thread_equal()` returns true for the thread and
+ *   `gdb_step_thread`, `jet_gdb_trap()` shall set `gdb_step_pending` to `FALSE`
+ *   and return `TRUE` without calling `gdb_stop()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_TRAP_01}
+ * - \llrid{LLR_GDBSERVER_JET_GDB_TRAP_05}: If `reason` is not
+ *   `JET_GDB_STOP_REQUEST`, the step of the requirement before is not the case
+ *   and `gdb_session` is false, `jet_gdb_trap()` shall return `FALSE` without
+ *   calling `gdb_stop()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_TRAP_01}
+ * - \llrid{LLR_GDBSERVER_JET_GDB_TRAP_06}: If `reason` is not
+ *   `JET_GDB_STOP_REQUEST`, the step of the requirement before the last is not
+ *   the case and `gdb_session` is true, `jet_gdb_trap()` shall call
+ *   `gdb_stop()` once with `ctx`, the thread, `GDB_SIGNAL_TRAP`, `reason` and
+ *   `addr`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_TRAP_01}
  *
  * @design
- * 1. Set `handled` to `TRUE`.
- * 2. If `gdb_in_server` is true:
+ * 1. Set `handled` to `TRUE`. \llrref{LLR_GDBSERVER_JET_GDB_TRAP_03},
+ *    \llrref{LLR_GDBSERVER_JET_GDB_TRAP_04},
+ *    \llrref{LLR_GDBSERVER_JET_GDB_TRAP_06}
+ * 2. If `gdb_in_server` is true: \llrref{LLR_GDBSERVER_JET_GDB_TRAP_01}
  *    1. Call `pok_fatal()` with the argument
  *       `"GDB: trap inside the GDB server"`.
  * 3. Call `gdb_thread_get_current()` with the arguments the address of
- *    `current` and `ctx`.
+ *    `current` and `ctx`. \llrref{LLR_GDBSERVER_JET_GDB_TRAP_02}
  * 4. If `reason` is equal to `JET_GDB_STOP_STEP` and `gdb_step_pending` is true
  *    and `current.pid` is equal to `GDB_PID_KERNEL` and `gdb_step_thread.pid`
- *    is equal to `GDB_PID_KERNEL`:
+ *    is equal to `GDB_PID_KERNEL`: \llrref{LLR_GDBSERVER_JET_GDB_TRAP_02}
  *    1. Set `current` to `gdb_step_thread`.
  * 5. If `reason` is equal to `JET_GDB_STOP_REQUEST`:
+ *    \llrref{LLR_GDBSERVER_JET_GDB_TRAP_03}
  *    1. Call `gdb_request_signal()`, and store the result in `signal`.
  *    2. Call `gdb_stop()` with the arguments `ctx`, the address of `current`,
  *       `signal`, `reason` and `addr`.
  * 6. Otherwise, if `reason` is equal to `JET_GDB_STOP_STEP` and
  *    `gdb_step_pending` is true and (`gdb_step_cancelled` is true or
  *    `gdb_session` is false) and `gdb_thread_equal(&current, &gdb_step_thread)`
- *    is true:
+ *    is true: \llrref{LLR_GDBSERVER_JET_GDB_TRAP_04}
  *    1. Set `gdb_step_pending` to `FALSE`.
  * 7. Otherwise, if `gdb_session` is false:
+ *    \llrref{LLR_GDBSERVER_JET_GDB_TRAP_05}
  *    1. Set `handled` to `FALSE`.
- * 8. Otherwise:
+ * 8. Otherwise: \llrref{LLR_GDBSERVER_JET_GDB_TRAP_06}
  *    1. Call `gdb_stop()` with the arguments `ctx`, the address of `current`,
  *       `GDB_SIGNAL_TRAP`, `reason` and `addr`.
- * 9. Return `handled`.
+ * 9. Return `handled`. \llrref{LLR_GDBSERVER_JET_GDB_TRAP_03},
+ *    \llrref{LLR_GDBSERVER_JET_GDB_TRAP_04},
+ *    \llrref{LLR_GDBSERVER_JET_GDB_TRAP_05},
+ *    \llrref{LLR_GDBSERVER_JET_GDB_TRAP_06}
  *
  * @calls
  * - `pok_fatal()`
@@ -5668,12 +7924,21 @@ pok_bool_t jet_gdb_trap(interrupt_frame* ctx,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDBSERVER_JET_GDB_REQUEST_01}: `jet_gdb_request()` shall make
+ *   the GDB server stop the module for a character that the debugger sent.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_006}
  *
  * @llr
+ * - \llrid{LLR_GDBSERVER_JET_GDB_REQUEST_01}: `jet_gdb_request()` shall set
+ *   `gdb_request_char` to `c` and then call `pok_trap()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDBSERVER_JET_GDB_REQUEST_01}
  *
  * @design
- * 1. Set `gdb_request_char` to `c`.
- * 2. Call `pok_trap()`.
+ * 1. Set `gdb_request_char` to `c`. \llrref{LLR_GDBSERVER_JET_GDB_REQUEST_01}
+ * 2. Call `pok_trap()`. \llrref{LLR_GDBSERVER_JET_GDB_REQUEST_01}
  *
  * @calls
  * - `pok_trap()`

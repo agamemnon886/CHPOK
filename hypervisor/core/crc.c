@@ -32,6 +32,14 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from hypervisor/src/crc.c
  * (the common code and its headers are in hypervisor/core).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -71,21 +79,46 @@ static bool crc_table_ready = false;
  * | `bit` | `uint32_t` | The bit being shifted out |
  *
  * @hlr
+ * - \hlrid{HLR_CRC_CRC_TABLE_INIT_01}: `crc_table_init()` shall compute the
+ *   table of the CRC-32 of each byte value with the polynomial of zlib and
+ *   Ethernet.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_LIB_002}
  *
  * @llr
+ * - \llrid{LLR_CRC_CRC_TABLE_INIT_01}: `crc_table_init()` shall set
+ *   `crc_table[i]`, for each `i` from 0 to `CRC32_TABLE_SIZE` minus 1, to the
+ *   value that `i` becomes after `BITS_PER_BYTE` steps, and then set
+ *   `crc_table_ready` to true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_CRC_TABLE_INIT_01}
+ * - \llrid{LLR_CRC_CRC_TABLE_INIT_02}: If bit 0 of the value is 1 at a step,
+ *   `crc_table_init()` shall replace the value with the value shifted right by
+ *   1 bit and XORed with `CRC32_POLYNOMIAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_CRC_TABLE_INIT_01}
+ * - \llrid{LLR_CRC_CRC_TABLE_INIT_03}: If bit 0 of the value is 0 at a step,
+ *   `crc_table_init()` shall replace the value with the value shifted right by
+ *   1 bit.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_CRC_TABLE_INIT_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `CRC32_TABLE_SIZE`, repeat
- *    (after each pass: increment `i`):
- *    1. Set `value` to `i`.
+ *    (after each pass: increment `i`): \llrref{LLR_CRC_CRC_TABLE_INIT_01},
+ *    \llrref{LLR_CRC_CRC_TABLE_INIT_02}, \llrref{LLR_CRC_CRC_TABLE_INIT_03}
+ *    1. Set `value` to `i`. \llrref{LLR_CRC_CRC_TABLE_INIT_01}
  *    2. Set `bit` to `0U`; then while `bit` is less than `BITS_PER_BYTE`,
  *       repeat (after each pass: increment `bit`):
+ *       \llrref{LLR_CRC_CRC_TABLE_INIT_01}, \llrref{LLR_CRC_CRC_TABLE_INIT_02},
+ *       \llrref{LLR_CRC_CRC_TABLE_INIT_03}
  *       1. If `(value & 1U)` is not equal to `0U`:
+ *          \llrref{LLR_CRC_CRC_TABLE_INIT_02}
  *          1. Set `value` to `(value >> 1U) ^ CRC32_POLYNOMIAL`.
- *       2. Otherwise:
+ *       2. Otherwise: \llrref{LLR_CRC_CRC_TABLE_INIT_03}
  *          1. Shift `value` right by `1U` bits.
- *    3. Set `crc_table[i]` to `value`.
- * 2. Set `crc_table_ready` to `true`.
+ *    3. Set `crc_table[i]` to `value`. \llrref{LLR_CRC_CRC_TABLE_INIT_01}
+ * 2. Set `crc_table_ready` to `true`. \llrref{LLR_CRC_CRC_TABLE_INIT_01}
  *
  * @calls
  * None.
@@ -135,18 +168,35 @@ static void crc_table_init(void)
  * | `index` | `uint32_t` | The table entry for the byte |
  *
  * @hlr
+ * - \hlrid{HLR_CRC_HV_CRC32_01}: `hv_crc32()` shall compute the CRC-32 of zlib
+ *   and Ethernet of a block of bytes.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_LIB_002}
  *
  * @llr
+ * - \llrid{LLR_CRC_HV_CRC32_01}: If and only if `crc_table_ready` is false,
+ *   `hv_crc32()` shall call `crc_table_init()` once, before it reads
+ *   `crc_table`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_HV_CRC32_01}
+ * - \llrid{LLR_CRC_HV_CRC32_02}: `hv_crc32()` shall start from the value
+ *   `CRC32_INITIAL`, replace it, for each of the `length` bytes of `data` in
+ *   their order, with the value shifted right by `BITS_PER_BYTE` bits and XORed
+ *   with the element of `crc_table` whose index is the bits `BYTE_MASK` of the
+ *   value XORed with the byte, and return the last value XORed with
+ *   `CRC32_FINAL_XOR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_HV_CRC32_01}
  *
  * @design
- * 1. Set `crc` to `CRC32_INITIAL`.
- * 2. If `crc_table_ready` is false:
+ * 1. Set `crc` to `CRC32_INITIAL`. \llrref{LLR_CRC_HV_CRC32_02}
+ * 2. If `crc_table_ready` is false: \llrref{LLR_CRC_HV_CRC32_01}
  *    1. Call `crc_table_init()`.
  * 3. Set `i` to `0U`; then while `i` is less than `length`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_CRC_HV_CRC32_02}
  *    1. Set `index` to `(crc ^ (uint32_t) data[i]) & BYTE_MASK`.
  *    2. Set `crc` to `(crc >> BITS_PER_BYTE) ^ crc_table[index]`.
- * 4. Return `crc ^ CRC32_FINAL_XOR`.
+ * 4. Return `crc ^ CRC32_FINAL_XOR`. \llrref{LLR_CRC_HV_CRC32_02}
  *
  * @calls
  * - `crc_table_init()`
@@ -189,17 +239,51 @@ uint32_t hv_crc32(const uint8_t *data, size_t length)
  * | `actual` | `uint32_t` | The CRC-32 of the image |
  *
  * @hlr
+ * - \hlrid{HLR_CRC_HV_IMAGE_CHECK_01}: `hv_image_check()` shall compute the
+ *   CRC-32 of the hypervisor image and stop the hypervisor, after printing both
+ *   values, if it differs from the one stored when the image was linked.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_002}
+ *   - \srqref{SRQ_HV_BOOT_007}
+ *   - \srqref{SRQ_HV_CFG_005}
+ * - \hlrid{HLR_CRC_HV_IMAGE_CHECK_02}: `hv_image_check()` shall report a good
+ *   check on the console with the size of the image.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_006}
  *
  * @llr
+ * - \llrid{LLR_CRC_HV_IMAGE_CHECK_01}: `hv_image_check()` shall call
+ *   `hv_crc32()` once with `hv_image_begin` and the number of bytes from
+ *   `hv_image_begin` to the address of `hv_image_crc`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_HV_IMAGE_CHECK_01}
+ * - \llrid{LLR_CRC_HV_IMAGE_CHECK_02}: If the result of `hv_crc32()` is not
+ *   `hv_image_crc`, `hv_image_check()` shall call `hv_printf()` once with
+ *   `"[hv] image CRC-32 mismatch: expected 0x%08x, actual 0x%08x\n"`,
+ *   `hv_image_crc` and the result, and then `hv_fatal()` with `"the hypervisor
+ *   image is corrupted"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_HV_IMAGE_CHECK_01}
+ * - \llrid{LLR_CRC_HV_IMAGE_CHECK_03}: If the result of `hv_crc32()` is
+ *   `hv_image_crc`, `hv_image_check()` shall call `hv_printf()` once with
+ *   `"[hv] image CRC-32 0x%08x OK (%%zu KiB)\n"`, the result and the number of
+ *   bytes given to `hv_crc32()` shifted right by 10 bits, without calling
+ *   `hv_fatal()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_CRC_HV_IMAGE_CHECK_02}
  *
  * @design
  * 1. Set `begin` to `(uintptr_t) hv_image_begin`.
+ *    \llrref{LLR_CRC_HV_IMAGE_CHECK_01}, \llrref{LLR_CRC_HV_IMAGE_CHECK_03}
  * 2. Set `end` to `(uintptr_t) &hv_image_crc`.
+ *    \llrref{LLR_CRC_HV_IMAGE_CHECK_01}, \llrref{LLR_CRC_HV_IMAGE_CHECK_03}
  * 3. Set `size` to `(size_t) (end - begin)`.
- * 4. Set `expected` to `hv_image_crc`.
+ *    \llrref{LLR_CRC_HV_IMAGE_CHECK_01}, \llrref{LLR_CRC_HV_IMAGE_CHECK_03}
+ * 4. Set `expected` to `hv_image_crc`. \llrref{LLR_CRC_HV_IMAGE_CHECK_02}
  * 5. Call `hv_crc32()` with the arguments `hv_image_begin` and `size`, and
- *    store the result in `actual`.
- * 6. If `actual` is not equal to `expected`:
+ *    store the result in `actual`. \llrref{LLR_CRC_HV_IMAGE_CHECK_01},
+ *    \llrref{LLR_CRC_HV_IMAGE_CHECK_02}, \llrref{LLR_CRC_HV_IMAGE_CHECK_03}
+ * 6. If `actual` is not equal to `expected`: \llrref{LLR_CRC_HV_IMAGE_CHECK_02}
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] image CRC-32 mismatch: expected 0x%08x, " "actual 0x%08x\n"`,
  *       `expected` and `actual`.
@@ -207,6 +291,7 @@ uint32_t hv_crc32(const uint8_t *data, size_t length)
  *       `"the hypervisor image is corrupted"`.
  * 7. Call `hv_printf()` with the arguments
  *    `"[hv] image CRC-32 0x%08x OK (%%zu KiB)\n"`, `actual` and `size >> 10U`.
+ *    \llrref{LLR_CRC_HV_IMAGE_CHECK_03}
  *
  * @calls
  * - `hv_crc32()`

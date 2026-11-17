@@ -35,13 +35,12 @@
     the hypervisor gives it.</para>
 
   <section xml:id="SRQ_HV_MEM_001" role="requirement">
-    <title>SRQ_HV_MEM_001</title>
+    <title><phrase role="srq">SRQ_HV_MEM_001</phrase></title>
     <para>The hypervisor shall map the RAM of a VM into the physical
-      address space of its guest by nested page tables on x86_64 (from
-      address 0 up to the size of the memory) and by stage 2 translation
-      tables on arm64 (from address 0x40000000), with the memory of the
-      host as its backing, and shall map nothing else, except the devices
-      that this document gives to the guest.</para>
+    address space of its guest by nested page tables on x86_64 (from
+    address 0 up to the size of the memory) and by stage 2 translation
+    tables on arm64 (from address 0x40000000), with the memory of the
+    host as its backing.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Address translation by the processor is what keeps a guest in
@@ -51,10 +50,42 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOAD_HV_ARCH_VM_INIT_01
+        HLR_STAGE2_TABLE_PA_01
+        HLR_STAGE2_INDEX_OF_01
+        HLR_STAGE2_STAGE2_BUILD_01
+        HLR_VCPU_HV_ARCH_CPU_ENABLE_01
+        HLR_MULTIBOOT_HV_ARCH_VM_INIT_01
+        HLR_NPT_NPT_PA_01
+        HLR_NPT_NPT_BUILD_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_MEM_006" role="requirement">
+    <title><phrase role="srq">SRQ_HV_MEM_006</phrase></title>
+    <para>The hypervisor shall map nothing into the physical address
+    space of a guest but the RAM of its VM and the devices that this
+    document gives to the guest.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Address translation by the processor is what keeps a guest in
+        its region.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_STAGE2_STAGE2_BUILD_01
+        HLR_NPT_NPT_BUILD_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_MEM_002" role="requirement">
-    <title>SRQ_HV_MEM_002</title>
+    <title><phrase role="srq">SRQ_HV_MEM_002</phrase></title>
     <para>The hypervisor shall stop a VM, and only that VM, whose guest
       accesses memory outside its RAM that is not a device that the
       hypervisor gives to it.</para>
@@ -66,10 +97,18 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMIO_MMIO_ABORT_02
+        HLR_VCPU_REPORT_FETCH_01
+        HLR_VCPU_HANDLE_SYNC_03
+        HLR_NPT_NPT_BUILD_01
+        HLR_SVM_HANDLE_EXIT_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_MEM_003" role="requirement">
-    <title>SRQ_HV_MEM_003</title>
+    <title><phrase role="srq">SRQ_HV_MEM_003</phrase></title>
     <para>The hypervisor shall give the guest on arm64 the devices that
       the VM needs by mapping their pages as device memory, not
       executable: the virtual interface of the interrupt controller, and
@@ -83,10 +122,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_STAGE2_MAP_DEVICE_01
+        HLR_STAGE2_STAGE2_BUILD_02
+        HLR_GIC_GIC_GICV_BASE_01
+        HLR_UART_HV_UART_BASE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_MEM_004" role="requirement">
-    <title>SRQ_HV_MEM_004</title>
+    <title><phrase role="srq">SRQ_HV_MEM_004</phrase></title>
     <para>The hypervisor shall write the data cache back to memory and
       drop the instruction cache over the RAM of a VM on arm64 when it
       loads the VM, because the guest starts with its MMU and caches off.</para>
@@ -98,10 +144,14 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOAD_CLEAN_CACHES_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_MEM_005" role="requirement">
-    <title>SRQ_HV_MEM_005</title>
+    <title><phrase role="srq">SRQ_HV_MEM_005</phrase></title>
     <para>The hypervisor shall use, for itself, memory that it maps with
       its own translation: with the MMU on, an identity map, on arm64.</para>
     <formalpara>
@@ -111,6 +161,10 @@
     <formalpara>
       <title>Verification</title>
       <para>Review.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMU_HV_MMU_INIT_01</para>
     </formalpara>
   </section>
 </chapter>

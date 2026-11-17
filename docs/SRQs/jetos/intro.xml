@@ -104,10 +104,15 @@
     >NNN</replaceable></literal>, where
     <replaceable>AREA</replaceable> names the chapter of the
     requirement. An identifier is never changed and never used again
-    for another requirement. A requirement states, with
-    <quote>shall</quote>, one behaviour of JetOS that can be verified;
-    its rationale and its verification method (test, analysis or
-    review) follow it.</para>
+    for another requirement. A requirement states one behaviour of
+    JetOS that can be verified, with exactly one <quote>shall</quote>
+    (a requirement with two is split into two requirements); its
+    rationale, its verification method (test, analysis or
+    review) and its traceability follow it. The traceability lists the
+    high level requirements of the functions that trace to the
+    requirement, or says <quote>Not applicable</quote> for a
+    constraint on the whole software, which no single function
+    implements.</para>
   </section>
 
   <section xml:id="jet-intro-terms">

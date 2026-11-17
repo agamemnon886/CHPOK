@@ -34,6 +34,10 @@
  * hypervisor/arch/x86_64/smp.c (the code of the processor architecture is in
  * hypervisor/csps); memcpy() of the library shared with the kernel replaces
  * hv_memcpy().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -66,14 +70,26 @@
  * | `size` | `size_t` | The size of the trampoline |
  *
  * @hlr
+ * - \hlrid{HLR_SMP_COPY_TRAMPOLINE_01}: `copy_trampoline()` shall put the
+ *   start-up code of the other CPUs where the start-up interrupt makes them
+ *   start.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_SMP_COPY_TRAMPOLINE_01}: `copy_trampoline()` shall copy with
+ *   `memcpy()` the bytes from `hv_ap_trampoline` up to `hv_ap_trampoline_end`
+ *   to the address `AP_TRAMPOLINE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_COPY_TRAMPOLINE_01}
  *
  * @design
  * 1. Set `start` to `(uintptr_t) hv_ap_trampoline`.
+ *    \llrref{LLR_SMP_COPY_TRAMPOLINE_01}
  * 2. Set `size` to `(size_t) ((uintptr_t) hv_ap_trampoline_end - start)`.
+ *    \llrref{LLR_SMP_COPY_TRAMPOLINE_01}
  * 3. Call `memcpy()` with the arguments `(void *) AP_TRAMPOLINE`,
- *    `hv_ap_trampoline` and `size`.
+ *    `hv_ap_trampoline` and `size`. \llrref{LLR_SMP_COPY_TRAMPOLINE_01}
  *
  * @calls
  * - `memcpy()`
@@ -115,16 +131,30 @@ static void copy_trampoline(void)
  * | `waited` | `uint64_t` | The time waited so far, in microseconds |
  *
  * @hlr
+ * - \hlrid{HLR_SMP_X86_64_WAIT_ONLINE_01}: `wait_online()` shall wait, up to a
+ *   time, for a CPU to come online, and tell whether it did.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_SMP_X86_64_WAIT_ONLINE_01}: `wait_online()` shall call
+ *   `hv_udelay()` with 10 while `online` of the CPU is 0 and the microseconds
+ *   waited, 10 for each call, are fewer than `microseconds`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_X86_64_WAIT_ONLINE_01}
+ * - \llrid{LLR_SMP_X86_64_WAIT_ONLINE_02}: `wait_online()` shall then return
+ *   true if `online` of the CPU is not 0, and false if it is 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_X86_64_WAIT_ONLINE_01}
  *
  * @design
- * 1. Set `waited` to `0U`.
+ * 1. Set `waited` to `0U`. \llrref{LLR_SMP_X86_64_WAIT_ONLINE_01}
  * 2. While `cpu->online` is equal to `0U` and `waited` is less than
- *    `microseconds`:
+ *    `microseconds`: \llrref{LLR_SMP_X86_64_WAIT_ONLINE_01}
  *    1. Call `hv_udelay()` with the argument `10U`.
  *    2. Add `10U` to `waited`.
- * 3. Return `cpu->online != 0U`.
+ * 3. Return `cpu->online != 0U`. \llrref{LLR_SMP_X86_64_WAIT_ONLINE_02}
  *
  * @calls
  * - `hv_udelay()`
@@ -168,14 +198,51 @@ static bool wait_online(const hv_cpu_t *cpu, uint64_t microseconds)
  * | `cpu` | `const hv_cpu_t *` | The CPU being started |
  *
  * @hlr
+ * - \hlrid{HLR_SMP_X86_64_HV_SMP_START_01}: `hv_smp_start()` shall start the
+ *   other physical CPUs that the VMs need, one after another, each on its own
+ *   stack, by INIT and start-up interrupts.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
+ * - \hlrid{HLR_SMP_X86_64_HV_SMP_START_02}: `hv_smp_start()` shall stop with a
+ *   message if a CPU does not start.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_SMP_X86_64_HV_SMP_START_01}: `hv_smp_start()` shall call
+ *   `copy_trampoline()` once and set `online` of `hv_cpus[0]` to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_X86_64_HV_SMP_START_01}
+ * - \llrid{LLR_SMP_X86_64_HV_SMP_START_02}: For each CPU `i` from 1 to
+ *   `nb_cpus` minus 1, in order, `hv_smp_start()` shall set `hv_ap_stack_top`
+ *   to the end of the stack of `AP_STACK_SIZE` bytes of that CPU and
+ *   `hv_ap_cpu_index` to `i`, and then call, in this order, `x86_barrier()`,
+ *   `lapic_send_init()` with `apic_ids[i]`, `hv_udelay()` with 10000 and
+ *   `lapic_send_sipi()` with `apic_ids[i]` and `AP_SIPI_VECTOR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_X86_64_HV_SMP_START_01}
+ * - \llrid{LLR_SMP_X86_64_HV_SMP_START_03}: If and only if `wait_online()`
+ *   returns false for the CPU and 1000, `hv_smp_start()` shall call
+ *   `lapic_send_sipi()` with `apic_ids[i]` and `AP_SIPI_VECTOR` a second time.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_X86_64_HV_SMP_START_01}
+ * - \llrid{LLR_SMP_X86_64_HV_SMP_START_04}: If `wait_online()` then returns
+ *   false for the CPU and `AP_START_TIMEOUT_US`, `hv_smp_start()` shall call
+ *   `hv_printf()` with `"[hv] CPU %%u (APIC ID %%u) doesn't start\n"`, `i` and
+ *   `apic_ids[i]`, and then `hv_fatal()` with `"CPU start-up failed"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_X86_64_HV_SMP_START_02}
+ * - \llrid{LLR_SMP_X86_64_HV_SMP_START_05}: If `wait_online()` then returns
+ *   true for the CPU and `AP_START_TIMEOUT_US`, `hv_smp_start()` shall go on
+ *   with the next CPU, without calling `hv_fatal()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SMP_X86_64_HV_SMP_START_01}
  *
  * @design
- * 1. Call `copy_trampoline()`.
- * 2. Set `hv_cpus[0].online` to `1U`.
+ * 1. Call `copy_trampoline()`. \llrref{LLR_SMP_X86_64_HV_SMP_START_01}
+ * 2. Set `hv_cpus[0].online` to `1U`. \llrref{LLR_SMP_X86_64_HV_SMP_START_01}
  * 3. Set `i` to `1U`; then while `i` is less than `nb_cpus`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_SMP_X86_64_HV_SMP_START_02}
  *    1. Set `cpu` to the address of `hv_cpus[i]`.
  *    2. Set `hv_ap_stack_top` to
  *       `(uint64_t) ((uintptr_t) &ap_stacks[i][0] + AP_STACK_SIZE)`.
@@ -186,9 +253,12 @@ static bool wait_online(const hv_cpu_t *cpu, uint64_t microseconds)
  *    7. Call `lapic_send_sipi()` with the arguments `apic_ids[i]` and
  *       `AP_SIPI_VECTOR`.
  *    8. If `wait_online(cpu, 1000U)` is false:
+ *       \llrref{LLR_SMP_X86_64_HV_SMP_START_03}
  *       1. Call `lapic_send_sipi()` with the arguments `apic_ids[i]` and
  *          `AP_SIPI_VECTOR`.
  *    9. If `wait_online(cpu, AP_START_TIMEOUT_US)` is false:
+ *       \llrref{LLR_SMP_X86_64_HV_SMP_START_04},
+ *       \llrref{LLR_SMP_X86_64_HV_SMP_START_05}
  *       1. Call `hv_printf()` with the arguments
  *          `"[hv] CPU %%u (APIC ID %%u) doesn't start\n"`, `i` and
  *          `apic_ids[i]`.

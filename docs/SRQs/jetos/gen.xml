@@ -34,7 +34,7 @@
   <para>These requirements apply to JetOS as a whole.</para>
 
   <section xml:id="SRQ_JET_GEN_001" role="requirement">
-    <title>SRQ_JET_GEN_001</title>
+    <title><phrase role="srq">SRQ_JET_GEN_001</phrase></title>
     <para>JetOS shall provide the same services with the same behaviour
       on x86_64 and on arm64, except where this document says otherwise.</para>
     <formalpara>
@@ -45,10 +45,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_GEN_002" role="requirement">
-    <title>SRQ_JET_GEN_002</title>
+    <title><phrase role="srq">SRQ_JET_GEN_002</phrase></title>
     <para>JetOS shall not use floating point instructions in the kernel
       itself, so that the floating point state belongs to the partitions
       alone.</para>
@@ -61,10 +66,14 @@
       <title>Verification</title>
       <para>Analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SCHED_POK_PARTITION_RETURN_USER_FP_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_GEN_003" role="requirement">
-    <title>SRQ_JET_GEN_003</title>
+    <title><phrase role="srq">SRQ_JET_GEN_003</phrase></title>
     <para>JetOS shall be written for 64-bit processors, with its
       addresses and sizes held in types that are as wide as the pointers.</para>
     <formalpara>
@@ -75,10 +84,15 @@
       <title>Verification</title>
       <para>Analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_GEN_004" role="requirement">
-    <title>SRQ_JET_GEN_004</title>
+    <title><phrase role="srq">SRQ_JET_GEN_004</phrase></title>
     <para>JetOS shall be built as one kernel image that holds the kernel,
       the configuration, and the images of the partitions, for one board.</para>
     <formalpara>
@@ -89,10 +103,14 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOADER_JET_LOADER_ELF_LOAD_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_GEN_005" role="requirement">
-    <title>SRQ_JET_GEN_005</title>
+    <title><phrase role="srq">SRQ_JET_GEN_005</phrase></title>
     <para>JetOS shall be developed according to the MISRA C:2025
       guidelines, with each deviation documented where it is made.</para>
     <formalpara>
@@ -102,6 +120,11 @@
     <formalpara>
       <title>Verification</title>
       <para>Analysis.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>Not applicable: a constraint on the whole software,
+      not implemented by one function.</para>
     </formalpara>
   </section>
 </chapter>

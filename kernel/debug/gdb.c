@@ -22,6 +22,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/gdb.c
  * (kernel/libc is split up: the GDB server, the monitor and readline are in
  * kernel/debug).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -66,12 +74,27 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_GDB_IS_START_CHAR_01}: `gdb_is_start_char()` shall tell
+ *   whether a character from the debug console starts a request of the
+ *   debugger: a packet, an acknowledgment or an interrupt.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDB_GDB_IS_START_CHAR_01}: If `c` is `'$'`, `'+'` or
+ *   `GDB_CHAR_INTERRUPT`, `gdb_is_start_char()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_GDB_IS_START_CHAR_01}
+ * - \llrid{LLR_GDB_GDB_IS_START_CHAR_02}: If `c` is none of `'$'`, `'+'` and
+ *   `GDB_CHAR_INTERRUPT`, `gdb_is_start_char()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_GDB_IS_START_CHAR_01}
  *
  * @design
  * 1. Return
  *    `(c == (int32_t)'$') || (c == (int32_t)'+') || (c == GDB_CHAR_INTERRUPT)`.
+ *    \llrref{LLR_GDB_GDB_IS_START_CHAR_01},
+ *    \llrref{LLR_GDB_GDB_IS_START_CHAR_02}
  *
  * @calls
  * None.
@@ -98,17 +121,50 @@ static pok_bool_t gdb_is_start_char(int32_t c)
  * | `c` | `int32_t` | The character read |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_POK_GDB_THREAD_01}: `pok_gdb_thread()` shall, for ever, read
+ *   the debug console and handle each request of the debugger, with the module
+ *   stopped (preemption disabled) while it does.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_001}
+ *   - \srqref{SRQ_JET_DBG_003}
  *
  * @llr
+ * - \llrid{LLR_GDB_POK_GDB_THREAD_01}: `pok_gdb_thread()` shall call
+ *   `data_to_read_1()` again and again, without returning.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_POK_GDB_THREAD_01}
+ * - \llrid{LLR_GDB_POK_GDB_THREAD_02}: If `data_to_read_1()` returns 1 and
+ *   `gdb_is_start_char()` returns true for the result of `read_serial_1()`,
+ *   `pok_gdb_thread()` shall call, in this order, `ja_preempt_disable()`,
+ *   `jet_gdb_request()` with that result, and `ja_preempt_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_POK_GDB_THREAD_01}
+ * - \llrid{LLR_GDB_POK_GDB_THREAD_03}: If `data_to_read_1()` returns 1 and
+ *   `gdb_is_start_char()` returns false for the result of `read_serial_1()`,
+ *   `pok_gdb_thread()` shall call none of `ja_preempt_disable()`,
+ *   `jet_gdb_request()` and `ja_preempt_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_POK_GDB_THREAD_01}
+ * - \llrid{LLR_GDB_POK_GDB_THREAD_04}: If `data_to_read_1()` returns a value
+ *   other than 1, `pok_gdb_thread()` shall not call `read_serial_1()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_POK_GDB_THREAD_01}
  *
  * @design
- * 1. Repeat forever:
+ * 1. Repeat forever: \llrref{LLR_GDB_POK_GDB_THREAD_01}
  *    1. If `data_to_read_1()` is equal to `1`:
+ *       \llrref{LLR_GDB_POK_GDB_THREAD_02}, \llrref{LLR_GDB_POK_GDB_THREAD_03},
+ *       \llrref{LLR_GDB_POK_GDB_THREAD_04}
  *       1. Call `read_serial_1()`, and store the result in `c`.
+ *          \llrref{LLR_GDB_POK_GDB_THREAD_02},
+ *          \llrref{LLR_GDB_POK_GDB_THREAD_03}
  *       2. If `gdb_is_start_char(c)` is true:
- *          1. Call `ja_preempt_disable()`.
+ *          \llrref{LLR_GDB_POK_GDB_THREAD_02},
+ *          \llrref{LLR_GDB_POK_GDB_THREAD_03}
+ *          1. Call `ja_preempt_disable()`. \llrref{LLR_GDB_POK_GDB_THREAD_02}
  *          2. Call `jet_gdb_request()` with the argument `c`.
- *          3. Call `ja_preempt_enable()`.
+ *             \llrref{LLR_GDB_POK_GDB_THREAD_02}
+ *          3. Call `ja_preempt_enable()`. \llrref{LLR_GDB_POK_GDB_THREAD_02}
  *
  * @calls
  * - `data_to_read_1()`
@@ -155,15 +211,20 @@ static void pok_gdb_thread(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GDB_GDB_PROCESS_ERROR_01}: `gdb_process_error()` shall treat any
+ *   error of the GDB partition as fatal.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_HM_010}
  *
  * @llr
+ * - \llrid{LLR_GDB_GDB_PROCESS_ERROR_01}: `gdb_process_error()` shall call
+ *   `pok_fatal()` with `"Error in gdb"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_GDB_PROCESS_ERROR_01}
  *
  * @design
- * 1. Mark `partition_state` as not used.
- * 2. Mark `error_id` as not used.
- * 3. Mark `state_byte_preempt_local` as not used.
- * 4. Mark `failed_address` as not used.
- * 5. Call `pok_fatal()` with the argument `"Error in gdb"`.
+ * 1. Call `pok_fatal()` with the argument `"Error in gdb"`.
+ *    \llrref{LLR_GDB_GDB_PROCESS_ERROR_01}
  *
  * @calls
  * - `pok_fatal()`
@@ -199,18 +260,38 @@ static void gdb_process_error(pok_system_state_t partition_state,
  * | `gdb_operations` | `static const pok_part_ops_t` | The operations of the GDB partition |
  *
  * @hlr
+ * - \hlrid{HLR_GDB_POK_GDB_THREAD_INIT_01}: `pok_gdb_thread_init()` shall set
+ *   up, at boot, the GDB server as a kernel-only partition that runs the GDB
+ *   thread, and tell the user where to connect the debugger.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_010}
+ *   - \srqref{SRQ_JET_DBG_001}
  *
  * @llr
+ * - \llrid{LLR_GDB_POK_GDB_THREAD_INIT_01}: `pok_gdb_thread_init()` shall call
+ *   `pok_partition_init()` with the address of `partition_gdb`, set its
+ *   `part_sched_ops` to the address of `partition_sched_ops_kernel`, its
+ *   `part_ops` to the address of `gdb_operations` (whose `start` is
+ *   `pok_gdb_thread` and whose `process_partition_error` is
+ *   `gdb_process_error`) and its `initial_sp` to the result of
+ *   `pok_stack_alloc()` for `KERNEL_STACK_SIZE_DEFAULT`, and then call
+ *   `printf()` with `"GDB server: connect GDB to the second serial port\n"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GDB_POK_GDB_THREAD_INIT_01}
  *
  * @design
  * 1. Call `pok_partition_init()` with the address of `partition_gdb`.
+ *    \llrref{LLR_GDB_POK_GDB_THREAD_INIT_01}
  * 2. Set `partition_gdb.part_sched_ops` to the address of
- *    `partition_sched_ops_kernel`.
+ *    `partition_sched_ops_kernel`. \llrref{LLR_GDB_POK_GDB_THREAD_INIT_01}
  * 3. Set `partition_gdb.part_ops` to the address of `gdb_operations`.
+ *    \llrref{LLR_GDB_POK_GDB_THREAD_INIT_01}
  * 4. Call `pok_stack_alloc()` with the argument `KERNEL_STACK_SIZE_DEFAULT`,
  *    and store the result in `partition_gdb.initial_sp`.
+ *    \llrref{LLR_GDB_POK_GDB_THREAD_INIT_01}
  * 5. Call `printf()` with the argument
  *    `"GDB server: connect GDB to the second serial port\n"`.
+ *    \llrref{LLR_GDB_POK_GDB_THREAD_INIT_01}
  *
  * @calls
  * - `pok_partition_init()`

@@ -50,6 +50,16 @@
  * Modified by Kirill Brazhnikov, 2026-11-14: The function headers no longer
  * have a step for the declaration of a local variable; the @locals table
  * describes it, and an initialized one is set in a step.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -126,12 +136,22 @@ static uint32_t idle_stack;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_IDLE_FUNCTION_01}: `idle_function()` shall run nothing in
+ *   the slots of a partition that the monitor keeps paused, with preemption
+ *   enabled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
  *
  * @llr
+ * - \llrid{LLR_SCHED_IDLE_FUNCTION_01}: `idle_function()` shall call
+ *   `pok_preemption_enable()` and then `ja_inf_loop()`, which does not return.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_IDLE_FUNCTION_01}
  *
  * @design
- * 1. Call `pok_preemption_enable()`.
- * 2. Call `ja_inf_loop()`.
+ * 1. Call `pok_preemption_enable()`. \llrref{LLR_SCHED_IDLE_FUNCTION_01}
+ * 2. Call `ja_inf_loop()`. \llrref{LLR_SCHED_IDLE_FUNCTION_01}
  *
  * @calls
  * - `pok_preemption_enable()`
@@ -171,17 +191,39 @@ static jet_fp_store_t* fp_store_last = NULL;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PARTITION_RESET_01}: `pok_partition_reset()` shall
+ *   make a partition start afresh, at its entry, the next time that it runs,
+ *   with no pending events.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_008}
+ *   - \srqref{SRQ_JET_HM_003}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PARTITION_RESET_01}: `pok_partition_reset()` shall set
+ *   `sp` of `part` to NULL and `restarted_externally` to `TRUE`, increment
+ *   `partition_generation`, and set `partition_event_end` and
+ *   `partition_event_begin` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RESET_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_RESET_02}: If and only if
+ *   `partition_generation` is 0 after the increment, `pok_partition_reset()`
+ *   shall set it to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RESET_01}
  *
  * @design
- * 1. Set `part->sp` to `NULL`.
+ * 1. Set `part->sp` to `NULL`. \llrref{LLR_SCHED_POK_PARTITION_RESET_01}
  * 2. Set `part->restarted_externally` to `TRUE`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESET_01}
  * 3. Increment `part->partition_generation`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESET_01}
  * 4. If `part->partition_generation` is equal to `0U`:
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESET_02}
  *    1. Set `part->partition_generation` to `1`.
  * 5. Set `part->partition_event_end` to `0`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESET_01}
  * 6. Set `part->partition_event_begin` to `0`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESET_01}
  *
  * @calls
  * None.
@@ -221,19 +263,54 @@ static pok_bool_t sched_need_recheck;
  * | `part` | `pok_partition_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_START_PARTITION_01}: `start_partition()` shall clear the
+ *   pending events of a partition that starts or restarts and disable its local
+ *   preemption, as the first code that the partition runs.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_004}
+ *   - \srqref{SRQ_JET_PART_013}
+ *   - \srqref{SRQ_JET_SCHED_004}
+ * - \hlrid{HLR_SCHED_START_PARTITION_02}: `start_partition()` shall then start
+ *   the partition by its start operation.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_013}
+ *   - \srqref{SRQ_JET_SCHED_004}
  *
  * @llr
+ * - \llrid{LLR_SCHED_START_PARTITION_01}: `start_partition()` shall set, in
+ *   `current_partition`, `is_event` to `FALSE`, `partition_event_end` and
+ *   `partition_event_begin` to 0 and `preempt_local_disabled` to `TRUE`, and
+ *   then call `pok_preemption_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_START_PARTITION_01}
+ * - \llrid{LLR_SCHED_START_PARTITION_02}: If `part_ops` of the partition is not
+ *   NULL and its `start` is not NULL, `start_partition()` shall call `start`
+ *   and then `ja_inf_loop()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_START_PARTITION_02}
+ * - \llrid{LLR_SCHED_START_PARTITION_03}: If `part_ops` of the partition is
+ *   NULL or its `start` is NULL, `start_partition()` shall call `ja_inf_loop()`
+ *   without calling a start operation.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_START_PARTITION_02}
  *
  * @design
- * 1. Set `part` to `current_partition`.
- * 2. Set `part->is_event` to `FALSE`.
+ * 1. Set `part` to `current_partition`. \llrref{LLR_SCHED_START_PARTITION_01}
+ * 2. Set `part->is_event` to `FALSE`. \llrref{LLR_SCHED_START_PARTITION_01}
  * 3. Set `part->partition_event_end` to `0`.
+ *    \llrref{LLR_SCHED_START_PARTITION_01}
  * 4. Set `part->partition_event_begin` to `0`.
+ *    \llrref{LLR_SCHED_START_PARTITION_01}
  * 5. Set `part->preempt_local_disabled` to `TRUE`.
- * 6. Call `pok_preemption_enable()`.
+ *    \llrref{LLR_SCHED_START_PARTITION_01}
+ * 6. Call `pok_preemption_enable()`. \llrref{LLR_SCHED_START_PARTITION_01}
  * 7. If `part->part_ops` is not NULL and `part->part_ops->start` is not NULL:
+ *    \llrref{LLR_SCHED_START_PARTITION_02},
+ *    \llrref{LLR_SCHED_START_PARTITION_03}
  *    1. Call the function `part->part_ops->start`.
- * 8. Call `ja_inf_loop()`.
+ *       \llrref{LLR_SCHED_START_PARTITION_02}
+ * 8. Call `ja_inf_loop()`. \llrref{LLR_SCHED_START_PARTITION_02},
+ *    \llrref{LLR_SCHED_START_PARTITION_03}
  *
  * @calls
  * - `pok_preemption_enable()`
@@ -282,34 +359,113 @@ static void start_partition(void)
  * | `old_sp` | `jet_context_t **` | Where the context that runs is saved |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_INTRA_PARTITION_SWITCH_01}: `intra_partition_switch()`
+ *   shall switch, within the slot of the current partition, between the
+ *   partition and the idle context when the monitor pauses or resumes it,
+ *   keeping the partition's context.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
+ *   - \srqref{SRQ_JET_SCHED_004}
+ * - \hlrid{HLR_SCHED_INTRA_PARTITION_SWITCH_02}: `intra_partition_switch()`
+ *   shall start the context of the current partition again at its entry when
+ *   the partition was restarted.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_005}
+ *   - \srqref{SRQ_JET_HM_004}
  *
  * @llr
+ * - \llrid{LLR_SCHED_INTRA_PARTITION_SWITCH_01}: With `POK_NEEDS_MONITOR`, if
+ *   `current_partition_is_paused` differs from `is_paused` of
+ *   `current_partition` and the old context (the one at `idle_sp` if
+ *   `current_partition_is_paused` is true, `sp` of the partition if it is
+ *   false) is NULL, `intra_partition_switch()` shall set
+ *   `current_partition_is_paused` to `is_paused` and call `ja_context_jump()`
+ *   with the new context (the one at `idle_sp` if `is_paused` is true, `sp` of
+ *   the partition if it is false).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTRA_PARTITION_SWITCH_01}
+ * - \llrid{LLR_SCHED_INTRA_PARTITION_SWITCH_02}: With `POK_NEEDS_MONITOR`, if
+ *   they differ, the old context is not NULL and the new context is NULL,
+ *   `intra_partition_switch()` shall set `current_partition_is_paused` to
+ *   `is_paused`, set the new context to the result of `ja_context_init()` for
+ *   `initial_sp` of the partition and `start_partition`, and call
+ *   `ja_context_switch()` with the address of the old context and the new
+ *   context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTRA_PARTITION_SWITCH_01}
+ * - \llrid{LLR_SCHED_INTRA_PARTITION_SWITCH_03}: With `POK_NEEDS_MONITOR`, if
+ *   they differ and neither context is NULL, `intra_partition_switch()` shall
+ *   set `current_partition_is_paused` to `is_paused` and call
+ *   `ja_context_switch()` with the address of the old context and the new
+ *   context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTRA_PARTITION_SWITCH_01}
+ * - \llrid{LLR_SCHED_INTRA_PARTITION_SWITCH_04}: If they are equal (or without
+ *   `POK_NEEDS_MONITOR`) and `sp` of `current_partition` is NULL,
+ *   `intra_partition_switch()` shall call `ja_context_restart_and_save()` with
+ *   `initial_sp` of the partition, `start_partition` and the address of its
+ *   `sp`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTRA_PARTITION_SWITCH_02}
+ * - \llrid{LLR_SCHED_INTRA_PARTITION_SWITCH_05}: If they are equal (or without
+ *   `POK_NEEDS_MONITOR`) and `sp` of `current_partition` is not NULL,
+ *   `intra_partition_switch()` shall return without a context switch.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTRA_PARTITION_SWITCH_02}
  *
  * @design
  * 1. Set `old_sp` to the address of `current_partition->sp`.
- * 2. Set `new_sp` to `old_sp`.
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_01},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_04},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_05}
+ * 2. Set `new_sp` to `old_sp`. \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_01},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_04},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_05}
  * 3. If `current_partition_is_paused` is true:
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_01},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03}
  *    1. Set `old_sp` to the address of `idle_sp`.
  * 4. If `current_partition->is_paused` is true:
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_01},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03}
  *    1. Set `new_sp` to the address of `idle_sp`.
  * 5. If `old_sp` is not equal to `new_sp`:
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_01},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_04},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_05}
  *    1. Set `current_partition_is_paused` to `current_partition->is_paused`.
+ *       \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_01},
+ *       \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *       \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03}
  *    2. If the value at `old_sp` is NULL:
+ *       \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_01}
  *       1. Call `ja_context_jump()` with the value at `new_sp`.
  *       2. Return.
  *    3. Otherwise, if the value at `new_sp` is NULL:
+ *       \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02}
  *       1. Call `ja_context_init()` with the arguments
  *          `current_partition->initial_sp` and the address of
  *          `start_partition`, and store the result in `*new_sp`.
- *    4. Otherwise:
- *       1. Do nothing.
- *    5. Call `ja_context_switch()` with the arguments `old_sp` and the value at
- *       `new_sp`.
- *    6. Return.
+ *    4. Call `ja_context_switch()` with the arguments `old_sp` and the value at
+ *       `new_sp`. \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *       \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03}
+ *    5. Return. \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_02},
+ *       \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_03}
  * 6. If the value at `old_sp` is NULL:
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_04},
+ *    \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_05}
  *    1. Call `ja_context_restart_and_save()` with the arguments
  *       `current_partition->initial_sp`, the address of `start_partition` and
- *       `old_sp`.
+ *       `old_sp`. \llrref{LLR_SCHED_INTRA_PARTITION_SWITCH_04}
  *
  * @calls
  * - `ja_context_jump()`
@@ -404,38 +560,119 @@ static void intra_partition_switch(void)
  * | `old_sp` | `jet_context_t **` | Where the context of the old partition is saved |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_INTER_PARTITION_SWITCH_01}: `inter_partition_switch()`
+ *   shall switch the processor to the memory space of another partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_003}
+ * - \hlrid{HLR_SCHED_INTER_PARTITION_SWITCH_02}: `inter_partition_switch()`
+ *   shall switch the processor to the context of the other partition, resuming
+ *   the partition where it was interrupted.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_003}
+ *   - \srqref{SRQ_JET_SCHED_004}
+ * - \hlrid{HLR_SCHED_INTER_PARTITION_SWITCH_03}: `inter_partition_switch()`
+ *   shall start the other partition at its entry after a restart.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_004}
+ * - \hlrid{HLR_SCHED_INTER_PARTITION_SWITCH_04}: `inter_partition_switch()`
+ *   shall run the idle context instead of a partition that the monitor keeps
+ *   paused.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
  *
  * @llr
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_01}: `inter_partition_switch()`
+ *   shall set `entry_sp` of `current_partition` to `global_thread_stack` (with
+ *   `POK_NEEDS_GDB`) and then `current_partition` to `part`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_01}
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_02}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_02}: If `space_id` of `part` is not
+ *   0, `inter_partition_switch()` shall call `ja_space_switch()` with
+ *   `space_id` of `part`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_01}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_03}: If `space_id` of `part` is 0,
+ *   `inter_partition_switch()` shall call `ja_space_switch()` with 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_01}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_04}: With `POK_NEEDS_MONITOR`,
+ *   `inter_partition_switch()` shall take as the old context the one at
+ *   `idle_sp` if `current_partition_is_paused` is true and `sp` of the old
+ *   partition if it is false, and as the new context the one at `idle_sp` if
+ *   `is_paused` of `part` is true and `sp` of `part` if it is false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_04}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_05}: With `POK_NEEDS_MONITOR`, if
+ *   the old and the new context are the same object, `inter_partition_switch()`
+ *   shall return without a context switch.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_04}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_06}: With `POK_NEEDS_MONITOR`, if
+ *   they are different objects, `inter_partition_switch()` shall set
+ *   `current_partition_is_paused` to `is_paused` of `part`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_04}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_07}: If and only if the new context
+ *   is NULL, `inter_partition_switch()` shall set it to the result of
+ *   `ja_context_init()` for `initial_sp` of `part` and `start_partition`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_03}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_08}: If the old context is NULL,
+ *   `inter_partition_switch()` shall call `ja_context_jump()` with the new
+ *   context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_02}
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_03}
+ * - \llrid{LLR_SCHED_INTER_PARTITION_SWITCH_09}: If the old context is not
+ *   NULL, `inter_partition_switch()` shall call `ja_context_switch()` with the
+ *   address of the old context and the new context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_02}
+ *   - \hlrref{HLR_SCHED_INTER_PARTITION_SWITCH_03}
  *
  * @design
  * 1. Set `old_sp` to the address of `current_partition->sp`.
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_04},
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_08},
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_09}
  * 2. Set `new_sp` to the address of `part->sp`.
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_04},
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_08},
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_09}
  * 3. Set `current_partition->entry_sp` to `global_thread_stack`.
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_01}
  * 4. Set `current_partition` to `part`.
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_01}
  * 5. If `part->space_id` is not equal to `0U`:
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_02}
  *    1. Call `ja_space_switch()` with the argument `part->space_id`.
- * 6. Otherwise:
+ * 6. Otherwise: \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_03}
  *    1. Call `ja_space_switch()` with the argument `0`.
  * 7. If `current_partition_is_paused` is true:
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_04}
  *    1. Set `old_sp` to the address of `idle_sp`.
- * 8. If `part->is_paused` is true:
- *    1. Check that `idle_sp != NULL` holds (assert: stop otherwise).
- *    2. Set `new_sp` to the address of `idle_sp`.
+ * 8. If `part->is_paused` is true: \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_04}
+ *    1. Set `new_sp` to the address of `idle_sp`.
  * 9. If `old_sp` is equal to `new_sp`:
+ *    \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_05}
  *    1. Return.
  * 10. Set `current_partition_is_paused` to `part->is_paused`.
+ *     \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_06}
  * 11. If the value at `new_sp` is NULL:
+ *     \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_07}
  *     1. Call `ja_context_init()` with the arguments `part->initial_sp` and the
  *        address of `start_partition`, and store the result in `*new_sp`.
  * 12. If the value at `old_sp` is NULL:
+ *     \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_08}
  *     1. Call `ja_context_jump()` with the value at `new_sp`.
- * 13. Otherwise:
+ * 13. Otherwise: \llrref{LLR_SCHED_INTER_PARTITION_SWITCH_09}
  *     1. Call `ja_context_switch()` with the arguments `old_sp` and the value
  *        at `new_sp`.
  *
  * @calls
  * - `ja_space_switch()`
- * - `pok_assertion_fail()`
  * - `ja_context_init()`
  * - `ja_context_jump()`
  * - `ja_context_switch()`
@@ -526,37 +763,107 @@ static void inter_partition_switch(pok_partition_t* part)
  * | `new_sp` | `jet_context_t **` | The context to enter |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_SCHED_RESTART_01}: `pok_sched_restart()` shall start
+ *   the schedule from the first slot of a new major frame, at the present time,
+ *   with every partition started afresh, and not return.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_001}
+ *   - \srqref{SRQ_JET_SCHED_008}
+ *   - \srqref{SRQ_JET_BOOT_004}
+ *   - \srqref{SRQ_JET_BOOT_007}
+ *   - \srqref{SRQ_JET_CFG_002}
+ *   - \srqref{SRQ_JET_CFG_009}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_SCHED_RESTART_01}: `pok_sched_restart()` shall set
+ *   `first_frame_starts` to the result of `jet_system_time()`, set `idle_sp` to
+ *   the result of `ja_context_init()` for `idle_stack` and `idle_function`
+ *   (with `POK_NEEDS_MONITOR`), call `for_each_partition()` with
+ *   `pok_partition_reset`, set `sched_need_recheck` to `FALSE`, call
+ *   `barrier()`, set `pok_sched_current_slot` to 0,
+ *   `pok_sched_next_major_frame` to `first_frame_starts` plus
+ *   `pok_config_scheduling_major_frame`, `pok_sched_next_deadline` to
+ *   `duration` of `pok_module_sched[0]` plus `first_frame_starts`, and
+ *   `current_partition` to `partition` of `pok_module_sched[0]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_RESTART_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_RESTART_02}: With `POK_NEEDS_MONITOR`, if
+ *   `is_paused` of that partition is true, `pok_sched_restart()` shall take the
+ *   context at `idle_sp` as the new context, and set
+ *   `current_partition_is_paused` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_RESTART_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_RESTART_03}: If `is_paused` of that partition is
+ *   false (or without `POK_NEEDS_MONITOR`), `pok_sched_restart()` shall take
+ *   `sp` of the partition as the new context, and set
+ *   `current_partition_is_paused` to `FALSE` (with `POK_NEEDS_MONITOR`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_RESTART_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_RESTART_04}: If and only if the new context is
+ *   NULL, `pok_sched_restart()` shall set it to the result of
+ *   `ja_context_init()` for `initial_sp` of the partition and
+ *   `start_partition`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_RESTART_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_RESTART_05}: If `space_id` of the partition is
+ *   not `0xff`, `pok_sched_restart()` shall call `ja_space_switch()` with its
+ *   `space_id`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_RESTART_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_RESTART_06}: If `space_id` of the partition is
+ *   `0xff`, `pok_sched_restart()` shall call `ja_space_switch()` with `0xff`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_RESTART_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_RESTART_07}: `pok_sched_restart()` shall then
+ *   set `kernel_state` to `POK_SYSTEM_STATE_OS_PART` and call
+ *   `ja_context_jump()` with the new context.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_RESTART_01}
  *
  * @design
  * 1. Set `first_frame_starts` to `jet_system_time()`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 2. Call `ja_context_init()` with the arguments `idle_stack` and the address
  *    of `idle_function`, and store the result in `idle_sp`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 3. Call `for_each_partition()` with the address of `pok_partition_reset`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 4. Set `sched_need_recheck` to `FALSE`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 5. Execute the assembly code `barrier()`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 6. Set `pok_sched_current_slot` to `0`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 7. Set `pok_sched_next_major_frame` to
  *    `first_frame_starts + pok_config_scheduling_major_frame`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 8. Set `pok_sched_next_deadline` to
  *    `pok_module_sched[0].duration + first_frame_starts`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 9. Set `current_partition` to `pok_module_sched[0].partition`.
+ *    \llrref{LLR_SCHED_POK_SCHED_RESTART_01}
  * 10. Set `new_sp` to the address of `current_partition->sp`.
+ *     \llrref{LLR_SCHED_POK_SCHED_RESTART_03}
  * 11. If `current_partition->is_paused` is true:
+ *     \llrref{LLR_SCHED_POK_SCHED_RESTART_02}
  *     1. Set `new_sp` to the address of `idle_sp`.
  * 12. Set `current_partition_is_paused` to `current_partition->is_paused`.
- * 13. If the value at `new_sp` is NULL:
+ *     \llrref{LLR_SCHED_POK_SCHED_RESTART_02},
+ *     \llrref{LLR_SCHED_POK_SCHED_RESTART_03}
+ * 13. If the value at `new_sp` is NULL: \llrref{LLR_SCHED_POK_SCHED_RESTART_04}
  *     1. Call `ja_context_init()` with the arguments
  *        `current_partition->initial_sp` and the address of `start_partition`,
  *        and store the result in `*new_sp`.
  * 14. If `current_partition->space_id` is not equal to `0xffU`:
+ *     \llrref{LLR_SCHED_POK_SCHED_RESTART_05}
  *     1. Call `ja_space_switch()` with the argument
  *        `current_partition->space_id`.
- * 15. Otherwise:
+ * 15. Otherwise: \llrref{LLR_SCHED_POK_SCHED_RESTART_06}
  *     1. Call `ja_space_switch()` with the argument `0xff`.
  * 16. Set `kernel_state` to `POK_SYSTEM_STATE_OS_PART`.
+ *     \llrref{LLR_SCHED_POK_SCHED_RESTART_07}
  * 17. Call `ja_context_jump()` with the value at `new_sp`.
+ *     \llrref{LLR_SCHED_POK_SCHED_RESTART_07}
  *
  * @calls
  * - `ja_system_time()`
@@ -629,13 +936,29 @@ void pok_sched_restart (void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_SCHED_START_01}: `pok_sched_start()` shall start the
+ *   schedule at boot and not return.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_004}
+ *   - \srqref{SRQ_JET_BOOT_007}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_SCHED_START_01}: With `POK_NEEDS_MONITOR`,
+ *   `pok_sched_start()` shall set `idle_stack` to the result of
+ *   `pok_stack_alloc()` for `KERNEL_STACK_SIZE_DEFAULT`, before it calls
+ *   `pok_sched_restart()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_START_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_START_02}: `pok_sched_start()` shall call
+ *   `pok_sched_restart()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_START_01}
  *
  * @design
  * 1. Call `pok_stack_alloc()` with the argument `KERNEL_STACK_SIZE_DEFAULT`,
  *    and store the result in `idle_stack`.
- * 2. Call `pok_sched_restart()`.
+ *    \llrref{LLR_SCHED_POK_SCHED_START_01}
+ * 2. Call `pok_sched_restart()`. \llrref{LLR_SCHED_POK_SCHED_START_02}
  *
  * @calls
  * - `pok_stack_alloc()`
@@ -686,37 +1009,122 @@ static int32_t nb_major_time_frame = 0;
  * | `part` | `pok_partition_t *` | The partition that ran |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_SCHED_01}: `pok_sched()` shall end the current slot
+ *   when its duration has elapsed, start the next slot of the schedule (the
+ *   first slot of the next major frame after the last one) and switch to its
+ *   partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_001}
+ *   - \srqref{SRQ_JET_SCHED_002}
+ *   - \srqref{SRQ_JET_SCHED_003}
+ *   - \srqref{SRQ_JET_CFG_002}
+ *   - \srqref{SRQ_JET_CFG_009}
+ *   - \srqref{SRQ_JET_CFG_010}
+ * - \hlrid{HLR_SCHED_POK_SCHED_02}: `pok_sched()` shall give the partition that
+ *   leaves the processor the event of its timer if the time of the timer has
+ *   come.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_005}
+ * - \hlrid{HLR_SCHED_POK_SCHED_03}: `pok_sched()` shall otherwise make the
+ *   switches that the current partition needs within its slot (pause, resume,
+ *   restart).
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
+ *   - \srqref{SRQ_JET_PART_005}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_SCHED_01}: If `flag_test_and_reset()` returns false
+ *   for `sched_need_recheck`, `pok_sched()` shall return without calling
+ *   `jet_system_time()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_01}
+ *   - \hlrref{HLR_SCHED_POK_SCHED_02}
+ *   - \hlrref{HLR_SCHED_POK_SCHED_03}
+ * - \llrid{LLR_SCHED_POK_SCHED_02}: If it returns true and
+ *   `pok_sched_next_deadline` is greater than the result of
+ *   `jet_system_time()`, `pok_sched()` shall call `intra_partition_switch()`
+ *   without changing the slot.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_03}
+ * - \llrid{LLR_SCHED_POK_SCHED_03}: If `pok_sched_next_deadline` is not greater
+ *   than the result of `jet_system_time()`, `pok_sched()` shall increment
+ *   `pok_sched_current_slot` and then add `duration` of the slot
+ *   `pok_sched_current_slot` of `pok_module_sched` to
+ *   `pok_sched_next_deadline`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_04}: If and only if the incremented
+ *   `pok_sched_current_slot` is `pok_module_sched_n`, `pok_sched()` shall add
+ *   `pok_config_scheduling_major_frame` to `pok_sched_next_major_frame` and set
+ *   `pok_sched_current_slot` to 0, before it adds the duration.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_05}: If the slot ended and `partition` of the
+ *   new slot is `current_partition` (at entry), `pok_sched()` shall call
+ *   `intra_partition_switch()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_03}
+ * - \llrid{LLR_SCHED_POK_SCHED_06}: If the slot ended and `partition` of the
+ *   new slot is another partition, `pok_sched()` shall call
+ *   `inter_partition_switch()` with it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_07}: When `inter_partition_switch()` returns, if
+ *   `timer` of the partition current at entry is not 0 and not greater than the
+ *   result of `jet_system_time()`, `pok_sched()` shall call
+ *   `pok_partition_add_event()` with that partition,
+ *   `JET_PARTITION_EVENT_TYPE_TIMER` and 0, and set its `timer` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_02}
+ * - \llrid{LLR_SCHED_POK_SCHED_08}: When `inter_partition_switch()` returns, if
+ *   that `timer` is 0 or greater than the result of `jet_system_time()`,
+ *   `pok_sched()` shall leave the timer as it is and add no event.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_02}
  *
  * @design
- * 1. Set `part` to `current_partition`.
+ * 1. Set `part` to `current_partition`. \llrref{LLR_SCHED_POK_SCHED_05},
+ *    \llrref{LLR_SCHED_POK_SCHED_06}, \llrref{LLR_SCHED_POK_SCHED_07}
  * 2. If `flag_test_and_reset(&sched_need_recheck)` is false:
+ *    \llrref{LLR_SCHED_POK_SCHED_01}
  *    1. Return.
- * 3. Set `now` to `jet_system_time()`.
+ * 3. Set `now` to `jet_system_time()`. \llrref{LLR_SCHED_POK_SCHED_02},
+ *    \llrref{LLR_SCHED_POK_SCHED_03}
  * 4. If `pok_sched_next_deadline` is greater than `now`:
- *    1. Go to the label `same_partition`.
+ *    \llrref{LLR_SCHED_POK_SCHED_02}, \llrref{LLR_SCHED_POK_SCHED_03}
+ *    1. Go to the label `same_partition`. \llrref{LLR_SCHED_POK_SCHED_02}
  * 5. Set `pok_sched_current_slot` to `(pok_sched_current_slot + 1U)`.
+ *    \llrref{LLR_SCHED_POK_SCHED_03}
  * 6. If `pok_sched_current_slot` is equal to `pok_module_sched_n`:
+ *    \llrref{LLR_SCHED_POK_SCHED_04}
  *    1. Add `pok_config_scheduling_major_frame` to
  *       `pok_sched_next_major_frame`.
  *    2. Set `pok_sched_current_slot` to `0`.
  * 7. Add `pok_module_sched[pok_sched_current_slot].duration` to
- *    `pok_sched_next_deadline`.
+ *    `pok_sched_next_deadline`. \llrref{LLR_SCHED_POK_SCHED_03}
  * 8. Set `new_partition` to
  *    `pok_module_sched[pok_sched_current_slot].partition`.
- * 9. If `new_partition` is equal to `part`:
- *    1. Go to the label `same_partition`.
+ *    \llrref{LLR_SCHED_POK_SCHED_05}, \llrref{LLR_SCHED_POK_SCHED_06}
+ * 9. If `new_partition` is equal to `part`: \llrref{LLR_SCHED_POK_SCHED_05},
+ *    \llrref{LLR_SCHED_POK_SCHED_06}
+ *    1. Go to the label `same_partition`. \llrref{LLR_SCHED_POK_SCHED_05}
  * 10. Call `inter_partition_switch()` with the argument `new_partition`.
- * 11. Set `now` to `jet_system_time()`.
+ *     \llrref{LLR_SCHED_POK_SCHED_06}
+ * 11. Set `now` to `jet_system_time()`. \llrref{LLR_SCHED_POK_SCHED_07},
+ *     \llrref{LLR_SCHED_POK_SCHED_08}
  * 12. If `part->timer` is not equal to `0` and `part->timer` is less than or
- *     equal to `now`:
+ *     equal to `now`: \llrref{LLR_SCHED_POK_SCHED_07},
+ *     \llrref{LLR_SCHED_POK_SCHED_08}
  *     1. Call `pok_partition_add_event()` with the arguments `part`,
  *        `JET_PARTITION_EVENT_TYPE_TIMER` and `0`.
- *     2. Set `part->timer` to `0`.
- * 13. Return.
- * 14. Label `same_partition`:
- * 15. Call `intra_partition_switch()`.
+ *        \llrref{LLR_SCHED_POK_SCHED_07}
+ *     2. Set `part->timer` to `0`. \llrref{LLR_SCHED_POK_SCHED_07}
+ * 13. Return. \llrref{LLR_SCHED_POK_SCHED_07}, \llrref{LLR_SCHED_POK_SCHED_08}
+ * 14. Label `same_partition`: \llrref{LLR_SCHED_POK_SCHED_02},
+ *     \llrref{LLR_SCHED_POK_SCHED_05}
+ * 15. Call `intra_partition_switch()`. \llrref{LLR_SCHED_POK_SCHED_02},
+ *     \llrref{LLR_SCHED_POK_SCHED_05}
  *
  * @calls
  * - `flag_test_and_reset()`
@@ -803,16 +1211,22 @@ same_partition:
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PREEMPTION_DISABLE_01}: `pok_preemption_disable()`
+ *   shall disable preemption (the interrupts of the processor), which must be
+ *   enabled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_002}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PREEMPTION_DISABLE_01}: `pok_preemption_disable()`
+ *   shall call `ja_preempt_disable()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PREEMPTION_DISABLE_01}
  *
  * @design
- * 1. Check that `ja_preempt_enabled()` holds (assert: stop otherwise).
- * 2. Call `ja_preempt_disable()`.
+ * 1. Call `ja_preempt_disable()`. \llrref{LLR_SCHED_POK_PREEMPTION_DISABLE_01}
  *
  * @calls
- * - `ja_preempt_enabled()`
- * - `pok_assertion_fail()`
  * - `ja_preempt_disable()`
  */
 void pok_preemption_disable(void)
@@ -840,28 +1254,60 @@ void pok_preemption_disable(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PREEMPTION_ENABLE_01}: `pok_preemption_enable()` shall
+ *   enable preemption, which must be disabled, after it has run the scheduler
+ *   of the module.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_002}
+ *   - \srqref{SRQ_JET_SCHED_003}
+ * - \hlrid{HLR_SCHED_POK_PREEMPTION_ENABLE_02}: `pok_preemption_enable()` shall
+ *   let the current partition handle its events, with preemption enabled, while
+ *   it has events and does not disable its local preemption.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_005}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PREEMPTION_ENABLE_01}: `pok_preemption_enable()` shall
+ *   first call `pok_sched()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PREEMPTION_ENABLE_01}
+ * - \llrid{LLR_SCHED_POK_PREEMPTION_ENABLE_02}: If `preempt_local_disabled` of
+ *   `current_partition` is true or its `is_event` is false,
+ *   `pok_preemption_enable()` shall call `ja_preempt_enable()` and return
+ *   without calling `on_event`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PREEMPTION_ENABLE_01}
+ * - \llrid{LLR_SCHED_POK_PREEMPTION_ENABLE_03}: If `preempt_local_disabled` of
+ *   `current_partition` is false and its `is_event` is true,
+ *   `pok_preemption_enable()` shall set `preempt_local_disabled` to `TRUE`,
+ *   call `ja_preempt_enable()`, the function `on_event` of `part_sched_ops` of
+ *   the partition and `ja_preempt_disable()` again and again while
+ *   `preempt_local_disabled` and `is_event` stay true, then set
+ *   `preempt_local_disabled` to `FALSE` and call `ja_preempt_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PREEMPTION_ENABLE_02}
  *
  * @design
- * 1. Check that `!ja_preempt_enabled()` holds (assert: stop otherwise).
- * 2. Call `pok_sched()`.
- * 3. If `current_partition->preempt_local_disabled` is true or
+ * 1. Call `pok_sched()`. \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_01}
+ * 2. If `current_partition->preempt_local_disabled` is true or
  *    `current_partition->is_event` is false:
- *    1. Call `ja_preempt_enable()`.
- *    2. Return.
- * 4. Set `current_partition->preempt_local_disabled` to `TRUE`.
- * 5. Repeat the following while `current_partition->preempt_local_disabled` is
+ *    \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_02},
+ *    \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_03}
+ *    1. Call `ja_preempt_enable()`. \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_02}
+ *    2. Return. \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_02}
+ * 3. Set `current_partition->preempt_local_disabled` to `TRUE`.
+ *    \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_03}
+ * 4. Repeat the following while `current_partition->preempt_local_disabled` is
  *    true and `current_partition->is_event` is true (at least once):
+ *    \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_03}
  *    1. Call `ja_preempt_enable()`.
  *    2. Call the function `current_partition->part_sched_ops->on_event`.
  *    3. Call `ja_preempt_disable()`.
- * 6. Set `current_partition->preempt_local_disabled` to `FALSE`.
- * 7. Call `ja_preempt_enable()`.
+ * 5. Set `current_partition->preempt_local_disabled` to `FALSE`.
+ *    \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_03}
+ * 6. Call `ja_preempt_enable()`. \llrref{LLR_SCHED_POK_PREEMPTION_ENABLE_03}
  *
  * @calls
- * - `ja_preempt_enabled()`
- * - `pok_assertion_fail()`
  * - `pok_sched()`
  * - `ja_preempt_enable()`
  * - `current_partition->part_sched_ops->on_event()` (indirect)
@@ -910,16 +1356,22 @@ void pok_preemption_enable(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED___POK_PREEMPTION_ENABLE_01}: `__pok_preemption_enable()`
+ *   shall enable preemption, which must be disabled, without running the
+ *   scheduler.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_002}
  *
  * @llr
+ * - \llrid{LLR_SCHED___POK_PREEMPTION_ENABLE_01}: `__pok_preemption_enable()`
+ *   shall call `ja_preempt_enable()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED___POK_PREEMPTION_ENABLE_01}
  *
  * @design
- * 1. Check that `!ja_preempt_enabled()` holds (assert: stop otherwise).
- * 2. Call `ja_preempt_enable()`.
+ * 1. Call `ja_preempt_enable()`. \llrref{LLR_SCHED___POK_PREEMPTION_ENABLE_01}
  *
  * @calls
- * - `ja_preempt_enabled()`
- * - `pok_assertion_fail()`
  * - `ja_preempt_enable()`
  */
 void __pok_preemption_enable(void)
@@ -956,23 +1408,61 @@ void __pok_preemption_enable(void)
  * | `time_slot_index` | `uint32_t` | The index of the slot looked at |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}:
+ *   `get_next_periodic_processing_start()` shall give the time at which the
+ *   next slot of the current partition that is marked as starting periodic
+ *   processing begins, after the current slot.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_006}
+ *   - \srqref{SRQ_JET_CFG_003}
  *
  * @llr
+ * - \llrid{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}:
+ *   `get_next_periodic_processing_start()` shall look at the slots of
+ *   `pok_module_sched` after the slot `pok_sched_current_slot`, at most
+ *   `pok_module_sched_n` of them, adding to `pok_sched_next_deadline` the
+ *   `duration` of each slot that it passes.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}
+ * - \llrid{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_02}: For the first such
+ *   slot whose `periodic_processing_start` is true and whose `partition` is
+ *   `current_partition`, `get_next_periodic_processing_start()` shall return
+ *   the sum reached before that slot.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}
+ * - \llrid{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_03}: If no such slot is
+ *   found, `get_next_periodic_processing_start()` shall call
+ *   `pok_assertion_fail()` (`unreachable()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}
+ * - \llrid{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_04}: If and only if the
+ *   index of the next slot is `pok_module_sched_n`,
+ *   `get_next_periodic_processing_start()` shall go on with slot 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}
  *
  * @design
  * 1. Set `offset` to `pok_sched_next_deadline`.
+ *    \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}
  * 2. Set `time_slot_index` to `pok_sched_current_slot`.
+ *    \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01}
  * 3. Set `i` to `0U`; then while `i` is less than `pok_module_sched_n`, repeat
  *    (after each pass: increment `i`):
+ *    \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_01},
+ *    \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_02},
+ *    \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_03}
  *    1. Increment `time_slot_index`.
  *    2. If `time_slot_index` is equal to `pok_module_sched_n`:
+ *       \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_04}
  *       1. Set `time_slot_index` to `0U`.
  *    3. Set `slot` to the address of `pok_module_sched[time_slot_index]`.
  *    4. If `slot->periodic_processing_start` is true and `slot->partition` is
  *       equal to `current_partition`:
+ *       \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_02}
  *       1. Return `offset`.
  *    5. Add `slot->duration` to `offset`.
  * 4. Use the macro `unreachable()`.
+ *    \llrref{LLR_SCHED_GET_NEXT_PERIODIC_PROCESSING_START_03}
  *
  * @calls
  * - `pok_assertion_fail()`
@@ -1039,43 +1529,129 @@ pok_time_t get_next_periodic_processing_start(void)
  * | `preempt_local_disabled_old` | `pok_bool_t` | Whether the partition's local preemption was disabled |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_01}:
+ *   `pok_sched_on_time_changed()` shall make the scheduler of the module
+ *   evaluate the schedule again at each tick of the timer.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_004}
+ *   - \srqref{SRQ_JET_SCHED_003}
+ * - \hlrid{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}:
+ *   `pok_sched_on_time_changed()` shall give the current partition the event of
+ *   its timer when its time has come, and let it handle its events if its local
+ *   preemption is enabled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_005}
+ * - \hlrid{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_03}:
+ *   `pok_sched_on_time_changed()` shall let the GDB server see the user context
+ *   of the interrupted partition while the tick is handled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_01}:
+ *   `pok_sched_on_time_changed()` shall set `sched_need_recheck` to `TRUE` and
+ *   call `pok_sched()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_01}
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}: With `POK_NEEDS_GDB`, if
+ *   and only if `pok_in_user_space` is true at entry,
+ *   `pok_sched_on_time_changed()` shall set `entry_sp_user` of
+ *   `current_partition` to `global_thread_stack` and `pok_in_user_space` to
+ *   `FALSE` before it calls `pok_sched()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_03}
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_03}: With `POK_NEEDS_GDB`,
+ *   `pok_sched_on_time_changed()` shall set `pok_in_user_space` back to its
+ *   value at entry before it returns.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_03}
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_04}: If
+ *   `current_partition_is_paused` is true after `pok_sched()`,
+ *   `pok_sched_on_time_changed()` shall return without handling the timer or
+ *   the events.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_05}: If it is false, and `timer`
+ *   of the partition current at entry is not 0 and not greater than the result
+ *   of `jet_system_time()`, `pok_sched_on_time_changed()` shall call
+ *   `pok_partition_add_event()` with that partition,
+ *   `JET_PARTITION_EVENT_TYPE_TIMER` and 0, and set its `timer` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_06}: If it is false, and that
+ *   `timer` is 0 or greater than the result of `jet_system_time()`,
+ *   `pok_sched_on_time_changed()` shall leave the timer as it is and add no
+ *   event.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_07}: If it is false, and
+ *   `preempt_local_disabled` of `current_partition` (after `pok_sched()`) is
+ *   true or `is_event` of the partition is false, `pok_sched_on_time_changed()`
+ *   shall return without calling `on_event`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}
+ * - \llrid{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_08}: If it is false,
+ *   `preempt_local_disabled` is false and `is_event` is true,
+ *   `pok_sched_on_time_changed()` shall set `preempt_local_disabled` to `TRUE`,
+ *   call `ja_preempt_enable()`, the function `on_event` of `part_sched_ops` of
+ *   the partition and `ja_preempt_disable()` again and again while
+ *   `preempt_local_disabled` and `is_event` stay true, and then set
+ *   `preempt_local_disabled` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}
  *
  * @design
- * 1. Check that `!ja_preempt_enabled()` holds (assert: stop otherwise).
- * 2. Set `part` to `current_partition`.
- * 3. Set `sched_need_recheck` to `TRUE`.
- * 4. Set `in_user_space` to `pok_in_user_space`.
- * 5. If `in_user_space` is true:
+ * 1. Set `part` to `current_partition`.
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_05},
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_06},
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_07},
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_08}
+ * 2. Set `sched_need_recheck` to `TRUE`.
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_01}
+ * 3. Set `in_user_space` to `pok_in_user_space`.
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02},
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_03}
+ * 4. If `in_user_space` is true:
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_02}
  *    1. Set `part->entry_sp_user` to `global_thread_stack`.
  *    2. Set `pok_in_user_space` to `FALSE`.
- * 6. Call `pok_sched()`.
- * 7. If `current_partition_is_paused` is true:
+ * 5. Call `pok_sched()`. \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_01}
+ * 6. If `current_partition_is_paused` is true:
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_04}
  *    1. Go to the label `out`.
- * 8. Set `preempt_local_disabled_old` to
+ * 7. Set `preempt_local_disabled_old` to
  *    `current_partition->preempt_local_disabled`.
- * 9. Set `current_time` to `jet_system_time()`.
- * 10. If `part->timer` is not equal to `0` and `part->timer` is less than or
- *     equal to `current_time`:
- *     1. Call `pok_partition_add_event()` with the arguments `part`,
- *        `JET_PARTITION_EVENT_TYPE_TIMER` and `0`.
- *     2. Set `part->timer` to `0`.
- * 11. If `preempt_local_disabled_old` is true or `part->is_event` is false:
- *     1. Go to the label `out`.
- * 12. Repeat the following while `part->preempt_local_disabled` is true and
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_07},
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_08}
+ * 8. Set `current_time` to `jet_system_time()`.
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_05},
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_06}
+ * 9. If `part->timer` is not equal to `0` and `part->timer` is less than or
+ *    equal to `current_time`: \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_05},
+ *    \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_06}
+ *    1. Call `pok_partition_add_event()` with the arguments `part`,
+ *       `JET_PARTITION_EVENT_TYPE_TIMER` and `0`.
+ *       \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_05}
+ *    2. Set `part->timer` to `0`.
+ *       \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_05}
+ * 10. If `preempt_local_disabled_old` is true or `part->is_event` is false:
+ *     \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_07},
+ *     \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_08}
+ *     1. Go to the label `out`. \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_07}
+ * 11. Repeat the following while `part->preempt_local_disabled` is true and
  *     `part->is_event` is true (at least once):
+ *     \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_08}
  *     1. Set `part->preempt_local_disabled` to `TRUE`.
  *     2. Call `ja_preempt_enable()`.
  *     3. Call the function `part->part_sched_ops->on_event`.
  *     4. Call `ja_preempt_disable()`.
- * 13. Set `part->preempt_local_disabled` to `FALSE`.
- * 14. Label `out`:
- * 15. Set `pok_in_user_space` to `in_user_space`.
+ * 12. Set `part->preempt_local_disabled` to `FALSE`.
+ *     \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_08}
+ * 13. Label `out`: \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_03}
+ * 14. Set `pok_in_user_space` to `in_user_space`.
+ *     \llrref{LLR_SCHED_POK_SCHED_ON_TIME_CHANGED_03}
  *
  * @calls
- * - `ja_preempt_enabled()`
- * - `pok_assertion_fail()`
  * - `pok_sched()`
  * - `ja_system_time()`
  * - `pok_partition_add_event()`
@@ -1159,19 +1735,50 @@ out:
  * | `part` | `pok_partition_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01}:
+ *   `pok_partition_return_user_common()` shall prepare the return of the
+ *   processor to the user code of the current partition: preemption disabled
+ *   and the partition's pending events handled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_007}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01}:
+ *   `pok_partition_return_user_common()` shall call `pok_preemption_disable()`
+ *   once, before it reads `preempt_local_disabled` and `is_event` of
+ *   `current_partition`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_02}: While
+ *   `preempt_local_disabled` and `is_event` of `current_partition` are true,
+ *   `pok_partition_return_user_common()` shall set `preempt_local_disabled` to
+ *   `TRUE` and call `ja_preempt_enable()`, the function `on_event` of
+ *   `part_sched_ops` of the partition and `ja_preempt_disable()`, in this
+ *   order.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_03}: When
+ *   `preempt_local_disabled` or `is_event` of `current_partition` is false,
+ *   `pok_partition_return_user_common()` shall set `preempt_local_disabled` to
+ *   `FALSE` and, with `POK_NEEDS_GDB`, `pok_in_user_space` to `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01}
  *
  * @design
  * 1. Set `part` to `current_partition`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01}
  * 2. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_01}
  * 3. While `part->preempt_local_disabled` is true and `part->is_event` is true:
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_02}
  *    1. Set `part->preempt_local_disabled` to `TRUE`.
  *    2. Call `ja_preempt_enable()`.
  *    3. Call the function `part->part_sched_ops->on_event`.
  *    4. Call `ja_preempt_disable()`.
  * 4. Set `part->preempt_local_disabled` to `FALSE`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_03}
  * 5. Set `pok_in_user_space` to `TRUE`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_COMMON_03}
  *
  * @calls
  * - `pok_preemption_disable()`
@@ -1215,12 +1822,28 @@ static void pok_partition_return_user_common(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PARTITION_RETURN_USER_01}:
+ *   `pok_partition_return_user()` shall prepare the return from a system call
+ *   to the partition: its events handled and the floating point state of the
+ *   returning process in the processor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SYS_007}
+ *   - \srqref{SRQ_JET_THR_023}
+ *   - \srqref{SRQ_JET_THR_024}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PARTITION_RETURN_USER_01}:
+ *   `pok_partition_return_user()` shall call
+ *   `pok_partition_return_user_common()` and then
+ *   `pok_partition_return_user_fp()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RETURN_USER_01}
  *
  * @design
  * 1. Call `pok_partition_return_user_common()`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_01}
  * 2. Call `pok_partition_return_user_fp()`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_01}
  *
  * @calls
  * - `pok_partition_return_user_common()`
@@ -1251,21 +1874,60 @@ void pok_partition_return_user(void)
  * | `part` | `pok_partition_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PARTITION_RETURN_USER_FP_01}:
+ *   `pok_partition_return_user_fp()` shall put the floating point state of the
+ *   current process of the partition into the processor, saving the state of
+ *   the process that used it last.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_023}
+ *   - \srqref{SRQ_JET_THR_024}
+ * - \hlrid{HLR_SCHED_POK_PARTITION_RETURN_USER_FP_02}:
+ *   `pok_partition_return_user_fp()` shall change the floating point state of
+ *   the processor only for the processes of the partitions, since the kernel
+ *   itself does not use the floating point unit.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_GEN_002}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_01}: If `fp_store_last` is
+ *   not `fp_store_current` of `current_partition` and is not NULL,
+ *   `pok_partition_return_user_fp()` shall call `ja_fp_save()` with
+ *   `fp_store_last`, then set `fp_store_last` to `fp_store_current` and call
+ *   `ja_fp_restore()` with it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RETURN_USER_FP_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_02}: If `fp_store_last` is
+ *   not `fp_store_current` and is NULL, `pok_partition_return_user_fp()` shall
+ *   set `fp_store_last` to `fp_store_current` and call `ja_fp_restore()` with
+ *   it, without calling `ja_fp_save()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RETURN_USER_FP_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_03}: If `fp_store_last` is
+ *   `fp_store_current` of `current_partition`, `pok_partition_return_user_fp()`
+ *   shall call neither `ja_fp_save()` nor `ja_fp_restore()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RETURN_USER_FP_02}
  *
  * @design
  * 1. Set `part` to `current_partition`.
- * 2. Check that `part->fp_store_current != NULL` holds (assert: stop
- *    otherwise).
- * 3. If `fp_store_last` is not equal to `part->fp_store_current`:
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_01},
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_02},
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_03}
+ * 2. If `fp_store_last` is not equal to `part->fp_store_current`:
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_01},
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_02},
+ *    \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_03}
  *    1. If `fp_store_last` is not NULL:
+ *       \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_01}
  *       1. Call `ja_fp_save()` with the argument `fp_store_last`.
  *    2. Set `fp_store_last` to `part->fp_store_current`.
+ *       \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_01},
+ *       \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_02}
  *    3. Call `ja_fp_restore()` with the argument `fp_store_last`.
+ *       \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_01},
+ *       \llrref{LLR_SCHED_POK_PARTITION_RETURN_USER_FP_02}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `ja_fp_save()`
  * - `ja_fp_restore()`
  */
@@ -1304,11 +1966,20 @@ void pok_partition_return_user_fp(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_JET_FP_SYNC_01}: `jet_fp_sync()` shall save the floating
+ *   point state of the processor into the store of the process that it belongs
+ *   to, so that the GDB server reads it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_SCHED_JET_FP_SYNC_01}: If and only if `fp_store_last` is not
+ *   NULL, `jet_fp_sync()` shall call `ja_fp_save()` once with it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_JET_FP_SYNC_01}
  *
  * @design
- * 1. If `fp_store_last` is not NULL:
+ * 1. If `fp_store_last` is not NULL: \llrref{LLR_SCHED_JET_FP_SYNC_01}
  *    1. Call `ja_fp_save()` with the argument `fp_store_last`.
  *
  * @calls
@@ -1338,11 +2009,20 @@ void jet_fp_sync(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_JET_FP_RELOAD_01}: `jet_fp_reload()` shall load the
+ *   floating point state of the processor again from its store, after the GDB
+ *   server changed it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_004}
  *
  * @llr
+ * - \llrid{LLR_SCHED_JET_FP_RELOAD_01}: If and only if `fp_store_last` is not
+ *   NULL, `jet_fp_reload()` shall call `ja_fp_restore()` once with it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_JET_FP_RELOAD_01}
  *
  * @design
- * 1. If `fp_store_last` is not NULL:
+ * 1. If `fp_store_last` is not NULL: \llrref{LLR_SCHED_JET_FP_RELOAD_01}
  *    1. Call `ja_fp_restore()` with the argument `fp_store_last`.
  *
  * @calls
@@ -1384,25 +2064,52 @@ void jet_fp_reload(void)
  * | `part` | `pok_partition_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PARTITION_JUMP_USER_01}: `pok_partition_jump_user()`
+ *   shall start a process in user mode at its entry, with its stack, with a
+ *   clean floating point state, after the partition's pending events are
+ *   handled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_013}
+ *   - \srqref{SRQ_JET_THR_024}
+ *   - \srqref{SRQ_JET_PART_013}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PARTITION_JUMP_USER_01}: `pok_partition_jump_user()`
+ *   shall first call `pok_partition_return_user_common()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_JUMP_USER_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_JUMP_USER_02}: If and only if
+ *   `fp_store_last` is not NULL and is not `fp_store_current` of
+ *   `current_partition`, `pok_partition_jump_user()` shall then call
+ *   `ja_fp_save()` with `fp_store_last`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_JUMP_USER_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_JUMP_USER_03}: `pok_partition_jump_user()`
+ *   shall then set `fp_store_last` to `fp_store_current`, call `ja_fp_init()`,
+ *   and call `ja_user_space_jump()` with `stack_kernel`, `space_id` of the
+ *   partition, `entry` and `stack_user`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_JUMP_USER_01}
  *
  * @design
  * 1. Set `part` to `current_partition`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_01},
+ *    \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_02},
+ *    \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_03}
  * 2. Call `pok_partition_return_user_common()`.
- * 3. Check that `part->fp_store_current != NULL` holds (assert: stop
- *    otherwise).
- * 4. If `fp_store_last` is not NULL and `fp_store_last` is not equal to
- *    `part->fp_store_current`:
+ *    \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_01}
+ * 3. If `fp_store_last` is not NULL and `fp_store_last` is not equal to
+ *    `part->fp_store_current`: \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_02}
  *    1. Call `ja_fp_save()` with the argument `fp_store_last`.
- * 5. Set `fp_store_last` to `part->fp_store_current`.
- * 6. Call `ja_fp_init()`.
- * 7. Call `ja_user_space_jump()` with the arguments `stack_kernel`,
+ * 4. Set `fp_store_last` to `part->fp_store_current`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_03}
+ * 5. Call `ja_fp_init()`. \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_03}
+ * 6. Call `ja_user_space_jump()` with the arguments `stack_kernel`,
  *    `part->space_id`, `entry` and `(uintptr_t)stack_user`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_JUMP_USER_03}
  *
  * @calls
  * - `pok_partition_return_user_common()`
- * - `pok_assertion_fail()`
  * - `ja_fp_save()`
  * - `ja_fp_init()`
  * - `ja_user_space_jump()`
@@ -1451,20 +2158,43 @@ void pok_partition_jump_user(void (* JET_USER entry)(void),
  * | `part` | `pok_partition_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_PARTITION_RESTART_01}: `pok_partition_restart()` shall
+ *   restart the current partition at its entry, with a new generation, and not
+ *   return.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_005}
+ *   - \srqref{SRQ_JET_HM_004}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_PARTITION_RESTART_01}: `pok_partition_restart()` shall
+ *   call `pok_preemption_disable()`, increment `partition_generation` of
+ *   `current_partition`, set its `sp` to NULL and `sched_need_recheck` to
+ *   `TRUE`, call `pok_preemption_enable()`, and then, if it returns,
+ *   `pok_assertion_fail()` (`unreachable()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RESTART_01}
+ * - \llrid{LLR_SCHED_POK_PARTITION_RESTART_02}: If and only if
+ *   `partition_generation` is 0 after the increment, `pok_partition_restart()`
+ *   shall set it to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_PARTITION_RESTART_01}
  *
  * @design
  * 1. Set `part` to `current_partition`.
- * 2. Check that `part != NULL` holds (assert: stop otherwise).
- * 3. Call `pok_preemption_disable()`.
- * 4. Increment `part->partition_generation`.
- * 5. If `part->partition_generation` is equal to `0U`:
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESTART_01}
+ * 2. Call `pok_preemption_disable()`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESTART_01}
+ * 3. Increment `part->partition_generation`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESTART_01}
+ * 4. If `part->partition_generation` is equal to `0U`:
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESTART_02}
  *    1. Set `part->partition_generation` to `1`.
- * 6. Set `part->sp` to `NULL`.
- * 7. Set `sched_need_recheck` to `TRUE`.
- * 8. Call `pok_preemption_enable()`.
- * 9. Use the macro `unreachable()`.
+ * 5. Set `part->sp` to `NULL`. \llrref{LLR_SCHED_POK_PARTITION_RESTART_01}
+ * 6. Set `sched_need_recheck` to `TRUE`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESTART_01}
+ * 7. Call `pok_preemption_enable()`.
+ *    \llrref{LLR_SCHED_POK_PARTITION_RESTART_01}
+ * 8. Use the macro `unreachable()`. \llrref{LLR_SCHED_POK_PARTITION_RESTART_01}
  *
  * @calls
  * - `pok_assertion_fail()`
@@ -1509,13 +2239,25 @@ void pok_partition_restart(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SCHED_POK_SCHED_INIT_01}: `pok_sched_init()` shall initialize,
+ *   at boot, the idle partition that runs in the slots without a partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_002}
+ *   - \srqref{SRQ_JET_BOOT_002}
+ *   - \srqref{SRQ_JET_CFG_010}
  *
  * @llr
+ * - \llrid{LLR_SCHED_POK_SCHED_INIT_01}: `pok_sched_init()` shall call
+ *   `pok_partition_init()` with the address of `partition_idle` and set its
+ *   `initial_sp` to the result of `pok_stack_alloc()` for 4096.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SCHED_POK_SCHED_INIT_01}
  *
  * @design
  * 1. Call `pok_partition_init()` with the address of `partition_idle`.
+ *    \llrref{LLR_SCHED_POK_SCHED_INIT_01}
  * 2. Call `pok_stack_alloc()` with the argument `4096`, and store the result in
- *    `partition_idle.initial_sp`.
+ *    `partition_idle.initial_sp`. \llrref{LLR_SCHED_POK_SCHED_INIT_01}
  *
  * @calls
  * - `pok_partition_init()`

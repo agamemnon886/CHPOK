@@ -22,6 +22,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
  * pok_ret_e (was pok_ret_t).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -70,38 +80,127 @@
  * | `kernel_name` | `char[30]` | A copy of the name |
  *
  * @hlr
+ * - \hlrid{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_01}:
+ *   `pok_memory_block_get_status()` shall give the current partition the
+ *   address, the size and the access (read-only or read-write) that it has to
+ *   the memory block named in the request, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_005}
+ * - \hlrid{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_02}:
+ *   `pok_memory_block_get_status()` shall refuse a name that no memory block
+ *   has with `POK_ERRNO_EINVAL`, and a block to which the partition has no
+ *   access with `POK_ERRNO_EPERM`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_005}
+ * - \hlrid{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03}:
+ *   `pok_memory_block_get_status()` shall refuse a name or a status address
+ *   that the partition may not access with `POK_ERRNO_EFAULT`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
+ * - \hlrid{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_04}:
+ *   `pok_memory_block_get_status()` shall compare the names of the memory
+ *   blocks without regard to case.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CFG_004}
  *
  * @llr
+ * - \llrid{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_01}: If
+ *   `jet_user_to_kernel_ro()` returns NULL for `name` and `MAX_NAME_LENGTH`,
+ *   `pok_memory_block_get_status()` shall return `POK_ERRNO_EFAULT` without
+ *   converting `status`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03}
+ * - \llrid{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_02}: If
+ *   `jet_user_to_kernel_ro()` returns an address for `name` and
+ *   `jet_user_to_kernel_typed()` returns NULL for `status`,
+ *   `pok_memory_block_get_status()` shall return `POK_ERRNO_EFAULT` and write
+ *   no status.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03}
+ * - \llrid{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03}: If both conversions
+ *   give an address, `pok_memory_block_get_status()` shall copy the
+ *   `MAX_NAME_LENGTH` bytes of the name to a kernel buffer with `memcpy()`
+ *   before it compares them.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03}
+ * - \llrid{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_04}: If
+ *   `pok_compare_names()` returns a value other than 0 for `name` of each of
+ *   the `jet_memory_blocks_n` elements of `jet_memory_blocks` and the buffer,
+ *   `pok_memory_block_get_status()` shall return `POK_ERRNO_EINVAL` and write
+ *   no status.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_02}
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_04}
+ * - \llrid{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_05}: If the right of the
+ *   first block for which `pok_compare_names()` returns 0, for the space of
+ *   `current_partition` (`pid_to_rights[space_id]`), is `MB_CONFIG_NO_ACCESS`,
+ *   `pok_memory_block_get_status()` shall return `POK_ERRNO_EPERM` and write no
+ *   status.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_02}
+ * - \llrid{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_06}: If that right is
+ *   `MB_CONFIG_READ_WRITE`, `pok_memory_block_get_status()` shall set, in the
+ *   status, `addr` to `virt_addr` of the block, `size` to its `size` and `mode`
+ *   to `JET_MEMORY_BLOCK_READ_WRITE`, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_01}
+ * - \llrid{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_07}: If that right is
+ *   neither `MB_CONFIG_NO_ACCESS` nor `MB_CONFIG_READ_WRITE`,
+ *   `pok_memory_block_get_status()` shall set, in the status, `addr` to
+ *   `virt_addr` of the block, `size` to its `size` and `mode` to
+ *   `JET_MEMORY_BLOCK_READ`, and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_01}
  *
  * @design
  * 1. Set `current_pid` to `current_partition->space_id`.
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_05},
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_06},
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_07}
  * 2. Call `jet_user_to_kernel_ro()` with the arguments `name` and
  *    `MAX_NAME_LENGTH`, and store the result in `k_name`.
- * 3. If `k_name` is NULL:
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_01}
+ * 3. If `k_name` is NULL: \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_01}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 4. Set `k_status` to `jet_user_to_kernel_typed(status)`.
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_02}
  * 5. If `k_status` is NULL:
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_02}
  *    1. Return `POK_ERRNO_EFAULT`.
  * 6. Call `memcpy()` with the arguments `kernel_name`, `k_name` and
- *    `MAX_NAME_LENGTH`.
+ *    `MAX_NAME_LENGTH`. \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03}
  * 7. Set `i` to `0U`; then while `i` is less than `jet_memory_blocks_n`, repeat
  *    (after each pass: increment `i`):
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_04},
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_05},
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_06},
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_07}
  *    1. If `pok_compare_names(jet_memory_blocks[i].name, kernel_name)` is equal
  *       to `0`:
  *       1. Leave the loop.
  * 8. If `i` is equal to `jet_memory_blocks_n`:
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_04}
  *    1. Return `POK_ERRNO_EINVAL`.
  * 9. If `jet_memory_blocks[i].pid_to_rights[current_pid]` is equal to
  *    `MB_CONFIG_NO_ACCESS`:
+ *    \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_05}
  *    1. Return `POK_ERRNO_EPERM`.
  * 10. Set `k_status->addr` to `jet_memory_blocks[i].virt_addr`.
+ *     \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_06},
+ *     \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_07}
  * 11. Set `k_status->size` to `jet_memory_blocks[i].size`.
+ *     \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_06},
+ *     \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_07}
  * 12. If `jet_memory_blocks[i].pid_to_rights[current_pid]` is equal to
  *     `MB_CONFIG_READ_WRITE`:
+ *     \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_06}
  *     1. Set `k_status->mode` to `JET_MEMORY_BLOCK_READ_WRITE`.
- * 13. Otherwise:
+ * 13. Otherwise: \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_07}
  *     1. Set `k_status->mode` to `JET_MEMORY_BLOCK_READ`.
  * 14. Return `POK_ERRNO_OK`.
+ *     \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_06},
+ *     \llrref{LLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_07}
  *
  * @calls
  * - `jet_user_to_kernel_ro()`

@@ -33,6 +33,13 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/acpi.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the low level requirements
+ * name the register and range helpers that the functions call.
  */
 
 /**
@@ -66,12 +73,20 @@
  * | `p` | `const uint8_t *` | The address as a pointer |
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_READ8_01}: `read8()` shall read a byte of the ACPI tables
+ *   at a physical address.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_READ8_01}: `read8()` shall return the byte at the address
+ *   `pa`, which the hypervisor maps at the same virtual address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_READ8_01}
  *
  * @design
- * 1. Set `p` to `(const uint8_t *) (uintptr_t) pa`.
- * 2. Return the value at `p`.
+ * 1. Set `p` to `(const uint8_t *) (uintptr_t) pa`. \llrref{LLR_ACPI_READ8_01}
+ * 2. Return the value at `p`. \llrref{LLR_ACPI_READ8_01}
  *
  * @calls
  * None.
@@ -109,11 +124,21 @@ static uint8_t read8(uint64_t pa)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_READ16_01}: `read16()` shall read a little-endian 16-bit
+ *   value of the ACPI tables at any alignment.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_READ16_01}: `read16()` shall return the 16-bit value whose
+ *   low byte is the result of `read8()` for `pa` and whose high byte is the
+ *   result of `read8()` for `pa` plus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_READ16_01}
  *
  * @design
  * 1. Return `(uint32_t) read8(pa) | ((uint32_t) read8(pa + 1U) << 8)`.
+ *    \llrref{LLR_ACPI_READ16_01}
  *
  * @calls
  * - `read8()`
@@ -143,11 +168,20 @@ static uint32_t read16(uint64_t pa)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_READ32_01}: `read32()` shall read a little-endian 32-bit
+ *   value of the ACPI tables.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_READ32_01}: `read32()` shall return the 32-bit value whose
+ *   low 16 bits are the result of `read16()` for `pa` and whose high 16 bits
+ *   are the result of `read16()` for `pa` plus 2.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_READ32_01}
  *
  * @design
- * 1. Return `read16(pa) | (read16(pa + 2U) << 16)`.
+ * 1. Return `read16(pa) | (read16(pa + 2U) << 16)`. \llrref{LLR_ACPI_READ32_01}
  *
  * @calls
  * - `read16()`
@@ -177,11 +211,21 @@ static uint32_t read32(uint64_t pa)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_READ64_01}: `read64()` shall read a little-endian 64-bit
+ *   value of the ACPI tables.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_READ64_01}: `read64()` shall return the 64-bit value whose
+ *   low 32 bits are the result of `read32()` for `pa` and whose high 32 bits
+ *   are the result of `read32()` for `pa` plus 4.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_READ64_01}
  *
  * @design
  * 1. Return `(uint64_t) read32(pa) | ((uint64_t) read32(pa + 4U) << 32)`.
+ *    \llrref{LLR_ACPI_READ64_01}
  *
  * @calls
  * - `read32()`
@@ -216,15 +260,32 @@ static uint64_t read64(uint64_t pa)
  * | `i` | `uint32_t` | The index of the byte |
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_CHECKSUM_OK_01}: `checksum_ok()` shall tell whether the
+ *   bytes of an ACPI structure add up to 0 modulo 256.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_CHECKSUM_OK_01}: If the sum of the `length` bytes from
+ *   `pa`, read with `read8()`, is 0 modulo 256, `checksum_ok()` shall return
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_CHECKSUM_OK_01}
+ * - \llrid{LLR_ACPI_CHECKSUM_OK_02}: If the sum of the `length` bytes from
+ *   `pa`, read with `read8()`, is not 0 modulo 256, `checksum_ok()` shall
+ *   return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_CHECKSUM_OK_01}
  *
  * @design
- * 1. Set `sum` to `0U`.
+ * 1. Set `sum` to `0U`. \llrref{LLR_ACPI_CHECKSUM_OK_01},
+ *    \llrref{LLR_ACPI_CHECKSUM_OK_02}
  * 2. Set `i` to `0U`; then while `i` is less than `length`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_ACPI_CHECKSUM_OK_01},
+ *    \llrref{LLR_ACPI_CHECKSUM_OK_02}
  *    1. Set `sum` to `(uint8_t) (sum + read8(pa + i))`.
- * 3. Return `sum == 0U`.
+ * 3. Return `sum == 0U`. \llrref{LLR_ACPI_CHECKSUM_OK_01},
+ *    \llrref{LLR_ACPI_CHECKSUM_OK_02}
  *
  * @calls
  * - `read8()`
@@ -264,15 +325,31 @@ static bool checksum_ok(uint64_t pa, uint32_t length)
  * | `i` | `uint32_t` | The index of the byte |
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_SIGNATURE_IS_01}: `signature_is()` shall tell whether the
+ *   bytes at a physical address are a given signature.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_SIGNATURE_IS_01}: If each of the `length` bytes from `pa`,
+ *   read with `read8()`, equals the byte of `signature` at the same position,
+ *   `signature_is()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_SIGNATURE_IS_01}
+ * - \llrid{LLR_ACPI_SIGNATURE_IS_02}: If one of the `length` bytes from `pa`
+ *   differs from the byte of `signature` at the same position, `signature_is()`
+ *   shall return false, without reading the bytes after the first that differs.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_SIGNATURE_IS_01}
  *
  * @design
- * 1. Set `same` to `true`.
+ * 1. Set `same` to `true`. \llrref{LLR_ACPI_SIGNATURE_IS_01}
  * 2. Set `i` to `0U`; then while `i` is less than `length` and `same` is true,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_ACPI_SIGNATURE_IS_01}, \llrref{LLR_ACPI_SIGNATURE_IS_02}
  *    1. Set `same` to `(read8(pa + i) == (uint8_t) signature[i])`.
- * 3. Return `same`.
+ * 3. Return `same`. \llrref{LLR_ACPI_SIGNATURE_IS_01},
+ *    \llrref{LLR_ACPI_SIGNATURE_IS_02}
  *
  * @calls
  * - `read8()`
@@ -311,16 +388,35 @@ static bool signature_is(uint64_t pa, const char *signature, uint32_t length)
  * | `pa` | `uint64_t` | The address being checked |
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_FIND_RSDP_IN_01}: `find_rsdp_in()` shall find the ACPI root
+ *   pointer in a range of memory, on 16-byte boundaries.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_FIND_RSDP_IN_01}: If an address from `start`, in steps of
+ *   16 and below `end`, has the signature `"RSD PTR "` in its 8 bytes
+ *   (`signature_is()`) and a good checksum of its 20 bytes (`checksum_ok()`),
+ *   `find_rsdp_in()` shall return the first such address, without looking at
+ *   the addresses after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_RSDP_IN_01}
+ * - \llrid{LLR_ACPI_FIND_RSDP_IN_02}: If each address from `start`, in steps of
+ *   16 and below `end`, has another signature than `"RSD PTR "` or a bad
+ *   checksum of its 20 bytes, `find_rsdp_in()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_RSDP_IN_01}
  *
  * @design
- * 1. Set `found` to `0U`.
+ * 1. Set `found` to `0U`. \llrref{LLR_ACPI_FIND_RSDP_IN_02}
  * 2. Set `pa` to `start`; then while `pa` is less than `end` and `found` is
  *    equal to `0U`, repeat (after each pass: add `16U` to `pa`):
+ *    \llrref{LLR_ACPI_FIND_RSDP_IN_01}, \llrref{LLR_ACPI_FIND_RSDP_IN_02}
  *    1. If `signature_is(pa, "RSD PTR ", 8U) && checksum_ok(pa, 20U)` holds:
+ *       \llrref{LLR_ACPI_FIND_RSDP_IN_01}
  *       1. Set `found` to `pa`.
- * 3. Return `found`.
+ * 3. Return `found`. \llrref{LLR_ACPI_FIND_RSDP_IN_01},
+ *    \llrref{LLR_ACPI_FIND_RSDP_IN_02}
  *
  * @calls
  * - `signature_is()`
@@ -357,19 +453,47 @@ static uint64_t find_rsdp_in(uint64_t start, uint64_t end)
  * | `rsdp` | `uint64_t` | The address of the RSDP, or 0 |
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_FIND_RSDP_01}: `find_rsdp()` shall find the ACPI root
+ *   pointer: in the first KiB of the extended BIOS data area, then in the BIOS
+ *   area `0xE0000` to `0xFFFFF`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_FIND_RSDP_01}: If the EBDA address (16 times the 16-bit
+ *   value at `EBDA_SEGMENT_PTR`, read with `read16()`) is not 0 and
+ *   `find_rsdp_in()` for the 1024 bytes from it returns an address other than
+ *   0, `find_rsdp()` shall return that address, without searching the BIOS
+ *   area.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_RSDP_01}
+ * - \llrid{LLR_ACPI_FIND_RSDP_02}: If the EBDA address is 0, `find_rsdp()`
+ *   shall return the result of `find_rsdp_in()` for `BIOS_AREA_START` to
+ *   `BIOS_AREA_END`, without searching at the EBDA address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_RSDP_01}
+ * - \llrid{LLR_ACPI_FIND_RSDP_03}: If the EBDA address is not 0 and
+ *   `find_rsdp_in()` for the 1024 bytes from it returns 0, `find_rsdp()` shall
+ *   return the result of `find_rsdp_in()` for `BIOS_AREA_START` to
+ *   `BIOS_AREA_END`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_RSDP_01}
  *
  * @design
  * 1. Set `ebda` to `(uint64_t) read16(EBDA_SEGMENT_PTR) << 4`.
- * 2. Set `rsdp` to `0U`.
- * 3. If `ebda` is not equal to `0U`:
+ *    \llrref{LLR_ACPI_FIND_RSDP_01}, \llrref{LLR_ACPI_FIND_RSDP_02},
+ *    \llrref{LLR_ACPI_FIND_RSDP_03}
+ * 2. Set `rsdp` to `0U`. \llrref{LLR_ACPI_FIND_RSDP_02}
+ * 3. If `ebda` is not equal to `0U`: \llrref{LLR_ACPI_FIND_RSDP_01},
+ *    \llrref{LLR_ACPI_FIND_RSDP_03}
  *    1. Call `find_rsdp_in()` with the arguments `ebda` and `ebda + 1024U`, and
  *       store the result in `rsdp`.
- * 4. If `rsdp` is equal to `0U`:
+ * 4. If `rsdp` is equal to `0U`: \llrref{LLR_ACPI_FIND_RSDP_02},
+ *    \llrref{LLR_ACPI_FIND_RSDP_03}
  *    1. Call `find_rsdp_in()` with the arguments `BIOS_AREA_START` and
  *       `BIOS_AREA_END`, and store the result in `rsdp`.
- * 5. Return `rsdp`.
+ * 5. Return `rsdp`. \llrref{LLR_ACPI_FIND_RSDP_01},
+ *    \llrref{LLR_ACPI_FIND_RSDP_02}, \llrref{LLR_ACPI_FIND_RSDP_03}
  *
  * @calls
  * - `read16()`
@@ -418,27 +542,71 @@ static uint64_t find_rsdp(void)
  * | `table` | `uint64_t` | A table address |
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_FIND_MADT_01}: `find_madt()` shall find the table of the
+ *   interrupt controllers (MADT) among the tables that the root table lists:
+ *   the XSDT from ACPI 2.0 on, the RSDT otherwise.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_ACPI_FIND_MADT_01}: If the revision (the byte at `rsdp` plus 15,
+ *   `read8()`) is 2 or more and the 64-bit address at `rsdp` plus 24
+ *   (`read64()`) is not 0, `find_madt()` shall use that address as the root
+ *   table (the XSDT), whose entries are 64-bit addresses.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_MADT_01}
+ * - \llrid{LLR_ACPI_FIND_MADT_02}: If the revision (the byte at `rsdp` plus 15,
+ *   `read8()`) is less than 2, or the 64-bit address at `rsdp` plus 24 is 0,
+ *   `find_madt()` shall use the 32-bit address at `rsdp` plus 16 (`read32()`)
+ *   as the root table (the RSDT), whose entries are 32-bit addresses.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_MADT_01}
+ * - \llrid{LLR_ACPI_FIND_MADT_03}: If the length of the root table (the 32-bit
+ *   value at its offset 4, `read32()`) is less than `SDT_HEADER_SIZE`,
+ *   `find_madt()` shall read no entry and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_MADT_01}
+ * - \llrid{LLR_ACPI_FIND_MADT_04}: If an entry of the root table, from the
+ *   offset `SDT_HEADER_SIZE` and whole within the length of the table, is the
+ *   address of a table whose first 4 bytes are `"APIC"` (`signature_is()`),
+ *   `find_madt()` shall return the first such address, without reading the
+ *   entries after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_MADT_01}
+ * - \llrid{LLR_ACPI_FIND_MADT_05}: If no entry of the root table, from the
+ *   offset `SDT_HEADER_SIZE` and whole within the length of the table, is the
+ *   address of a table whose first 4 bytes are `"APIC"`, `find_madt()` shall
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_FIND_MADT_01}
  *
  * @design
  * 1. Set `xsdt` to `(read8(rsdp + 15U) >= 2U) && (read64(rsdp + 24U) != 0U)`.
+ *    \llrref{LLR_ACPI_FIND_MADT_01}, \llrref{LLR_ACPI_FIND_MADT_02}
  * 2. Set `sdt` to `read64(rsdp + 24U)` if `xsdt` is true, otherwise
- *    `(uint64_t) read32(rsdp + 16U)`.
+ *    `(uint64_t) read32(rsdp + 16U)`. \llrref{LLR_ACPI_FIND_MADT_01},
+ *    \llrref{LLR_ACPI_FIND_MADT_02}
  * 3. Set `entry_size` to `8U` if `xsdt` is true, otherwise `4U`.
+ *    \llrref{LLR_ACPI_FIND_MADT_01}, \llrref{LLR_ACPI_FIND_MADT_02}
  * 4. Call `read32()` with the argument `sdt + 4U`, and store the result in
- *    `length`.
- * 5. Set `madt` to `0U`.
- * 6. If `length` is less than `SDT_HEADER_SIZE`:
+ *    `length`. \llrref{LLR_ACPI_FIND_MADT_03}, \llrref{LLR_ACPI_FIND_MADT_04},
+ *    \llrref{LLR_ACPI_FIND_MADT_05}
+ * 5. Set `madt` to `0U`. \llrref{LLR_ACPI_FIND_MADT_03},
+ *    \llrref{LLR_ACPI_FIND_MADT_05}
+ * 6. If `length` is less than `SDT_HEADER_SIZE`: \llrref{LLR_ACPI_FIND_MADT_03}
  *    1. Set `length` to `SDT_HEADER_SIZE`.
  * 7. Set `off` to `SDT_HEADER_SIZE`; then while `(off + entry_size)` is less
  *    than or equal to `length` and `madt` is equal to `0U`, repeat (after each
- *    pass: add `entry_size` to `off`):
+ *    pass: add `entry_size` to `off`): \llrref{LLR_ACPI_FIND_MADT_04},
+ *    \llrref{LLR_ACPI_FIND_MADT_05}
  *    1. Set `table` to `read64(sdt + off)` if `xsdt` is true, otherwise
- *       `(uint64_t) read32(sdt + off)`.
+ *       `(uint64_t) read32(sdt + off)`. \llrref{LLR_ACPI_FIND_MADT_01},
+ *       \llrref{LLR_ACPI_FIND_MADT_02}
  *    2. If `signature_is(table, "APIC", 4U)` is true:
+ *       \llrref{LLR_ACPI_FIND_MADT_04}
  *       1. Set `madt` to `table`.
- * 8. Return `madt`.
+ * 8. Return `madt`. \llrref{LLR_ACPI_FIND_MADT_03},
+ *    \llrref{LLR_ACPI_FIND_MADT_04}, \llrref{LLR_ACPI_FIND_MADT_05}
  *
  * @calls
  * - `read8()`
@@ -505,52 +673,120 @@ static uint64_t find_madt(uint64_t rsdp)
  * | `cpu` | `bool` | Whether the entry is a CPU |
  *
  * @hlr
+ * - \hlrid{HLR_ACPI_ACPI_FIND_CPUS_01}: `acpi_find_cpus()` shall list the local
+ *   APIC IDs of the enabled CPUs that the ACPI tables describe, at most a
+ *   maximum.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
+ * - \hlrid{HLR_ACPI_ACPI_FIND_CPUS_02}: `acpi_find_cpus()` shall stop the
+ *   hypervisor with a message if there is no table of the interrupt
+ *   controllers.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_004}
  *
  * @llr
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_01}: If `find_rsdp()` returns 0,
+ *   `acpi_find_cpus()` shall call `hv_fatal()` with `"no ACPI MADT found"`,
+ *   without calling `find_madt()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_02}
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_02}: If `find_rsdp()` returns an address
+ *   other than 0 and `find_madt()` for it returns 0, `acpi_find_cpus()` shall
+ *   call `hv_fatal()` with `"no ACPI MADT found"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_02}
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_03}: `acpi_find_cpus()` shall read the
+ *   entries of the MADT from the offset `MADT_ENTRIES`, the type of an entry in
+ *   its first byte and its length in its second (`read8()`), while the first 2
+ *   bytes of an entry are within the length of the MADT (the 32-bit value at
+ *   its offset 4, `read32()`) and fewer than `max` IDs are stored, and return
+ *   the number of IDs stored.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_01}
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_04}: If an entry has the type
+ *   `MADT_LOCAL_APIC`, a length of 8 or more and `MADT_CPU_ENABLED` set in the
+ *   32-bit flags at its offset 4, `acpi_find_cpus()` shall store the byte at
+ *   its offset 3 in the next free element of `apic_ids`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_01}
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_05}: If an entry has the type
+ *   `MADT_LOCAL_X2APIC`, a length of 16 or more and `MADT_CPU_ENABLED` set in
+ *   the 32-bit flags at its offset 8, `acpi_find_cpus()` shall store the 32-bit
+ *   value at its offset 4 in the next free element of `apic_ids`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_01}
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_06}: If an entry has the type
+ *   `MADT_LOCAL_APIC` and a length below 8, or the type `MADT_LOCAL_X2APIC` and
+ *   a length below 16, or another type, or `MADT_CPU_ENABLED` is not set in its
+ *   flags, `acpi_find_cpus()` shall store nothing in `apic_ids` for it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_01}
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_07}: If the length of an entry is less than
+ *   2, `acpi_find_cpus()` shall read no entry after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_01}
+ * - \llrid{LLR_ACPI_ACPI_FIND_CPUS_08}: If the length of an entry is 2 or more,
+ *   `acpi_find_cpus()` shall read the next entry at the offset of the entry
+ *   plus its length.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ACPI_ACPI_FIND_CPUS_01}
  *
  * @design
  * 1. Call `find_rsdp()`, and store the result in `rsdp`.
+ *    \llrref{LLR_ACPI_ACPI_FIND_CPUS_01}, \llrref{LLR_ACPI_ACPI_FIND_CPUS_02}
  * 2. Set `madt` to `find_madt(rsdp)` if `rsdp` is not equal to `0U`, otherwise
- *    `0U`.
- * 3. Set `count` to `0U`.
- * 4. If `madt` is equal to `0U`:
+ *    `0U`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_01},
+ *    \llrref{LLR_ACPI_ACPI_FIND_CPUS_02}
+ * 3. Set `count` to `0U`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_03}
+ * 4. If `madt` is equal to `0U`: \llrref{LLR_ACPI_ACPI_FIND_CPUS_01},
+ *    \llrref{LLR_ACPI_ACPI_FIND_CPUS_02}
  *    1. Call `hv_fatal()` with the argument `"no ACPI MADT found"`.
  * 5. Call `read32()` with the argument `madt + 4U`, and store the result in
- *    `length`.
- * 6. Set `off` to `MADT_ENTRIES`.
+ *    `length`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_03}
+ * 6. Set `off` to `MADT_ENTRIES`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_03}
  * 7. While `(off + 2U)` is less than or equal to `length` and `count` is less
- *    than `max`:
+ *    than `max`: \llrref{LLR_ACPI_ACPI_FIND_CPUS_03}
  *    1. Call `read8()` with the argument `madt + off`, and store the result in
- *       `type`.
+ *       `type`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_04},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_05},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_06}
  *    2. Call `read8()` with the argument `madt + off + 1U`, and store the
- *       result in `entry_length`.
- *    3. Set `flags` to `0U`.
- *    4. Set `apic_id` to `0U`.
- *    5. Set `cpu` to `false`.
+ *       result in `entry_length`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_04},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_05},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_06},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_07},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_08}
+ *    3. Set `flags` to `0U`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_06}
+ *    4. Set `apic_id` to `0U`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_06}
+ *    5. Set `cpu` to `false`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_06}
  *    6. If `type` is equal to `MADT_LOCAL_APIC` and `entry_length` is greater
- *       than or equal to `8U`:
+ *       than or equal to `8U`: \llrref{LLR_ACPI_ACPI_FIND_CPUS_04},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_06}
  *       1. Call `read8()` with the argument `madt + off + 3U`, and store the
  *          result in `apic_id`.
  *       2. Call `read32()` with the argument `madt + off + 4U`, and store the
  *          result in `flags`.
  *       3. Set `cpu` to `true`.
  *    7. Otherwise, if `type` is equal to `MADT_LOCAL_X2APIC` and `entry_length`
- *       is greater than or equal to `16U`:
+ *       is greater than or equal to `16U`: \llrref{LLR_ACPI_ACPI_FIND_CPUS_05},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_06}
  *       1. Call `read32()` with the argument `madt + off + 4U`, and store the
  *          result in `apic_id`.
  *       2. Call `read32()` with the argument `madt + off + 8U`, and store the
  *          result in `flags`.
  *       3. Set `cpu` to `true`.
- *    8. Otherwise:
- *       1. Do nothing.
- *    9. If `cpu` is true and `(flags & MADT_CPU_ENABLED)` is not equal to `0U`:
+ *    8. If `cpu` is true and `(flags & MADT_CPU_ENABLED)` is not equal to `0U`:
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_04},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_05},
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_06}
  *       1. Set `apic_ids[count]` to `apic_id`.
  *       2. Increment `count`.
- *    10. If `entry_length` is less than `2U`:
- *        1. Set `off` to `length`.
- *    11. Otherwise:
+ *    9. If `entry_length` is less than `2U`:
+ *       \llrref{LLR_ACPI_ACPI_FIND_CPUS_07}
+ *       1. Set `off` to `length`.
+ *    10. Otherwise: \llrref{LLR_ACPI_ACPI_FIND_CPUS_08}
  *        1. Add `entry_length` to `off`.
- * 8. Return `count`.
+ * 8. Return `count`. \llrref{LLR_ACPI_ACPI_FIND_CPUS_03}
  *
  * @calls
  * - `find_rsdp()`

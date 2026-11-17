@@ -50,6 +50,16 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/monitor.c
  * (kernel/libc is split up: the GDB server, the monitor and readline are in
  * kernel/debug).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -89,11 +99,19 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_POK_NETWORK_THREAD_INIT_01}: `pok_network_thread_init()`
+ *   shall do nothing: the network thread of the old POK interface is not used.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_002}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_POK_NETWORK_THREAD_INIT_01}: `pok_network_thread_init()`
+ *   shall return without any effect.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_POK_NETWORK_THREAD_INIT_01}
  *
  * @design
- * 1. Do nothing.
+ * 1. Do nothing. \llrref{LLR_MONITOR_POK_NETWORK_THREAD_INIT_01}
  *
  * @calls
  * None.
@@ -142,20 +160,44 @@ static void pok_network_thread_init(void)
  * | `n` | `int32_t` | The number so far |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_PARSE_NUMBER_01}: `parse_number()` shall read the
+ *   decimal number at the start of a word of a monitor command, 0 without
+ *   digits, and at most `INT32_MAX`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_PARSE_NUMBER_01}: `parse_number()` shall return the
+ *   decimal number of the digits (`'0'` to `'9'`) at the start of `s`, up to
+ *   the first character that is less than `'0'` or greater than `'9'`, and 0 if
+ *   `s` starts with no digit.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PARSE_NUMBER_01}
+ * - \llrid{LLR_MONITOR_PARSE_NUMBER_02}: If the number is greater than
+ *   `INT32_MAX` minus a digit, divided by 10, when it reads that digit,
+ *   `parse_number()` shall replace the number with `INT32_MAX`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PARSE_NUMBER_01}
+ * - \llrid{LLR_MONITOR_PARSE_NUMBER_03}: If the number is not greater than
+ *   `INT32_MAX` minus a digit, divided by 10, when it reads that digit,
+ *   `parse_number()` shall replace the number with 10 times the number plus the
+ *   digit.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PARSE_NUMBER_01}
  *
  * @design
- * 1. Set `n` to `0`.
+ * 1. Set `n` to `0`. \llrref{LLR_MONITOR_PARSE_NUMBER_01}
  * 2. Set `i` to `0`; then while `s[i]` is greater than or equal to `'0'` and
  *    `s[i]` is less than or equal to `'9'`, repeat (after each pass: increment
- *    `i`):
+ *    `i`): \llrref{LLR_MONITOR_PARSE_NUMBER_01},
+ *    \llrref{LLR_MONITOR_PARSE_NUMBER_02}, \llrref{LLR_MONITOR_PARSE_NUMBER_03}
  *    1. Set `digit` to `s[i] - '0'`.
  *    2. If `n` is greater than `((INT32_MAX - digit) / 10)`:
+ *       \llrref{LLR_MONITOR_PARSE_NUMBER_02}
  *       1. Set `n` to `INT32_MAX`.
- *    3. Otherwise:
+ *    3. Otherwise: \llrref{LLR_MONITOR_PARSE_NUMBER_03}
  *       1. Set `n` to `(10 * n) + digit`.
- * 3. Return `n`.
+ * 3. Return `n`. \llrref{LLR_MONITOR_PARSE_NUMBER_01}
  *
  * @calls
  * None.
@@ -208,19 +250,36 @@ static uint32_t partition_on_pause_bits = 0U;
  * | `mask` | `uint32_t` | The partition's bit |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_PARTITION_PAUSE_SET_01}: `partition_pause_set()` shall
+ *   record whether a partition is to stay paused when the monitor is left.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_PARTITION_PAUSE_SET_01}: If `is_paused` is not 0,
+ *   `partition_pause_set()` shall set the bit `id` of
+ *   `partition_on_pause_bits`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PARTITION_PAUSE_SET_01}
+ * - \llrid{LLR_MONITOR_PARTITION_PAUSE_SET_02}: If `is_paused` is 0,
+ *   `partition_pause_set()` shall clear the bit `id` of
+ *   `partition_on_pause_bits`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PARTITION_PAUSE_SET_01}
  *
  * @design
- * 1. Check that `id < 32U` holds (assert: stop otherwise).
- * 2. Set `mask` to `(uint32_t) 1U << id`.
- * 3. If `is_paused` is not equal to `0U`:
+ * 1. Set `mask` to `(uint32_t) 1U << id`.
+ *    \llrref{LLR_MONITOR_PARTITION_PAUSE_SET_01},
+ *    \llrref{LLR_MONITOR_PARTITION_PAUSE_SET_02}
+ * 2. If `is_paused` is not equal to `0U`:
+ *    \llrref{LLR_MONITOR_PARTITION_PAUSE_SET_01}
  *    1. Set the bits `mask` in `partition_on_pause_bits`.
- * 4. Otherwise:
+ * 3. Otherwise: \llrref{LLR_MONITOR_PARTITION_PAUSE_SET_02}
  *    1. Keep only the bits `~mask` of `partition_on_pause_bits`.
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 static void partition_pause_set(pok_partition_id_t id, uint8_t is_paused)
 {
@@ -256,15 +315,23 @@ static void partition_pause_set(pok_partition_id_t id, uint8_t is_paused)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_PARTITION_PAUSE_GET_01}: `partition_pause_get()` shall
+ *   tell whether a partition is to stay paused when the monitor is left.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_016}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_PARTITION_PAUSE_GET_01}: `partition_pause_get()` shall
+ *   return the bit `id` of `partition_on_pause_bits`, as 0 or 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PARTITION_PAUSE_GET_01}
  *
  * @design
- * 1. Check that `id < 32U` holds (assert: stop otherwise).
- * 2. Return `(uint8_t) ((partition_on_pause_bits >> id) & 1U)`.
+ * 1. Return `(uint8_t) ((partition_on_pause_bits >> id) & 1U)`.
+ *    \llrref{LLR_MONITOR_PARTITION_PAUSE_GET_01}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 static uint8_t partition_pause_get(pok_partition_id_t id)
 {
@@ -316,20 +383,32 @@ static command_t commands[] = {
  * | `i` | `size_t` | The index of a command |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_MON_HELP_01}: `mon_help()` shall show the commands of
+ *   the monitor with their arguments and descriptions.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_MON_HELP_01}: If `argc` is greater than 1, `mon_help()`
+ *   shall call `printf()` with `"Too many arguments for help!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MON_HELP_01}
+ * - \llrid{LLR_MONITOR_MON_HELP_02}: If `argc` is not greater than 1,
+ *   `mon_help()` shall call `printf()` with `"%%s %%s- %%s\n"` and `name`,
+ *   `argc` and `desc` of each of the `NCOMMANDS` elements of `commands`, in
+ *   their order, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MON_HELP_01}
  *
  * @design
- * 1. If `argc` is greater than `1`:
+ * 1. If `argc` is greater than `1`: \llrref{LLR_MONITOR_MON_HELP_01}
  *    1. Call `printf()` with the argument `"Too many arguments for help!\n"`.
  *    2. Return `0`.
- * 2. Mark `argc` as not used.
- * 3. Mark `argv` as not used.
- * 4. Set `i` to `0U`; then while `i` is less than `NCOMMANDS`, repeat (after
- *    each pass: increment `i`):
+ * 2. Set `i` to `0U`; then while `i` is less than `NCOMMANDS`, repeat (after
+ *    each pass: increment `i`): \llrref{LLR_MONITOR_MON_HELP_02}
  *    1. Call `printf()` with the arguments `"%%s %%s- %%s\n"`,
  *       `commands[i].name`, `commands[i].argc` and `commands[i].desc`.
- * 5. Return `0`.
+ * 3. Return `0`. \llrref{LLR_MONITOR_MON_HELP_02}
  *
  * @calls
  * - `printf()`
@@ -376,25 +455,54 @@ mon_help(int32_t argc, char **argv)
  * | `i` | `size_t` | The index of a command |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_HELP_ABOUT_01}: `help_about()` shall show the
+ *   description of the monitor command named in its argument.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_HELP_ABOUT_01}: If `argc` is greater than 2,
+ *   `help_about()` shall call `printf()` with `"Too many arguments for
+ *   help_about!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_HELP_ABOUT_01}
+ * - \llrid{LLR_MONITOR_HELP_ABOUT_02}: If `argc` is 1, `help_about()` shall
+ *   call `printf()` with `"Missing parameter - Name of command!\n"` and
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_HELP_ABOUT_01}
+ * - \llrid{LLR_MONITOR_HELP_ABOUT_03}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and `strcmp()` returns 0 for `argv[1]` and `name` of an element
+ *   of `commands`, `help_about()` shall call `printf()` with `"%%s\n"` and
+ *   `desc` of the first such element, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_HELP_ABOUT_01}
+ * - \llrid{LLR_MONITOR_HELP_ABOUT_04}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and `strcmp()` returns a value other than 0 for `argv[1]` and
+ *   `name` of each of the `NCOMMANDS` elements of `commands`, `help_about()`
+ *   shall call `printf()` with `"There is no such command!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_HELP_ABOUT_01}
  *
  * @design
- * 1. If `argc` is greater than `2`:
+ * 1. If `argc` is greater than `2`: \llrref{LLR_MONITOR_HELP_ABOUT_01}
  *    1. Call `printf()` with the argument
  *       `"Too many arguments for help_about!\n"`.
  *    2. Return `0`.
- * 2. If `argc` is equal to `1`:
+ * 2. If `argc` is equal to `1`: \llrref{LLR_MONITOR_HELP_ABOUT_02}
  *    1. Call `printf()` with the argument
  *       `"Missing parameter - Name of command!\n"`.
  *    2. Return `0`.
  * 3. Set `i` to `0U`; then while `i` is less than `NCOMMANDS`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_MONITOR_HELP_ABOUT_03},
+ *    \llrref{LLR_MONITOR_HELP_ABOUT_04}
  *    1. If `strcmp(argv[1], commands[i].name)` is equal to `0`:
+ *       \llrref{LLR_MONITOR_HELP_ABOUT_03}
  *       1. Call `printf()` with the arguments `"%%s\n"` and `commands[i].desc`.
  *       2. Return `0`.
  * 4. Call `printf()` with the argument `"There is no such command!\n"`.
- * 5. Return `0`.
+ *    \llrref{LLR_MONITOR_HELP_ABOUT_04}
+ * 5. Return `0`. \llrref{LLR_MONITOR_HELP_ABOUT_04}
  *
  * @calls
  * - `printf()`
@@ -449,28 +557,56 @@ help_about(int32_t argc,char **argv)
  * | `part` | `pok_partition_arinc_t *` | The partition |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_PRINT_PARTITION_01}: `print_partition()` shall list the
+ *   partitions of the module, by number and name.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_PRINT_PARTITION_01}: If `argc` is greater than 1,
+ *   `print_partition()` shall call `printf()` with `"Too many arguments for
+ *   ps!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PRINT_PARTITION_01}
+ * - \llrid{LLR_MONITOR_PRINT_PARTITION_02}: If `argc` is not greater than 1 and
+ *   `pok_partitions_arinc_n` is greater than 1, `print_partition()` shall call
+ *   `printf()` with `"There are %%d partitions:\n"` and
+ *   `pok_partitions_arinc_n`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PRINT_PARTITION_01}
+ * - \llrid{LLR_MONITOR_PRINT_PARTITION_03}: If `argc` is not greater than 1 and
+ *   `pok_partitions_arinc_n` is not greater than 1, `print_partition()` shall
+ *   call `printf()` with `"There is %%d partition:\n"` and
+ *   `pok_partitions_arinc_n`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PRINT_PARTITION_01}
+ * - \llrid{LLR_MONITOR_PRINT_PARTITION_04}: If `argc` is not greater than 1,
+ *   `print_partition()` shall then call, for each `i` less than
+ *   `pok_partitions_arinc_n`, `printf()` with `"Partition %%u: %%s"`, `i` and
+ *   `base_part.name` of `pok_partitions_arinc[i]`, and `printf()` with `"\n"`,
+ *   and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PRINT_PARTITION_01}
  *
  * @design
- * 1. If `argc` is greater than `1`:
+ * 1. If `argc` is greater than `1`: \llrref{LLR_MONITOR_PRINT_PARTITION_01}
  *    1. Call `printf()` with the argument `"Too many arguments for ps!\n"`.
  *    2. Return `0`.
  * 2. If `pok_partitions_arinc_n` is greater than `1U`:
+ *    \llrref{LLR_MONITOR_PRINT_PARTITION_02}
  *    1. Call `printf()` with the arguments `"There are %%d partitions:\n"` and
  *       `pok_partitions_arinc_n`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_MONITOR_PRINT_PARTITION_03}
  *    1. Call `printf()` with the arguments `"There is %%d partition:\n"` and
  *       `pok_partitions_arinc_n`.
  * 4. Set `i` to `0U`; then while `i` is less than `pok_partitions_arinc_n`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_MONITOR_PRINT_PARTITION_04}
  *    1. Set `part` to the address of `pok_partitions_arinc[i]`.
  *    2. Call `printf()` with the arguments `"Partition %%u: %%s"`, `i` and
  *       `part->base_part.name`.
  *    3. Call `printf()` with the argument `"\n"`.
- * 5. Mark `argc` as not used.
- * 6. Mark `argv` as not used.
- * 7. Return `0`.
+ * 5. Return `0`. \llrref{LLR_MONITOR_PRINT_PARTITION_04}
  *
  * @calls
  * - `printf()`
@@ -531,63 +667,132 @@ print_partition(int32_t argc, char **argv){
  * | `space_layout` | `jet_space_layout_t` | The partition's memory layout |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_INFO_PARTITION_01}: `info_partition()` shall show the
+ *   state of the partition whose number is its argument: whether it stays
+ *   paused, its memory, name, number of processes, period, duration, lock
+ *   level, and its locking, current and main process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_INFO_PARTITION_01}: If `argc` is greater than 2,
+ *   `info_partition()` shall call `printf()` with `"Too many arguments for
+ *   info_partition!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_INFO_PARTITION_01}
+ * - \llrid{LLR_MONITOR_INFO_PARTITION_02}: If `argc` is 1, `info_partition()`
+ *   shall call `printf()` with `"Missing parameter - Number of partition!\n"`
+ *   and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_INFO_PARTITION_01}
+ * - \llrid{LLR_MONITOR_INFO_PARTITION_03}: If `argc` is neither greater than 2
+ *   nor equal to 1, and the result of `parse_number()` for `argv[1]` is less
+ *   than 0 or is not less than `pok_partitions_arinc_n`, `info_partition()`
+ *   shall call `printf()` with `"There is no such partition!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_INFO_PARTITION_01}
+ * - \llrid{LLR_MONITOR_INFO_PARTITION_04}: If `argc` is neither greater than 2
+ *   nor equal to 1, and the result of `parse_number()` for `argv[1]` (the
+ *   number) is not less than 0 and is less than `pok_partitions_arinc_n`,
+ *   `info_partition()` shall call `ja_space_layout_get()` with
+ *   `base_part.space_id` of `pok_partitions_arinc[number]`, and then
+ *   `printf()`, in this order, with `"\n\n"`, with `"Info about partition
+ *   #%%d\n"` and the number, with `"is_paused = %%d\n"` and the result of
+ *   `partition_pause_get()` for the number, with `"base_addr = %%p\n"` and
+ *   `kernel_addr` of the layout, with `"base_vaddr = %%p\n"` and its
+ *   `user_addr`, with `"size = 0x%%zx\n"` and its `size`, with `"name = %%s\n"`
+ *   and `base_part.name` of the partition, with `"nthreads = %%lu\n"` and its
+ *   `nthreads`, with `"period = %%lu\n"` and its `base_part.period`, with
+ *   `"duration = %%lu\n"` and its `base_part.duration`, with `"lock_level =
+ *   %%u\n"` and its `lock_level`, with `"prev_thread = %%u\n"` and the locking
+ *   thread, with `"current_thread = %%u\n"` and the index of `thread_current`
+ *   in `threads`, with `"thread_main = %%u\n"` and
+ *   `POK_PARTITION_ARINC_MAIN_THREAD_ID`, and with `"\n\n"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_INFO_PARTITION_01}
+ * - \llrid{LLR_MONITOR_INFO_PARTITION_05}: If `argc` is neither greater than 2
+ *   nor equal to 1, and the number is not less than 0 and is less than
+ *   `pok_partitions_arinc_n`, `info_partition()` shall return 0 after these
+ *   calls.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_INFO_PARTITION_01}
+ * - \llrid{LLR_MONITOR_INFO_PARTITION_06}: If `lock_level` of the partition is
+ *   not 0, `info_partition()` shall give the index of `thread_locked` in
+ *   `threads` as the locking thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_INFO_PARTITION_01}
+ * - \llrid{LLR_MONITOR_INFO_PARTITION_07}: If `lock_level` of the partition is
+ *   0, `info_partition()` shall give `UINT32_MAX` as the locking thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_INFO_PARTITION_01}
  *
  * @design
- * 1. If `argc` is greater than `2`:
+ * 1. If `argc` is greater than `2`: \llrref{LLR_MONITOR_INFO_PARTITION_01}
  *    1. Call `printf()` with the argument
  *       `"Too many arguments for info_partition!\n"`.
  *    2. Return `0`.
- * 2. If `argc` is equal to `1`:
+ * 2. If `argc` is equal to `1`: \llrref{LLR_MONITOR_INFO_PARTITION_02}
  *    1. Call `printf()` with the argument
  *       `"Missing parameter - Number of partition!\n"`.
  *    2. Return `0`.
- * 3. Set `number` to `0`.
+ * 3. Set `number` to `0`. \llrref{LLR_MONITOR_INFO_PARTITION_03},
+ *    \llrref{LLR_MONITOR_INFO_PARTITION_04},
+ *    \llrref{LLR_MONITOR_INFO_PARTITION_05}
  * 4. Call `parse_number()` with the argument `argv[1]`, and store the result in
- *    `number`.
+ *    `number`. \llrref{LLR_MONITOR_INFO_PARTITION_03},
+ *    \llrref{LLR_MONITOR_INFO_PARTITION_04},
+ *    \llrref{LLR_MONITOR_INFO_PARTITION_05}
  * 5. If `number` is less than `0` or `number` is greater than or equal to
- *    `(int32_t) pok_partitions_arinc_n`:
+ *    `(int32_t) pok_partitions_arinc_n`: \llrref{LLR_MONITOR_INFO_PARTITION_03}
  *    1. Call `printf()` with the argument `"There is no such partition!\n"`.
  *    2. Return `0`.
  * 6. Set `part` to the address of `pok_partitions_arinc[number]`.
+ *    \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 7. Call `ja_space_layout_get()` with the arguments `part->base_part.space_id`
- *    and the address of `space_layout`.
+ *    and the address of `space_layout`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 8. Call `printf()` with the argument `"\n\n"`.
+ *    \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 9. Call `printf()` with the arguments `"Info about partition #%%d\n"` and
- *    `number`.
+ *    `number`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 10. Call `printf()` with the arguments `"is_paused = %%d\n"` and
- *     `partition_pause_get(number)`.
+ *     `partition_pause_get(number)`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 11. Call `printf()` with the arguments `"base_addr = %%p\n"` and
  *     `(void *) space_layout.kernel_addr`.
+ *     \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 12. Call `printf()` with the arguments `"base_vaddr = %%p\n"` and
- *     `(void *) space_layout.user_addr`.
+ *     `(void *) space_layout.user_addr`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 13. Call `printf()` with the arguments `"size = 0x%%zx\n"` and
- *     `space_layout.size`.
+ *     `space_layout.size`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 14. Call `printf()` with the arguments `"name = %%s\n"` and
- *     `part->base_part.name`.
+ *     `part->base_part.name`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 15. Call `printf()` with the arguments `"nthreads = %%lu\n"` and
- *     `(unsigned long)part->nthreads`.
+ *     `(unsigned long)part->nthreads`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 16. Call `printf()` with the arguments `"period = %%lu\n"` and
  *     `(unsigned long)part->base_part.period`.
+ *     \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 17. Call `printf()` with the arguments `"duration = %%lu\n"` and
  *     `(unsigned long)part->base_part.duration`.
+ *     \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 18. Call `printf()` with the arguments `"lock_level = %%u\n"` and
- *     `(unsigned) part->lock_level`.
+ *     `(unsigned) part->lock_level`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 19. If `part->lock_level` is not equal to `0U`:
+ *     \llrref{LLR_MONITOR_INFO_PARTITION_06}
  *     1. Set `locked` to `part->thread_locked - part->threads`.
  *     2. Call `printf()` with the arguments `"prev_thread = %%u\n"` and
  *        `(unsigned) locked`.
- * 20. Otherwise:
+ * 20. Otherwise: \llrref{LLR_MONITOR_INFO_PARTITION_07}
  *     1. Call `printf()` with the arguments `"prev_thread = %%u\n"` and
  *        `(unsigned) UINT32_MAX`.
  * 21. Set `current` to `part->thread_current - part->threads`.
+ *     \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 22. Call `printf()` with the arguments `"current_thread = %%u\n"` and
- *     `(unsigned) current`.
+ *     `(unsigned) current`. \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 23. Call `printf()` with the arguments `"thread_main = %%u\n"` and
  *     `POK_PARTITION_ARINC_MAIN_THREAD_ID`.
+ *     \llrref{LLR_MONITOR_INFO_PARTITION_04}
  * 24. Call `printf()` with the argument `"\n\n"`.
- * 25. Return `0`.
+ *     \llrref{LLR_MONITOR_INFO_PARTITION_04}
+ * 25. Return `0`. \llrref{LLR_MONITOR_INFO_PARTITION_05}
  *
  * @calls
  * - `printf()`
@@ -673,28 +878,58 @@ int32_t info_partition(int32_t argc,char **argv){
  * | `number` | `int32_t` | The partition number |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_PAUSE_N_01}: `pause_N()` shall make the partition whose
+ *   number is its argument stay paused when the monitor is left.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_PAUSE_N_01}: If `argc` is greater than 2, `pause_N()`
+ *   shall call `printf()` with `"Too many arguments for pause!\n"` and
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PAUSE_N_01}
+ * - \llrid{LLR_MONITOR_PAUSE_N_02}: If `argc` is 1, `pause_N()` shall call
+ *   `printf()` with `"Missing parameter - Number of partition!\n"` and
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PAUSE_N_01}
+ * - \llrid{LLR_MONITOR_PAUSE_N_03}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and the result of `parse_number()` for `argv[1]` is less than 0
+ *   or is not less than `pok_partitions_arinc_n`, `pause_N()` shall call
+ *   `printf()` with `"There is no such partition!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PAUSE_N_01}
+ * - \llrid{LLR_MONITOR_PAUSE_N_04}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and the result of `parse_number()` for `argv[1]` is not less
+ *   than 0 and is less than `pok_partitions_arinc_n`, `pause_N()` shall call
+ *   `partition_pause_set()` with that number and 1, and then `printf()` with
+ *   `"Partition %%d paused\n"` and the number, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_PAUSE_N_01}
  *
  * @design
- * 1. If `argc` is greater than `2`:
+ * 1. If `argc` is greater than `2`: \llrref{LLR_MONITOR_PAUSE_N_01}
  *    1. Call `printf()` with the argument `"Too many arguments for pause!\n"`.
  *    2. Return `0`.
- * 2. If `argc` is equal to `1`:
+ * 2. If `argc` is equal to `1`: \llrref{LLR_MONITOR_PAUSE_N_02}
  *    1. Call `printf()` with the argument
  *       `"Missing parameter - Number of partition!\n"`.
  *    2. Return `0`.
- * 3. Set `number` to `0`.
+ * 3. Set `number` to `0`. \llrref{LLR_MONITOR_PAUSE_N_03},
+ *    \llrref{LLR_MONITOR_PAUSE_N_04}
  * 4. Call `parse_number()` with the argument `argv[1]`, and store the result in
- *    `number`.
+ *    `number`. \llrref{LLR_MONITOR_PAUSE_N_03}, \llrref{LLR_MONITOR_PAUSE_N_04}
  * 5. If `number` is less than `0` or `number` is greater than or equal to
- *    `(int32_t) pok_partitions_arinc_n`:
+ *    `(int32_t) pok_partitions_arinc_n`: \llrref{LLR_MONITOR_PAUSE_N_03}
  *    1. Call `printf()` with the argument `"There is no such partition!\n"`.
  *    2. Return `0`.
  * 6. Call `partition_pause_set()` with the arguments `number` and `1`.
+ *    \llrref{LLR_MONITOR_PAUSE_N_04}
  * 7. Call `printf()` with the arguments `"Partition %%d paused\n"` and
- *    `number`.
- * 8. Return `0`.
+ *    `number`. \llrref{LLR_MONITOR_PAUSE_N_04}
+ * 8. Return `0`. \llrref{LLR_MONITOR_PAUSE_N_04}
  *
  * @calls
  * - `printf()`
@@ -749,28 +984,59 @@ pause_N(int32_t argc, char **argv){
  * | `number` | `int32_t` | The partition number |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_RESUME_N_01}: `resume_N()` shall make the partition
+ *   whose number is its argument run again when the monitor is left.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_RESUME_N_01}: If `argc` is greater than 2, `resume_N()`
+ *   shall call `printf()` with `"Too many arguments for resume!\n"` and
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESUME_N_01}
+ * - \llrid{LLR_MONITOR_RESUME_N_02}: If `argc` is 1, `resume_N()` shall call
+ *   `printf()` with `"Missing parameter - Number of partition!\n"` and
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESUME_N_01}
+ * - \llrid{LLR_MONITOR_RESUME_N_03}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and the result of `parse_number()` for `argv[1]` is less than 0
+ *   or is not less than `pok_partitions_arinc_n`, `resume_N()` shall call
+ *   `printf()` with `"There is no such partition!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESUME_N_01}
+ * - \llrid{LLR_MONITOR_RESUME_N_04}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and the result of `parse_number()` for `argv[1]` is not less
+ *   than 0 and is less than `pok_partitions_arinc_n`, `resume_N()` shall call
+ *   `partition_pause_set()` with that number and 0, and then `printf()` with
+ *   `"Partition %%d resumed\n"` and the number, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESUME_N_01}
  *
  * @design
- * 1. If `argc` is greater than `2`:
+ * 1. If `argc` is greater than `2`: \llrref{LLR_MONITOR_RESUME_N_01}
  *    1. Call `printf()` with the argument `"Too many arguments for resume!\n"`.
  *    2. Return `0`.
- * 2. If `argc` is equal to `1`:
+ * 2. If `argc` is equal to `1`: \llrref{LLR_MONITOR_RESUME_N_02}
  *    1. Call `printf()` with the argument
  *       `"Missing parameter - Number of partition!\n"`.
  *    2. Return `0`.
- * 3. Set `number` to `0`.
+ * 3. Set `number` to `0`. \llrref{LLR_MONITOR_RESUME_N_03},
+ *    \llrref{LLR_MONITOR_RESUME_N_04}
  * 4. Call `parse_number()` with the argument `argv[1]`, and store the result in
- *    `number`.
+ *    `number`. \llrref{LLR_MONITOR_RESUME_N_03},
+ *    \llrref{LLR_MONITOR_RESUME_N_04}
  * 5. If `number` is less than `0` or `number` is greater than or equal to
- *    `(int32_t) pok_partitions_arinc_n`:
+ *    `(int32_t) pok_partitions_arinc_n`: \llrref{LLR_MONITOR_RESUME_N_03}
  *    1. Call `printf()` with the argument `"There is no such partition!\n"`.
  *    2. Return `0`.
  * 6. Call `partition_pause_set()` with the arguments `number` and `0`.
+ *    \llrref{LLR_MONITOR_RESUME_N_04}
  * 7. Call `printf()` with the arguments `"Partition %%d resumed\n"` and
- *    `number`.
- * 8. Return `0`.
+ *    `number`. \llrref{LLR_MONITOR_RESUME_N_04}
+ * 8. Return `0`. \llrref{LLR_MONITOR_RESUME_N_04}
  *
  * @calls
  * - `printf()`
@@ -827,29 +1093,61 @@ resume_N(int32_t argc, char **argv){
  * | `number` | `int32_t` | The partition number |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_RESTART_N_01}: `restart_N()` shall make the partition
+ *   whose number is its argument start again at its entry the next time that it
+ *   runs.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_RESTART_N_01}: If `argc` is greater than 2,
+ *   `restart_N()` shall call `printf()` with `"Too many arguments for
+ *   restart!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESTART_N_01}
+ * - \llrid{LLR_MONITOR_RESTART_N_02}: If `argc` is 1, `restart_N()` shall call
+ *   `printf()` with `"Missing parameter - Number of partition!\n"` and
+ *   return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESTART_N_01}
+ * - \llrid{LLR_MONITOR_RESTART_N_03}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and the result of `parse_number()` for `argv[1]` is less than 0
+ *   or is not less than `pok_partitions_arinc_n`, `restart_N()` shall call
+ *   `printf()` with `"There is no such partition!\n"` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESTART_N_01}
+ * - \llrid{LLR_MONITOR_RESTART_N_04}: If `argc` is neither greater than 2 nor
+ *   equal to 1, and the result of `parse_number()` for `argv[1]` is not less
+ *   than 0 and is less than `pok_partitions_arinc_n`, `restart_N()` shall set
+ *   `base_part.sp` of `pok_partitions_arinc[number]`, for that number, to NULL,
+ *   and then call `printf()` with `"Partition %%d restarted\n"` and the number,
+ *   and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RESTART_N_01}
  *
  * @design
- * 1. If `argc` is greater than `2`:
+ * 1. If `argc` is greater than `2`: \llrref{LLR_MONITOR_RESTART_N_01}
  *    1. Call `printf()` with the argument
  *       `"Too many arguments for restart!\n"`.
  *    2. Return `0`.
- * 2. If `argc` is equal to `1`:
+ * 2. If `argc` is equal to `1`: \llrref{LLR_MONITOR_RESTART_N_02}
  *    1. Call `printf()` with the argument
  *       `"Missing parameter - Number of partition!\n"`.
  *    2. Return `0`.
- * 3. Set `number` to `0`.
+ * 3. Set `number` to `0`. \llrref{LLR_MONITOR_RESTART_N_03},
+ *    \llrref{LLR_MONITOR_RESTART_N_04}
  * 4. Call `parse_number()` with the argument `argv[1]`, and store the result in
- *    `number`.
+ *    `number`. \llrref{LLR_MONITOR_RESTART_N_03},
+ *    \llrref{LLR_MONITOR_RESTART_N_04}
  * 5. If `number` is less than `0` or `number` is greater than or equal to
- *    `(int32_t) pok_partitions_arinc_n`:
+ *    `(int32_t) pok_partitions_arinc_n`: \llrref{LLR_MONITOR_RESTART_N_03}
  *    1. Call `printf()` with the argument `"There is no such partition!\n"`.
  *    2. Return `0`.
  * 6. Set `pok_partitions_arinc[number].base_part.sp` to `NULL`.
+ *    \llrref{LLR_MONITOR_RESTART_N_04}
  * 7. Call `printf()` with the arguments `"Partition %%d restarted\n"` and
- *    `number`.
- * 8. Return `0`.
+ *    `number`. \llrref{LLR_MONITOR_RESTART_N_04}
+ * 8. Return `0`. \llrref{LLR_MONITOR_RESTART_N_04}
  *
  * @calls
  * - `printf()`
@@ -905,14 +1203,20 @@ restart_N(int32_t argc, char **argv){
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_EXIT_FROM_MONITOR_01}: `exit_from_monitor()` shall end
+ *   the command loop of the monitor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_EXIT_FROM_MONITOR_01}: `exit_from_monitor()` shall set
+ *   `want_to_exit` to `TRUE` and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_EXIT_FROM_MONITOR_01}
  *
  * @design
- * 1. Mark `argc` as not used.
- * 2. Mark `argv` as not used.
- * 3. Set `want_to_exit` to `TRUE`.
- * 4. Return `0`.
+ * 1. Set `want_to_exit` to `TRUE`. \llrref{LLR_MONITOR_EXIT_FROM_MONITOR_01}
+ * 2. Return `0`. \llrref{LLR_MONITOR_EXIT_FROM_MONITOR_01}
  *
  * @calls
  * None.
@@ -948,15 +1252,21 @@ exit_from_monitor(int32_t argc, char **argv){
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_CPU_RESET_01}: `cpu_reset()` shall reset the module.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_CPU_RESET_01}: `cpu_reset()` shall call `printf()` with
+ *   `"Rebooting\n"`, then `ja_cpu_reset()`, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_CPU_RESET_01}
  *
  * @design
- * 1. Mark `argc` as not used.
- * 2. Mark `argv` as not used.
- * 3. Call `printf()` with the argument `"Rebooting\n"`.
- * 4. Call `ja_cpu_reset()`.
- * 5. Return `0`.
+ * 1. Call `printf()` with the argument `"Rebooting\n"`.
+ *    \llrref{LLR_MONITOR_CPU_RESET_01}
+ * 2. Call `ja_cpu_reset()`. \llrref{LLR_MONITOR_CPU_RESET_01}
+ * 3. Return `0`. \llrref{LLR_MONITOR_CPU_RESET_01}
  *
  * @calls
  * - `printf()`
@@ -1008,40 +1318,77 @@ int32_t cpu_reset(int32_t argc, char **argv)
  * | `i` | `size_t` | The index of a command |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_RUNCMD_01}: `runcmd()` shall split a command line into
+ *   words at white space and run the command named by the first word with the
+ *   words, and report an unknown command or too many words.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_RUNCMD_01}: `runcmd()` shall split `line` into words,
+ *   replacing each character of `WHITESPACE` (`strchr()`) before a word with
+ *   `'\0'` and taking as a word the characters up to the next character of
+ *   `WHITESPACE` or the end of the line.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RUNCMD_01}
+ * - \llrid{LLR_MONITOR_RUNCMD_02}: If a word is found when `MAXARGS - 1` words
+ *   have been taken, `runcmd()` shall call `printf()` with `"Too many arguments
+ *   (max %%d)\n"` and `MAXARGS`, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RUNCMD_01}
+ * - \llrid{LLR_MONITOR_RUNCMD_03}: If the line has no word, `runcmd()` shall
+ *   return 0 without calling a command.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RUNCMD_01}
+ * - \llrid{LLR_MONITOR_RUNCMD_04}: If `strcmp()` returns 0 for the first word
+ *   and `name` of an element of `commands`, `runcmd()` shall return the result
+ *   of the function `func` of the first such element for the number of words
+ *   and the array of the words, ended by NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RUNCMD_01}
+ * - \llrid{LLR_MONITOR_RUNCMD_05}: If the line has a word and `strcmp()`
+ *   returns a value other than 0 for the first word and `name` of each of the
+ *   `NCOMMANDS` elements of `commands`, `runcmd()` shall call `printf()` with
+ *   `"Unknown command '%%s'\n"` and the first word, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_RUNCMD_01}
  *
  * @design
- * 1. Set `buf` to `line`.
- * 2. Set `argc` to `0`.
- * 3. Set `argv[argc]` to `NULL`.
- * 4. While `true` is true:
+ * 1. Set `buf` to `line`. \llrref{LLR_MONITOR_RUNCMD_01}
+ * 2. Set `argc` to `0`. \llrref{LLR_MONITOR_RUNCMD_01}
+ * 3. Set `argv[argc]` to `NULL`. \llrref{LLR_MONITOR_RUNCMD_01}
+ * 4. While `true` is true: \llrref{LLR_MONITOR_RUNCMD_01},
+ *    \llrref{LLR_MONITOR_RUNCMD_02}
  *    1. While the value at `buf` is not equal to `'\0'` and
- *       `strchr(WHITESPACE, *buf)` is not NULL:
+ *       `strchr(WHITESPACE, *buf)` is not NULL: \llrref{LLR_MONITOR_RUNCMD_01}
  *       1. Set `*buf` to `'\0'`.
  *       2. Increment `buf`.
  *    2. If the value at `buf` is equal to `'\0'`:
+ *       \llrref{LLR_MONITOR_RUNCMD_01}
  *       1. Leave the loop.
- *    3. If `argc` is equal to `(MAXARGS-1)`:
+ *    3. If `argc` is equal to `(MAXARGS-1)`: \llrref{LLR_MONITOR_RUNCMD_02}
  *       1. Call `printf()` with the arguments
  *          `"Too many arguments (max %%d)\n"` and `MAXARGS`.
  *       2. Return `0`.
- *    4. Set `argv[argc]` to `buf`.
- *    5. Increment `argc`.
+ *    4. Set `argv[argc]` to `buf`. \llrref{LLR_MONITOR_RUNCMD_01}
+ *    5. Increment `argc`. \llrref{LLR_MONITOR_RUNCMD_01}
  *    6. While the value at `buf` is not equal to `'\0'` and
- *       `strchr(WHITESPACE, *buf)` is NULL:
+ *       `strchr(WHITESPACE, *buf)` is NULL: \llrref{LLR_MONITOR_RUNCMD_01}
  *       1. Increment `buf`.
- * 5. Set `argv[argc]` to `NULL`.
- * 6. If `argc` is equal to `0`:
+ * 5. Set `argv[argc]` to `NULL`. \llrref{LLR_MONITOR_RUNCMD_01},
+ *    \llrref{LLR_MONITOR_RUNCMD_04}
+ * 6. If `argc` is equal to `0`: \llrref{LLR_MONITOR_RUNCMD_03}
  *    1. Return `0`.
  * 7. Set `i` to `0U`; then while `i` is less than `NCOMMANDS`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_MONITOR_RUNCMD_04},
+ *    \llrref{LLR_MONITOR_RUNCMD_05}
  *    1. If `strcmp(argv[0], commands[i].name)` is equal to `0`:
+ *       \llrref{LLR_MONITOR_RUNCMD_04}
  *       1. Call the function `commands[i].func` with the arguments `argc` and
  *          `argv`, and return its result.
  * 8. Call `printf()` with the arguments `"Unknown command '%%s'\n"` and
- *    `argv[0]`.
- * 9. Return `0`.
+ *    `argv[0]`. \llrref{LLR_MONITOR_RUNCMD_05}
+ * 9. Return `0`. \llrref{LLR_MONITOR_RUNCMD_05}
  *
  * @calls
  * - `strchr()`
@@ -1114,19 +1461,49 @@ runcmd(char *line)
  * | `buf` | `char *` | The line read |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_MONITOR_01}: `monitor()` shall greet the user and read
+ *   and run monitor commands, after the prompt `"K> "`, until the exit command.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_009}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_MONITOR_01}: `monitor()` shall set `want_to_exit` to
+ *   `FALSE`, call `printf()` with `"Welcome to the monitor!\n"` and then with
+ *   `"Type 'help' for a list of commands.\n"`, and then call `readline()` with
+ *   `"K> "` while `want_to_exit` is false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_01}
+ * - \llrid{LLR_MONITOR_MONITOR_02}: If `readline()` returns a line and
+ *   `runcmd()` returns a value less than 0 for it, `monitor()` shall return
+ *   without calling `readline()` again.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_01}
+ * - \llrid{LLR_MONITOR_MONITOR_03}: If `readline()` returns a line and
+ *   `runcmd()` returns 0 or more for it, `monitor()` shall go on with the next
+ *   line while `want_to_exit` is false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_01}
+ * - \llrid{LLR_MONITOR_MONITOR_04}: If `readline()` returns NULL, `monitor()`
+ *   shall go on with the next line without calling `runcmd()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_01}
  *
  * @design
- * 1. Set `want_to_exit` to `FALSE`.
+ * 1. Set `want_to_exit` to `FALSE`. \llrref{LLR_MONITOR_MONITOR_01}
  * 2. Call `printf()` with the argument `"Welcome to the monitor!\n"`.
+ *    \llrref{LLR_MONITOR_MONITOR_01}
  * 3. Call `printf()` with the argument
- *    `"Type 'help' for a list of commands.\n"`.
- * 4. While `want_to_exit` is false:
+ *    `"Type 'help' for a list of commands.\n"`. \llrref{LLR_MONITOR_MONITOR_01}
+ * 4. While `want_to_exit` is false: \llrref{LLR_MONITOR_MONITOR_01},
+ *    \llrref{LLR_MONITOR_MONITOR_02}, \llrref{LLR_MONITOR_MONITOR_03},
+ *    \llrref{LLR_MONITOR_MONITOR_04}
  *    1. Call `readline()` with the argument `"K> "`, and store the result in
- *       `buf`.
- *    2. If `buf` is not NULL:
- *       1. If `runcmd(buf)` is less than `0`:
+ *       `buf`. \llrref{LLR_MONITOR_MONITOR_01}
+ *    2. If `buf` is not NULL: \llrref{LLR_MONITOR_MONITOR_02},
+ *       \llrref{LLR_MONITOR_MONITOR_03}, \llrref{LLR_MONITOR_MONITOR_04}
+ *       1. If `runcmd(buf)` is less than `0`: \llrref{LLR_MONITOR_MONITOR_02},
+ *          \llrref{LLR_MONITOR_MONITOR_03}
  *          1. Leave the loop.
  *
  * @calls
@@ -1176,30 +1553,89 @@ monitor(void)
  * | `part` | `pok_partition_arinc_t *` | The partition |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_MONITOR_START_FUNC_01}: `monitor_start_func()` shall,
+ *   when a character is typed on the main console, pause every partition, run
+ *   the monitor, and then resume the partitions that are not kept paused.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_008}
+ *   - \srqref{SRQ_JET_DBG_016}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_MONITOR_START_FUNC_01}: `monitor_start_func()` shall
+ *   first call `partition_pause_set()` with `i` and 1 for each `i` less than
+ *   `pok_partitions_arinc_n`, and then call `data_to_read_0()` again and again,
+ *   without returning.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_START_FUNC_01}
+ * - \llrid{LLR_MONITOR_MONITOR_START_FUNC_02}: If `data_to_read_0()` returns 1,
+ *   `monitor_start_func()` shall call `pok_preemption_disable()`, then, for
+ *   each partition `pok_partitions_arinc[i]` whose `base_part.is_paused` is
+ *   false, call `partition_pause_set()` with `i` and 0 and set its
+ *   `base_part.is_paused` to `TRUE`, and then call `pok_preemption_enable()`
+ *   and `monitor()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_START_FUNC_01}
+ * - \llrid{LLR_MONITOR_MONITOR_START_FUNC_03}: For a partition whose
+ *   `base_part.is_paused` is true at that time, `monitor_start_func()` shall
+ *   leave its `base_part.is_paused` as it is, without calling
+ *   `partition_pause_set()` for it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_START_FUNC_01}
+ * - \llrid{LLR_MONITOR_MONITOR_START_FUNC_04}: When `monitor()` returns,
+ *   `monitor_start_func()` shall call `pok_preemption_disable()`, set
+ *   `base_part.is_paused` to `FALSE` for each partition `i` for which
+ *   `partition_pause_get()` returns 0, and then call `pok_preemption_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_START_FUNC_01}
+ * - \llrid{LLR_MONITOR_MONITOR_START_FUNC_05}: For a partition for which
+ *   `partition_pause_get()` returns a value other than 0 at that time,
+ *   `monitor_start_func()` shall leave its `base_part.is_paused` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_START_FUNC_01}
+ * - \llrid{LLR_MONITOR_MONITOR_START_FUNC_06}: If `data_to_read_0()` returns a
+ *   value other than 1, `monitor_start_func()` shall call neither
+ *   `pok_preemption_disable()` nor `monitor()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_START_FUNC_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `pok_partitions_arinc_n`,
  *    repeat (after each pass: increment `i`):
+ *    \llrref{LLR_MONITOR_MONITOR_START_FUNC_01}
  *    1. Call `partition_pause_set()` with the arguments `i` and `1U`.
- * 2. Repeat forever:
+ * 2. Repeat forever: \llrref{LLR_MONITOR_MONITOR_START_FUNC_01}
  *    1. If `data_to_read_0()` is equal to `1`:
+ *       \llrref{LLR_MONITOR_MONITOR_START_FUNC_02},
+ *       \llrref{LLR_MONITOR_MONITOR_START_FUNC_03},
+ *       \llrref{LLR_MONITOR_MONITOR_START_FUNC_04},
+ *       \llrref{LLR_MONITOR_MONITOR_START_FUNC_05},
+ *       \llrref{LLR_MONITOR_MONITOR_START_FUNC_06}
  *       1. Call `pok_preemption_disable()`.
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_02}
  *       2. Set `i` to `0U`; then while `i` is less than
  *          `pok_partitions_arinc_n`, repeat (after each pass: increment `i`):
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_02},
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_03}
  *          1. Set `part` to the address of `pok_partitions_arinc[i]`.
  *          2. If `part->base_part.is_paused` is false:
  *             1. Call `partition_pause_set()` with the arguments `i` and `0U`.
+ *                \llrref{LLR_MONITOR_MONITOR_START_FUNC_02}
  *             2. Set `part->base_part.is_paused` to `TRUE`.
+ *                \llrref{LLR_MONITOR_MONITOR_START_FUNC_02}
  *       3. Call `pok_preemption_enable()`.
- *       4. Call `monitor()`.
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_02}
+ *       4. Call `monitor()`. \llrref{LLR_MONITOR_MONITOR_START_FUNC_02}
  *       5. Call `pok_preemption_disable()`.
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_04}
  *       6. Set `i` to `0U`; then while `i` is less than
  *          `pok_partitions_arinc_n`, repeat (after each pass: increment `i`):
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_04},
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_05}
  *          1. If `partition_pause_get(i)` is equal to `0U`:
  *             1. Set `pok_partitions_arinc[i].base_part.is_paused` to `FALSE`.
+ *                \llrref{LLR_MONITOR_MONITOR_START_FUNC_04}
  *       7. Call `pok_preemption_enable()`.
+ *          \llrref{LLR_MONITOR_MONITOR_START_FUNC_04}
  *
  * @calls
  * - `partition_pause_set()`
@@ -1263,15 +1699,20 @@ static void monitor_start_func(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_MONITOR_PROCESS_ERROR_01}: `monitor_process_error()`
+ *   shall treat any error of the monitor partition as fatal.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_HM_010}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_MONITOR_PROCESS_ERROR_01}: `monitor_process_error()`
+ *   shall call `pok_fatal()` with `"Error in monitor"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_MONITOR_PROCESS_ERROR_01}
  *
  * @design
- * 1. Mark `partition_state` as not used.
- * 2. Mark `error_id` as not used.
- * 3. Mark `state_byte_preempt_local` as not used.
- * 4. Mark `failed_address` as not used.
- * 5. Call `pok_fatal()` with the argument `"Error in monitor"`.
+ * 1. Call `pok_fatal()` with the argument `"Error in monitor"`.
+ *    \llrref{LLR_MONITOR_MONITOR_PROCESS_ERROR_01}
  *
  * @calls
  * - `pok_fatal()`
@@ -1308,16 +1749,35 @@ static void monitor_process_error(pok_system_state_t partition_state,
  * | `monitor_operations` | `static const pok_part_ops_t` | The operations of the monitor partition |
  *
  * @hlr
+ * - \hlrid{HLR_MONITOR_POK_MONITOR_THREAD_INIT_01}: `pok_monitor_thread_init()`
+ *   shall set up, at boot, the monitor as a kernel-only partition that runs the
+ *   monitor's start function.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_PART_010}
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_MONITOR_POK_MONITOR_THREAD_INIT_01}: `pok_monitor_thread_init()`
+ *   shall call `pok_partition_init()` with the address of `partition_monitor`,
+ *   set its `part_sched_ops` to the address of `partition_sched_ops_kernel`,
+ *   its `part_ops` to the address of `monitor_operations` (whose `start` is
+ *   `monitor_start_func` and whose `process_partition_error` is
+ *   `monitor_process_error`) and its `initial_sp` to the result of
+ *   `pok_stack_alloc()` for 4096.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MONITOR_POK_MONITOR_THREAD_INIT_01}
  *
  * @design
  * 1. Call `pok_partition_init()` with the address of `partition_monitor`.
+ *    \llrref{LLR_MONITOR_POK_MONITOR_THREAD_INIT_01}
  * 2. Set `partition_monitor.part_sched_ops` to the address of
  *    `partition_sched_ops_kernel`.
+ *    \llrref{LLR_MONITOR_POK_MONITOR_THREAD_INIT_01}
  * 3. Set `partition_monitor.part_ops` to the address of `monitor_operations`.
+ *    \llrref{LLR_MONITOR_POK_MONITOR_THREAD_INIT_01}
  * 4. Call `pok_stack_alloc()` with the argument `4096`, and store the result in
  *    `partition_monitor.initial_sp`.
+ *    \llrref{LLR_MONITOR_POK_MONITOR_THREAD_INIT_01}
  *
  * @calls
  * - `pok_partition_init()`

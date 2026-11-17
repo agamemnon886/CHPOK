@@ -35,7 +35,7 @@
     which it shares with the JetOS kernel.</para>
 
   <section xml:id="SRQ_HV_LIB_001" role="requirement">
-    <title>SRQ_HV_LIB_001</title>
+    <title><phrase role="srq">SRQ_HV_LIB_001</phrase></title>
     <para>The hypervisor shall provide, for itself, the routines that
       copy and fill memory and the formatted output to its console, with
       the behaviour of the C standard for the conversions that they have.</para>
@@ -47,10 +47,27 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_FORMAT_PUT_01
+        HLR_FORMAT_PUT_REPEATED_01
+        HLR_FORMAT_PUT_NUMBER_01
+        HLR_FORMAT_PUT_STRING_01
+        HLR_FORMAT_UNSIGNED_ARGUMENT_01
+        HLR_FORMAT_SIGNED_ARGUMENT_01
+        HLR_FORMAT_PUT_CONVERSION_01
+        HLR_FORMAT_PUT_CONVERSION_02
+        HLR_FORMAT_IS_DIGIT_01
+        HLR_FORMAT_JET_FORMAT_01
+        HLR_MEMCPY_MEMCPY_01
+        HLR_MEMSET_MEMSET_01
+        HLR_PRINTF_BUFFER_PUT_01
+        HLR_PRINTF_HV_PRINTF_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_LIB_002" role="requirement">
-    <title>SRQ_HV_LIB_002</title>
+    <title><phrase role="srq">SRQ_HV_LIB_002</phrase></title>
     <para>The hypervisor shall provide the computation of the CRC-32 of a
       block of bytes (the polynomial of zlib and Ethernet).</para>
     <formalpara>
@@ -60,6 +77,11 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CRC_CRC_TABLE_INIT_01
+        HLR_CRC_HV_CRC32_01</para>
     </formalpara>
   </section>
 </chapter>

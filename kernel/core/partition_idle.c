@@ -24,6 +24,14 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-13: pok_part_ops_t is used
  * by its typedef name.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -52,11 +60,21 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PARTITION_IDLE_PARTITION_IDLE_THREAD_01}:
+ *   `partition_idle_thread()` shall run nothing, for ever, in the time that the
+ *   schedule gives to no partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_SCHED_002}
  *
  * @llr
+ * - \llrid{LLR_PARTITION_IDLE_PARTITION_IDLE_THREAD_01}:
+ *   `partition_idle_thread()` shall call `ja_inf_loop()`, which does not
+ *   return.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PARTITION_IDLE_PARTITION_IDLE_THREAD_01}
  *
  * @design
- * 1. Call `ja_inf_loop()`.
+ * 1. Call `ja_inf_loop()`. \llrref{LLR_PARTITION_IDLE_PARTITION_IDLE_THREAD_01}
  *
  * @calls
  * - `ja_inf_loop()`
@@ -87,15 +105,22 @@ static void partition_idle_thread(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PARTITION_IDLE_PARTITION_IDLE_PROCESS_ERROR_01}:
+ *   `partition_idle_process_error()` shall treat any error of the idle
+ *   partition as fatal.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_HM_010}
  *
  * @llr
+ * - \llrid{LLR_PARTITION_IDLE_PARTITION_IDLE_PROCESS_ERROR_01}:
+ *   `partition_idle_process_error()` shall call `pok_fatal()` with `"Error in
+ *   idle partition"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PARTITION_IDLE_PARTITION_IDLE_PROCESS_ERROR_01}
  *
  * @design
- * 1. Mark `partition_state` as not used.
- * 2. Mark `error_id` as not used.
- * 3. Mark `state_byte_preempt_local` as not used.
- * 4. Mark `failed_address` as not used.
- * 5. Call `pok_fatal()` with the argument `"Error in idle partition"`.
+ * 1. Call `pok_fatal()` with the argument `"Error in idle partition"`.
+ *    \llrref{LLR_PARTITION_IDLE_PARTITION_IDLE_PROCESS_ERROR_01}
  *
  * @calls
  * - `pok_fatal()`

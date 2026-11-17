@@ -35,7 +35,7 @@
     gives it.</para>
 
   <section xml:id="SRQ_HV_TMR_001" role="requirement">
-    <title>SRQ_HV_TMR_001</title>
+    <title><phrase role="srq">SRQ_HV_TMR_001</phrase></title>
     <para>On x86_64 the hypervisor shall give the guest a clock of the
       time stamp counter, which runs without intervention and starts at 0
       when the VM starts.</para>
@@ -48,17 +48,19 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SVM_HV_ARCH_VCPU_INIT_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_TMR_002" role="requirement">
-    <title>SRQ_HV_TMR_002</title>
+    <title><phrase role="srq">SRQ_HV_TMR_002</phrase></title>
     <para>On x86_64 the hypervisor shall emulate for each VM the 8254
-      timer with its three channels, their modes and their access modes,
-      the counter latch and the read-back command, and port B (the gate
-      of channel 2, the speaker bit, the refresh toggle and the output of
-      channel 2); and shall give the guest IRQ 0 at the rate programmed
-      for channel 0, by the timer of the local APIC, dropping the
-      interrupts that a guest has missed.</para>
+    timer with its three channels, their modes and their access modes,
+    the counter latch and the read-back command, and port B (the gate of
+    channel 2, the speaker bit, the refresh toggle and the output of
+    channel 2).</para>
     <formalpara>
       <title>Rationale</title>
       <para>JetOS for x86_64 uses channel 0 for its tick and channel 2 to
@@ -68,14 +70,62 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PIT_HV_TSC_TO_PIT_TICKS_01
+        HLR_VPIT_CHANNEL_RESET_01
+        HLR_VPIT_VPIT_RESET_01
+        HLR_VPIT_PERIODIC_01
+        HLR_VPIT_ELAPSED_01
+        HLR_VPIT_CURRENT_COUNT_01
+        HLR_VPIT_OUTPUT_01
+        HLR_VPIT_START_01
+        HLR_VPIT_LOAD_01
+        HLR_VPIT_LATCH_01
+        HLR_VPIT_PIT_COMMAND_01
+        HLR_VPIT_WRITE_COUNT_01
+        HLR_VPIT_READ_COUNT_01
+        HLR_VPIT_VPIT_WRITE_01
+        HLR_VPIT_VPIT_READ_01
+        HLR_VPIT_VPIT_WRITE_PORT_B_01
+        HLR_VPIT_VPIT_READ_PORT_B_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_TMR_006" role="requirement">
+    <title><phrase role="srq">SRQ_HV_TMR_006</phrase></title>
+    <para>On x86_64 the hypervisor shall give the guest IRQ 0 at the
+    rate programmed for channel 0 of its 8254 timer, by the timer of the
+    local APIC, dropping the interrupts that the guest has
+    missed.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for x86_64 takes its tick from channel 0, and a guest
+      that was late must not get a burst of ticks.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VPIC_VPIC_RAISE_01
+        HLR_VPIT_VPIT_RESET_01
+        HLR_VPIT_PERIODIC_01
+        HLR_VPIT_VPIT_TIMER_RUNNING_01
+        HLR_VPIT_UPDATE_TIMER_01
+        HLR_VPIT_LOAD_02
+        HLR_LAPIC_LAPIC_TIMER_PERIODIC_01
+        HLR_LAPIC_LAPIC_TIMER_STOP_01
+        HLR_SVM_DELIVER_TICKS_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_TMR_003" role="requirement">
-    <title>SRQ_HV_TMR_003</title>
+    <title><phrase role="srq">SRQ_HV_TMR_003</phrase></title>
     <para>On arm64 the hypervisor shall give the guest the virtual timer
-      and the virtual counter of its CPU, the counter starting at 0 when
-      the VM starts, and shall deliver the interrupt of the timer through
-      the virtual CPU interface.</para>
+    and the virtual counter of its CPU, the counter starting at 0 when
+    the VM starts.</para>
     <formalpara>
       <title>Rationale</title>
       <para>JetOS for arm64 takes its system time and its tick from them.</para>
@@ -84,10 +134,33 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VCPU_HV_ARCH_CPU_ENABLE_02
+        HLR_VCPU_HV_ARCH_VCPU_INIT_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_TMR_007" role="requirement">
+    <title><phrase role="srq">SRQ_HV_TMR_007</phrase></title>
+    <para>On arm64 the hypervisor shall deliver the interrupt of the
+    virtual timer to the guest through the virtual CPU interface.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>JetOS for arm64 takes its system time and its tick from them.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_GIC_GIC_HANDLE_IRQ_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_TMR_004" role="requirement">
-    <title>SRQ_HV_TMR_004</title>
+    <title><phrase role="srq">SRQ_HV_TMR_004</phrase></title>
     <para>On arm64 the hypervisor shall emulate for each VM a PL031
       real-time clock that gives the time of the host.</para>
     <formalpara>
@@ -98,10 +171,14 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VUART_VRTC_ACCESS_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_TMR_005" role="requirement">
-    <title>SRQ_HV_TMR_005</title>
+    <title><phrase role="srq">SRQ_HV_TMR_005</phrase></title>
     <para>The hypervisor shall, when it starts, measure the frequencies
       of the time stamp counter and of the local APIC timer against the
       8254 timer and stop with a message if it cannot measure them
@@ -113,6 +190,15 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_HV_COUNTER_HZ_01
+        HLR_PIT_HV_TIMING_INIT_01
+        HLR_PIT_HV_TSC_HZ_01
+        HLR_PIT_HV_LAPIC_HZ_01
+        HLR_LAPIC_LAPIC_TIMER_ONESHOT_01
+        HLR_LAPIC_LAPIC_TIMER_CURRENT_01</para>
     </formalpara>
   </section>
 </chapter>

@@ -39,6 +39,16 @@
  * Modified by Kirill Brazhnikov, 2026-11-14: the string literals of the Design
  * steps are wrapped at their spaces, each in one code span (they were cut
  * inside names).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; requirements with more than one
+ * "shall" are split into requirements of one "shall" each, and the high level
+ * requirements trace to the system requirements split in the same way.
  */
 
 /**
@@ -86,35 +96,80 @@
  * | `tshd_t` | `jet_thread_shared_data_t *` | The thread's shared data |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_CREATE_01}: `thread_create()` shall make
+ *   a process whose attributes are set a created, stopped process with its user
+ *   stack, in no queue, and fail if its stack cannot be allocated.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_001}
+ *   - \srqref{SRQ_JET_MEM_008}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_CREATE_01}: `thread_create()` shall set
+ *   `init_stack_addr` of `t` to the result of `ja_ustack_alloc()` for
+ *   `space_id` of the base partition of `current_partition_arinc` and
+ *   `user_stack_size` of `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_CREATE_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_CREATE_02}: If that result is 0,
+ *   `thread_create()` shall return `FALSE` and change nothing else.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_CREATE_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_CREATE_03}: If that result is not 0,
+ *   `thread_create()` shall set `msection_count` to 0 and `msection_entering`
+ *   to NULL in the shared data of the thread (`kshd->tshd` plus its index), set
+ *   `sp`, `entry_sp_user` (with `POK_NEEDS_GDB`), `donate_target`,
+ *   `first_donator` and `next_donator` of `relations_stop`, and
+ *   `msection_entering` of `t` to NULL, its `priority` to its `base_priority`,
+ *   its `state` to `POK_STATE_STOPPED` and `suspended` to `FALSE`, call
+ *   `delayed_event_init()` for `thread_deadline_event` and
+ *   `thread_delayed_event` and `INIT_LIST_HEAD()` for `wait_elem`,
+ *   `eligible_elem` and `error_elem`, and return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_CREATE_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_01}
  * 2. Call `ja_ustack_alloc()` with the arguments `part->base_part.space_id` and
  *    `t->user_stack_size`, and store the result in `t->init_stack_addr`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_01}
  * 3. If `t->init_stack_addr` is equal to `0U`:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_02}
  *    1. Return `FALSE`.
  * 4. Set `tshd_t` to `part->kshd->tshd + (t - part->threads)`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 5. Set `tshd_t->msection_count` to `0`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 6. Set `tshd_t->msection_entering` to `NULL`.
- * 7. Set `t->sp` to `NULL`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
+ * 7. Set `t->sp` to `NULL`. \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 8. Set `t->entry_sp_user` to `NULL`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 9. Set `t->priority` to `t->base_priority`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 10. Set `t->state` to `POK_STATE_STOPPED`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 11. Set `t->suspended` to `FALSE`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 12. Set `t->relations_stop.donate_target` to `NULL`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 13. Set `t->relations_stop.first_donator` to `NULL`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 14. Set `t->relations_stop.next_donator` to `NULL`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 15. Set `t->msection_entering` to `NULL`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 16. Call `delayed_event_init()` with the address of
- *     `t->thread_deadline_event`.
+ *     `t->thread_deadline_event`. \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 17. Call `delayed_event_init()` with the address of
- *     `t->thread_delayed_event`.
+ *     `t->thread_delayed_event`. \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 18. Call `INIT_LIST_HEAD()` with the address of `t->wait_elem`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 19. Call `INIT_LIST_HEAD()` with the address of `t->eligible_elem`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  * 20. Call `INIT_LIST_HEAD()` with the address of `t->error_elem`.
- * 21. Return `TRUE`.
+ *     \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
+ * 21. Return `TRUE`. \llrref{LLR_THREAD_INTERNAL_THREAD_CREATE_03}
  *
  * @calls
  * - `ja_ustack_alloc()`
@@ -188,11 +243,27 @@ pok_bool_t thread_create(pok_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_01}: `thread_is_eligible()`
+ *   shall tell whether a process is among the ready processes of its partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_004}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_01}: If `list_empty()`
+ *   returns false for `eligible_elem` of `t`, `thread_is_eligible()` shall
+ *   return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_02}: If `list_empty()`
+ *   returns true for `eligible_elem` of `t`, `thread_is_eligible()` shall
+ *   return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_01}
  *
  * @design
  * 1. Return `!list_empty(&t->eligible_elem)`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_ELIGIBLE_02}
  *
  * @calls
  * - `list_empty()`
@@ -228,29 +299,48 @@ static pok_bool_t thread_is_eligible(pok_thread_t* t)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}: `thread_set_eligible()`
+ *   shall make a process of a partition in `NORMAL` mode ready, after the ready
+ *   processes of the same or a higher priority, and make the partition choose
+ *   again if it becomes the first.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_004}
+ *   - \srqref{SRQ_JET_THR_005}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}: `thread_set_eligible()`
+ *   shall insert `eligible_elem` of `t` into `eligible_threads` of the
+ *   partition with `list_add_tail()`, before the first thread whose `priority`
+ *   is less than `priority` of `t`, or at the end if there is none.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_02}: If and only if `t` is
+ *   then the first thread of `eligible_threads` (`prev` of its `eligible_elem`
+ *   is the head), `thread_set_eligible()` shall call
+ *   `pok_sched_local_invalidate()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}
  * 2. Set `next` to `part->eligible_threads.next`.
- * 3. Check that `part->mode == POK_PARTITION_MODE_NORMAL` holds (assert: stop
- *    otherwise).
- * 4. Check that `!thread_is_eligible(t)` holds (assert: stop otherwise).
- * 5. While `next` is not equal to the address of `part->eligible_threads`:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}
+ * 3. While `next` is not equal to the address of `part->eligible_threads`:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}
  *    1. Set `other_thread` to `list_entry(next, pok_thread_t, eligible_elem)`.
  *    2. If `other_thread->priority` is less than `t->priority`:
  *       1. Leave the loop.
  *    3. Set `next` to `next->next`.
- * 6. Call `list_add_tail()` with the arguments the address of
+ * 4. Call `list_add_tail()` with the arguments the address of
  *    `t->eligible_elem` and `next`.
- * 7. If `t->eligible_elem.prev` is equal to the address of
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_01}
+ * 5. If `t->eligible_elem.prev` is equal to the address of
  *    `part->eligible_threads`:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_ELIGIBLE_02}
  *    1. Call `pok_sched_local_invalidate()`.
  *
  * @calls
- * - `pok_assertion_fail()`
- * - `thread_is_eligible()`
  * - `list_add_tail()`
  * - `pok_sched_local_invalidate()`
  */
@@ -306,17 +396,47 @@ static void thread_set_eligible(pok_thread_t* t)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_YIELD_01}: `thread_yield()` shall move a
+ *   ready process after the ready processes of its priority.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_006}
+ *   - \srqref{SRQ_JET_THR_016}
+ *   - \srqref{SRQ_JET_THR_021}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_YIELD_01}: If `thread_is_eligible()`
+ *   returns true for `t`, `thread_yield()` shall call `list_del_init()` for its
+ *   `eligible_elem` and then `thread_set_eligible()` with `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_YIELD_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_YIELD_02}: If `thread_is_eligible()`
+ *   returns true for `t`, `thread_yield()` shall first call
+ *   `pok_sched_local_invalidate()` if and only if `t` is the first thread of
+ *   `eligible_threads`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_YIELD_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_YIELD_03}: If `thread_is_eligible()`
+ *   returns false for `t`, `thread_yield()` shall leave the eligible threads as
+ *   they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_YIELD_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_02},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_03}
  * 2. If `thread_is_eligible(t)` is true:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_02},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_03}
  *    1. If `t->eligible_elem.prev` is equal to the address of
- *       `part->eligible_threads`:
+ *       `part->eligible_threads`: \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_02}
  *       1. Call `pok_sched_local_invalidate()`.
  *    2. Call `list_del_init()` with the address of `t->eligible_elem`.
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_01}
  *    3. Call `thread_set_eligible()` with the argument `t`.
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_YIELD_01}
  *
  * @calls
  * - `thread_is_eligible()`
@@ -363,16 +483,38 @@ void thread_yield(pok_thread_t *t)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01}:
+ *   `thread_set_uneligible()` shall remove a process from the ready processes
+ *   of its partition, making the partition choose again if it was the first.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_004}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01}: If `list_empty()`
+ *   returns false for `eligible_elem` of `t`, `thread_set_uneligible()` shall
+ *   call `list_del_init()` for it, after calling `pok_sched_local_invalidate()`
+ *   if and only if `t` is the first thread of `eligible_threads`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_02}: If `list_empty()`
+ *   returns true for `eligible_elem` of `t`, `thread_set_uneligible()` shall
+ *   leave the eligible threads as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_02}
  * 2. If `list_empty(&t->eligible_elem)` is false:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_02}
  *    1. If `t->eligible_elem.prev` is equal to the address of
  *       `part->eligible_threads`:
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01}
  *       1. Call `pok_sched_local_invalidate()`.
  *    2. Call `list_del_init()` with the address of `t->eligible_elem`.
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_SET_UNELIGIBLE_01}
  *
  * @calls
  * - `list_empty()`
@@ -416,12 +558,24 @@ static void thread_set_uneligible(pok_thread_t* t)
  * | `t` | `pok_thread_t *` | The thread |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_PROCESS_DELAYED_EVENT_01}:
+ *   `thread_process_delayed_event()` shall run the action that a delayed event
+ *   of a process was set for, at its time.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_008}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_PROCESS_DELAYED_EVENT_01}:
+ *   `thread_process_delayed_event()` shall call the thread's
+ *   `thread_delayed_func` for the thread of the handler ID.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_PROCESS_DELAYED_EVENT_01}
  *
  * @design
  * 1. Set `t` to the address of `current_partition_arinc->threads[handler_id]`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_PROCESS_DELAYED_EVENT_01}
  * 2. Call the function `t->thread_delayed_func` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_PROCESS_DELAYED_EVENT_01}
  *
  * @calls
  * - `t->thread_delayed_func()` (indirect)
@@ -456,16 +610,31 @@ static void thread_process_delayed_event(uint16_t handler_id)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_01}: `thread_delay_event()`
+ *   shall arrange for an action to be done for a process at a time, replacing
+ *   the action set before.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_005}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_01}: `thread_delay_event()`
+ *   shall set `thread_delayed_func` of `t` to `thread_delayed_func` and call
+ *   `delayed_event_add()` once with `partition_delayed_events` of the
+ *   partition, `thread_delayed_event` of `t`, `delay_time`, the index of `t` in
+ *   `threads` and `thread_process_delayed_event`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_01}
  * 2. Set `t->thread_delayed_func` to `thread_delayed_func`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_01}
  * 3. Call `delayed_event_add()` with the arguments the address of
  *    `part->partition_delayed_events`, the address of
  *    `t->thread_delayed_event`, `delay_time`, `t - part->threads` and the
  *    address of `thread_process_delayed_event`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_01}
  *
  * @calls
  * - `delayed_event_add()`
@@ -506,17 +675,34 @@ void thread_delay_event(pok_thread_t* t, pok_time_t delay_time,
  * | `thread` | `pok_thread_t *` | The thread |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_DEADLINE_OCCURED_01}:
+ *   `thread_deadline_occured()` shall report that a process missed its
+ *   deadline, as a deadline missed error.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_012}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_DEADLINE_OCCURED_01}:
+ *   `thread_deadline_occured()` shall call `printf_debug()` (`printf()` with
+ *   `POK_NEEDS_DEBUG`) with `"[%%lld] Deadline miss occured for thread %%s (Id:
+ *   %%d, Part: %%d)\n"`, the result of `jet_system_time()`, `name` of the
+ *   thread `threads[handler_id]`, `handler_id` and `partition_id` of
+ *   `current_partition`, and then `pok_thread_emit_deadline_missed()` with that
+ *   thread.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_DEADLINE_OCCURED_01}
  *
  * @design
  * 1. Set `thread` to the address of
  *    `current_partition_arinc->threads[handler_id]`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DEADLINE_OCCURED_01}
  * 2. Evaluate
  *    `printf_debug("[%%lld] Deadline miss occured for thread %%s (Id: %%d,
  *    Part: %%d)\n", (long long)jet_system_time(), thread->name,
  *    (int)handler_id, current_partition->partition_id)`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DEADLINE_OCCURED_01}
  * 3. Call `pok_thread_emit_deadline_missed()` with the argument `thread`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DEADLINE_OCCURED_01}
  *
  * @calls
  * - `printf()`
@@ -558,15 +744,29 @@ static void thread_deadline_occured(uint16_t handler_id)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01}: `thread_set_deadline()`
+ *   shall set or move the deadline of a process to a time.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_012}
+ *   - \srqref{SRQ_JET_THR_011}
+ *   - \srqref{SRQ_JET_THR_022}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01}: `thread_set_deadline()`
+ *   shall call `delayed_event_add()` once with `partition_delayed_events` of
+ *   the partition, `thread_deadline_event` of `t`, `deadline_time`, the index
+ *   of `t` in `threads` and `thread_deadline_occured`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01}
  * 2. Call `delayed_event_add()` with the arguments the address of
  *    `part->partition_delayed_events`, the address of
  *    `t->thread_deadline_event`, `deadline_time`, `t - part->threads` and the
  *    address of `thread_deadline_occured`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SET_DEADLINE_01}
  *
  * @calls
  * - `delayed_event_add()`
@@ -603,14 +803,27 @@ void thread_set_deadline(pok_thread_t* t, pok_time_t deadline_time)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_CANCEL_01}:
+ *   `thread_delay_event_cancel()` shall cancel the delayed action of a process,
+ *   if it is set.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_005}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_CANCEL_01}:
+ *   `thread_delay_event_cancel()` shall call `delayed_event_remove()` once with
+ *   `partition_delayed_events` of the partition and `thread_delayed_event` of
+ *   `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_CANCEL_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_CANCEL_01}
  * 2. Call `delayed_event_remove()` with the arguments the address of
  *    `part->partition_delayed_events` and the address of
  *    `t->thread_delayed_event`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_DELAY_EVENT_CANCEL_01}
  *
  * @calls
  * - `delayed_event_remove()`
@@ -648,30 +861,74 @@ void thread_delay_event_cancel(pok_thread_t* t)
  * | `part` | `pok_partition_arinc_t *` | The current partition |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_STOP_01}: `thread_stop()` shall mark a
+ *   process as stopped and take it out of the ready processes and every wait
+ *   queue.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_009}
+ *   - \srqref{SRQ_JET_THR_019}
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_STOP_02}: `thread_stop()` shall cancel
+ *   the delayed action and the deadline of the process.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_009}
+ *   - \srqref{SRQ_JET_THR_019}
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_STOP_03}: `thread_stop()` shall release
+ *   the lock of preemption that the process holds.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_009}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_STOP_01}: `thread_stop()` shall set
+ *   `state` of `t` to `POK_STATE_STOPPED`, and call `thread_set_uneligible()`
+ *   and `thread_delay_event_cancel()` with `t`, `delayed_event_remove()` with
+ *   the delayed events of the partition and `thread_deadline_event` of `t`, and
+ *   `pok_thread_wq_remove()` with `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_STOP_01}
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_STOP_02}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_STOP_02}: If and only if `lock_level` of
+ *   the partition is not 0 and `thread_locked` is `t`, `thread_stop()` shall
+ *   set `lock_level` to 0 and call `pok_sched_local_invalidate()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_STOP_03}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_STOP_03}: If and only if
+ *   `is_unrecoverable` of `t` is true, `thread_stop()` shall set it to `FALSE`
+ *   and decrement `nthreads_unrecoverable` of the partition.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_STOP_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_STOP_04}: `thread_stop()` shall set
+ *   `msection_entering` of `t` to NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_STOP_01}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
- * 2. Check that `t->state != POK_STATE_STOPPED` holds (assert: stop otherwise).
- * 3. Set `t->state` to `POK_STATE_STOPPED`.
- * 4. Call `thread_set_uneligible()` with the argument `t`.
- * 5. Call `thread_delay_event_cancel()` with the argument `t`.
- * 6. Call `delayed_event_remove()` with the arguments the address of
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_02},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_03}
+ * 2. Set `t->state` to `POK_STATE_STOPPED`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_01}
+ * 3. Call `thread_set_uneligible()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_01}
+ * 4. Call `thread_delay_event_cancel()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_01}
+ * 5. Call `delayed_event_remove()` with the arguments the address of
  *    `part->partition_delayed_events` and the address of
- *    `t->thread_deadline_event`.
- * 7. Call `pok_thread_wq_remove()` with the argument `t`.
- * 8. If `part->lock_level` is not equal to `0U` and `part->thread_locked` is
- *    equal to `t`:
+ *    `t->thread_deadline_event`. \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_01}
+ * 6. Call `pok_thread_wq_remove()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_01}
+ * 7. If `part->lock_level` is not equal to `0U` and `part->thread_locked` is
+ *    equal to `t`: \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_02}
  *    1. Set `current_partition_arinc->lock_level` to `0`.
  *    2. Call `pok_sched_local_invalidate()`.
- * 9. If `t->is_unrecoverable` is true:
+ * 8. If `t->is_unrecoverable` is true:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_03}
  *    1. Set `t->is_unrecoverable` to `FALSE`.
  *    2. Decrement `part->nthreads_unrecoverable`.
- * 10. Set `t->msection_entering` to `NULL`.
+ * 9. Set `t->msection_entering` to `NULL`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_STOP_04}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `thread_set_uneligible()`
  * - `thread_delay_event_cancel()`
  * - `delayed_event_remove()`
@@ -733,25 +990,51 @@ void thread_stop(pok_thread_t* t)
  * | `thread_current` | `pok_thread_t *` | The current thread |
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01}:
+ *   `thread_is_waiting_allowed()` shall tell whether the current process may
+ *   wait: not while the partition is locked, nor as the error handler.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_007}
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}:
+ *   `thread_is_waiting_allowed()` shall treat a wait inside a critical section,
+ *   or while another process waits for this one to stop, as an error of the
+ *   partition.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_HM_008}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01}: If `lock_level`
+ *   of the partition is not 0, or (with `POK_NEEDS_ERROR_HANDLING`)
+ *   `thread_error` of the partition is `thread_current`,
+ *   `thread_is_waiting_allowed()` shall return `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}: If `lock_level`
+ *   of the partition is 0 and `thread_error` is not `thread_current`,
+ *   `thread_is_waiting_allowed()` shall return `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}
  *
  * @design
  * 1. Set `part` to `current_partition_arinc`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}
  * 2. Set `thread_current` to `part->thread_current`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}
  * 3. If `(part->lock_level != 0U) #ifdef POK_NEEDS_ERROR_HANDLING ||`
  *    `(part->thread_error == thread_current)` is true:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}
  *    1. Return `FALSE`.
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_01}
  * 4. Set `kshd_current` to
  *    `part->kshd->tshd + (thread_current - part->threads)`.
- * 5. Check that `kshd_current->msection_count == 0U` holds (assert_os: stop
- *    otherwise).
- * 6. Check that `thread_current->relations_stop.first_donator == NULL` holds
- *    (assert_os: stop otherwise).
- * 7. Return `TRUE`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}
+ * 5. Return `TRUE`. \llrref{LLR_THREAD_INTERNAL_THREAD_IS_WAITING_ALLOWED_02}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 pok_bool_t thread_is_waiting_allowed(void)
 {
@@ -804,12 +1087,26 @@ pok_bool_t thread_is_waiting_allowed(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_START_01}: `thread_start()` shall make a
+ *   process runnable, and ready unless it is suspended.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_009}
+ *   - \srqref{SRQ_JET_THR_019}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_START_01}: `thread_start()` shall set
+ *   `state` of `t` to `POK_STATE_RUNNABLE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_START_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_START_02}: If and only if `suspended` of
+ *   `t` is false, `thread_start()` shall call `thread_set_eligible()` with `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_START_01}
  *
  * @design
  * 1. Set `t->state` to `POK_STATE_RUNNABLE`.
- * 2. If `t->suspended` is false:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_START_01}
+ * 2. If `t->suspended` is false: \llrref{LLR_THREAD_INTERNAL_THREAD_START_02}
  *    1. Call `thread_set_eligible()` with the argument `t`.
  *
  * @calls
@@ -846,17 +1143,26 @@ void thread_start(pok_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_WAIT_01}: `thread_wait()` shall make a
+ *   process of a partition in `NORMAL` mode wait, so that it is no longer
+ *   ready.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_006}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_WAIT_01}: `thread_wait()` shall set
+ *   `state` of `t` to `POK_STATE_WAITING` and call `thread_set_uneligible()`
+ *   with `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_WAIT_01}
  *
  * @design
- * 1. Check that `current_partition_arinc->mode == POK_PARTITION_MODE_NORMAL`
- *    holds (assert: stop otherwise).
- * 2. Set `t->state` to `POK_STATE_WAITING`.
- * 3. Call `thread_set_uneligible()` with the argument `t`.
+ * 1. Set `t->state` to `POK_STATE_WAITING`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAIT_01}
+ * 2. Call `thread_set_uneligible()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAIT_01}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `thread_set_uneligible()`
  */
 void thread_wait(pok_thread_t* t)
@@ -888,25 +1194,65 @@ void thread_wait(pok_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_WAKE_UP_01}: `thread_wake_up()` shall
+ *   make a waiting process runnable again, and ready unless it is suspended.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_006}
+ *   - \srqref{SRQ_JET_IPC_020}
+ *   - \srqref{SRQ_JET_IPC_021}
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_WAKE_UP_02}: `thread_wake_up()` shall
+ *   give the result time-out to a process woken while it is still in a wait
+ *   queue or entering a critical section.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_006}
+ *   - \srqref{SRQ_JET_IPC_020}
+ *   - \srqref{SRQ_JET_IPC_021}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_01}: `thread_wake_up()` shall set
+ *   `state` of `t` to `POK_STATE_RUNNABLE` and call
+ *   `thread_delay_event_cancel()` with `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_WAKE_UP_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_02}: If `list_empty()` returns
+ *   false for `wait_elem` of `t`, `thread_wake_up()` shall call
+ *   `list_del_init()` for it and set `wait_result` of `t` to
+ *   `POK_ERRNO_TIMEOUT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_WAKE_UP_02}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_03}: If `list_empty()` returns
+ *   true for `wait_elem` of `t` and its `msection_entering` is not NULL,
+ *   `thread_wake_up()` shall set `wait_result` of `t` to `POK_ERRNO_TIMEOUT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_WAKE_UP_02}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_04}: If `list_empty()` returns
+ *   true for `wait_elem` of `t` and its `msection_entering` is NULL,
+ *   `thread_wake_up()` shall leave `wait_result` of `t` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_WAKE_UP_02}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_05}: If and only if `suspended`
+ *   of `t` is false, `thread_wake_up()` shall call `thread_set_eligible()` with
+ *   `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_WAKE_UP_01}
  *
  * @design
- * 1. Check that `t->state == POK_STATE_WAITING` holds (assert: stop otherwise).
- * 2. Set `t->state` to `POK_STATE_RUNNABLE`.
- * 3. Call `thread_delay_event_cancel()` with the argument `t`.
- * 4. If `list_empty(&t->wait_elem)` is false:
+ * 1. Set `t->state` to `POK_STATE_RUNNABLE`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_01}
+ * 2. Call `thread_delay_event_cancel()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_01}
+ * 3. If `list_empty(&t->wait_elem)` is false:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_02}
  *    1. Call `list_del_init()` with the address of `t->wait_elem`.
  *    2. Set `t->wait_result` to `POK_ERRNO_TIMEOUT`.
- * 5. Otherwise, if `t->msection_entering` is not NULL:
+ * 4. Otherwise, if `t->msection_entering` is not NULL:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_03},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_04}
  *    1. Set `t->wait_result` to `POK_ERRNO_TIMEOUT`.
- * 6. Otherwise:
- *    1. Do nothing.
- * 7. If `t->suspended` is false:
+ * 5. If `t->suspended` is false: \llrref{LLR_THREAD_INTERNAL_THREAD_WAKE_UP_05}
  *    1. Call `thread_set_eligible()` with the argument `t`.
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `thread_delay_event_cancel()`
  * - `list_empty()`
  * - `list_del_init()`
@@ -965,19 +1311,27 @@ void thread_wake_up(pok_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_WAIT_TIMED_01}: `thread_wait_timed()`
+ *   shall make a process wait until a finite time, when it is woken.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_006}
+ *   - \srqref{SRQ_JET_TIME_005}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_WAIT_TIMED_01}: `thread_wait_timed()`
+ *   shall call `thread_wait()` with `thread` and then `thread_delay_event()`
+ *   with `thread`, `time` and `thread_wake_up`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_WAIT_TIMED_01}
  *
  * @design
- * 1. Check that `thread != NULL` holds (assert: stop otherwise).
- * 2. Check that `!pok_time_is_infinity(time)` holds (assert: stop otherwise).
- * 3. Call `thread_wait()` with the argument `thread`.
- * 4. Call `thread_delay_event()` with the arguments `thread`, `time` and the
+ * 1. Call `thread_wait()` with the argument `thread`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAIT_TIMED_01}
+ * 2. Call `thread_delay_event()` with the arguments `thread`, `time` and the
  *    address of `thread_wake_up`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_WAIT_TIMED_01}
  *
  * @calls
- * - `pok_assertion_fail()`
- * - `pok_time_is_infinity()`
  * - `thread_wait()`
  * - `thread_delay_event()`
  */
@@ -1009,12 +1363,25 @@ void thread_wait_timed(pok_thread_t *thread, pok_time_t time)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_SUSPEND_01}: `thread_suspend()` shall
+ *   suspend a process, so that it is no longer ready.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_008}
+ *   - \srqref{SRQ_JET_THR_018}
+ *   - \srqref{SRQ_JET_THR_006}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_SUSPEND_01}: `thread_suspend()` shall set
+ *   `suspended` of `t` to `TRUE` and call `thread_set_uneligible()` once with
+ *   `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_SUSPEND_01}
  *
  * @design
  * 1. Set `t->suspended` to `TRUE`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SUSPEND_01}
  * 2. Call `thread_set_uneligible()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SUSPEND_01}
  *
  * @calls
  * - `thread_set_uneligible()`
@@ -1044,18 +1411,31 @@ void thread_suspend(pok_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01}:
+ *   `thread_resume_waited()` shall make the process of a timed suspension whose
+ *   time ran out ready again, with the result time-out.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_006}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01}:
+ *   `thread_resume_waited()` shall set `suspended` of `t` to `FALSE`, its
+ *   `state` to `POK_STATE_RUNNABLE` and its `wait_result` to
+ *   `POK_ERRNO_TIMEOUT`, and call `thread_set_eligible()` with `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01}
  *
  * @design
- * 1. Check that `t->state == POK_STATE_WAITING` holds (assert: stop otherwise).
- * 2. Set `t->suspended` to `FALSE`.
- * 3. Set `t->state` to `POK_STATE_RUNNABLE`.
- * 4. Set `t->wait_result` to `POK_ERRNO_TIMEOUT`.
- * 5. Call `thread_set_eligible()` with the argument `t`.
+ * 1. Set `t->suspended` to `FALSE`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01}
+ * 2. Set `t->state` to `POK_STATE_RUNNABLE`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01}
+ * 3. Set `t->wait_result` to `POK_ERRNO_TIMEOUT`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01}
+ * 4. Call `thread_set_eligible()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_WAITED_01}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `thread_set_eligible()`
  */
 static void thread_resume_waited(pok_thread_t* t)
@@ -1091,16 +1471,32 @@ static void thread_resume_waited(pok_thread_t* t)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01}:
+ *   `thread_suspend_timed()` shall suspend the current process until the end of
+ *   a duration.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_006}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01}:
+ *   `thread_suspend_timed()` shall set `suspended` of `t` to `TRUE`, and then
+ *   call `thread_set_uneligible()` with `t`, `thread_wait()` with `t`, and
+ *   `thread_delay_event()` with `t`, the result of `pok_time_add()` for the
+ *   result of `jet_system_time()` and `time`, and `thread_resume_waited`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01}
  *
  * @design
  * 1. Set `t->suspended` to `TRUE`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01}
  * 2. Call `thread_set_uneligible()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01}
  * 3. Call `thread_wait()` with the argument `t`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01}
  * 4. Call `thread_delay_event()` with the arguments `t`,
  *    `pok_time_add(jet_system_time(), time)` and the address of
  *    `thread_resume_waited`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_SUSPEND_TIMED_01}
  *
  * @calls
  * - `thread_set_uneligible()`
@@ -1138,17 +1534,57 @@ void thread_suspend_timed(pok_thread_t* t, pok_time_t time)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_RESUME_01}: `thread_resume()` shall end
+ *   the suspension of a process and make it ready again if it is runnable.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_008}
+ *   - \srqref{SRQ_JET_THR_018}
+ * - \hlrid{HLR_THREAD_INTERNAL_THREAD_RESUME_02}: `thread_resume()` shall end a
+ *   timed suspension of the process with the result OK.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_008}
  *
  * @llr
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_RESUME_01}: `thread_resume()` shall set
+ *   `suspended` of `t` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_RESUME_01}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_RESUME_02}: If
+ *   `delayed_event_is_active()` returns true for `thread_delayed_event` of `t`
+ *   and its `thread_delayed_func` is `thread_resume_waited`, `thread_resume()`
+ *   shall set `state` of `t` to `POK_STATE_RUNNABLE`, call
+ *   `thread_delay_event_cancel()` with `t` and set its `wait_result` to
+ *   `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_RESUME_02}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_RESUME_03}: If
+ *   `delayed_event_is_active()` returns false for `thread_delayed_event` of
+ *   `t`, or its `thread_delayed_func` is another function, `thread_resume()`
+ *   shall leave its `state`, its delayed event and its `wait_result` as they
+ *   are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_RESUME_02}
+ * - \llrid{LLR_THREAD_INTERNAL_THREAD_RESUME_04}: If and only if `state` of `t`
+ *   is then `POK_STATE_RUNNABLE`, `thread_resume()` shall call
+ *   `thread_set_eligible()` with `t`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_THREAD_INTERNAL_THREAD_RESUME_01}
  *
  * @design
  * 1. Set `t->suspended` to `FALSE`.
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_01}
  * 2. If `delayed_event_is_active(&t->thread_delayed_event) &&`
  *    `(t->thread_delayed_func == &thread_resume_waited)` holds:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_02},
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_03}
  *    1. Set `t->state` to `POK_STATE_RUNNABLE`.
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_02}
  *    2. Call `thread_delay_event_cancel()` with the argument `t`.
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_02}
  *    3. Set `t->wait_result` to `POK_ERRNO_OK`.
+ *       \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_02}
  * 3. If `t->state` is equal to `POK_STATE_RUNNABLE`:
+ *    \llrref{LLR_THREAD_INTERNAL_THREAD_RESUME_04}
  *    1. Call `thread_set_eligible()` with the argument `t`.
  *
  * @calls

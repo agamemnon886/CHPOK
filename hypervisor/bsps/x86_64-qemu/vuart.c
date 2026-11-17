@@ -33,6 +33,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/vuart.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -58,7 +62,7 @@
  * | `offset` | `uint16_t` | [in] The register offset, 0-7. |
  * | `size` | `uint32_t` | [in] The access size: 1, 2 or 4 bytes. |
  * | `is_in` | `bool` | [in] true for a read. |
- * | `value` | `uint32_t *` | [out] The value written, or where the value read is stored. |
+ * | `value` | `uint32_t *` | [in,out] The value written, or where the value read is stored. |
  *
  * @globals
  * None.
@@ -69,27 +73,74 @@
  * | `port` | `uint16_t` | The host port's register |
  *
  * @hlr
+ * - \hlrid{HLR_VUART_X86_64_VUART_ACCESS_01}: `vuart_access()` shall repeat an
+ *   access of a guest to its serial port on the host port.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_004}
+ *   - \srqref{SRQ_HV_CON_005}
  *
  * @llr
+ * - \llrid{LLR_VUART_X86_64_VUART_ACCESS_01}: `vuart_access()` shall access the
+ *   host port whose number is the sum of `host_base` and `offset`, truncated to
+ *   16 bits.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VUART_X86_64_VUART_ACCESS_01}
+ * - \llrid{LLR_VUART_X86_64_VUART_ACCESS_02}: If `is_in` is true and `size` is
+ *   1, `vuart_access()` shall read the port once with `x86_inb()` and store the
+ *   byte read at `value`, with the upper 24 bits 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VUART_X86_64_VUART_ACCESS_01}
+ * - \llrid{LLR_VUART_X86_64_VUART_ACCESS_03}: If `is_in` is true and `size` is
+ *   2, `vuart_access()` shall read the port once with `x86_inw()` and store the
+ *   16 bits read at `value`, with the upper 16 bits 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VUART_X86_64_VUART_ACCESS_01}
+ * - \llrid{LLR_VUART_X86_64_VUART_ACCESS_04}: If `is_in` is true and `size` is
+ *   neither 1 nor 2, `vuart_access()` shall read the port once with `x86_inl()`
+ *   and store the 32 bits read at `value`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VUART_X86_64_VUART_ACCESS_01}
+ * - \llrid{LLR_VUART_X86_64_VUART_ACCESS_05}: If `is_in` is false and `size` is
+ *   1, `vuart_access()` shall write the low 8 bits of the value at `value` to
+ *   the port once with `x86_outb()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VUART_X86_64_VUART_ACCESS_01}
+ * - \llrid{LLR_VUART_X86_64_VUART_ACCESS_06}: If `is_in` is false and `size` is
+ *   2, `vuart_access()` shall write the low 16 bits of the value at `value` to
+ *   the port once with `x86_outw()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VUART_X86_64_VUART_ACCESS_01}
+ * - \llrid{LLR_VUART_X86_64_VUART_ACCESS_07}: If `is_in` is false and `size` is
+ *   neither 1 nor 2, `vuart_access()` shall write the 32 bits of the value at
+ *   `value` to the port once with `x86_outl()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_VUART_X86_64_VUART_ACCESS_01}
  *
  * @design
  * 1. Set `port` to `(uint16_t) (host_base + offset)`.
- * 2. If `is_in` is true:
- *    1. If `size` is equal to `1U`:
+ *    \llrref{LLR_VUART_X86_64_VUART_ACCESS_01}
+ * 2. If `is_in` is true: \llrref{LLR_VUART_X86_64_VUART_ACCESS_02},
+ *    \llrref{LLR_VUART_X86_64_VUART_ACCESS_03},
+ *    \llrref{LLR_VUART_X86_64_VUART_ACCESS_04}
+ *    1. If `size` is equal to `1U`: \llrref{LLR_VUART_X86_64_VUART_ACCESS_02}
  *       1. Call `x86_inb()` with the argument `port`, and store the result in
  *          `*value`.
  *    2. Otherwise, if `size` is equal to `2U`:
+ *       \llrref{LLR_VUART_X86_64_VUART_ACCESS_03}
  *       1. Call `x86_inw()` with the argument `port`, and store the result in
  *          `*value`.
- *    3. Otherwise:
+ *    3. Otherwise: \llrref{LLR_VUART_X86_64_VUART_ACCESS_04}
  *       1. Call `x86_inl()` with the argument `port`, and store the result in
  *          `*value`.
- * 3. Otherwise:
- *    1. If `size` is equal to `1U`:
+ * 3. Otherwise: \llrref{LLR_VUART_X86_64_VUART_ACCESS_05},
+ *    \llrref{LLR_VUART_X86_64_VUART_ACCESS_06},
+ *    \llrref{LLR_VUART_X86_64_VUART_ACCESS_07}
+ *    1. If `size` is equal to `1U`: \llrref{LLR_VUART_X86_64_VUART_ACCESS_05}
  *       1. Call `x86_outb()` with the arguments `port` and `(uint8_t) *value`.
  *    2. Otherwise, if `size` is equal to `2U`:
+ *       \llrref{LLR_VUART_X86_64_VUART_ACCESS_06}
  *       1. Call `x86_outw()` with the arguments `port` and `(uint16_t) *value`.
- *    3. Otherwise:
+ *    3. Otherwise: \llrref{LLR_VUART_X86_64_VUART_ACCESS_07}
  *       1. Call `x86_outl()` with the arguments `port` and the value at
  *          `value`.
  *

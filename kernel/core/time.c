@@ -25,6 +25,16 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-14: the enum types are named with _e:
  * pok_ret_e (was pok_ret_t).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -64,11 +74,19 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_TIME_JET_ON_TICK_01}: `jet_on_tick()` shall make the scheduler
+ *   evaluate its decisions again at each tick of the timer of the board.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_004}
  *
  * @llr
+ * - \llrid{LLR_TIME_JET_ON_TICK_01}: `jet_on_tick()` shall call
+ *   `pok_sched_on_time_changed()` once for each call.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_TIME_JET_ON_TICK_01}
  *
  * @design
- * 1. Call `pok_sched_on_time_changed()`.
+ * 1. Call `pok_sched_on_time_changed()`. \llrref{LLR_TIME_JET_ON_TICK_01}
  *
  * @calls
  * - `pok_sched_on_time_changed()`
@@ -104,21 +122,58 @@ void jet_on_tick(void)
  * | `k_val` | `pok_time_t *` | Kernel address of val, or NULL |
  *
  * @hlr
+ * - \hlrid{HLR_TIME_POK_CLOCK_GETTIME_01}: `pok_clock_gettime()` shall store
+ *   the system time at the partition address `val` for the clock
+ *   `CLOCK_REALTIME` and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_002}
+ * - \hlrid{HLR_TIME_POK_CLOCK_GETTIME_02}: `pok_clock_gettime()` shall refuse
+ *   any other clock with `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_007}
+ * - \hlrid{HLR_TIME_POK_CLOCK_GETTIME_03}: `pok_clock_gettime()` shall refuse
+ *   an address `val` that the current partition may not write with
+ *   `POK_ERRNO_EFAULT`, without writing to memory.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
+ *   - \srqref{SRQ_JET_MEM_017}
  *
  * @llr
+ * - \llrid{LLR_TIME_POK_CLOCK_GETTIME_01}: If `jet_user_to_kernel_typed()`
+ *   returns NULL for `val`, `pok_clock_gettime()` shall return
+ *   `POK_ERRNO_EFAULT` without writing.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_TIME_POK_CLOCK_GETTIME_03}
+ * - \llrid{LLR_TIME_POK_CLOCK_GETTIME_02}: If `jet_user_to_kernel_typed()`
+ *   returns an address for `val` and `clk_id` is `CLOCK_REALTIME`,
+ *   `pok_clock_gettime()` shall write the result of `jet_system_time()` at that
+ *   address and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_TIME_POK_CLOCK_GETTIME_01}
+ * - \llrid{LLR_TIME_POK_CLOCK_GETTIME_03}: If `jet_user_to_kernel_typed()`
+ *   returns an address for `val` and `clk_id` is not `CLOCK_REALTIME`,
+ *   `pok_clock_gettime()` shall write -1 at that address and return
+ *   `POK_ERRNO_EINVAL`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_TIME_POK_CLOCK_GETTIME_02}
  *
  * @design
  * 1. Set `k_val` to `jet_user_to_kernel_typed(val)`.
- * 2. If `k_val` is NULL:
+ *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_01},
+ *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_02},
+ *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_03}
+ * 2. If `k_val` is NULL: \llrref{LLR_TIME_POK_CLOCK_GETTIME_01}
  *    1. Return `POK_ERRNO_EFAULT`.
- * 3. Depending on `clk_id`:
- *    1. Case `CLOCK_REALTIME`:
+ * 3. Depending on `clk_id`: \llrref{LLR_TIME_POK_CLOCK_GETTIME_02},
+ *    \llrref{LLR_TIME_POK_CLOCK_GETTIME_03}
+ *    1. Case `CLOCK_REALTIME`: \llrref{LLR_TIME_POK_CLOCK_GETTIME_02}
  *       1. Set `*k_val` to `jet_system_time()`.
  *       2. Leave the switch.
- *    2. Otherwise (default):
+ *    2. Otherwise (default): \llrref{LLR_TIME_POK_CLOCK_GETTIME_03}
  *       1. Set `*k_val` to `-1`.
  *       2. Return `POK_ERRNO_EINVAL`.
- * 4. Return `POK_ERRNO_OK`.
+ * 4. Return `POK_ERRNO_OK`. \llrref{LLR_TIME_POK_CLOCK_GETTIME_02}
  *
  * @calls
  * - `jet_user_to_kernel()`
@@ -166,15 +221,37 @@ pok_ret_e   pok_clock_gettime (clockid_t clk_id, pok_time_t* JET_USER val)
  * | `k_val` | `time_t *` | Kernel address of val, or NULL |
  *
  * @hlr
+ * - \hlrid{HLR_TIME_JET_TIME_01}: `jet_time()` shall store the calendar time at
+ *   the partition address `val` and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_003}
+ * - \hlrid{HLR_TIME_JET_TIME_02}: `jet_time()` shall refuse an address `val`
+ *   that the current partition may not write with `POK_ERRNO_EFAULT`, without
+ *   writing to memory.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_006}
+ *   - \srqref{SRQ_JET_MEM_016}
+ *   - \srqref{SRQ_JET_MEM_017}
  *
  * @llr
+ * - \llrid{LLR_TIME_JET_TIME_01}: If `jet_user_to_kernel_typed()` returns NULL
+ *   for `val`, `jet_time()` shall return `POK_ERRNO_EFAULT` without calling
+ *   `jet_calendar_time()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_TIME_JET_TIME_02}
+ * - \llrid{LLR_TIME_JET_TIME_02}: If `jet_user_to_kernel_typed()` returns an
+ *   address for `val`, `jet_time()` shall write the result of
+ *   `jet_calendar_time()` at that address and return `POK_ERRNO_OK`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_TIME_JET_TIME_01}
  *
  * @design
  * 1. Set `k_val` to `jet_user_to_kernel_typed(val)`.
- * 2. If `k_val` is NULL:
+ *    \llrref{LLR_TIME_JET_TIME_01}, \llrref{LLR_TIME_JET_TIME_02}
+ * 2. If `k_val` is NULL: \llrref{LLR_TIME_JET_TIME_01}
  *    1. Return `POK_ERRNO_EFAULT`.
- * 3. Set `*k_val` to `jet_calendar_time()`.
- * 4. Return `POK_ERRNO_OK`.
+ * 3. Set `*k_val` to `jet_calendar_time()`. \llrref{LLR_TIME_JET_TIME_02}
+ * 4. Return `POK_ERRNO_OK`. \llrref{LLR_TIME_JET_TIME_02}
  *
  * @calls
  * - `jet_user_to_kernel()`

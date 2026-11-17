@@ -31,6 +31,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/memcmp.c
  * (kernel/libc is split up: the routines only the kernel uses are in
  * kernel/core).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -68,18 +76,35 @@
  * | `s2` | `const unsigned char *` | The second block, as bytes |
  *
  * @hlr
+ * - \hlrid{HLR_MEMCMP_MEMCMP_01}: `memcmp()` shall compare `n` bytes of two
+ *   blocks and give 0 if they are equal, and otherwise the difference of the
+ *   first two bytes that differ.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_MEMCMP_MEMCMP_01}: If the first `n` bytes at `v1` and `v2`,
+ *   taken as unsigned bytes, differ at an index, `memcmp()` shall return the
+ *   byte at `v1` minus the byte at `v2` at the first such index.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMCMP_MEMCMP_01}
+ * - \llrid{LLR_MEMCMP_MEMCMP_02}: If the first `n` bytes at `v1` and `v2` are
+ *   equal, `memcmp()` shall return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_MEMCMP_MEMCMP_01}
  *
  * @design
- * 1. Set `s1` to `v1`.
- * 2. Set `s2` to `v2`.
+ * 1. Set `s1` to `v1`. \llrref{LLR_MEMCMP_MEMCMP_01},
+ *    \llrref{LLR_MEMCMP_MEMCMP_02}
+ * 2. Set `s2` to `v2`. \llrref{LLR_MEMCMP_MEMCMP_01},
+ *    \llrref{LLR_MEMCMP_MEMCMP_02}
  * 3. Set `i` to `0`; then while `i` is less than `n`, repeat (after each pass:
- *    increment `i`):
+ *    increment `i`): \llrref{LLR_MEMCMP_MEMCMP_01},
+ *    \llrref{LLR_MEMCMP_MEMCMP_02}
  *    1. Set `diff` to `s1[i] - s2[i]`.
- *    2. If `diff` is not equal to `0`:
+ *    2. If `diff` is not equal to `0`: \llrref{LLR_MEMCMP_MEMCMP_01}
  *       1. Return `diff`.
- * 4. Return `0`.
+ * 4. Return `0`. \llrref{LLR_MEMCMP_MEMCMP_02}
  *
  * @calls
  * None.

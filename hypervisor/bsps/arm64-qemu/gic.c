@@ -34,6 +34,15 @@
  * hypervisor/arch/arm64/gic.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps). GICD_IPRIORITYR() takes
  * the interrupt number (the definition shared with the kernel).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the low level requirements
+ * name the register and range helpers that the functions call; the high
+ * level requirements trace to the system requirements split into
+ * requirements of one "shall" each.
  */
 
 /**
@@ -90,12 +99,21 @@ static uint32_t host_iidr;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_READ32_01}: `gic_read32()` shall read a 32-bit register
+ *   of the GIC.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_008}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_READ32_01}: `gic_read32()` shall return the 32-bit value
+ *   at the address `base` plus `offset`, read once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_READ32_01}
  *
  * @design
  * 1. Return the value at
  *    `(const volatile uint32_t *) (uintptr_t) (base + offset)`.
+ *    \llrref{LLR_GIC_GIC_READ32_01}
  *
  * @calls
  * None.
@@ -130,11 +148,20 @@ static uint32_t gic_read32(uint64_t base, uint32_t offset)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_WRITE32_01}: `gic_write32()` shall write a 32-bit
+ *   register of the GIC.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_008}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_WRITE32_01}: `gic_write32()` shall write the 32-bit
+ *   value `value` once at the address `base` plus `offset`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_WRITE32_01}
  *
  * @design
  * 1. Set `*(volatile uint32_t *) (uintptr_t) (base + offset)` to `value`.
+ *    \llrref{LLR_GIC_GIC_WRITE32_01}
  *
  * @calls
  * None.
@@ -164,11 +191,20 @@ static void gic_write32(uint64_t base, uint32_t offset, uint32_t value)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_WRITE8_01}: `gic_write8()` shall write a byte of a
+ *   byte-accessible register of the GIC.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_008}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_WRITE8_01}: `gic_write8()` shall write the byte `value`
+ *   once at the address `base` plus `offset`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_WRITE8_01}
  *
  * @design
  * 1. Set `*(volatile uint8_t *) (uintptr_t) (base + offset)` to `value`.
+ *    \llrref{LLR_GIC_GIC_WRITE8_01}
  *
  * @calls
  * None.
@@ -207,25 +243,50 @@ static void gic_write8(uint64_t base, uint32_t offset, uint8_t value)
  * | `i` | `uint32_t` | The index of an enable register |
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_INIT_01}: `gic_init()` shall set up the distributor of
+ *   the GIC at boot, with the addresses of the device tree, every shared
+ *   interrupt disabled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_INIT_01}: `gic_init()` shall set `gicd`, `gicc`, `gich`
+ *   and `gicv` to the addresses of the same names of `info`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_INIT_01}
+ * - \llrid{LLR_GIC_GIC_INIT_02}: `gic_init()` shall write to the distributor
+ *   with `gic_write32()`, in this order: 0 to `GICD_CTLR`, `0xFFFFFFFF` to
+ *   `GICD_ICENABLER(i)` for each `i` from 1 to the value of the bits
+ *   `GICD_TYPER_LINES` of the register `GICD_TYPER` (`gic_read32()`), and
+ *   `GICD_CTLR_ENABLE` to `GICD_CTLR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_INIT_01}
+ * - \llrid{LLR_GIC_GIC_INIT_03}: `gic_init()` shall set `host_iidr` to the
+ *   register `GICD_IIDR` of the distributor (`gic_read32()`), and `nb_lrs` to
+ *   the value of the bits `GICH_VTR_LISTREGS` of the register `GICH_VTR` of the
+ *   virtual interface plus 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_INIT_01}
  *
  * @design
- * 1. Set `gicd` to `info->gicd`.
- * 2. Set `gicc` to `info->gicc`.
- * 3. Set `gich` to `info->gich`.
- * 4. Set `gicv` to `info->gicv`.
+ * 1. Set `gicd` to `info->gicd`. \llrref{LLR_GIC_GIC_INIT_01}
+ * 2. Set `gicc` to `info->gicc`. \llrref{LLR_GIC_GIC_INIT_01}
+ * 3. Set `gich` to `info->gich`. \llrref{LLR_GIC_GIC_INIT_01}
+ * 4. Set `gicv` to `info->gicv`. \llrref{LLR_GIC_GIC_INIT_01}
  * 5. Call `gic_write32()` with the arguments `gicd`, `GICD_CTLR` and `0U`.
+ *    \llrref{LLR_GIC_GIC_INIT_02}
  * 6. Set `words` to `(gic_read32(gicd, GICD_TYPER) & GICD_TYPER_LINES) + 1U`.
+ *    \llrref{LLR_GIC_GIC_INIT_02}
  * 7. Set `i` to `1U`; then while `i` is less than `words`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_GIC_GIC_INIT_02}
  *    1. Call `gic_write32()` with the arguments `gicd`, `GICD_ICENABLER(i)` and
  *       `0xFFFFFFFFU`.
  * 8. Call `gic_write32()` with the arguments `gicd`, `GICD_CTLR` and
- *    `GICD_CTLR_ENABLE`.
+ *    `GICD_CTLR_ENABLE`. \llrref{LLR_GIC_GIC_INIT_02}
  * 9. Call `gic_read32()` with the arguments `gicd` and `GICD_IIDR`, and store
- *    the result in `host_iidr`.
+ *    the result in `host_iidr`. \llrref{LLR_GIC_GIC_INIT_03}
  * 10. Set `nb_lrs` to `(gic_read32(gich, GICH_VTR) & GICH_VTR_LISTREGS) + 1U`.
+ *     \llrref{LLR_GIC_GIC_INIT_03}
  *
  * @calls
  * - `gic_write32()`
@@ -267,11 +328,19 @@ void gic_init(const hv_fdt_info_t *info)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_LIST_REGISTERS_01}: `gic_list_registers()` shall give
+ *   the number of list registers of the virtual interface.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_BOOT_006}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_LIST_REGISTERS_01}: `gic_list_registers()` shall return
+ *   `nb_lrs`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_LIST_REGISTERS_01}
  *
  * @design
- * 1. Return `nb_lrs`.
+ * 1. Return `nb_lrs`. \llrref{LLR_GIC_GIC_LIST_REGISTERS_01}
  *
  * @calls
  * None.
@@ -299,11 +368,19 @@ uint32_t gic_list_registers(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_GICV_BASE_01}: `gic_gicv_base()` shall give the address
+ *   of the virtual CPU interface, which the guests use as their CPU interface.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_008}
+ *   - \srqref{SRQ_HV_MEM_003}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_GICV_BASE_01}: `gic_gicv_base()` shall return `gicv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_GICV_BASE_01}
  *
  * @design
- * 1. Return `gicv`.
+ * 1. Return `gicv`. \llrref{LLR_GIC_GIC_GICV_BASE_01}
  *
  * @calls
  * None.
@@ -331,11 +408,20 @@ uint64_t gic_gicv_base(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_HOST_IIDR_01}: `gic_host_iidr()` shall give the
+ *   identification of the distributor of the host, which the emulated
+ *   distributors show.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_003}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_HOST_IIDR_01}: `gic_host_iidr()` shall return
+ *   `host_iidr`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HOST_IIDR_01}
  *
  * @design
- * 1. Return `host_iidr`.
+ * 1. Return `host_iidr`. \llrref{LLR_GIC_GIC_HOST_IIDR_01}
  *
  * @calls
  * None.
@@ -364,29 +450,60 @@ uint32_t gic_host_iidr(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_INIT_CPU_01}: `gic_init_cpu()` shall set up the CPU
+ *   interface of the calling CPU so that it takes only the virtual timer and
+ *   the maintenance interrupts, with end of interrupt and deactivation split.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
+ * - \hlrid{HLR_GIC_GIC_INIT_CPU_02}: `gic_init_cpu()` shall enable the virtual
+ *   interface for the guest, with its interrupt state reset.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_008}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_INIT_CPU_01}: `gic_init_cpu()` shall write to the
+ *   distributor, in this order: `0xFFFFFFFF` with `gic_write32()` to
+ *   `GICD_ICENABLER(0)`, to `GICD_ICPENDR0` and to `GICD_ICACTIVER0`,
+ *   `HOST_PRIORITY` with `gic_write8()` to `GICD_IPRIORITYR(HV_IRQ_VTIMER)` and
+ *   to `GICD_IPRIORITYR(IRQ_MAINTENANCE)`, and `HOST_IRQS` with `gic_write32()`
+ *   to `GICD_ISENABLER0`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_INIT_CPU_01}
+ * - \llrid{LLR_GIC_GIC_INIT_CPU_02}: `gic_init_cpu()` shall then write to the
+ *   CPU interface with `gic_write32()`, in this order: `0xFF` to `GICC_PMR`, 0
+ *   to `GICC_BPR` and `GICC_CTLR_ENABLE | GICC_CTLR_EOIMODE` to `GICC_CTLR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_INIT_CPU_01}
+ * - \llrid{LLR_GIC_GIC_INIT_CPU_03}: `gic_init_cpu()` shall then call
+ *   `gic_vcpu_reset()` once and write `GICH_HCR_EN` with `gic_write32()` to
+ *   `GICH_HCR` of the virtual interface.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_INIT_CPU_02}
  *
  * @design
  * 1. Call `gic_write32()` with the arguments `gicd`, `GICD_ICENABLER(0U)` and
- *    `0xFFFFFFFFU`.
+ *    `0xFFFFFFFFU`. \llrref{LLR_GIC_GIC_INIT_CPU_01}
  * 2. Call `gic_write32()` with the arguments `gicd`, `GICD_ICPENDR0` and
- *    `0xFFFFFFFFU`.
+ *    `0xFFFFFFFFU`. \llrref{LLR_GIC_GIC_INIT_CPU_01}
  * 3. Call `gic_write32()` with the arguments `gicd`, `GICD_ICACTIVER0` and
- *    `0xFFFFFFFFU`.
+ *    `0xFFFFFFFFU`. \llrref{LLR_GIC_GIC_INIT_CPU_01}
  * 4. Call `gic_write8()` with the arguments `gicd`,
  *    `GICD_IPRIORITYR(HV_IRQ_VTIMER)` and `HOST_PRIORITY`.
+ *    \llrref{LLR_GIC_GIC_INIT_CPU_01}
  * 5. Call `gic_write8()` with the arguments `gicd`,
  *    `GICD_IPRIORITYR(IRQ_MAINTENANCE)` and `HOST_PRIORITY`.
+ *    \llrref{LLR_GIC_GIC_INIT_CPU_01}
  * 6. Call `gic_write32()` with the arguments `gicd`, `GICD_ISENABLER0` and
- *    `HOST_IRQS`.
+ *    `HOST_IRQS`. \llrref{LLR_GIC_GIC_INIT_CPU_01}
  * 7. Call `gic_write32()` with the arguments `gicc`, `GICC_PMR` and `0xFFU`.
+ *    \llrref{LLR_GIC_GIC_INIT_CPU_02}
  * 8. Call `gic_write32()` with the arguments `gicc`, `GICC_BPR` and `0U`.
+ *    \llrref{LLR_GIC_GIC_INIT_CPU_02}
  * 9. Call `gic_write32()` with the arguments `gicc`, `GICC_CTLR` and
- *    `GICC_CTLR_ENABLE | GICC_CTLR_EOIMODE`.
- * 10. Call `gic_vcpu_reset()`.
+ *    `GICC_CTLR_ENABLE | GICC_CTLR_EOIMODE`. \llrref{LLR_GIC_GIC_INIT_CPU_02}
+ * 10. Call `gic_vcpu_reset()`. \llrref{LLR_GIC_GIC_INIT_CPU_03}
  * 11. Call `gic_write32()` with the arguments `gich`, `GICH_HCR` and
- *     `GICH_HCR_EN`.
+ *     `GICH_HCR_EN`. \llrref{LLR_GIC_GIC_INIT_CPU_03}
  *
  * @calls
  * - `gic_write32()`
@@ -427,11 +544,21 @@ void gic_init_cpu(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_CPU_OFF_01}: `gic_cpu_off()` shall stop the interrupts
+ *   of the calling CPU.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_007}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_CPU_OFF_01}: If and only if `nb_lrs` is not 0,
+ *   `gic_cpu_off()` shall write with `gic_write32()`, in this order: 0 to
+ *   `GICH_HCR` of the virtual interface, 0 to `GICC_CTLR` of the CPU interface
+ *   and `HOST_IRQS` to `GICD_ICENABLER(0)` of the distributor.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_CPU_OFF_01}
  *
  * @design
- * 1. If `nb_lrs` is not equal to `0U`:
+ * 1. If `nb_lrs` is not equal to `0U`: \llrref{LLR_GIC_GIC_CPU_OFF_01}
  *    1. Call `gic_write32()` with the arguments `gich`, `GICH_HCR` and `0U`.
  *    2. Call `gic_write32()` with the arguments `gicc`, `GICC_CTLR` and `0U`.
  *    3. Call `gic_write32()` with the arguments `gicd`, `GICD_ICENABLER(0U)`
@@ -470,19 +597,39 @@ void gic_cpu_off(void)
  * | `i` | `uint32_t` | The index of a list register |
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_VCPU_RESET_01}: `gic_vcpu_reset()` shall reset the
+ *   interrupt state of the guest as at power-on: no interrupt listed or active,
+ *   the virtual CPU interface off, and the timer and maintenance interrupts
+ *   neither pending nor active.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_008}
+ *   - \srqref{SRQ_HV_VM_004}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_VCPU_RESET_01}: `gic_vcpu_reset()` shall write 0 with
+ *   `gic_write32()` to `GICH_LR(i)` of the virtual interface for each `i` below
+ *   `nb_lrs`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_VCPU_RESET_01}
+ * - \llrid{LLR_GIC_GIC_VCPU_RESET_02}: `gic_vcpu_reset()` shall then write with
+ *   `gic_write32()` 0 to `GICH_APR` and to `GICH_VMCR` of the virtual
+ *   interface, and `HOST_IRQS` to `GICD_ICPENDR0` and to `GICD_ICACTIVER0` of
+ *   the distributor.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_VCPU_RESET_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `nb_lrs`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_GIC_GIC_VCPU_RESET_01}
  *    1. Call `gic_write32()` with the arguments `gich`, `GICH_LR(i)` and `0U`.
  * 2. Call `gic_write32()` with the arguments `gich`, `GICH_APR` and `0U`.
+ *    \llrref{LLR_GIC_GIC_VCPU_RESET_02}
  * 3. Call `gic_write32()` with the arguments `gich`, `GICH_VMCR` and `0U`.
+ *    \llrref{LLR_GIC_GIC_VCPU_RESET_02}
  * 4. Call `gic_write32()` with the arguments `gicd`, `GICD_ICPENDR0` and
- *    `HOST_IRQS`.
+ *    `HOST_IRQS`. \llrref{LLR_GIC_GIC_VCPU_RESET_02}
  * 5. Call `gic_write32()` with the arguments `gicd`, `GICD_ICACTIVER0` and
- *    `HOST_IRQS`.
+ *    `HOST_IRQS`. \llrref{LLR_GIC_GIC_VCPU_RESET_02}
  *
  * @calls
  * - `gic_write32()`
@@ -524,16 +671,51 @@ void gic_vcpu_reset(void)
  * | `priority` | `uint32_t` | The guest's priority of the timer interrupt |
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_UPDATE_01}: `gic_update()` shall give the guest its
+ *   pending timer interrupt when its distributor lets it have one, with its
+ *   priority, and take back an interrupt that it has not taken when it disables
+ *   it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_004}
+ *   - \srqref{SRQ_HV_INT_009}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_UPDATE_01}: If `timer_pending` of the VM is true,
+ *   `vgicd_timer_enabled()` returns true for the distributor of the VM and the
+ *   bits `GICH_LR_STATE` of the register `GICH_LR(0)` (`gic_read32()`) are 0,
+ *   `gic_update()` shall write (`gic_write32()`) to `GICH_LR(0)` the value
+ *   `GICH_LR_PENDING | GICH_LR_EOI | HV_IRQ_VTIMER` with the result of
+ *   `vgicd_timer_priority()` shifted right by 3 in the field at
+ *   `GICH_LR_PRIORITY`, set `timer_pending` to false and increment `timer_irqs`
+ *   of the VM.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_UPDATE_01}
+ * - \llrid{LLR_GIC_GIC_UPDATE_02}: If `vgicd_timer_enabled()` returns false for
+ *   the distributor of the VM and the bits `GICH_LR_STATE` of the register
+ *   `GICH_LR(0)` are `GICH_LR_PENDING`, `gic_update()` shall write 0 to
+ *   `GICH_LR(0)` with `gic_write32()` and set `timer_pending` of the VM to
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_UPDATE_01}
+ * - \llrid{LLR_GIC_GIC_UPDATE_03}: If `vgicd_timer_enabled()` returns true and
+ *   `timer_pending` of the VM is false or the bits `GICH_LR_STATE` of
+ *   `GICH_LR(0)` are not 0, or `vgicd_timer_enabled()` returns false and the
+ *   bits `GICH_LR_STATE` of `GICH_LR(0)` are not `GICH_LR_PENDING`,
+ *   `gic_update()` shall leave `GICH_LR(0)`, `timer_pending` and `timer_irqs`
+ *   as they are.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_UPDATE_01}
  *
  * @design
  * 1. Call `gic_read32()` with the arguments `gich` and `GICH_LR(0U)`, and store
- *    the result in `lr`.
+ *    the result in `lr`. \llrref{LLR_GIC_GIC_UPDATE_01},
+ *    \llrref{LLR_GIC_GIC_UPDATE_02}, \llrref{LLR_GIC_GIC_UPDATE_03}
  * 2. Call `vgicd_timer_enabled()` with the address of `vm->arch.gicd`, and
- *    store the result in `enabled`.
+ *    store the result in `enabled`. \llrref{LLR_GIC_GIC_UPDATE_01},
+ *    \llrref{LLR_GIC_GIC_UPDATE_02}, \llrref{LLR_GIC_GIC_UPDATE_03}
  * 3. If `vm->arch.timer_pending` is true and `enabled` is true and
- *    `(lr & GICH_LR_STATE)` is equal to `0U`:
+ *    `(lr & GICH_LR_STATE)` is equal to `0U`: \llrref{LLR_GIC_GIC_UPDATE_01},
+ *    \llrref{LLR_GIC_GIC_UPDATE_03}
  *    1. Call `vgicd_timer_priority()` with the address of `vm->arch.gicd`, and
  *       store the result in `priority`.
  *    2. Call `gic_write32()` with the arguments `gich`, `GICH_LR(0U)` and
@@ -542,11 +724,10 @@ void gic_vcpu_reset(void)
  *    3. Set `vm->arch.timer_pending` to `false`.
  *    4. Increment `vm->arch.timer_irqs`.
  * 4. Otherwise, if `enabled` is false and `(lr & GICH_LR_STATE)` is equal to
- *    `GICH_LR_PENDING`:
+ *    `GICH_LR_PENDING`: \llrref{LLR_GIC_GIC_UPDATE_02},
+ *    \llrref{LLR_GIC_GIC_UPDATE_03}
  *    1. Call `gic_write32()` with the arguments `gich`, `GICH_LR(0U)` and `0U`.
  *    2. Set `vm->arch.timer_pending` to `true`.
- * 5. Otherwise:
- *    1. Do nothing.
  *
  * @calls
  * - `gic_read32()`
@@ -600,16 +781,33 @@ void gic_update(hv_vm_t *vm)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_GIC_MAINTENANCE_01}: `maintenance()` shall end the timer
+ *   interrupt of the host when the guest has ended it, so that each tick is
+ *   delivered once.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_010}
  *
  * @llr
+ * - \llrid{LLR_GIC_MAINTENANCE_01}: If and only if bit 0 of the register
+ *   `GICH_EISR0` (`gic_read32()`) is set, `maintenance()` shall write with
+ *   `gic_write32()` 0 to `GICH_LR(0)` and `HV_IRQ_VTIMER` to `GICC_DIR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_MAINTENANCE_01}
+ * - \llrid{LLR_GIC_MAINTENANCE_02}: `maintenance()` shall then write `iar` to
+ *   `GICC_DIR` and call `gic_update()` once with `vm`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_MAINTENANCE_01}
  *
  * @design
  * 1. If `(gic_read32(gich, GICH_EISR0) & 1U)` is not equal to `0U`:
+ *    \llrref{LLR_GIC_MAINTENANCE_01}
  *    1. Call `gic_write32()` with the arguments `gich`, `GICH_LR(0U)` and `0U`.
  *    2. Call `gic_write32()` with the arguments `gicc`, `GICC_DIR` and
  *       `HV_IRQ_VTIMER`.
  * 2. Call `gic_write32()` with the arguments `gicc`, `GICC_DIR` and `iar`.
+ *    \llrref{LLR_GIC_MAINTENANCE_02}
  * 3. Call `gic_update()` with the argument `vm`.
+ *    \llrref{LLR_GIC_MAINTENANCE_02}
  *
  * @calls
  * - `gic_read32()`
@@ -652,37 +850,107 @@ static void maintenance(hv_vm_t *vm, uint32_t iar)
  * | `bit` | `uint32_t` | The PPI's bit in irqs_logged, or 0 |
  *
  * @hlr
+ * - \hlrid{HLR_GIC_GIC_HANDLE_IRQ_01}: `gic_handle_irq()` shall give the tick
+ *   of the virtual timer to the guest and handle the maintenance interrupt.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_004}
+ *   - \srqref{SRQ_HV_INT_010}
+ *   - \srqref{SRQ_HV_TMR_007}
+ * - \hlrid{HLR_GIC_GIC_HANDLE_IRQ_02}: `gic_handle_irq()` shall ignore a
+ *   spurious interrupt and report any other one, a banked one once, and go on.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_011}
  *
  * @llr
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_01}: If the ID (the bits `GICC_IAR_ID` of the
+ *   register `GICC_IAR`, read once with `gic_read32()`) is `GIC_SPURIOUS` or
+ *   more, `gic_handle_irq()` shall return without writing a register.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_02}
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_02}: If the ID is less than `GIC_SPURIOUS`,
+ *   `gic_handle_irq()` shall write the value read from `GICC_IAR` to
+ *   `GICC_EOIR` with `gic_write32()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_01}
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_02}
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_03}: If the ID is `HV_IRQ_VTIMER`,
+ *   `gic_handle_irq()` shall set `timer_pending` of the VM of the CPU to true
+ *   and call `gic_update()` once with that VM.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_01}
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_04}: If the ID is `IRQ_MAINTENANCE`,
+ *   `gic_handle_irq()` shall call `maintenance()` once with the VM of the CPU
+ *   and the value read from `GICC_IAR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_01}
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_05}: If the ID is less than `GIC_SPURIOUS`
+ *   and is neither `HV_IRQ_VTIMER` nor `IRQ_MAINTENANCE`, `gic_handle_irq()`
+ *   shall write the value read from `GICC_IAR` to `GICC_DIR`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_02}
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_06}: If the ID is neither `HV_IRQ_VTIMER` nor
+ *   `IRQ_MAINTENANCE`, is less than `PPIS` and its bit is not set in
+ *   `irqs_logged` of the CPU, `gic_handle_irq()` shall set that bit and call
+ *   `hv_printf()` once with `"[hv] CPU %%u: unexpected interrupt %%u\n"`, the
+ *   index of the CPU and the ID.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_02}
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_07}: If the ID is neither `HV_IRQ_VTIMER` nor
+ *   `IRQ_MAINTENANCE`, is `PPIS` or more and is less than `GIC_SPURIOUS`,
+ *   `gic_handle_irq()` shall call `hv_printf()` once with `"[hv] CPU %%u:
+ *   unexpected interrupt %%u\n"`, the index of the CPU and the ID.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_02}
+ * - \llrid{LLR_GIC_GIC_HANDLE_IRQ_08}: If the ID is neither `HV_IRQ_VTIMER` nor
+ *   `IRQ_MAINTENANCE`, is less than `PPIS` and its bit is set in `irqs_logged`
+ *   of the CPU, `gic_handle_irq()` shall leave `irqs_logged` as it is and not
+ *   call `hv_printf()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_GIC_GIC_HANDLE_IRQ_02}
  *
  * @design
  * 1. Call `gic_read32()` with the arguments `gicc` and `GICC_IAR`, and store
- *    the result in `iar`.
- * 2. Set `irq` to `iar & GICC_IAR_ID`.
+ *    the result in `iar`. \llrref{LLR_GIC_GIC_HANDLE_IRQ_01},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_02}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_03},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_04}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_05},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_06}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_07},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_08}
+ * 2. Set `irq` to `iar & GICC_IAR_ID`. \llrref{LLR_GIC_GIC_HANDLE_IRQ_01},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_02}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_03},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_04}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_05},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_06}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_07},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_08}
  * 3. If `irq` is greater than or equal to `GIC_SPURIOUS`:
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_01}
  *    1. Return.
  * 4. Call `gic_write32()` with the arguments `gicc`, `GICC_EOIR` and `iar`.
- * 5. If `irq` is equal to `HV_IRQ_VTIMER`:
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_02}
+ * 5. If `irq` is equal to `HV_IRQ_VTIMER`: \llrref{LLR_GIC_GIC_HANDLE_IRQ_03}
  *    1. Set `cpu->vcpu.vm->arch.timer_pending` to `true`.
  *    2. Call `gic_update()` with the argument `cpu->vcpu.vm`.
  * 6. Otherwise, if `irq` is equal to `IRQ_MAINTENANCE`:
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_04}
  *    1. Call `maintenance()` with the arguments `cpu->vcpu.vm` and `iar`.
- * 7. Otherwise:
+ * 7. Otherwise: \llrref{LLR_GIC_GIC_HANDLE_IRQ_05},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_06}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_07},
+ *    \llrref{LLR_GIC_GIC_HANDLE_IRQ_08}
  *    1. Call `gic_write32()` with the arguments `gicc`, `GICC_DIR` and `iar`.
+ *       \llrref{LLR_GIC_GIC_HANDLE_IRQ_05}
  *    2. Set `bit` to `((uint32_t) 1U << irq)` if `irq` is less than `PPIS`,
- *       otherwise `0U`.
+ *       otherwise `0U`. \llrref{LLR_GIC_GIC_HANDLE_IRQ_06},
+ *       \llrref{LLR_GIC_GIC_HANDLE_IRQ_07}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_08}
  *    3. If `bit` is not equal to `0U` and `(cpu->arch.irqs_logged & bit)` is
- *       equal to `0U`:
+ *       equal to `0U`: \llrref{LLR_GIC_GIC_HANDLE_IRQ_06},
+ *       \llrref{LLR_GIC_GIC_HANDLE_IRQ_08}
  *       1. Set the bits `bit` in `cpu->arch.irqs_logged`.
  *       2. Call `hv_printf()` with the arguments
  *          `"[hv] CPU %%u: unexpected interrupt %%u\n"`, `cpu->index` and
  *          `irq`.
  *    4. Otherwise, if `irq` is greater than or equal to `PPIS`:
+ *       \llrref{LLR_GIC_GIC_HANDLE_IRQ_07}, \llrref{LLR_GIC_GIC_HANDLE_IRQ_08}
  *       1. Call `hv_printf()` with the arguments
  *          `"[hv] CPU %%u: unexpected interrupt %%u\n"`, `cpu->index` and
  *          `irq`.
- *    5. Otherwise:
- *       1. Do nothing.
  *
  * @calls
  * - `gic_read32()`

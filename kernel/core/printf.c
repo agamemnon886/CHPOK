@@ -43,6 +43,14 @@
  * (kernel/libc is split up: the routines only the kernel uses are in
  * kernel/core); the formatter is jet_format() of common/format.c, shared with
  * the hypervisor; the kernel's own formatter functions are removed.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -101,18 +109,42 @@
  * | `need_critical_section` | `pok_bool_t` | Whether interrupts were enabled |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_BUF_FLUSH_01}: `buf_flush()` shall write the buffered
+ *   text of the formatted output to the main console with interrupts disabled,
+ *   and empty the buffer.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_BUF_FLUSH_01}: If `ja_preempt_enabled()` returns true,
+ *   `buf_flush()` shall call `ja_preempt_disable()` before `pok_cons_write()`
+ *   and `ja_preempt_enable()` after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_BUF_FLUSH_01}
+ * - \llrid{LLR_PRINTF_BUF_FLUSH_02}: If `ja_preempt_enabled()` returns false,
+ *   `buf_flush()` shall call neither `ja_preempt_disable()` nor
+ *   `ja_preempt_enable()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_BUF_FLUSH_01}
+ * - \llrid{LLR_PRINTF_BUF_FLUSH_03}: `buf_flush()` shall call
+ *   `pok_cons_write()` once with `buff` and `pos` of `file`, and then set `pos`
+ *   of `file` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_BUF_FLUSH_01}
  *
  * @design
  * 1. Call `ja_preempt_enabled()`, and store the result in
- *    `need_critical_section`.
- * 2. If `need_critical_section` is true:
- *    1. Call `ja_preempt_disable()`.
+ *    `need_critical_section`. \llrref{LLR_PRINTF_BUF_FLUSH_01},
+ *    \llrref{LLR_PRINTF_BUF_FLUSH_02}
+ * 2. If `need_critical_section` is true: \llrref{LLR_PRINTF_BUF_FLUSH_01},
+ *    \llrref{LLR_PRINTF_BUF_FLUSH_02}
+ *    1. Call `ja_preempt_disable()`. \llrref{LLR_PRINTF_BUF_FLUSH_01}
  * 3. Call `pok_cons_write()` with the arguments `file->buff` and `file->pos`.
- * 4. If `need_critical_section` is true:
- *    1. Call `ja_preempt_enable()`.
- * 5. Set `file->pos` to `0U`.
+ *    \llrref{LLR_PRINTF_BUF_FLUSH_03}
+ * 4. If `need_critical_section` is true: \llrref{LLR_PRINTF_BUF_FLUSH_01},
+ *    \llrref{LLR_PRINTF_BUF_FLUSH_02}
+ *    1. Call `ja_preempt_enable()`. \llrref{LLR_PRINTF_BUF_FLUSH_01}
+ * 5. Set `file->pos` to `0U`. \llrref{LLR_PRINTF_BUF_FLUSH_03}
  *
  * @calls
  * - `ja_preempt_enabled()`
@@ -157,12 +189,20 @@ static void buf_flush(s_file_t *file)
  * | `res` | `static s_file_t` | The buffer |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_INIT_BUFFERED_OUTPUT_01}: `init_buffered_output()` shall
+ *   give an empty output buffer for the formatted output.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_INIT_BUFFERED_OUTPUT_01}: `init_buffered_output()` shall
+ *   set the position of its static buffer to 0 and return its address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_INIT_BUFFERED_OUTPUT_01}
  *
  * @design
- * 1. Set `res.pos` to `0U`.
- * 2. Return the address of `res`.
+ * 1. Set `res.pos` to `0U`. \llrref{LLR_PRINTF_INIT_BUFFERED_OUTPUT_01}
+ * 2. Return the address of `res`. \llrref{LLR_PRINTF_INIT_BUFFERED_OUTPUT_01}
  *
  * @calls
  * None.
@@ -197,14 +237,26 @@ static s_file_t* init_buffered_output(void)
  * | `file` | `s_file_t *` | The buffer |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_BUF_PUTC_01}: `buf_putc()` shall add a character of the
+ *   formatted output to the buffer, and write the buffer out when it is full.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_BUF_PUTC_01}: `buf_putc()` shall store `c` at `buff[pos]`
+ *   of the output that `out` points to and increment its `pos`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_BUF_PUTC_01}
+ * - \llrid{LLR_PRINTF_BUF_PUTC_02}: If and only if `pos` is then `BUF_SIZE`,
+ *   `buf_putc()` shall call `buf_flush()` once with the output.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_BUF_PUTC_01}
  *
  * @design
- * 1. Set `file` to `out`.
- * 2. Set `file->buff[file->pos]` to `c`.
- * 3. Increment `file->pos`.
- * 4. If `file->pos` is equal to `BUF_SIZE`:
+ * 1. Set `file` to `out`. \llrref{LLR_PRINTF_BUF_PUTC_01}
+ * 2. Set `file->buff[file->pos]` to `c`. \llrref{LLR_PRINTF_BUF_PUTC_01}
+ * 3. Increment `file->pos`. \llrref{LLR_PRINTF_BUF_PUTC_01}
+ * 4. If `file->pos` is equal to `BUF_SIZE`: \llrref{LLR_PRINTF_BUF_PUTC_02}
  *    1. Call `buf_flush()` with the argument `file`.
  *
  * @calls
@@ -244,14 +296,31 @@ static void buf_putc(char c, void *out)
  * | `out_s` | `s_sprintf_t *` | The destination |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_SPRINTF_PUTC_01}: `sprintf_putc()` shall add a character
+ *   of the formatted output to the destination buffer only while it has room
+ *   for it and the final NUL.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_SPRINTF_PUTC_01}: If `written` plus 1 is less than `size`
+ *   of the output that `out` points to, `sprintf_putc()` shall store `c` at
+ *   `ptr[written]` and increment `written`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_SPRINTF_PUTC_01}
+ * - \llrid{LLR_PRINTF_SPRINTF_PUTC_02}: If `written` plus 1 is not less than
+ *   `size`, `sprintf_putc()` shall leave the output as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_SPRINTF_PUTC_01}
  *
  * @design
- * 1. Set `out_s` to `out`.
+ * 1. Set `out_s` to `out`. \llrref{LLR_PRINTF_SPRINTF_PUTC_01},
+ *    \llrref{LLR_PRINTF_SPRINTF_PUTC_02}
  * 2. If `(out_s->written + 1U)` is less than `out_s->size`:
+ *    \llrref{LLR_PRINTF_SPRINTF_PUTC_01}, \llrref{LLR_PRINTF_SPRINTF_PUTC_02}
  *    1. Set `out_s->ptr[out_s->written]` to `c`.
- *    2. Increment `out_s->written`.
+ *       \llrref{LLR_PRINTF_SPRINTF_PUTC_01}
+ *    2. Increment `out_s->written`. \llrref{LLR_PRINTF_SPRINTF_PUTC_01}
  *
  * @calls
  * None.
@@ -285,11 +354,20 @@ static void sprintf_putc(char c, void *out)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_CLOSE_BUFFERED_OUTPUT_01}: `close_buffered_output()`
+ *   shall write out the rest of the buffered formatted output.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_CLOSE_BUFFERED_OUTPUT_01}: `close_buffered_output()`
+ *   shall call `buf_flush()` for the buffer.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_CLOSE_BUFFERED_OUTPUT_01}
  *
  * @design
  * 1. Call `buf_flush()` with the argument `file`.
+ *    \llrref{LLR_PRINTF_CLOSE_BUFFERED_OUTPUT_01}
  *
  * @calls
  * - `buf_flush()`
@@ -326,21 +404,42 @@ static void close_buffered_output(s_file_t *file)
  * | `preempt_enabled` | `pok_bool_t` | Whether preemption was enabled |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_PRINTF_01}: `printf()` shall write formatted text, with
+ *   the conversions of the shared formatter, to the main console as one
+ *   message, with preemption disabled while it is formatted and written.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_CONS_002}
+ *   - \srqref{SRQ_JET_LIB_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_PRINTF_01}: `printf()` shall call `ja_preempt_disable()`,
+ *   then `jet_format()` with `buf_putc`, the result of
+ *   `init_buffered_output()`, `format` and the list of the arguments that
+ *   follow it, then `close_buffered_output()` with that output, and return 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_PRINTF_01}
+ * - \llrid{LLR_PRINTF_PRINTF_02}: `printf()` shall call `ja_preempt_enable()`
+ *   at the end if and only if `ja_preempt_enabled()` returned true at entry.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_PRINTF_01}
  *
  * @design
  * 1. Call `ja_preempt_enabled()`, and store the result in `preempt_enabled`.
- * 2. Call `ja_preempt_disable()`.
+ *    \llrref{LLR_PRINTF_PRINTF_02}
+ * 2. Call `ja_preempt_disable()`. \llrref{LLR_PRINTF_PRINTF_01}
  * 3. Call `init_buffered_output()`, and store the result in `out_file`.
+ *    \llrref{LLR_PRINTF_PRINTF_01}
  * 4. Use the macro `va_start()` with the arguments `args` and `format`.
+ *    \llrref{LLR_PRINTF_PRINTF_01}
  * 5. Call `jet_format()` with the arguments `buf_putc`, `out_file`, `format`
- *    and the address of `args`.
+ *    and the address of `args`. \llrref{LLR_PRINTF_PRINTF_01}
  * 6. Use the macro `va_end()` with the argument `args`.
+ *    \llrref{LLR_PRINTF_PRINTF_01}
  * 7. Call `close_buffered_output()` with the argument `out_file`.
- * 8. If `preempt_enabled` is true:
+ *    \llrref{LLR_PRINTF_PRINTF_01}
+ * 8. If `preempt_enabled` is true: \llrref{LLR_PRINTF_PRINTF_02}
  *    1. Call `ja_preempt_enable()`.
- * 9. Return `0`.
+ * 9. Return `0`. \llrref{LLR_PRINTF_PRINTF_01}
  *
  * @calls
  * - `ja_preempt_enabled()`
@@ -398,20 +497,42 @@ int printf(const char *format, ...)
  * | `out` | `s_sprintf_t` | The buffer and what was written |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_SNPRINTF_01}: `snprintf()` shall format text into a
+ *   buffer of a given size, cut to the size and terminated by a NUL, and give
+ *   the number of characters written.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_SNPRINTF_01}: `snprintf()` shall call `jet_format()` once
+ *   with `sprintf_putc`, an output of `dst`, `size` and no characters written,
+ *   `format` and the list of the arguments that follow it, and return the
+ *   number of characters written.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_SNPRINTF_01}
+ * - \llrid{LLR_PRINTF_SNPRINTF_02}: If `size` is greater than 0, `snprintf()`
+ *   shall store `'\0'` at `dst` after the characters written.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_SNPRINTF_01}
+ * - \llrid{LLR_PRINTF_SNPRINTF_03}: If `size` is 0, `snprintf()` shall write
+ *   nothing at `dst`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_SNPRINTF_01}
  *
  * @design
- * 1. Set `out.ptr` to `dst`.
- * 2. Set `out.size` to `size`.
- * 3. Set `out.written` to `0U`.
+ * 1. Set `out.ptr` to `dst`. \llrref{LLR_PRINTF_SNPRINTF_01}
+ * 2. Set `out.size` to `size`. \llrref{LLR_PRINTF_SNPRINTF_01}
+ * 3. Set `out.written` to `0U`. \llrref{LLR_PRINTF_SNPRINTF_01}
  * 4. Use the macro `va_start()` with the arguments `args` and `format`.
+ *    \llrref{LLR_PRINTF_SNPRINTF_01}
  * 5. Call `jet_format()` with the arguments `sprintf_putc`, the address of
- *    `out`, `format` and the address of `args`.
+ *    `out`, `format` and the address of `args`. \llrref{LLR_PRINTF_SNPRINTF_01}
  * 6. Use the macro `va_end()` with the argument `args`.
- * 7. If `size` is greater than `0U`:
- *    1. Set `dst[out.written]` to `'\0'`.
- * 8. Return `(int) out.written`.
+ *    \llrref{LLR_PRINTF_SNPRINTF_01}
+ * 7. If `size` is greater than `0U`: \llrref{LLR_PRINTF_SNPRINTF_02},
+ *    \llrref{LLR_PRINTF_SNPRINTF_03}
+ *    1. Set `dst[out.written]` to `'\0'`. \llrref{LLR_PRINTF_SNPRINTF_02}
+ * 8. Return `(int) out.written`. \llrref{LLR_PRINTF_SNPRINTF_01}
  *
  * @calls
  * - `jet_format()`

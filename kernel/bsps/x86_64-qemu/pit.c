@@ -43,6 +43,12 @@
  * boards/x86_64-qemu/pit.c (the board support packages are in kernel/bsps);
  * the function headers follow outb() and inb(), which call x86_outb() and
  * x86_inb(); the value read from port B is compared with 0U.
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  * The modifications are distributed under the POK licence
  * (BSD-2-Clause, see POK-LICENSE).
  */
@@ -105,13 +111,22 @@ static uint64_t tsc_stopped_at;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PIT_JA_BSP_PROCESS_TIMER_01}: `ja_bsp_process_timer()` shall
+ *   acknowledge the interrupt of the timer and let the kernel count the tick.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_004}
+ *   - \srqref{SRQ_JET_INT_005}
  *
  * @llr
+ * - \llrid{LLR_PIT_JA_BSP_PROCESS_TIMER_01}: `ja_bsp_process_timer()` shall
+ *   call `pok_pic_eoi()` once with `PIT_IRQ` and then `jet_on_tick()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_JA_BSP_PROCESS_TIMER_01}
  *
  * @design
- * 1. Mark `frame` as not used.
- * 2. Call `pok_pic_eoi()` with the argument `PIT_IRQ`.
- * 3. Call `jet_on_tick()`.
+ * 1. Call `pok_pic_eoi()` with the argument `PIT_IRQ`.
+ *    \llrref{LLR_PIT_JA_BSP_PROCESS_TIMER_01}
+ * 2. Call `jet_on_tick()`. \llrref{LLR_PIT_JA_BSP_PROCESS_TIMER_01}
  *
  * @calls
  * - `pok_pic_eoi()`
@@ -143,12 +158,21 @@ void ja_bsp_process_timer(interrupt_frame* frame)
  * | `high` | `uint32_t` | The high 32 bits of the TSC (EDX) |
  *
  * @hlr
+ * - \hlrid{HLR_PIT_READ_TSC_01}: `read_tsc()` shall give the time stamp counter
+ *   of the processor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_001}
  *
  * @llr
+ * - \llrid{LLR_PIT_READ_TSC_01}: `read_tsc()` shall execute the instruction
+ *   `rdtsc` once and return the value it gives in EDX as the high 32 bits and
+ *   the value it gives in EAX as the low 32 bits.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_READ_TSC_01}
  *
  * @design
- * 1. Execute the assembly code `rdtsc`.
- * 2. Return `((uint64_t)high << 32) | low`.
+ * 1. Execute the assembly code `rdtsc`. \llrref{LLR_PIT_READ_TSC_01}
+ * 2. Return `((uint64_t)high << 32) | low`. \llrref{LLR_PIT_READ_TSC_01}
  *
  * @calls
  * None.
@@ -187,25 +211,51 @@ static uint64_t read_tsc(void)
  * | `tsc_end` | `uint64_t` | The TSC when channel 2 sets its output |
  *
  * @hlr
+ * - \hlrid{HLR_PIT_CALIBRATE_TSC_01}: `calibrate_tsc()` shall measure the
+ *   frequency of the time stamp counter against channel 2 of the 8254 timer,
+ *   over 50 ms.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BSP_002}
+ *   - \srqref{SRQ_JET_TIME_001}
  *
  * @llr
+ * - \llrid{LLR_PIT_CALIBRATE_TSC_01}: `calibrate_tsc()` shall read `PORT_B`
+ *   with `inb()`, write the byte read to `PORT_B` with `PORT_B_SPEAKER` cleared
+ *   and `PORT_B_GATE2` set, write `0xb0` to `PIT_BASE + 3` and the low and then
+ *   the high byte of `CALIBRATION_PIT_TICKS` to `PIT_BASE + 2` (`outb()`), call
+ *   `read_tsc()`, read `PORT_B` until `PORT_B_OUT2` is set in the byte read,
+ *   call `read_tsc()` again, and write the first byte read back to `PORT_B`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_CALIBRATE_TSC_01}
+ * - \llrid{LLR_PIT_CALIBRATE_TSC_02}: `calibrate_tsc()` shall return the second
+ *   result of `read_tsc()` minus the first, times `OSCILLATOR_RATE`, divided by
+ *   `CALIBRATION_PIT_TICKS`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_CALIBRATE_TSC_01}
  *
  * @design
- * 1. Set `port_b` to `inb(PORT_B)`.
+ * 1. Set `port_b` to `inb(PORT_B)`. \llrref{LLR_PIT_CALIBRATE_TSC_01}
  * 2. Use the macro
  *    `outb(PORT_B, (port_b & ~PORT_B_SPEAKER) | PORT_B_GATE2)`.
+ *    \llrref{LLR_PIT_CALIBRATE_TSC_01}
  * 3. Use the macro `outb (PIT_BASE + 3, 0xb0)`.
+ *    \llrref{LLR_PIT_CALIBRATE_TSC_01}
  * 4. Use the macro
  *    `outb (PIT_BASE + 2, CALIBRATION_PIT_TICKS & 0xffU)`.
+ *    \llrref{LLR_PIT_CALIBRATE_TSC_01}
  * 5. Use the macro
  *    `outb (PIT_BASE + 2, (CALIBRATION_PIT_TICKS >> 8) & 0xffU)`.
+ *    \llrref{LLR_PIT_CALIBRATE_TSC_01}
  * 6. Call `read_tsc()`, and store the result in `tsc_begin`.
+ *    \llrref{LLR_PIT_CALIBRATE_TSC_01}, \llrref{LLR_PIT_CALIBRATE_TSC_02}
  * 7. While `(inb(PORT_B) & PORT_B_OUT2)` is equal to `0U`:
- *    1. Do nothing.
+ *    \llrref{LLR_PIT_CALIBRATE_TSC_01}
  * 8. Call `read_tsc()`, and store the result in `tsc_end`.
- * 9. Use the macro `outb(PORT_B, port_b)`.
+ *    \llrref{LLR_PIT_CALIBRATE_TSC_01}, \llrref{LLR_PIT_CALIBRATE_TSC_02}
+ * 9. Use the macro `outb(PORT_B, port_b)`. \llrref{LLR_PIT_CALIBRATE_TSC_01}
  * 10. Return
  *     `((tsc_end - tsc_begin) * OSCILLATOR_RATE) / CALIBRATION_PIT_TICKS`.
+ *     \llrref{LLR_PIT_CALIBRATE_TSC_02}
  *
  * @calls
  * - `x86_inb()`
@@ -254,19 +304,40 @@ static uint64_t calibrate_tsc(void)
  * | `pit_freq` | `uint16_t` | The timer interrupt frequency |
  *
  * @hlr
+ * - \hlrid{HLR_PIT_POK_X86_QEMU_TIMER_INIT_01}: `pok_x86_qemu_timer_init()`
+ *   shall start the system time at boot and the periodic timer at the frequency
+ *   of the build.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_004}
+ *   - \srqref{SRQ_JET_BSP_002}
  *
  * @llr
+ * - \llrid{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}: `pok_x86_qemu_timer_init()`
+ *   shall set `tsc_freq` to the result of `calibrate_tsc()` and then
+ *   `tsc_start` to the result of `read_tsc()`, write with `outb()` `0x34` to
+ *   `PIT_BASE + 3` and the low and then the high byte of `OSCILLATOR_RATE /
+ *   POK_TIMER_FREQUENCY` to `PIT_BASE`, and call `pok_pic_unmask()` once with
+ *   `PIT_IRQ`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  *
  * @design
  * 1. Call `calibrate_tsc()`, and store the result in `tsc_freq`.
+ *    \llrref{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  * 2. Call `read_tsc()`, and store the result in `tsc_start`.
+ *    \llrref{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  * 3. Set `pit_freq` to `POK_TIMER_FREQUENCY`.
+ *    \llrref{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  * 4. Use the macro `outb (PIT_BASE + 3, 0x34)`.
+ *    \llrref{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  * 5. Use the macro
  *    `outb (PIT_BASE, (OSCILLATOR_RATE / pit_freq) & 0xffU)`.
+ *    \llrref{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  * 6. Use the macro
  *    `outb (PIT_BASE, ((OSCILLATOR_RATE / pit_freq) >> 8) & 0xffU)`.
+ *    \llrref{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  * 7. Call `pok_pic_unmask()` with the argument `PIT_IRQ`.
+ *    \llrref{LLR_PIT_POK_X86_QEMU_TIMER_INIT_01}
  *
  * @calls
  * - `calibrate_tsc()`
@@ -316,20 +387,50 @@ void pok_x86_qemu_timer_init(void)
  * | `ns` | `uint64_t` | The time since boot, in nanoseconds |
  *
  * @hlr
+ * - \hlrid{HLR_PIT_JA_SYSTEM_TIME_01}: `ja_system_time()` shall give the system
+ *   time in nanoseconds since the start, from the time stamp counter, 0 before
+ *   the timer is started.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_001}
+ * - \hlrid{HLR_PIT_JA_SYSTEM_TIME_02}: `ja_system_time()` shall keep the system
+ *   time where it stopped while the debugger holds the module.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_013}
  *
  * @llr
+ * - \llrid{LLR_PIT_JA_SYSTEM_TIME_01}: If `tsc_freq` is 0, `ja_system_time()`
+ *   shall return 0 without calling `read_tsc()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_JA_SYSTEM_TIME_01}
+ * - \llrid{LLR_PIT_JA_SYSTEM_TIME_02}: If `tsc_freq` is not 0 and
+ *   `time_stopped` is false, `ja_system_time()` shall return the nanoseconds of
+ *   the result of `read_tsc()` minus `tsc_start`: these ticks divided by
+ *   `tsc_freq`, times 1000000000, plus the remainder of that division times
+ *   1000000000 divided by `tsc_freq`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_JA_SYSTEM_TIME_01}
+ * - \llrid{LLR_PIT_JA_SYSTEM_TIME_03}: If `tsc_freq` is not 0 and
+ *   `time_stopped` is true, `ja_system_time()` shall return the nanoseconds,
+ *   computed in the same way, of `tsc_stopped_at` minus `tsc_start`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_JA_SYSTEM_TIME_02}
  *
  * @design
- * 1. If `tsc_freq` is equal to `0U`:
+ * 1. If `tsc_freq` is equal to `0U`: \llrref{LLR_PIT_JA_SYSTEM_TIME_01}
  *    1. Return `0`.
  * 2. Call `read_tsc()`, and store the result in `now`.
- * 3. If `time_stopped` is true:
- *    1. Set `now` to `tsc_stopped_at`.
- * 4. Set `ticks` to `now - tsc_start`.
+ *    \llrref{LLR_PIT_JA_SYSTEM_TIME_02}, \llrref{LLR_PIT_JA_SYSTEM_TIME_03}
+ * 3. If `time_stopped` is true: \llrref{LLR_PIT_JA_SYSTEM_TIME_02},
+ *    \llrref{LLR_PIT_JA_SYSTEM_TIME_03}
+ *    1. Set `now` to `tsc_stopped_at`. \llrref{LLR_PIT_JA_SYSTEM_TIME_03}
+ * 4. Set `ticks` to `now - tsc_start`. \llrref{LLR_PIT_JA_SYSTEM_TIME_02},
+ *    \llrref{LLR_PIT_JA_SYSTEM_TIME_03}
  * 5. Set `ns` to
  *    `((ticks / tsc_freq) * 1000000000ULL) + (((ticks % tsc_freq) *`
- *    `1000000000ULL) / tsc_freq)`.
- * 6. Return `(pok_time_t) ns`.
+ *    `1000000000ULL) / tsc_freq)`. \llrref{LLR_PIT_JA_SYSTEM_TIME_02},
+ *    \llrref{LLR_PIT_JA_SYSTEM_TIME_03}
+ * 6. Return `(pok_time_t) ns`. \llrref{LLR_PIT_JA_SYSTEM_TIME_02},
+ *    \llrref{LLR_PIT_JA_SYSTEM_TIME_03}
  *
  * @calls
  * - `read_tsc()`
@@ -373,11 +474,23 @@ pok_time_t ja_system_time(void)
  * | `base_calendar_time` | `static time_t` | The calendar time at boot |
  *
  * @hlr
+ * - \hlrid{HLR_PIT_JA_CALENDAR_TIME_01}: `ja_calendar_time()` shall give the
+ *   calendar time: a fixed date (28 November 2016) plus the system time, in
+ *   seconds.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_TIME_003}
+ *   - \srqref{SRQ_JET_TIME_006}
  *
  * @llr
+ * - \llrid{LLR_PIT_JA_CALENDAR_TIME_01}: `ja_calendar_time()` shall return
+ *   `base_calendar_time` (1480330081) plus the result of `ja_system_time()`
+ *   divided by 1000000000.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_JA_CALENDAR_TIME_01}
  *
  * @design
  * 1. Return `base_calendar_time + (time_t)(ja_system_time() / 1000000000)`.
+ *    \llrref{LLR_PIT_JA_CALENDAR_TIME_01}
  *
  * @calls
  * - `ja_system_time()`
@@ -407,11 +520,22 @@ time_t ja_calendar_time(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PIT_JA_SYSTEM_TIME_STOP_01}: `ja_system_time_stop()` shall stop
+ *   the system time while the debugger holds the module.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_013}
  *
  * @llr
+ * - \llrid{LLR_PIT_JA_SYSTEM_TIME_STOP_01}: If and only if `tsc_freq` is not 0
+ *   and `time_stopped` is false, `ja_system_time_stop()` shall set
+ *   `tsc_stopped_at` to the result of `read_tsc()` and `time_stopped` to
+ *   `TRUE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_JA_SYSTEM_TIME_STOP_01}
  *
  * @design
  * 1. If `tsc_freq` is not equal to `0U` and `time_stopped` is false:
+ *    \llrref{LLR_PIT_JA_SYSTEM_TIME_STOP_01}
  *    1. Call `read_tsc()`, and store the result in `tsc_stopped_at`.
  *    2. Set `time_stopped` to `TRUE`.
  *
@@ -445,11 +569,21 @@ void ja_system_time_stop(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PIT_JA_SYSTEM_TIME_RESUME_01}: `ja_system_time_resume()` shall
+ *   resume the system time when the debugger lets the module go on, without
+ *   counting the time stopped.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_013}
  *
  * @llr
+ * - \llrid{LLR_PIT_JA_SYSTEM_TIME_RESUME_01}: If and only if `time_stopped` is
+ *   true, `ja_system_time_resume()` shall add the result of `read_tsc()` minus
+ *   `tsc_stopped_at` to `tsc_start` and set `time_stopped` to `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PIT_JA_SYSTEM_TIME_RESUME_01}
  *
  * @design
- * 1. If `time_stopped` is true:
+ * 1. If `time_stopped` is true: \llrref{LLR_PIT_JA_SYSTEM_TIME_RESUME_01}
  *    1. Add `read_tsc() - tsc_stopped_at` to `tsc_start`.
  *    2. Set `time_stopped` to `FALSE`.
  *

@@ -43,6 +43,16 @@
  * kernel/arch/x86_64/arch.c (the CPU support packages are in kernel/csps); the
  * function headers follow outb() and inb(), which call x86_outb() and
  * x86_inb().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -76,14 +86,35 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_ARCH_X86_64_POK_ARCH_INIT_01}: `pok_arch_init()` shall
+ *   initialize the processor and the board at boot: the GDT and task state, the
+ *   interrupt table, the board, and the memory spaces with paging.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_002}
+ *   - \srqref{SRQ_JET_MEM_002}
+ * - \hlrid{HLR_ARCH_X86_64_POK_ARCH_INIT_02}: `pok_arch_init()` shall be the
+ *   first C function of the kernel, which the entry code calls in 64-bit mode
+ *   after a Multiboot boot loader started the kernel.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_001}
  *
  * @llr
+ * - \llrid{LLR_ARCH_X86_64_POK_ARCH_INIT_01}: `pok_arch_init()` shall call, in
+ *   this order, `ja_gdt_init()`, `ja_idt_init()`, `ja_bsp_init()` and
+ *   `ja_space_init()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_POK_ARCH_INIT_01}
+ * - \llrid{LLR_ARCH_X86_64_POK_ARCH_INIT_02}: `pok_arch_init()` shall be called
+ *   once, by `entry.S`, before any other C function of the kernel.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_POK_ARCH_INIT_02}
  *
  * @design
- * 1. Call `ja_gdt_init()`.
- * 2. Call `ja_idt_init()`.
- * 3. Call `ja_bsp_init()`.
- * 4. Call `ja_space_init()`.
+ * 1. Call `ja_gdt_init()`. \llrref{LLR_ARCH_X86_64_POK_ARCH_INIT_01},
+ *    \llrref{LLR_ARCH_X86_64_POK_ARCH_INIT_02}
+ * 2. Call `ja_idt_init()`. \llrref{LLR_ARCH_X86_64_POK_ARCH_INIT_01}
+ * 3. Call `ja_bsp_init()`. \llrref{LLR_ARCH_X86_64_POK_ARCH_INIT_01}
+ * 4. Call `ja_space_init()`. \llrref{LLR_ARCH_X86_64_POK_ARCH_INIT_01}
  *
  * @calls
  * - `ja_gdt_init()`
@@ -113,11 +144,20 @@ void pok_arch_init (void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_ARCH_X86_64_JA_PREEMPT_DISABLE_01}: `ja_preempt_disable()` shall
+ *   disable the interrupts of the processor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_002}
  *
  * @llr
+ * - \llrid{LLR_ARCH_X86_64_JA_PREEMPT_DISABLE_01}: `ja_preempt_disable()` shall
+ *   execute the instruction `cli` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_JA_PREEMPT_DISABLE_01}
  *
  * @design
  * 1. Execute the assembly code `cli`.
+ *    \llrref{LLR_ARCH_X86_64_JA_PREEMPT_DISABLE_01}
  *
  * @calls
  * None.
@@ -145,11 +185,20 @@ void ja_preempt_disable(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_ARCH_X86_64_JA_PREEMPT_ENABLE_01}: `ja_preempt_enable()` shall
+ *   enable the interrupts of the processor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_002}
  *
  * @llr
+ * - \llrid{LLR_ARCH_X86_64_JA_PREEMPT_ENABLE_01}: `ja_preempt_enable()` shall
+ *   execute the instruction `sti` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_JA_PREEMPT_ENABLE_01}
  *
  * @design
  * 1. Execute the assembly code `sti`.
+ *    \llrref{LLR_ARCH_X86_64_JA_PREEMPT_ENABLE_01}
  *
  * @calls
  * None.
@@ -176,12 +225,20 @@ void ja_preempt_enable(void)
  * | `ret` | `uintptr_t` | RFLAGS |
  *
  * @hlr
+ * - \hlrid{HLR_ARCH_GET_FLAGS_01}: `get_flags()` shall give the flags register
+ *   of the processor.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_007}
  *
  * @llr
+ * - \llrid{LLR_ARCH_GET_FLAGS_01}: `get_flags()` shall return the value of
+ *   RFLAGS, taken with the instructions `pushfq` and `pop`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_GET_FLAGS_01}
  *
  * @design
- * 1. Execute the assembly code `pushfq;`.
- * 2. Return `ret`.
+ * 1. Execute the assembly code `pushfq;`. \llrref{LLR_ARCH_GET_FLAGS_01}
+ * 2. Return `ret`. \llrref{LLR_ARCH_GET_FLAGS_01}
  *
  * @calls
  * None.
@@ -218,12 +275,28 @@ static uintptr_t get_flags(void)
  * | `flags` | `uintptr_t` | RFLAGS |
  *
  * @hlr
+ * - \hlrid{HLR_ARCH_X86_64_JA_PREEMPT_ENABLED_01}: `ja_preempt_enabled()` shall
+ *   tell whether the interrupts of the processor are enabled.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_INT_007}
  *
  * @llr
+ * - \llrid{LLR_ARCH_X86_64_JA_PREEMPT_ENABLED_01}: If bit 9 (IF) is set in the
+ *   result of `get_flags()`, `ja_preempt_enabled()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_JA_PREEMPT_ENABLED_01}
+ * - \llrid{LLR_ARCH_X86_64_JA_PREEMPT_ENABLED_02}: If bit 9 (IF) is not set in
+ *   the result of `get_flags()`, `ja_preempt_enabled()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_JA_PREEMPT_ENABLED_01}
  *
  * @design
  * 1. Call `get_flags()`, and store the result in `flags`.
+ *    \llrref{LLR_ARCH_X86_64_JA_PREEMPT_ENABLED_01},
+ *    \llrref{LLR_ARCH_X86_64_JA_PREEMPT_ENABLED_02}
  * 2. Return `((flags & (1UL << 9)) != 0U)`.
+ *    \llrref{LLR_ARCH_X86_64_JA_PREEMPT_ENABLED_01},
+ *    \llrref{LLR_ARCH_X86_64_JA_PREEMPT_ENABLED_02}
  *
  * @calls
  * - `get_flags()`
@@ -247,11 +320,20 @@ pok_bool_t ja_preempt_enabled(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_ARCH_X86_64_JA_INF_LOOP_01}: `ja_inf_loop()` shall halt the
+ *   processor for ever.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_DBG_011}
+ *   - \srqref{SRQ_JET_PART_007}
  *
  * @llr
+ * - \llrid{LLR_ARCH_X86_64_JA_INF_LOOP_01}: `ja_inf_loop()` shall execute the
+ *   instruction `hlt` again and again, without returning.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_JA_INF_LOOP_01}
  *
  * @design
- * 1. While `true` is true:
+ * 1. While `true` is true: \llrref{LLR_ARCH_X86_64_JA_INF_LOOP_01}
  *    1. Execute the assembly code `hlt`.
  *
  * @calls
@@ -286,15 +368,26 @@ _Noreturn void ja_inf_loop(void)
  * | `good` | `uint8_t` | The keyboard controller's status |
  *
  * @hlr
+ * - \hlrid{HLR_ARCH_X86_64_JA_CPU_RESET_01}: `ja_cpu_reset()` shall reset the
+ *   module through the keyboard controller.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BSP_001}
+ *   - \srqref{SRQ_JET_DBG_008}
  *
  * @llr
+ * - \llrid{LLR_ARCH_X86_64_JA_CPU_RESET_01}: `ja_cpu_reset()` shall read the
+ *   port `0x64` with `inb()` until bit 1 (`0x02`) of the byte read is 0, then
+ *   write `0xFE` to the port `0x64` with `outb()` and call `ja_inf_loop()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_ARCH_X86_64_JA_CPU_RESET_01}
  *
  * @design
- * 1. Set `good` to `0x02`.
+ * 1. Set `good` to `0x02`. \llrref{LLR_ARCH_X86_64_JA_CPU_RESET_01}
  * 2. While `(good & 0x02U)` is not equal to `0U`:
+ *    \llrref{LLR_ARCH_X86_64_JA_CPU_RESET_01}
  *    1. Set `good` to `inb(0x64)`.
- * 3. Use the macro `outb(0x64, 0xFE)`.
- * 4. Call `ja_inf_loop()`.
+ * 3. Use the macro `outb(0x64, 0xFE)`. \llrref{LLR_ARCH_X86_64_JA_CPU_RESET_01}
+ * 4. Call `ja_inf_loop()`. \llrref{LLR_ARCH_X86_64_JA_CPU_RESET_01}
  *
  * @calls
  * - `x86_inb()`

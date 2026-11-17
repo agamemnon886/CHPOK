@@ -37,7 +37,7 @@
     The requirements are those that the kernel has of a board.</para>
 
   <section xml:id="SRQ_JET_BSP_001" role="requirement">
-    <title>SRQ_JET_BSP_001</title>
+    <title><phrase role="srq">SRQ_JET_BSP_001</phrase></title>
     <para>A board shall provide to the kernel: the main console and
       optionally the debug console, the interrupt controller with the
       interrupt of a periodic timer, the system time, the calendar time,
@@ -52,12 +52,20 @@
       <title>Verification</title>
       <para>Review.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ARCH_ARM64_JA_CPU_RESET_01
+        HLR_CONS_IOSTREAM_GET_DEFAULT_01
+        HLR_CONS_JET_CONSOLE_INIT_ALL_01
+        HLR_ARCH_X86_64_JA_CPU_RESET_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BSP_002" role="requirement">
-    <title>SRQ_JET_BSP_002</title>
+    <title><phrase role="srq">SRQ_JET_BSP_002</phrase></title>
     <para>The board <literal>x86_64-qemu</literal> shall provide the
-      serial lines as consoles, the two 8259 interrupt controllers with
+      serial lines as consoles (the main console also on the VGA text
+      screen), the two 8259 interrupt controllers with
       their interrupts delivered as vectors 32 to 47, the 8254 timer as
       the periodic timer at the configured frequency, and the system time
       from the time stamp counter of the processor, whose frequency is
@@ -70,10 +78,21 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_X86_64_JA_BSP_INIT_01
+        HLR_CONS_POK_CONS_CLEAR_01
+        HLR_CONS_POK_WRITE_VGA_01
+        HLR_CONS_POK_WRITE_VGA_02
+        HLR_CONS_IOSTREAM_INIT_COMMON_01
+        HLR_PIC_POK_PIC_INIT_01
+        HLR_PIT_CALIBRATE_TSC_01
+        HLR_PIT_POK_X86_QEMU_TIMER_INIT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BSP_003" role="requirement">
-    <title>SRQ_JET_BSP_003</title>
+    <title><phrase role="srq">SRQ_JET_BSP_003</phrase></title>
     <para>The board <literal>arm64-qemu</literal> shall provide the PL011
       serial lines as consoles (the second one only if QEMU creates it,
       which the kernel finds in the device tree), the GICv2 interrupt
@@ -89,13 +108,32 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_READ_CNTVCT_01
+        HLR_BSP_READ_CNTFRQ_01
+        HLR_BSP_WAIT_FOR_INTERRUPT_01
+        HLR_BSP_PSCI_CALL_SMC_01
+        HLR_BSP_PSCI_CALL_HVC_01
+        HLR_BSP_GIC_INIT_01
+        HLR_BSP_TIMER_INIT_01
+        HLR_BSP_ARM64_JA_BSP_INIT_01
+        HLR_BSP_JA_BSP_RESET_01
+        HLR_CONS_UART_PUTC_01
+        HLR_CONS_UART_READ_01
+        HLR_CONS_FDT_BE32_01
+        HLR_CONS_FDT_ALIGN_01
+        HLR_CONS_FDT_BLOCK_HAS_NODE_01
+        HLR_CONS_FDT_HAS_NODE_01
+        HLR_CONS_UART1_PROBE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BSP_004" role="requirement">
-    <title>SRQ_JET_BSP_004</title>
-    <para>The boards shall place the memory of the partitions 16 MiB into
-      the RAM, below which are the kernel image and the heap of the
-      kernel, and shall assume 1 GiB of RAM.</para>
+    <title><phrase role="srq">SRQ_JET_BSP_004</phrase></title>
+    <para>The boards shall place the memory of the partitions 16 MiB
+    into the RAM, below which are the kernel image and the heap of the
+    kernel.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Both boards have the same layout, and the same memory is
@@ -105,10 +143,34 @@
       <title>Verification</title>
       <para>Analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_SPACE_INIT_03
+        HLR_SPACE_X86_64_JA_SPACE_INIT_03</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_BSP_006" role="requirement">
+    <title><phrase role="srq">SRQ_JET_BSP_006</phrase></title>
+    <para>The boards shall assume 1 GiB of RAM.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Both boards have the same layout, and the same memory is
+        enough for the hypervisor.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_SPACE_INIT_03
+        HLR_SPACE_X86_64_JA_SPACE_INIT_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_BSP_005" role="requirement">
-    <title>SRQ_JET_BSP_005</title>
+    <title><phrase role="srq">SRQ_JET_BSP_005</phrase></title>
     <para>The boards shall give the same behaviour to the kernel, except
       where the devices differ: the time sources, the interrupt
       controllers, the serial lines and the reset.</para>
@@ -119,6 +181,11 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_BSP_ARM64_JA_BSP_INIT_01
+        HLR_BSP_X86_64_JA_BSP_INIT_01</para>
     </formalpara>
   </section>
 </chapter>

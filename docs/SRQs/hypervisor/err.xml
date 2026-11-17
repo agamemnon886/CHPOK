@@ -35,7 +35,7 @@
     hypervisor itself goes wrong.</para>
 
   <section xml:id="SRQ_HV_ERR_001" role="requirement">
-    <title>SRQ_HV_ERR_001</title>
+    <title><phrase role="srq">SRQ_HV_ERR_001</phrase></title>
     <para>The hypervisor shall stop a VM, and only that VM, and report
       the reason with the registers of its vCPU, when its guest accesses
       memory outside its RAM, and also: on x86_64 when it takes a triple
@@ -52,10 +52,24 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MMIO_MMIO_ABORT_02
+        HLR_VCPU_HV_REPORT_STATE_01
+        HLR_VCPU_REPORT_FETCH_01
+        HLR_VCPU_HANDLE_SYNC_03
+        HLR_VCPU_HANDLE_EXIT_02
+        HLR_VCPU_HV_ARCH_VCPU_RUN_03
+        HLR_SVM_HANDLE_HLT_02
+        HLR_SVM_HANDLE_IO_02
+        HLR_SVM_REPORT_STATE_01
+        HLR_SVM_HANDLE_EXIT_02
+        HLR_SVM_HV_ARCH_VCPU_RUN_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_ERR_002" role="requirement">
-    <title>SRQ_HV_ERR_002</title>
+    <title><phrase role="srq">SRQ_HV_ERR_002</phrase></title>
     <para>The hypervisor shall let the other VMs go on running when a VM
       stops.</para>
     <formalpara>
@@ -66,10 +80,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VCPU_HV_ARCH_VCPU_RUN_03
+        HLR_SVM_HV_ARCH_VCPU_RUN_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_ERR_003" role="requirement">
-    <title>SRQ_HV_ERR_003</title>
+    <title><phrase role="srq">SRQ_HV_ERR_003</phrase></title>
     <para>The hypervisor shall report a fatal error of its own on its
       console, with the number of its CPU, and halt that CPU.</para>
     <formalpara>
@@ -80,10 +99,23 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOAD_VM_LOAD_02
+        HLR_MAIN_ARM64_HV_ARCH_CPU_ID_01
+        HLR_MAIN_ARM64_HV_HALT_FOREVER_01
+        HLR_MAIN_HV_EL2_EXCEPTION_01
+        HLR_CONSOLE_HV_FATAL_01
+        HLR_IDT_READ_CR2_01
+        HLR_IDT_HV_INTERRUPT_02
+        HLR_MAIN_X86_64_HV_HALT_FOREVER_01
+        HLR_MAIN_X86_64_HV_ARCH_CPU_ID_01
+        HLR_MULTIBOOT_VM_LOAD_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_ERR_004" role="requirement">
-    <title>SRQ_HV_ERR_004</title>
+    <title><phrase role="srq">SRQ_HV_ERR_004</phrase></title>
     <para>The hypervisor shall stop, with a message that gives the option
       of QEMU that creates it, if a serial port that the configuration
       needs does not exist on the computer (arm64).</para>
@@ -95,6 +127,13 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_LOAD_PRINT_PORT_HINT_01
+        HLR_LOAD_SETUP_UART_02
+        HLR_MAIN_FIND_SERIAL_PORTS_02
+        HLR_UART_HV_UART_PRESENT_01</para>
     </formalpara>
   </section>
 </chapter>

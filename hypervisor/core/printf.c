@@ -34,6 +34,10 @@
  * hypervisor/src/printf.c (the common code and its headers are in
  * hypervisor/core); the formatter is jet_format() of common/format.c, shared
  * with the kernel; buffer_put() is its output function.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -74,13 +78,21 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_FLUSH_01}: `flush()` shall write the buffered characters
+ *   of a message to the console and empty the buffer.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_002}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_FLUSH_01}: `flush()` shall call `hv_console_write()` once
+ *   with `buffer` and `length` of `out`, and then set `length` of `out` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_FLUSH_01}
  *
  * @design
  * 1. Call `hv_console_write()` with the arguments `out->buffer` and
- *    `out->length`.
- * 2. Set `out->length` to `0U`.
+ *    `out->length`. \llrref{LLR_PRINTF_FLUSH_01}
+ * 2. Set `out->length` to `0U`. \llrref{LLR_PRINTF_FLUSH_01}
  *
  * @calls
  * - `hv_console_write()`
@@ -114,15 +126,33 @@ static void flush(output_t *out)
  * | `out` | `output_t *` | The output buffer |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_BUFFER_PUT_01}: `buffer_put()` shall add a character of
+ *   the formatted output to the buffer, writing the buffer out first when it is
+ *   full.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_BUFFER_PUT_01}: If and only if `length` of the output
+ *   that `data` points to is `OUT_BUFFER_SIZE`, `buffer_put()` shall call
+ *   `flush()` once with the output, before it stores `c`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_BUFFER_PUT_01}
+ * - \llrid{LLR_PRINTF_BUFFER_PUT_02}: `buffer_put()` shall store `c` in
+ *   `buffer` of the output at the index `length` (the value after `flush()`, if
+ *   it is called), and then increment `length`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_BUFFER_PUT_01}
  *
  * @design
- * 1. Set `out` to `data`.
+ * 1. Set `out` to `data`. \llrref{LLR_PRINTF_BUFFER_PUT_01},
+ *    \llrref{LLR_PRINTF_BUFFER_PUT_02}
  * 2. If `out->length` is equal to `OUT_BUFFER_SIZE`:
+ *    \llrref{LLR_PRINTF_BUFFER_PUT_01}
  *    1. Call `flush()` with the argument `out`.
- * 3. Set `out->buffer[out->length]` to `c`.
- * 4. Increment `out->length`.
+ * 3. Set `out->buffer[out->length]` to `c`. \llrref{LLR_PRINTF_BUFFER_PUT_02}
+ * 4. Increment `out->length`. \llrref{LLR_PRINTF_BUFFER_PUT_02}
  *
  * @calls
  * - `flush()`
@@ -161,18 +191,34 @@ static void buffer_put(char c, void *data)
  * | `args` | `va_list` | The variable arguments |
  *
  * @hlr
+ * - \hlrid{HLR_PRINTF_HV_PRINTF_01}: `hv_printf()` shall write formatted text
+ *   to the console of the hypervisor as one message, with the conversions of
+ *   the shared formatter.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_PRINTF_HV_PRINTF_01}: `hv_printf()` shall set `length` of a
+ *   local output to 0 and then call, in this order, `hv_console_lock()`,
+ *   `jet_format()` with `buffer_put`, the address of the output, `format` and
+ *   the address of the list of the arguments that follow `format`, `flush()`
+ *   with the address of the output, and `hv_console_unlock()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PRINTF_HV_PRINTF_01}
  *
  * @design
- * 1. Set `out.length` to `0U`.
- * 2. Call `hv_console_lock()`.
+ * 1. Set `out.length` to `0U`. \llrref{LLR_PRINTF_HV_PRINTF_01}
+ * 2. Call `hv_console_lock()`. \llrref{LLR_PRINTF_HV_PRINTF_01}
  * 3. Use the macro `va_start()` with the arguments `args` and `format`.
+ *    \llrref{LLR_PRINTF_HV_PRINTF_01}
  * 4. Call `jet_format()` with the arguments `buffer_put`, the address of
  *    `out`, `format` and the address of `args`.
+ *    \llrref{LLR_PRINTF_HV_PRINTF_01}
  * 5. Use the macro `va_end()` with the argument `args`.
- * 6. Call `flush()` with the address of `out`.
- * 7. Call `hv_console_unlock()`.
+ *    \llrref{LLR_PRINTF_HV_PRINTF_01}
+ * 6. Call `flush()` with the address of `out`. \llrref{LLR_PRINTF_HV_PRINTF_01}
+ * 7. Call `hv_console_unlock()`. \llrref{LLR_PRINTF_HV_PRINTF_01}
  *
  * @calls
  * - `hv_console_lock()`

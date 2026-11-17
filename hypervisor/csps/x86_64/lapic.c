@@ -33,6 +33,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/x86_64/lapic.c (the code of the processor architecture is in
  * hypervisor/csps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -71,12 +79,21 @@ static uintptr_t lapic_base = 0xFEE00000UL;
  * | `p` | `const volatile uint32_t *` | The register |
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_READ_01}: `lapic_read()` shall give a register of
+ *   the local APIC.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_READ_01}: `lapic_read()` shall return the 32-bit
+ *   value at the address `lapic_base` plus `reg`, read once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_READ_01}
  *
  * @design
  * 1. Set `p` to `(const volatile uint32_t *) (lapic_base + reg)`.
- * 2. Return the value at `p`.
+ *    \llrref{LLR_LAPIC_LAPIC_READ_01}
+ * 2. Return the value at `p`. \llrref{LLR_LAPIC_LAPIC_READ_01}
  *
  * @calls
  * None.
@@ -117,12 +134,21 @@ static uint32_t lapic_read(uint32_t reg)
  * | `p` | `volatile uint32_t *` | The register |
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_WRITE_01}: `lapic_write()` shall write a register of
+ *   the local APIC.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_WRITE_01}: `lapic_write()` shall write the 32-bit
+ *   value `value` once at the address `lapic_base` plus `reg`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_WRITE_01}
  *
  * @design
  * 1. Set `p` to `(volatile uint32_t *) (lapic_base + reg)`.
- * 2. Set `*p` to `value`.
+ *    \llrref{LLR_LAPIC_LAPIC_WRITE_01}
+ * 2. Set `*p` to `value`. \llrref{LLR_LAPIC_LAPIC_WRITE_01}
  *
  * @calls
  * None.
@@ -150,12 +176,22 @@ static void lapic_write(uint32_t reg, uint32_t value)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_INIT_BASE_01}: `lapic_init_base()` shall find the
+ *   registers of the local APIC at boot.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_INIT_BASE_01}: `lapic_init_base()` shall set
+ *   `lapic_base` to the bits `APIC_BASE_ADDR_MASK` of the result of
+ *   `x86_rdmsr()` for `MSR_APIC_BASE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_INIT_BASE_01}
  *
  * @design
  * 1. Set `lapic_base` to
  *    `(uintptr_t) (x86_rdmsr(MSR_APIC_BASE) & APIC_BASE_ADDR_MASK)`.
+ *    \llrref{LLR_LAPIC_LAPIC_INIT_BASE_01}
  *
  * @calls
  * - `x86_rdmsr()`
@@ -181,21 +217,36 @@ void lapic_init_base(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_INIT_CPU_01}: `lapic_init_cpu()` shall set up the
+ *   local APIC of the calling CPU: enabled with the spurious vector, the legacy
+ *   controller's line masked, the NMI line as NMI, errors masked, and the timer
+ *   stopped and divided by 16.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_INIT_CPU_01}: `lapic_init_cpu()` shall write with
+ *   `lapic_write()`, in this order, `LAPIC_SVR_ENABLE | HV_VECTOR_SPURIOUS` to
+ *   `LAPIC_SVR`, `LAPIC_LVT_MASKED` to `LAPIC_LVT_LINT0`, `LAPIC_LVT_NMI` to
+ *   `LAPIC_LVT_LINT1`, `LAPIC_LVT_MASKED` to `LAPIC_LVT_ERROR` and
+ *   `LAPIC_TIMER_DIVIDE_16` to `LAPIC_TIMER_DIVIDE`, and then call
+ *   `lapic_timer_stop()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_INIT_CPU_01}
  *
  * @design
  * 1. Call `lapic_write()` with the arguments `LAPIC_SVR` and
  *    `LAPIC_SVR_ENABLE | HV_VECTOR_SPURIOUS`.
+ *    \llrref{LLR_LAPIC_LAPIC_INIT_CPU_01}
  * 2. Call `lapic_write()` with the arguments `LAPIC_LVT_LINT0` and
- *    `LAPIC_LVT_MASKED`.
+ *    `LAPIC_LVT_MASKED`. \llrref{LLR_LAPIC_LAPIC_INIT_CPU_01}
  * 3. Call `lapic_write()` with the arguments `LAPIC_LVT_LINT1` and
- *    `LAPIC_LVT_NMI`.
+ *    `LAPIC_LVT_NMI`. \llrref{LLR_LAPIC_LAPIC_INIT_CPU_01}
  * 4. Call `lapic_write()` with the arguments `LAPIC_LVT_ERROR` and
- *    `LAPIC_LVT_MASKED`.
+ *    `LAPIC_LVT_MASKED`. \llrref{LLR_LAPIC_LAPIC_INIT_CPU_01}
  * 5. Call `lapic_write()` with the arguments `LAPIC_TIMER_DIVIDE` and
- *    `LAPIC_TIMER_DIVIDE_16`.
- * 6. Call `lapic_timer_stop()`.
+ *    `LAPIC_TIMER_DIVIDE_16`. \llrref{LLR_LAPIC_LAPIC_INIT_CPU_01}
+ * 6. Call `lapic_timer_stop()`. \llrref{LLR_LAPIC_LAPIC_INIT_CPU_01}
  *
  * @calls
  * - `lapic_write()`
@@ -228,11 +279,19 @@ void lapic_init_cpu(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_ID_01}: `lapic_id()` shall give the local APIC ID of
+ *   the calling CPU.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_001}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_ID_01}: `lapic_id()` shall return the result of
+ *   `lapic_read()` for `LAPIC_ID`, shifted right by 24.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_ID_01}
  *
  * @design
- * 1. Return `lapic_read(LAPIC_ID) >> 24`.
+ * 1. Return `lapic_read(LAPIC_ID) >> 24`. \llrref{LLR_LAPIC_LAPIC_ID_01}
  *
  * @calls
  * - `lapic_read()`
@@ -255,11 +314,20 @@ uint32_t lapic_id(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_EOI_01}: `lapic_eoi()` shall signal the end of the
+ *   current interrupt to the local APIC.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_INT_005}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_EOI_01}: `lapic_eoi()` shall call `lapic_write()`
+ *   once with `LAPIC_EOI` and 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_EOI_01}
  *
  * @design
  * 1. Call `lapic_write()` with the arguments `LAPIC_EOI` and `0U`.
+ *    \llrref{LLR_LAPIC_LAPIC_EOI_01}
  *
  * @calls
  * - `lapic_write()`
@@ -288,13 +356,25 @@ void lapic_eoi(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_TIMER_PERIODIC_01}: `lapic_timer_periodic()` shall
+ *   start the local APIC timer in periodic mode, with an interrupt every count
+ *   ticks of the divided bus clock.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_006}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_TIMER_PERIODIC_01}: `lapic_timer_periodic()` shall
+ *   write with `lapic_write()`, in this order, `LAPIC_TIMER_PERIODIC |
+ *   HV_VECTOR_TIMER` to `LAPIC_LVT_TIMER` and `count` to `LAPIC_TIMER_INIT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_TIMER_PERIODIC_01}
  *
  * @design
  * 1. Call `lapic_write()` with the arguments `LAPIC_LVT_TIMER` and
  *    `LAPIC_TIMER_PERIODIC | HV_VECTOR_TIMER`.
+ *    \llrref{LLR_LAPIC_LAPIC_TIMER_PERIODIC_01}
  * 2. Call `lapic_write()` with the arguments `LAPIC_TIMER_INIT` and `count`.
+ *    \llrref{LLR_LAPIC_LAPIC_TIMER_PERIODIC_01}
  *
  * @calls
  * - `lapic_write()`
@@ -324,13 +404,25 @@ void lapic_timer_periodic(uint32_t count)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_TIMER_ONESHOT_01}: `lapic_timer_oneshot()` shall
+ *   start the local APIC timer counting down once, without an interrupt, to
+ *   measure it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_005}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_TIMER_ONESHOT_01}: `lapic_timer_oneshot()` shall
+ *   write with `lapic_write()`, in this order, `LAPIC_LVT_MASKED |
+ *   HV_VECTOR_TIMER` to `LAPIC_LVT_TIMER` and `count` to `LAPIC_TIMER_INIT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_TIMER_ONESHOT_01}
  *
  * @design
  * 1. Call `lapic_write()` with the arguments `LAPIC_LVT_TIMER` and
  *    `LAPIC_LVT_MASKED | HV_VECTOR_TIMER`.
+ *    \llrref{LLR_LAPIC_LAPIC_TIMER_ONESHOT_01}
  * 2. Call `lapic_write()` with the arguments `LAPIC_TIMER_INIT` and `count`.
+ *    \llrref{LLR_LAPIC_LAPIC_TIMER_ONESHOT_01}
  *
  * @calls
  * - `lapic_write()`
@@ -354,13 +446,25 @@ void lapic_timer_oneshot(uint32_t count)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_TIMER_STOP_01}: `lapic_timer_stop()` shall stop the
+ *   local APIC timer of the calling CPU.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_006}
+ *   - \srqref{SRQ_HV_CPU_007}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_TIMER_STOP_01}: `lapic_timer_stop()` shall write
+ *   with `lapic_write()`, in this order, `LAPIC_LVT_MASKED | HV_VECTOR_TIMER`
+ *   to `LAPIC_LVT_TIMER` and 0 to `LAPIC_TIMER_INIT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_TIMER_STOP_01}
  *
  * @design
  * 1. Call `lapic_write()` with the arguments `LAPIC_LVT_TIMER` and
  *    `LAPIC_LVT_MASKED | HV_VECTOR_TIMER`.
+ *    \llrref{LLR_LAPIC_LAPIC_TIMER_STOP_01}
  * 2. Call `lapic_write()` with the arguments `LAPIC_TIMER_INIT` and `0U`.
+ *    \llrref{LLR_LAPIC_LAPIC_TIMER_STOP_01}
  *
  * @calls
  * - `lapic_write()`
@@ -386,12 +490,20 @@ void lapic_timer_stop(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_TIMER_CURRENT_01}: `lapic_timer_current()` shall
+ *   give the current count of the local APIC timer.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_TMR_005}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_TIMER_CURRENT_01}: `lapic_timer_current()` shall
+ *   return the result of `lapic_read()` for `LAPIC_TIMER_CURRENT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_TIMER_CURRENT_01}
  *
  * @design
  * 1. Call `lapic_read()` with the argument `LAPIC_TIMER_CURRENT`, and return
- *    its result.
+ *    its result. \llrref{LLR_LAPIC_LAPIC_TIMER_CURRENT_01}
  *
  * @calls
  * - `lapic_read()`
@@ -421,15 +533,30 @@ uint32_t lapic_timer_current(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_SEND_IPI_01}: `lapic_send_ipi()` shall send an
+ *   interprocessor interrupt to a CPU and wait until it is delivered.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_SEND_IPI_01}: `lapic_send_ipi()` shall write with
+ *   `lapic_write()`, in this order, `apic_id` shifted left by 24 to
+ *   `LAPIC_ICR_HIGH` and `command` to `LAPIC_ICR_LOW`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_SEND_IPI_01}
+ * - \llrid{LLR_LAPIC_LAPIC_SEND_IPI_02}: `lapic_send_ipi()` shall then call
+ *   `x86_pause()` while `LAPIC_ICR_PENDING` is set in the result of
+ *   `lapic_read()` for `LAPIC_ICR_LOW`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_SEND_IPI_01}
  *
  * @design
  * 1. Call `lapic_write()` with the arguments `LAPIC_ICR_HIGH` and
- *    `apic_id << 24`.
+ *    `apic_id << 24`. \llrref{LLR_LAPIC_LAPIC_SEND_IPI_01}
  * 2. Call `lapic_write()` with the arguments `LAPIC_ICR_LOW` and `command`.
+ *    \llrref{LLR_LAPIC_LAPIC_SEND_IPI_01}
  * 3. While `(lapic_read(LAPIC_ICR_LOW) & LAPIC_ICR_PENDING)` is not equal to
- *    `0U`:
+ *    `0U`: \llrref{LLR_LAPIC_LAPIC_SEND_IPI_02}
  *    1. Call `x86_pause()`.
  *
  * @calls
@@ -465,11 +592,20 @@ static void lapic_send_ipi(uint32_t apic_id, uint32_t command)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_SEND_INIT_01}: `lapic_send_init()` shall send INIT
+ *   to a CPU to start it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_SEND_INIT_01}: `lapic_send_init()` shall call
+ *   `lapic_send_ipi()` once with `apic_id` and `LAPIC_ICR_INIT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_SEND_INIT_01}
  *
  * @design
  * 1. Call `lapic_send_ipi()` with the arguments `apic_id` and `LAPIC_ICR_INIT`.
+ *    \llrref{LLR_LAPIC_LAPIC_SEND_INIT_01}
  *
  * @calls
  * - `lapic_send_ipi()`
@@ -498,12 +634,21 @@ void lapic_send_init(uint32_t apic_id)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LAPIC_LAPIC_SEND_SIPI_01}: `lapic_send_sipi()` shall send a
+ *   start-up interrupt to a CPU, which starts at the vector times 4 KiB.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CPU_002}
  *
  * @llr
+ * - \llrid{LLR_LAPIC_LAPIC_SEND_SIPI_01}: `lapic_send_sipi()` shall call
+ *   `lapic_send_ipi()` once with `apic_id` and `LAPIC_ICR_STARTUP | vector`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LAPIC_LAPIC_SEND_SIPI_01}
  *
  * @design
  * 1. Call `lapic_send_ipi()` with the arguments `apic_id` and
  *    `LAPIC_ICR_STARTUP | (uint32_t) vector`.
+ *    \llrref{LLR_LAPIC_LAPIC_SEND_SIPI_01}
  *
  * @calls
  * - `lapic_send_ipi()`

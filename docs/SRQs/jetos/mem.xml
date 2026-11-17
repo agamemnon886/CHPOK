@@ -36,7 +36,7 @@
     what the kernel checks when it touches memory of a partition.</para>
 
   <section xml:id="SRQ_JET_MEM_001" role="requirement">
-    <title>SRQ_JET_MEM_001</title>
+    <title><phrase role="srq">SRQ_JET_MEM_001</phrase></title>
     <para>JetOS shall give each partition a memory space of its own: its
       code and data, its heap and the stacks of its processes, backed by
       physical memory that no other partition has.</para>
@@ -49,13 +49,30 @@
       <title>Verification</title>
       <para>Test and analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_TABLE_NEXT_01
+        HLR_SPACE_ARM64_MAP_USER_PAGE_01
+        HLR_SPACE_ARM64_JA_SPACE_LAYOUT_GET_01
+        HLR_SPACE_ARM64_JA_SPACE_GET_HEAP_01
+        HLR_SPACE_ARM64_JA_SPACE_INIT_01
+        HLR_SPACE_ARM64_JA_SPACE_SWITCH_01
+        HLR_SPACE_ARM64_JA_SPACE_GET_CURRENT_01
+        HLR_SPACE_X86_64_TABLE_NEXT_01
+        HLR_SPACE_X86_64_MAP_USER_PAGE_01
+        HLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01
+        HLR_SPACE_X86_64_JA_SPACE_GET_HEAP_01
+        HLR_SPACE_X86_64_JA_SPACE_INIT_01
+        HLR_SPACE_X86_64_JA_SPACE_SWITCH_01
+        HLR_SPACE_X86_64_JA_SPACE_GET_CURRENT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_002" role="requirement">
-    <title>SRQ_JET_MEM_002</title>
+    <title><phrase role="srq">SRQ_JET_MEM_002</phrase></title>
     <para>JetOS shall enable the memory protection of the processor
-      (paging on x86_64, the MMU on arm64) before any partition runs, and
-      shall run the partitions in the unprivileged mode of the processor.</para>
+    (paging on x86_64, the MMU on arm64) before any partition
+    runs.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Without both, a partition could reach the memory of the
@@ -65,14 +82,50 @@
       <title>Verification</title>
       <para>Analysis and test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ARCH_ARM64_POK_ARCH_INIT_01
+        HLR_SPACE_ARM64_TABLE_ALLOC_01
+        HLR_SPACE_L1_TABLE_CREATE_01
+        HLR_SPACE_TLB_FLUSH_ALL_01
+        HLR_SPACE_MMU_ENABLE_01
+        HLR_SPACE_ARM64_JA_SPACE_INIT_01
+        HLR_ARCH_X86_64_POK_ARCH_INIT_01
+        HLR_GDT_CPU_LOAD_GDT_01
+        HLR_SPACE_CPU_WRITE_CR3_01
+        HLR_SPACE_X86_64_TABLE_ALLOC_01
+        HLR_SPACE_PML4_CREATE_01
+        HLR_SPACE_X86_64_JA_SPACE_INIT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_012" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_012</phrase></title>
+    <para>JetOS shall run the partitions in the unprivileged mode of the
+    processor.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Without both, a partition could reach the memory of the
+        kernel or of another partition.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis and test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_USER_SPACE_JUMP_01
+        HLR_GDT_CPU_LOAD_GDT_01
+        HLR_GDT_CPU_LOAD_TASK_REGISTER_01
+        HLR_GDT_JA_GDT_INIT_01
+        HLR_SPACE_X86_64_JA_USER_SPACE_JUMP_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_003" role="requirement">
-    <title>SRQ_JET_MEM_003</title>
+    <title><phrase role="srq">SRQ_JET_MEM_003</phrase></title>
     <para>JetOS shall not let a partition read, write or execute the
-      memory of the kernel or of another partition; an attempt shall be
-      handled as a memory violation error of the partition (see health
-      monitoring).</para>
+    memory of the kernel or of another partition.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A fault of one partition must stay in that partition.</para>
@@ -81,14 +134,44 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_L1_TABLE_CREATE_01
+        HLR_SPACE_ARM64_TABLE_NEXT_01
+        HLR_SPACE_ARM64_JA_SPACE_INIT_02
+        HLR_SPACE_PML4_CREATE_01
+        HLR_SPACE_X86_64_TABLE_NEXT_01
+        HLR_SPACE_X86_64_JA_SPACE_INIT_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_013" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_013</phrase></title>
+    <para>JetOS shall handle an attempt of a partition to access memory
+    that is not its own as a memory violation error of the partition
+    (see health monitoring).</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The fault is the partition's, and its health monitoring
+      decides what follows.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_EXCEPTIONS_ERROR_ID_FOR_01
+        HLR_INTERRUPT_PROCESS_EXCEPTION_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_004" role="requirement">
-    <title>SRQ_JET_MEM_004</title>
+    <title><phrase role="srq">SRQ_JET_MEM_004</phrase></title>
     <para>JetOS shall map a configured memory block, by its name, size,
-      virtual address and kind of access (read-only or read-write), into
-      every partition that is allowed to access it, and into no other;
-      the same physical memory shall back the block in all of them.</para>
+    virtual address and kind of access (read-only or read-write), into
+    every partition that is allowed to access it, and into no
+    other.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Memory blocks are the way partitions share memory when the
@@ -98,10 +181,37 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_MAP_USER_PAGE_01
+        HLR_SPACE_ARM64_MEMORY_BLOCKS_INIT_01
+        HLR_SPACE_X86_64_MAP_USER_PAGE_01
+        HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_014" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_014</phrase></title>
+    <para>JetOS shall back a memory block with the same physical memory
+    in all the partitions that it is mapped into.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Memory blocks are the way partitions share memory when the
+        configuration says so.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_MEMORY_BLOCKS_INIT_01
+        HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_005" role="requirement">
-    <title>SRQ_JET_MEM_005</title>
+    <title><phrase role="srq">SRQ_JET_MEM_005</phrase></title>
     <para>JetOS shall give a partition, on request, the address, the size
       and the access that it has to a memory block named in the request,
       and an error if it has no such block.</para>
@@ -113,14 +223,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_01
+        HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_006" role="requirement">
-    <title>SRQ_JET_MEM_006</title>
+    <title><phrase role="srq">SRQ_JET_MEM_006</phrase></title>
     <para>JetOS shall check every address that a partition passes to a
-      service: the area shall lie in the code, data and heap of the
-      partition, or in its stacks; a service shall refuse a request with
-      a bad area with an error and shall not touch the memory.</para>
+    service.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The kernel must not be made to read or write memory that the
@@ -130,10 +243,151 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALLS_ARM64_PROCESS_SYSCALL_02
+        HLR_UACCESS_USER_TO_KERNEL_01
+        HLR_UACCESS_ARM64_JA_USER_TO_KERNEL_SPACE_01
+        HLR_UACCESS_ARM64_JA_USER_TO_KERNEL_RO_SPACE_01
+        HLR_CONS_JET_CONSOLE_WRITE_USER_02
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_APPLICATION_ERROR_03
+        HLR_ERROR_ARINC_POK_ERROR_REPORT_APPLICATION_MESSAGE_02
+        HLR_ERROR_ARINC_POK_ERROR_GET_02
+        HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_GET_STATUS_02
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_INC_LOCK_LEVEL_03
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_DEC_LOCK_LEVEL_04
+        HLR_PORT_POK_PORT_QUEUING_CREATE_03
+        HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_02
+        HLR_PORT_POK_PORT_QUEUING_RECEIVE_05
+        HLR_PORT_POK_PORT_QUEUING_SEND_05
+        HLR_PORT_POK_PORT_QUEUING_STATUS_02
+        HLR_PORT_POK_PORT_QUEUING_ID_02
+        HLR_PORT_POK_PORT_SAMPLING_CREATE_02
+        HLR_PORT_POK_PORT_SAMPLING_WRITE_02
+        HLR_PORT_POK_PORT_SAMPLING_READ_03
+        HLR_PORT_POK_PORT_SAMPLING_ID_02
+        HLR_PORT_POK_PORT_SAMPLING_STATUS_02
+        HLR_THREAD_POK_THREAD_CREATE_03
+        HLR_THREAD_POK_THREAD_SLEEP_03
+        HLR_THREAD_POK_THREAD_SLEEP_UNTIL_03
+        HLR_THREAD_POK_THREAD_DELAYED_START_02
+        HLR_THREAD_POK_THREAD_GET_STATUS_02
+        HLR_THREAD_POK_THREAD_SUSPEND_03
+        HLR_THREAD_POK_THREAD_FIND_02
+        HLR_THREAD_POK_SCHED_REPLENISH_03
+        HLR_THREAD_JET_MSECTION_WAIT_04
+        HLR_TIME_POK_CLOCK_GETTIME_03
+        HLR_TIME_JET_TIME_02
+        HLR_UACCESS_JET_USER_TO_KERNEL_01
+        HLR_UACCESS_JET_USER_TO_KERNEL_RO_01
+        HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02
+        HLR_UACCESS_USER_SPACE_SHIFT_01
+        HLR_UACCESS_X86_64_JA_USER_TO_KERNEL_SPACE_01
+        HLR_UACCESS_X86_64_JA_USER_TO_KERNEL_RO_SPACE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_015" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_015</phrase></title>
+    <para>JetOS shall accept an area that a partition passes to a
+    service only if it lies in the code, data and heap of the partition,
+    or in its stacks.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel must not be made to read or write memory that the
+        partition could not.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_UACCESS_ARM64_CHECK_ACCESS_01
+        HLR_UACCESS_ARM64_JA_USER_TO_KERNEL_SPACE_01
+        HLR_UACCESS_ARM64_JA_USER_TO_KERNEL_RO_SPACE_01
+        HLR_UACCESS_JET_USER_TO_KERNEL_01
+        HLR_UACCESS_JET_USER_TO_KERNEL_RO_01
+        HLR_UACCESS_X86_64_CHECK_ACCESS_01
+        HLR_UACCESS_X86_64_JA_USER_TO_KERNEL_SPACE_01
+        HLR_UACCESS_X86_64_JA_USER_TO_KERNEL_RO_SPACE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_016" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_016</phrase></title>
+    <para>A service shall refuse with an error a request of a partition
+    that passes an area outside the code, data, heap and stacks of the
+    partition.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The kernel must not be made to read or write memory that the
+        partition could not.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SYSCALLS_ARM64_PROCESS_SYSCALL_02
+        HLR_CONS_JET_CONSOLE_WRITE_USER_02
+        HLR_ERROR_ARINC_POK_ERROR_RAISE_APPLICATION_ERROR_03
+        HLR_ERROR_ARINC_POK_ERROR_REPORT_APPLICATION_MESSAGE_02
+        HLR_ERROR_ARINC_POK_ERROR_GET_02
+        HLR_MEMBLOCKS_POK_MEMORY_BLOCK_GET_STATUS_03
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_GET_STATUS_02
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_INC_LOCK_LEVEL_03
+        HLR_PARTITION_ARINC_POK_CURRENT_PARTITION_DEC_LOCK_LEVEL_04
+        HLR_PORT_POK_PORT_QUEUING_CREATE_03
+        HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_02
+        HLR_PORT_POK_PORT_QUEUING_RECEIVE_05
+        HLR_PORT_POK_PORT_QUEUING_SEND_05
+        HLR_PORT_POK_PORT_QUEUING_STATUS_02
+        HLR_PORT_POK_PORT_QUEUING_ID_02
+        HLR_PORT_POK_PORT_SAMPLING_CREATE_02
+        HLR_PORT_POK_PORT_SAMPLING_WRITE_02
+        HLR_PORT_POK_PORT_SAMPLING_READ_03
+        HLR_PORT_POK_PORT_SAMPLING_ID_02
+        HLR_PORT_POK_PORT_SAMPLING_STATUS_02
+        HLR_THREAD_POK_THREAD_CREATE_03
+        HLR_THREAD_POK_THREAD_SLEEP_03
+        HLR_THREAD_POK_THREAD_SLEEP_UNTIL_03
+        HLR_THREAD_POK_THREAD_DELAYED_START_02
+        HLR_THREAD_POK_THREAD_GET_STATUS_02
+        HLR_THREAD_POK_THREAD_SUSPEND_03
+        HLR_THREAD_POK_THREAD_FIND_02
+        HLR_THREAD_POK_SCHED_REPLENISH_03
+        HLR_THREAD_JET_MSECTION_WAIT_04
+        HLR_TIME_POK_CLOCK_GETTIME_03
+        HLR_TIME_JET_TIME_02
+        HLR_SYSCALLS_X86_64_PROCESS_SYSCALL_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_017" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_017</phrase></title>
+    <para>A service shall not touch the memory of a request that it
+    refuses for a bad area.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A refused request must leave the partition as it was.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CONS_JET_CONSOLE_WRITE_USER_02
+        HLR_TIME_POK_CLOCK_GETTIME_03
+        HLR_TIME_JET_TIME_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_007" role="requirement">
-    <title>SRQ_JET_MEM_007</title>
+    <title><phrase role="srq">SRQ_JET_MEM_007</phrase></title>
     <para>JetOS shall accept as the entry point of a process only an
       address in code that the partition can execute.</para>
     <formalpara>
@@ -145,14 +399,23 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_SPACE_INIT_02
+        HLR_UACCESS_ARM64_JA_CHECK_ACCESS_EXEC_01
+        HLR_ERROR_ARINC_POK_ERROR_THREAD_CREATE_02
+        HLR_THREAD_POK_THREAD_CREATE_02
+        HLR_UACCESS_JET_CHECK_ACCESS_EXEC_01
+        HLR_SPACE_X86_64_JA_SPACE_INIT_02
+        HLR_UACCESS_X86_64_JA_CHECK_ACCESS_EXEC_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_008" role="requirement">
-    <title>SRQ_JET_MEM_008</title>
+    <title><phrase role="srq">SRQ_JET_MEM_008</phrase></title>
     <para>JetOS shall allocate the stack of each process of a partition
-      from the stack area of the partition, with the size given when the
-      process is created, aligned as the processor requires, and shall
-      give all the stacks back when the partition restarts.</para>
+    from the stack area of the partition, with the size given when the
+    process is created, aligned as the processor requires.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Stacks come from memory that the partition owns, and a
@@ -162,10 +425,40 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_USTACK_ALLOC_01
+        HLR_ERROR_ARINC_POK_ERROR_THREAD_CREATE_02
+        HLR_SCHED_ARINC_THREAD_START_FUNC_01
+        HLR_THREAD_POK_THREAD_CREATE_03
+        HLR_THREAD_INTERNAL_THREAD_CREATE_01
+        HLR_SPACE_X86_64_JA_USTACK_ALLOC_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_018" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_018</phrase></title>
+    <para>JetOS shall give all the stacks of a partition back when the
+    partition restarts.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Stacks come from memory that the partition owns, and a
+        restart begins with all of it free.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_USTACK_INIT_01
+        HLR_PARTITION_ARINC_PARTITION_ARINC_START_02
+        HLR_SPACE_X86_64_JA_USTACK_INIT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_009" role="requirement">
-    <title>SRQ_JET_MEM_009</title>
+    <title><phrase role="srq">SRQ_JET_MEM_009</phrase></title>
     <para>JetOS shall share with each partition an area at the start of
       its memory, which the kernel and the partition both access, in
       which they keep the state that the partition's library needs (such
@@ -180,13 +473,21 @@
       <title>Verification</title>
       <para>Review.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_JA_SPACE_SHARED_DATA_01
+        HLR_PARTITION_ARINC_PARTITION_ARINC_START_03
+        HLR_PARTITION_ARINC_PARTITION_SET_MODE_INTERNAL_02
+        HLR_SCHED_ARINC_SCHED_ARINC_START_02
+        HLR_SPACE_X86_64_JA_SPACE_SHARED_DATA_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_010" role="requirement">
-    <title>SRQ_JET_MEM_010</title>
+    <title><phrase role="srq">SRQ_JET_MEM_010</phrase></title>
     <para>JetOS shall allocate its own memory only while it initializes,
-      from a heap that starts after the kernel image and ends below the
-      memory of the partitions, and shall never free it.</para>
+    from a heap that starts after the kernel image and ends below the
+    memory of the partitions.</para>
     <formalpara>
       <title>Rationale</title>
       <para>No allocation after the start means no failing allocation and
@@ -196,13 +497,54 @@
       <title>Verification</title>
       <para>Analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ALLOC_ARM64_JA_MEM_ALLOC_ALIGNED_01
+        HLR_ALLOC_ARM64_JA_MEM_ALLOC_ALIGNED_02
+        HLR_ALLOC_ARM64_JA_MEM_GET_ALIGNMENT_01
+        HLR_ALLOC_ARM64_POK_STACK_ALLOC_01
+        HLR_SPACE_ARM64_TABLE_ALLOC_01
+        HLR_SPACE_ARM64_JA_ALLOC_FP_STORE_01
+        HLR_ALLOC_JET_MEM_ALLOC_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01
+        HLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01
+        HLR_PARTITION_POK_PARTITION_INIT_01
+        HLR_PARTITION_ARINC_THREAD_INIT_01
+        HLR_PARTITION_ARINC_POK_PARTITION_ARINC_INIT_01
+        HLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_01
+        HLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_02
+        HLR_ALLOC_X86_64_JA_MEM_GET_ALIGNMENT_01
+        HLR_ALLOC_X86_64_POK_STACK_ALLOC_01
+        HLR_SPACE_X86_64_TABLE_ALLOC_01
+        HLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_019" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_019</phrase></title>
+    <para>JetOS shall never free the memory that it has allocated for
+    itself.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>No allocation after the start means no failing allocation and
+        no fragmentation during the operation.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_ALLOC_ARM64_JA_MEM_ALLOC_ALIGNED_01
+        HLR_ALLOC_X86_64_JA_MEM_ALLOC_ALIGNED_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_MEM_011" role="requirement">
-    <title>SRQ_JET_MEM_011</title>
+    <title><phrase role="srq">SRQ_JET_MEM_011</phrase></title>
     <para>JetOS shall convert, at the request of a partition, an address
-      of its memory space to the physical address that backs it and back;
-      an address that does not belong to the space shall stop the module.</para>
+    of its memory space to the physical address that backs it and
+    back.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The old interface for drivers in partitions that need the
@@ -211,6 +553,36 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_POK_VIRT_TO_PHYS_01
+        HLR_SPACE_ARM64_POK_PHYS_TO_VIRT_01
+        HLR_SYSCALL_POK_CORE_SYSCALL_INTERNAL_05
+        HLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01
+        HLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_MEM_020" role="requirement">
+    <title><phrase role="srq">SRQ_JET_MEM_020</phrase></title>
+    <para>JetOS shall stop the module for a request of a partition to
+    convert an address that does not belong to its memory space.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The old interface for drivers in partitions that need the
+        physical addresses of their buffers.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SPACE_ARM64_POK_VIRT_TO_PHYS_01
+        HLR_SPACE_ARM64_POK_PHYS_TO_VIRT_01
+        HLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01
+        HLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01</para>
     </formalpara>
   </section>
 </chapter>

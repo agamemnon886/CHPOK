@@ -12,6 +12,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/strrchr.c
  * (kernel/libc is split up: the routines only the kernel uses are in
  * kernel/core).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -45,19 +53,39 @@
  * | `last` | `const char *` | The last occurrence so far |
  *
  * @hlr
+ * - \hlrid{HLR_STRRCHR_STRRCHR_01}: `strrchr()` shall give the address of the
+ *   last occurrence of a character in a string, the NUL included, or NULL if it
+ *   is not there.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_STRRCHR_STRRCHR_01}: If `c` converted to `char` is one of the
+ *   characters of `s` up to and including its `'\0'`, `strrchr()` shall return
+ *   the address of the last such character.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRRCHR_STRRCHR_01}
+ * - \llrid{LLR_STRRCHR_STRRCHR_02}: If `c` converted to `char` is neither
+ *   `'\0'` nor one of the characters of `s` before its `'\0'`, `strrchr()`
+ *   shall return NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRRCHR_STRRCHR_01}
  *
  * @design
- * 1. Set `last` to `NULL`.
- * 2. Set `i` to `0U`.
- * 3. Set `done` to `false`.
- * 4. While `done` is false:
- *    1. If `s[i]` is equal to `(char)c`:
+ * 1. Set `last` to `NULL`. \llrref{LLR_STRRCHR_STRRCHR_01},
+ *    \llrref{LLR_STRRCHR_STRRCHR_02}
+ * 2. Set `i` to `0U`. \llrref{LLR_STRRCHR_STRRCHR_01},
+ *    \llrref{LLR_STRRCHR_STRRCHR_02}
+ * 3. Set `done` to `false`. \llrref{LLR_STRRCHR_STRRCHR_01},
+ *    \llrref{LLR_STRRCHR_STRRCHR_02}
+ * 4. While `done` is false: \llrref{LLR_STRRCHR_STRRCHR_01},
+ *    \llrref{LLR_STRRCHR_STRRCHR_02}
+ *    1. If `s[i]` is equal to `(char)c`: \llrref{LLR_STRRCHR_STRRCHR_01}
  *       1. Set `last` to the address of `s[i]`.
  *    2. Set `done` to `(s[i] == '\0')`.
  *    3. Increment `i`.
- * 5. Return `(char *)last`.
+ * 5. Return `(char *)last`. \llrref{LLR_STRRCHR_STRRCHR_01},
+ *    \llrref{LLR_STRRCHR_STRRCHR_02}
  *
  * @calls
  * None.

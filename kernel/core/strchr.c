@@ -12,6 +12,14 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from kernel/libc/strchr.c
  * (kernel/libc is split up: the routines only the kernel uses are in
  * kernel/core).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design.
  */
 
 /**
@@ -49,16 +57,33 @@
  * | `i` | `size_t` | The index of the character |
  *
  * @hlr
+ * - \hlrid{HLR_STRCHR_STRCHR_01}: `strchr()` shall give the address of the
+ *   first occurrence of a character in a string, the NUL included, or NULL if
+ *   it is not there.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_STRCHR_STRCHR_01}: If `c` converted to `char` is one of the
+ *   characters of `s` up to and including its `'\0'`, `strchr()` shall return
+ *   the address of the first such character.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRCHR_STRCHR_01}
+ * - \llrid{LLR_STRCHR_STRCHR_02}: If `c` converted to `char` is neither `'\0'`
+ *   nor one of the characters of `s` before its `'\0'`, `strchr()` shall return
+ *   NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_STRCHR_STRCHR_01}
  *
  * @design
- * 1. Set `i` to `0U`.
- * 2. While `s[i]` is not equal to `(char)c`:
- *    1. If `s[i]` is equal to `'\0'`:
+ * 1. Set `i` to `0U`. \llrref{LLR_STRCHR_STRCHR_01},
+ *    \llrref{LLR_STRCHR_STRCHR_02}
+ * 2. While `s[i]` is not equal to `(char)c`: \llrref{LLR_STRCHR_STRCHR_01},
+ *    \llrref{LLR_STRCHR_STRCHR_02}
+ *    1. If `s[i]` is equal to `'\0'`: \llrref{LLR_STRCHR_STRCHR_02}
  *       1. Return `NULL`.
- *    2. Increment `i`.
- * 3. Return `(char *)&s[i]`.
+ *    2. Increment `i`. \llrref{LLR_STRCHR_STRCHR_01}
+ * 3. Return `(char *)&s[i]`. \llrref{LLR_STRCHR_STRCHR_01}
  *
  * @calls
  * None.

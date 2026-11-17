@@ -35,6 +35,10 @@
  * hypervisor/csps); system registers are accessed with read_sysreg(),
  * write_sysreg() and isb(), shared with the kernel; memcpy() and memset() of
  * the library shared with the kernel replace hv_memcpy() and hv_memset().
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -70,17 +74,39 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LOAD_PRINT_PORT_HINT_01}: `print_port_hint()` shall print the
+ *   option of QEMU that creates a missing serial port: a `-serial` option for
+ *   COM1 and COM2, a PCI serial device in its slot for the others.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_004}
  *
  * @llr
+ * - \llrid{LLR_LOAD_PRINT_PORT_HINT_01}: If `port` is `HV_PORT_COM1`,
+ *   `print_port_hint()` shall call `hv_printf()` once with `"[hv] (QEMU: a
+ *   -serial option)\n"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_PRINT_PORT_HINT_01}
+ * - \llrid{LLR_LOAD_PRINT_PORT_HINT_02}: If `port` is `HV_PORT_COM2`,
+ *   `print_port_hint()` shall call `hv_printf()` once with `"[hv] (QEMU: a
+ *   second -serial option)\n"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_PRINT_PORT_HINT_01}
+ * - \llrid{LLR_LOAD_PRINT_PORT_HINT_03}: If `port` is neither `HV_PORT_COM1`
+ *   nor `HV_PORT_COM2`, `print_port_hint()` shall call `hv_printf()` once with
+ *   `"[hv] (QEMU: -device pci-serial,addr=0x%%x)\n"` and `0x10` plus `port`
+ *   minus `HV_PORT_COM3`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_PRINT_PORT_HINT_01}
  *
  * @design
- * 1. If `port` is equal to `HV_PORT_COM1`:
+ * 1. If `port` is equal to `HV_PORT_COM1`: \llrref{LLR_LOAD_PRINT_PORT_HINT_01}
  *    1. Call `hv_printf()` with the argument
  *       `"[hv] (QEMU: a -serial option)\n"`.
  * 2. Otherwise, if `port` is equal to `HV_PORT_COM2`:
+ *    \llrref{LLR_LOAD_PRINT_PORT_HINT_02}
  *    1. Call `hv_printf()` with the argument
  *       `"[hv] (QEMU: a second -serial option)\n"`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_LOAD_PRINT_PORT_HINT_03}
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] (QEMU: -device pci-serial,addr=0x%%x)\n"` and
  *       `0x10U + ((uint32_t) port - HV_PORT_COM3)`.
@@ -121,22 +147,48 @@ static void print_port_hint(uint16_t port)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LOAD_SETUP_UART_01}: `setup_uart()` shall give a UART of a guest
+ *   the serial port of the host that the configuration names, used directly if
+ *   it is a PL011, and reset it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_004}
+ *   - \srqref{SRQ_HV_CON_005}
+ * - \hlrid{HLR_LOAD_SETUP_UART_02}: `setup_uart()` shall stop the hypervisor,
+ *   with a message and the QEMU option, if that port does not exist.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_004}
  *
  * @llr
+ * - \llrid{LLR_LOAD_SETUP_UART_01}: If `port` is not `HV_PORT_NONE` and
+ *   `hv_uart_present()` returns false for it, `setup_uart()` shall call, in
+ *   this order, `hv_printf()` with `"[hv] %%s: its serial port %%s doesn't
+ *   exist\n"`, the name of the VM and the result of `hv_port_name()` for
+ *   `port`, `print_port_hint()` with `port`, and `hv_fatal()` with `"a serial
+ *   port of the configuration is missing"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_SETUP_UART_02}
+ * - \llrid{LLR_LOAD_SETUP_UART_02}: If `port` is `HV_PORT_NONE`, or
+ *   `hv_uart_present()` returns true for it, `setup_uart()` shall set
+ *   `host_port` of the UART to `port` and `passthrough` to the result of
+ *   `hv_uart_is_pl011()` for `port`, and call `vuart_reset()` once with the
+ *   UART.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_SETUP_UART_01}
  *
  * @design
  * 1. If `port` is not equal to `HV_PORT_NONE` and `hv_uart_present(port)` is
- *    false:
+ *    false: \llrref{LLR_LOAD_SETUP_UART_01}
  *    1. Call `hv_printf()` with the arguments
  *       `"[hv] %%s: its serial port %%s doesn't exist\n"`, `vm->config->name`
  *       and `hv_port_name(port)`.
  *    2. Call `print_port_hint()` with the argument `port`.
  *    3. Call `hv_fatal()` with the argument
  *       `"a serial port of the configuration is missing"`.
- * 2. Set `uart->host_port` to `port`.
+ * 2. Set `uart->host_port` to `port`. \llrref{LLR_LOAD_SETUP_UART_02}
  * 3. Call `hv_uart_is_pl011()` with the argument `port`, and store the result
- *    in `uart->passthrough`.
+ *    in `uart->passthrough`. \llrref{LLR_LOAD_SETUP_UART_02}
  * 4. Call `vuart_reset()` with the argument `uart`.
+ *    \llrref{LLR_LOAD_SETUP_UART_02}
  *
  * @calls
  * - `hv_uart_present()`
@@ -179,16 +231,32 @@ static void setup_uart(const hv_vm_t *vm, hv_vuart_t *uart, uint16_t port)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_LOAD_HV_ARCH_VM_INIT_01}: `hv_arch_vm_init()` shall set up the
+ *   arm64 part of a VM once its RAM is placed: its two serial ports and its
+ *   stage 2 tables.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_MEM_001}
+ *   - \srqref{SRQ_HV_CON_004}
+ *   - \srqref{SRQ_HV_CON_005}
  *
  * @llr
+ * - \llrid{LLR_LOAD_HV_ARCH_VM_INIT_01}: `hv_arch_vm_init()` shall call
+ *   `setup_uart()` with the VM, its UART 0 and the console port of its
+ *   configuration, then with the VM, its UART 1 and the GDB port of its
+ *   configuration, and then set `vttbr` of the VM to the result of
+ *   `stage2_build()` for the VM and the result of `gic_gicv_base()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_HV_ARCH_VM_INIT_01}
  *
  * @design
  * 1. Call `setup_uart()` with the arguments `vm`, the address of
  *    `vm->arch.uart[0]` and `vm->config->console_port`.
+ *    \llrref{LLR_LOAD_HV_ARCH_VM_INIT_01}
  * 2. Call `setup_uart()` with the arguments `vm`, the address of
  *    `vm->arch.uart[1]` and `vm->config->gdb_port`.
+ *    \llrref{LLR_LOAD_HV_ARCH_VM_INIT_01}
  * 3. Call `stage2_build()` with the arguments `vm` and `gic_gicv_base()`, and
- *    store the result in `vm->arch.vttbr`.
+ *    store the result in `vm->arch.vttbr`. \llrref{LLR_LOAD_HV_ARCH_VM_INIT_01}
  *
  * @calls
  * - `setup_uart()`
@@ -230,13 +298,22 @@ void hv_arch_vm_init(hv_vm_t *vm)
  * | `i` | `uint64_t` | The index of the 64-bit word |
  *
  * @hlr
+ * - \hlrid{HLR_LOAD_ZERO_RAM_01}: `zero_ram()` shall clear guest RAM at a host
+ *   physical address.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_004}
  *
  * @llr
+ * - \llrid{LLR_LOAD_ZERO_RAM_01}: `zero_ram()` shall write 0 to each of the
+ *   `size` divided by 8 64-bit words from the address `pa`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_ZERO_RAM_01}
  *
  * @design
  * 1. Set `p` to `(volatile uint64_t *) (uintptr_t) pa`.
+ *    \llrref{LLR_LOAD_ZERO_RAM_01}
  * 2. Set `i` to `0U`; then while `i` is less than `(size / 8U)`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_LOAD_ZERO_RAM_01}
  *    1. Set `p[i]` to `0U`.
  *
  * @calls
@@ -274,19 +351,36 @@ static void zero_ram(uint64_t pa, uint64_t size)
  * | `a` | `uint64_t` | The address of a line |
  *
  * @hlr
+ * - \hlrid{HLR_LOAD_CLEAN_CACHES_01}: `clean_caches()` shall write the data
+ *   cache back to memory over the RAM of a VM and drop the instruction cache.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_MEM_004}
  *
  * @llr
+ * - \llrid{LLR_LOAD_CLEAN_CACHES_01}: For each address from `pa` rounded down
+ *   to a multiple of the line size (4 shifted left by the field
+ *   `CTR_DMINLINE_MASK` at `CTR_DMINLINE_SHIFT` of CTR_EL0) to below `pa` plus
+ *   `size`, in steps of the line size, `clean_caches()` shall call
+ *   `arm64_dc_cvac()` once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_CLEAN_CACHES_01}
+ * - \llrid{LLR_LOAD_CLEAN_CACHES_02}: `clean_caches()` shall then call, in this
+ *   order, `arm64_dsb_ish()`, `arm64_ic_iallu()`, `arm64_dsb_ish()` and
+ *   `isb()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_CLEAN_CACHES_01}
  *
  * @design
  * 1. Set `line` to `4UL << ((read_sysreg(ctr_el0) >> CTR_DMINLINE_SHIFT) &`
- *    `CTR_DMINLINE_MASK)`.
+ *    `CTR_DMINLINE_MASK)`. \llrref{LLR_LOAD_CLEAN_CACHES_01}
  * 2. Set `a` to `pa & ~(line - 1U)`; then while `a` is less than `(pa + size)`,
  *    repeat (after each pass: add `line` to `a`):
+ *    \llrref{LLR_LOAD_CLEAN_CACHES_01}
  *    1. Call `arm64_dc_cvac()` with the argument `a`.
- * 3. Call `arm64_dsb_ish()`.
- * 4. Call `arm64_ic_iallu()`.
- * 5. Call `arm64_dsb_ish()`.
- * 6. Call `isb()`.
+ * 3. Call `arm64_dsb_ish()`. \llrref{LLR_LOAD_CLEAN_CACHES_02}
+ * 4. Call `arm64_ic_iallu()`. \llrref{LLR_LOAD_CLEAN_CACHES_02}
+ * 5. Call `arm64_dsb_ish()`. \llrref{LLR_LOAD_CLEAN_CACHES_02}
+ * 6. Call `isb()`. \llrref{LLR_LOAD_CLEAN_CACHES_02}
  *
  * @calls
  * - `arm64_dc_cvac()`
@@ -334,43 +428,91 @@ static void clean_caches(uint64_t pa, uint64_t size)
  * | `ram_end` | `uint64_t` | The guest-physical end of the RAM |
  *
  * @hlr
+ * - \hlrid{HLR_LOAD_VM_LOAD_01}: `vm_load()` shall load a VM at its first start
+ *   and at each reset: clear its RAM, copy its device tree to the start of the
+ *   RAM and its image to its addresses, clean the caches, and reset its
+ *   devices.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_VM_004}
+ *   - \srqref{SRQ_HV_VM_006}
+ * - \hlrid{HLR_LOAD_VM_LOAD_02}: `vm_load()` shall stop, with a message, if the
+ *   device tree or the image does not fit into the RAM of the VM or the entry
+ *   is outside the image.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_ERR_003}
  *
  * @llr
+ * - \llrid{LLR_LOAD_VM_LOAD_01}: If `boot_data` of the configuration is NULL,
+ *   or the size of the device tree (0 if `boot_data_size` is NULL) is more than
+ *   `HV_GUEST_DTB_SPACE`, or the load address is less than `HV_GUEST_RAM` plus
+ *   `HV_GUEST_DTB_SPACE`, or the load address plus the size of the image is
+ *   more than `bss_end`, or `bss_end` is more than `HV_GUEST_RAM` plus
+ *   `memory_size`, or `entry` is less than the load address, or `entry` is not
+ *   less than the load address plus the size of the image, `vm_load()` shall
+ *   call `vm_print()` with the VM and `"image doesn't fit into the VM's RAM"`,
+ *   and then `hv_fatal()` with `"bad VM image"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_VM_LOAD_02}
+ * - \llrid{LLR_LOAD_VM_LOAD_02}: If `boot_data` of the configuration is not
+ *   NULL, the size of the device tree (0 if `boot_data_size` is NULL) is not
+ *   more than `HV_GUEST_DTB_SPACE`, the load address is not less than
+ *   `HV_GUEST_RAM` plus `HV_GUEST_DTB_SPACE`, the load address plus the size of
+ *   the image is not more than `bss_end`, `bss_end` is not more than
+ *   `HV_GUEST_RAM` plus `memory_size`, and `entry` is from the load address to
+ *   below the load address plus the size of the image, `vm_load()` shall, in
+ *   this order, call `zero_ram()` with the RAM base of the VM and
+ *   `memory_size`, copy with `memcpy()` the device tree to the RAM base and the
+ *   image to the RAM base plus the load address minus `HV_GUEST_RAM`, call
+ *   `clean_caches()` with the RAM base and `memory_size`, call `vgicd_reset()`
+ *   for the distributor of the VM and `vuart_reset()` for its UARTs 0 and 1,
+ *   set `timer_pending` to false and `timer_irqs` to 0, and set every byte of
+ *   `mmio_logged` of the VM to 0 with `memset()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_LOAD_VM_LOAD_01}
  *
  * @design
- * 1. Set `cfg` to `vm->config`.
+ * 1. Set `cfg` to `vm->config`. \llrref{LLR_LOAD_VM_LOAD_01},
+ *    \llrref{LLR_LOAD_VM_LOAD_02}
  * 2. Set `image_size` to the value at `cfg->image_size`.
+ *    \llrref{LLR_LOAD_VM_LOAD_01}, \llrref{LLR_LOAD_VM_LOAD_02}
  * 3. Set `dtb_size` to the value at `cfg->boot_data_size` if
  *    `cfg->boot_data_size` is not NULL, otherwise `0U`.
- * 4. Set `load` to `cfg->load_addr`.
- * 5. Set `load_end` to `load + image_size`.
+ *    \llrref{LLR_LOAD_VM_LOAD_01}, \llrref{LLR_LOAD_VM_LOAD_02}
+ * 4. Set `load` to `cfg->load_addr`. \llrref{LLR_LOAD_VM_LOAD_01},
+ *    \llrref{LLR_LOAD_VM_LOAD_02}
+ * 5. Set `load_end` to `load + image_size`. \llrref{LLR_LOAD_VM_LOAD_01},
+ *    \llrref{LLR_LOAD_VM_LOAD_02}
  * 6. Set `ram_end` to `HV_GUEST_RAM + cfg->memory_size`.
+ *    \llrref{LLR_LOAD_VM_LOAD_01}, \llrref{LLR_LOAD_VM_LOAD_02}
  * 7. If `cfg->boot_data` is NULL or `dtb_size` is greater than
  *    `HV_GUEST_DTB_SPACE` or `load` is less than
  *    `(HV_GUEST_RAM + HV_GUEST_DTB_SPACE)` or `load_end` is greater than
  *    `cfg->bss_end` or `cfg->bss_end` is greater than `ram_end` or `cfg->entry`
  *    is less than `load` or `cfg->entry` is greater than or equal to
- *    `load_end`:
+ *    `load_end`: \llrref{LLR_LOAD_VM_LOAD_01}
  *    1. Call `vm_print()` with the arguments `vm` and
  *       `"image doesn't fit into the VM's RAM"`.
  *    2. Call `hv_fatal()` with the argument `"bad VM image"`.
  * 8. Call `zero_ram()` with the arguments `vm->ram_base` and
- *    `cfg->memory_size`.
+ *    `cfg->memory_size`. \llrref{LLR_LOAD_VM_LOAD_02}
  * 9. Call `memcpy()` with the arguments
  *    `(uint8_t *) (uintptr_t) vm->ram_base`, `cfg->boot_data` and
- *    `(size_t) dtb_size`.
+ *    `(size_t) dtb_size`. \llrref{LLR_LOAD_VM_LOAD_02}
  * 10. Call `memcpy()` with the arguments
  *     `(uint8_t *) (uintptr_t) (vm->ram_base + (load - HV_GUEST_RAM))`,
- *     `cfg->image` and `(size_t) image_size`.
+ *     `cfg->image` and `(size_t) image_size`. \llrref{LLR_LOAD_VM_LOAD_02}
  * 11. Call `clean_caches()` with the arguments `vm->ram_base` and
- *     `cfg->memory_size`.
+ *     `cfg->memory_size`. \llrref{LLR_LOAD_VM_LOAD_02}
  * 12. Call `vgicd_reset()` with the address of `vm->arch.gicd`.
+ *     \llrref{LLR_LOAD_VM_LOAD_02}
  * 13. Call `vuart_reset()` with the address of `vm->arch.uart[0]`.
+ *     \llrref{LLR_LOAD_VM_LOAD_02}
  * 14. Call `vuart_reset()` with the address of `vm->arch.uart[1]`.
- * 15. Set `vm->arch.timer_pending` to `false`.
- * 16. Set `vm->arch.timer_irqs` to `0U`.
+ *     \llrref{LLR_LOAD_VM_LOAD_02}
+ * 15. Set `vm->arch.timer_pending` to `false`. \llrref{LLR_LOAD_VM_LOAD_02}
+ * 16. Set `vm->arch.timer_irqs` to `0U`. \llrref{LLR_LOAD_VM_LOAD_02}
  * 17. Call `memset()` with the arguments `vm->arch.mmio_logged`, `0` and
- *     `sizeof(vm->arch.mmio_logged)`.
+ *     `sizeof(vm->arch.mmio_logged)`. \llrref{LLR_LOAD_VM_LOAD_02}
  *
  * @calls
  * - `vm_print()`

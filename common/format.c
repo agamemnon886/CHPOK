@@ -30,6 +30,13 @@
  * (jet_format()) instead of the hypervisor console, and a precision limits
  * the characters of a string, as in the formatter of the kernel that this
  * one replaces.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: requirements with more than one
+ * "shall" are split into requirements of one "shall" each.
  */
 
 /**
@@ -68,11 +75,21 @@
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_PUT_01}: `put()` shall give one character of the
+ *   formatted output to the output function of the caller.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_PUT_01}: `put()` shall call the function `emit` of `out`
+ *   once with `c` and `data` of `out`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_01}
  *
  * @design
  * 1. Call the function `out->emit` with the arguments `c` and `out->data`.
+ *    \llrref{LLR_FORMAT_PUT_01}
  *
  * @calls
  * - `out->emit()` (indirect)
@@ -104,12 +121,21 @@ static void put(const format_out_t *out, char c)
  * | `i` | `uint32_t` | The copy being added |
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_PUT_REPEATED_01}: `put_repeated()` shall give a number of
+ *   copies of a character to the output, for padding.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_PUT_REPEATED_01}: `put_repeated()` shall call `put()`
+ *   `count` times with `out` and `c`, and not at all if `count` is 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_REPEATED_01}
  *
  * @design
  * 1. Set `i` to `0U`; then while `i` is less than `count`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_FORMAT_PUT_REPEATED_01}
  *    1. Call `put()` with the arguments `out` and `c`.
  *
  * @calls
@@ -152,29 +178,74 @@ static void put_repeated(const format_out_t *out, char c, uint32_t count)
  * | `padding` | `uint32_t` | The padding up to the field width |
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_PUT_NUMBER_01}: `put_number()` shall give a number to the
+ *   output in base 10 or 16, with its sign and padded to the field width: with
+ *   zeros after the sign, or with spaces before it.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_PUT_NUMBER_01}: `put_number()` shall end with the calls
+ *   of `put()` with `out` and each digit of `value` in the base `base` (a
+ *   character of `"0123456789abcdef"`), from the highest digit on, without
+ *   leading zeros, and with the one digit `'0'` for the value 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_NUMBER_01}
+ * - \llrid{LLR_FORMAT_PUT_NUMBER_02}: If `width` of `conv` is greater than the
+ *   length of the number (the number of its digits, plus 1 if and only if
+ *   `negative` is true), `put_number()` shall give `width` minus that length to
+ *   `put_repeated()` as the count.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_NUMBER_01}
+ * - \llrid{LLR_FORMAT_PUT_NUMBER_03}: If `width` of `conv` is not greater than
+ *   the length of the number, `put_number()` shall give 0 to `put_repeated()`
+ *   as the count.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_NUMBER_01}
+ * - \llrid{LLR_FORMAT_PUT_NUMBER_04}: If `zero_pad` of `conv` is true,
+ *   `put_number()` shall call `put_repeated()` once with `out`, `'0'` and the
+ *   count, after the sign and before the digits.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_NUMBER_01}
+ * - \llrid{LLR_FORMAT_PUT_NUMBER_05}: If `zero_pad` of `conv` is false,
+ *   `put_number()` shall call `put_repeated()` once with `out`, `' '` and the
+ *   count, before the sign and the digits.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_NUMBER_01}
+ * - \llrid{LLR_FORMAT_PUT_NUMBER_06}: If and only if `negative` is true,
+ *   `put_number()` shall call `put()` once with `out` and `'-'` as the sign.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_NUMBER_01}
  *
  * @design
- * 1. Set `count` to `0U`.
- * 2. Set `rest` to `value`.
- * 3. Set `padding` to `0U`.
+ * 1. Set `count` to `0U`. \llrref{LLR_FORMAT_PUT_NUMBER_01}
+ * 2. Set `rest` to `value`. \llrref{LLR_FORMAT_PUT_NUMBER_01}
+ * 3. Set `padding` to `0U`. \llrref{LLR_FORMAT_PUT_NUMBER_03}
  * 4. Repeat the following while `rest` is not equal to `0U` (at least once):
+ *    \llrref{LLR_FORMAT_PUT_NUMBER_01}
  *    1. Set `digits[count]` to `digit_chars[rest % base]`.
  *    2. Divide `rest` by `base`.
  *    3. Increment `count`.
  * 5. Set `length` to `(count + 1U)` if `negative` is true, otherwise `count`.
+ *    \llrref{LLR_FORMAT_PUT_NUMBER_02}, \llrref{LLR_FORMAT_PUT_NUMBER_03}
  * 6. If `conv->width` is greater than `length`:
+ *    \llrref{LLR_FORMAT_PUT_NUMBER_02}, \llrref{LLR_FORMAT_PUT_NUMBER_03}
  *    1. Set `padding` to `conv->width - length`.
- * 7. If `conv->zero_pad` is true:
- *    1. If `negative` is true:
+ *       \llrref{LLR_FORMAT_PUT_NUMBER_02}
+ * 7. If `conv->zero_pad` is true: \llrref{LLR_FORMAT_PUT_NUMBER_04},
+ *    \llrref{LLR_FORMAT_PUT_NUMBER_06}
+ *    1. If `negative` is true: \llrref{LLR_FORMAT_PUT_NUMBER_06}
  *       1. Call `put()` with the arguments `out` and `'-'`.
  *    2. Call `put_repeated()` with the arguments `out`, `'0'` and `padding`.
- * 8. Otherwise:
+ *       \llrref{LLR_FORMAT_PUT_NUMBER_04}
+ * 8. Otherwise: \llrref{LLR_FORMAT_PUT_NUMBER_05},
+ *    \llrref{LLR_FORMAT_PUT_NUMBER_06}
  *    1. Call `put_repeated()` with the arguments `out`, `' '` and `padding`.
- *    2. If `negative` is true:
+ *       \llrref{LLR_FORMAT_PUT_NUMBER_05}
+ *    2. If `negative` is true: \llrref{LLR_FORMAT_PUT_NUMBER_06}
  *       1. Call `put()` with the arguments `out` and `'-'`.
- * 9. While `count` is greater than `0U`:
+ * 9. While `count` is greater than `0U`: \llrref{LLR_FORMAT_PUT_NUMBER_01}
  *    1. Decrement `count`.
  *    2. Call `put()` with the arguments `out` and `digits[count]`.
  *
@@ -245,22 +316,56 @@ static void put_number(const format_out_t *out, uint64_t value, uint32_t base,
  * | `i` | `uint32_t` | The index of the character |
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_PUT_STRING_01}: `put_string()` shall give a string to the
+ *   output, right-aligned in the field width, at most as many characters as a
+ *   precision that is given, and `"(null)"` for NULL.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_PUT_STRING_01}: `put_string()` shall take as the text the
+ *   string at `s`, and `"(null)"` if and only if `s` is NULL.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_STRING_01}
+ * - \llrid{LLR_FORMAT_PUT_STRING_02}: If `precision` of `conv` is greater than
+ *   0 and less than the number of characters of the text before its `'\0'`,
+ *   `put_string()` shall call `put()` with `out` and each of the first
+ *   `precision` characters of the text, in their order.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_STRING_01}
+ * - \llrid{LLR_FORMAT_PUT_STRING_03}: If `precision` of `conv` is 0 or is not
+ *   less than the number of characters of the text before its `'\0'`,
+ *   `put_string()` shall call `put()` with `out` and each character of the text
+ *   before its `'\0'`, in their order.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_STRING_01}
+ * - \llrid{LLR_FORMAT_PUT_STRING_04}: If and only if `width` of `conv` is
+ *   greater than the number of characters given to `put()`, `put_string()`
+ *   shall first call `put_repeated()` once with `out`, `' '` and `width` minus
+ *   that number.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_STRING_01}
  *
  * @design
  * 1. Set `text` to `s` if `s` is not NULL, otherwise `"(null)"`.
- * 2. Set `length` to `0U`.
+ *    \llrref{LLR_FORMAT_PUT_STRING_01}
+ * 2. Set `length` to `0U`. \llrref{LLR_FORMAT_PUT_STRING_02},
+ *    \llrref{LLR_FORMAT_PUT_STRING_03}
  * 3. While `text[length]` is not equal to `'\0'`:
+ *    \llrref{LLR_FORMAT_PUT_STRING_02}, \llrref{LLR_FORMAT_PUT_STRING_03}
  *    1. Increment `length`.
  * 4. If `conv->precision` is greater than `0U` and `conv->precision` is less
- *    than `length`:
- *    1. Set `length` to `conv->precision`.
+ *    than `length`: \llrref{LLR_FORMAT_PUT_STRING_02},
+ *    \llrref{LLR_FORMAT_PUT_STRING_03}
+ *    1. Set `length` to `conv->precision`. \llrref{LLR_FORMAT_PUT_STRING_02}
  * 5. If `conv->width` is greater than `length`:
+ *    \llrref{LLR_FORMAT_PUT_STRING_04}
  *    1. Call `put_repeated()` with the arguments `out`, `' '` and
  *       `conv->width - length`.
  * 6. Set `i` to `0U`; then while `i` is less than `length`, repeat (after each
- *    pass: increment `i`):
+ *    pass: increment `i`): \llrref{LLR_FORMAT_PUT_STRING_02},
+ *    \llrref{LLR_FORMAT_PUT_STRING_03}
  *    1. Call `put()` with the arguments `out` and `text[i]`.
  *
  * @calls
@@ -311,17 +416,41 @@ static void put_string(const format_out_t *out, const char *s,
  * | `value` | `uint64_t` | The argument |
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_UNSIGNED_ARGUMENT_01}: `unsigned_argument()` shall take
+ *   the next argument as an unsigned number of the length of the conversion.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_UNSIGNED_ARGUMENT_01}: If `longs` of `conv` is 2 or more,
+ *   `unsigned_argument()` shall return the next argument of `args`, taken as an
+ *   `unsigned long long`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_UNSIGNED_ARGUMENT_01}
+ * - \llrid{LLR_FORMAT_UNSIGNED_ARGUMENT_02}: If `longs` of `conv` is 1,
+ *   `unsigned_argument()` shall return the next argument of `args`, taken as an
+ *   `unsigned long`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_UNSIGNED_ARGUMENT_01}
+ * - \llrid{LLR_FORMAT_UNSIGNED_ARGUMENT_03}: If `longs` of `conv` is 0,
+ *   `unsigned_argument()` shall return the next argument of `args`, taken as an
+ *   `unsigned int`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_UNSIGNED_ARGUMENT_01}
  *
  * @design
  * 1. If `conv->longs` is greater than or equal to `2U`:
+ *    \llrref{LLR_FORMAT_UNSIGNED_ARGUMENT_01}
  *    1. Set `value` to `va_arg(*args, unsigned long long)`.
  * 2. Otherwise, if `conv->longs` is equal to `1U`:
+ *    \llrref{LLR_FORMAT_UNSIGNED_ARGUMENT_02}
  *    1. Set `value` to `va_arg(*args, unsigned long)`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_FORMAT_UNSIGNED_ARGUMENT_03}
  *    1. Set `value` to `va_arg(*args, unsigned int)`.
- * 4. Return `value`.
+ * 4. Return `value`. \llrref{LLR_FORMAT_UNSIGNED_ARGUMENT_01},
+ *    \llrref{LLR_FORMAT_UNSIGNED_ARGUMENT_02},
+ *    \llrref{LLR_FORMAT_UNSIGNED_ARGUMENT_03}
  *
  * @calls
  * None.
@@ -365,17 +494,41 @@ static uint64_t unsigned_argument(const format_conv_t *conv,
  * | `value` | `int64_t` | The argument |
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_SIGNED_ARGUMENT_01}: `signed_argument()` shall take the
+ *   next argument as a signed number of the length of the conversion.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_SIGNED_ARGUMENT_01}: If `longs` of `conv` is 2 or more,
+ *   `signed_argument()` shall return the next argument of `args`, taken as a
+ *   `long long`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_SIGNED_ARGUMENT_01}
+ * - \llrid{LLR_FORMAT_SIGNED_ARGUMENT_02}: If `longs` of `conv` is 1,
+ *   `signed_argument()` shall return the next argument of `args`, taken as a
+ *   `long`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_SIGNED_ARGUMENT_01}
+ * - \llrid{LLR_FORMAT_SIGNED_ARGUMENT_03}: If `longs` of `conv` is 0,
+ *   `signed_argument()` shall return the next argument of `args`, taken as an
+ *   `int`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_SIGNED_ARGUMENT_01}
  *
  * @design
  * 1. If `conv->longs` is greater than or equal to `2U`:
+ *    \llrref{LLR_FORMAT_SIGNED_ARGUMENT_01}
  *    1. Set `value` to `va_arg(*args, long long)`.
  * 2. Otherwise, if `conv->longs` is equal to `1U`:
+ *    \llrref{LLR_FORMAT_SIGNED_ARGUMENT_02}
  *    1. Set `value` to `va_arg(*args, long)`.
- * 3. Otherwise:
+ * 3. Otherwise: \llrref{LLR_FORMAT_SIGNED_ARGUMENT_03}
  *    1. Set `value` to `va_arg(*args, int)`.
- * 4. Return `value`.
+ * 4. Return `value`. \llrref{LLR_FORMAT_SIGNED_ARGUMENT_01},
+ *    \llrref{LLR_FORMAT_SIGNED_ARGUMENT_02},
+ *    \llrref{LLR_FORMAT_SIGNED_ARGUMENT_03}
  *
  * @calls
  * None.
@@ -419,12 +572,79 @@ static int64_t signed_argument(const format_conv_t *conv, va_list *args)
  * | `address` | `uintptr_t` | The argument of %%p |
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_PUT_CONVERSION_01}: `put_conversion()` shall give the
+ *   output of one conversion with the next argument: signed and unsigned
+ *   decimal, hexadecimal, pointer, string, character and the percent sign.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
+ * - \hlrid{HLR_FORMAT_PUT_CONVERSION_02}: `put_conversion()` shall give an
+ *   unknown conversion as it is written.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_01}: If `c` is `'d'` or `'i'` and the
+ *   result of `signed_argument()` for `conv` and `args` is less than 0,
+ *   `put_conversion()` shall call `put_number()` once with `out`, 0 minus that
+ *   result as an unsigned number, the base 10, true and `conv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_02}: If `c` is `'d'` or `'i'` and the
+ *   result of `signed_argument()` for `conv` and `args` is not less than 0,
+ *   `put_conversion()` shall call `put_number()` once with `out`, that result,
+ *   the base 10, false and `conv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_03}: If `c` is `'u'`, `put_conversion()`
+ *   shall call `put_number()` once with `out`, the result of
+ *   `unsigned_argument()` for `conv` and `args`, the base 10, false and `conv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_04}: If `c` is `'x'`, `put_conversion()`
+ *   shall call `put_number()` once with `out`, the result of
+ *   `unsigned_argument()` for `conv` and `args`, the base 16, false and `conv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_05}: If `c` is `'p'`, `put_conversion()`
+ *   shall call `put()` with `out` and `'0'`, then `put()` with `out` and `'x'`,
+ *   and then `put_number()` with `out`, the next argument of `args` (taken as a
+ *   `void *`) as a number, the base 16, false and `conv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_06}: If `c` is `'s'`, `put_conversion()`
+ *   shall call `put_string()` once with `out`, the next argument of `args`
+ *   (taken as a `const char *`) and `conv`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_07}: If `c` is `'c'`, `put_conversion()`
+ *   shall call `put()` once with `out` and the next argument of `args` (taken
+ *   as an `int`) converted to `char`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_08}: If `c` is `'%%'`, `put_conversion()`
+ *   shall call `put()` once with `out` and `'%%'`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_01}
+ * - \llrid{LLR_FORMAT_PUT_CONVERSION_09}: If `c` is none of `'d'`, `'i'`,
+ *   `'u'`, `'x'`, `'p'`, `'s'`, `'c'` and `'%%'`, `put_conversion()` shall call
+ *   `put()` with `out` and `'%%'`, and then `put()` with `out` and `c`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_PUT_CONVERSION_02}
  *
  * @design
- * 1. Depending on `c`:
- *    1. Case `'d'` or `'i'`:
+ * 1. Depending on `c`: \llrref{LLR_FORMAT_PUT_CONVERSION_01},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_02},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_03},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_04},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_05},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_06},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_07},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_08},
+ *    \llrref{LLR_FORMAT_PUT_CONVERSION_09}
+ *    1. Case `'d'` or `'i'`: \llrref{LLR_FORMAT_PUT_CONVERSION_01},
+ *       \llrref{LLR_FORMAT_PUT_CONVERSION_02}
  *       1. Call `signed_argument()` with the arguments `conv` and `args`, and
  *          store the result in `value`.
  *       2. Set `magnitude` to `(0U - (uint64_t) value)` if `value` is less than
@@ -432,33 +652,33 @@ static int64_t signed_argument(const format_conv_t *conv, va_list *args)
  *       3. Call `put_number()` with the arguments `out`, `magnitude`, `10U`,
  *          `value < 0` and `conv`.
  *       4. Leave the switch.
- *    2. Case `'u'`:
+ *    2. Case `'u'`: \llrref{LLR_FORMAT_PUT_CONVERSION_03}
  *       1. Call `put_number()` with the arguments `out`,
  *          `unsigned_argument(conv, args)`, `10U`, `false` and `conv`.
  *       2. Leave the switch.
- *    3. Case `'x'`:
+ *    3. Case `'x'`: \llrref{LLR_FORMAT_PUT_CONVERSION_04}
  *       1. Call `put_number()` with the arguments `out`,
  *          `unsigned_argument(conv, args)`, `16U`, `false` and `conv`.
  *       2. Leave the switch.
- *    4. Case `'p'`:
+ *    4. Case `'p'`: \llrref{LLR_FORMAT_PUT_CONVERSION_05}
  *       1. Set `address` to `(uintptr_t) va_arg(*args, void *)`.
  *       2. Call `put()` with the arguments `out` and `'0'`.
  *       3. Call `put()` with the arguments `out` and `'x'`.
  *       4. Call `put_number()` with the arguments `out`, `address`, `16U`,
  *          `false` and `conv`.
  *       5. Leave the switch.
- *    5. Case `'s'`:
+ *    5. Case `'s'`: \llrref{LLR_FORMAT_PUT_CONVERSION_06}
  *       1. Call `put_string()` with the arguments `out`,
  *          `va_arg(*args, const char *)` and `conv`.
  *       2. Leave the switch.
- *    6. Case `'c'`:
+ *    6. Case `'c'`: \llrref{LLR_FORMAT_PUT_CONVERSION_07}
  *       1. Call `put()` with the arguments `out` and
  *          `(char) va_arg(*args, int)`.
  *       2. Leave the switch.
- *    7. Case `'%%'`:
+ *    7. Case `'%%'`: \llrref{LLR_FORMAT_PUT_CONVERSION_08}
  *       1. Call `put()` with the arguments `out` and `'%%'`.
  *       2. Leave the switch.
- *    8. Otherwise (default):
+ *    8. Otherwise (default): \llrref{LLR_FORMAT_PUT_CONVERSION_09}
  *       1. Call `put()` with the arguments `out` and `'%%'`.
  *       2. Call `put()` with the arguments `out` and `c`.
  *       3. Leave the switch.
@@ -542,11 +762,25 @@ static void put_conversion(const format_out_t *out, char c,
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_IS_DIGIT_01}: `is_digit()` shall tell whether a character
+ *   of a format is a decimal digit.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_IS_DIGIT_01}: If `c` is not less than `'0'` and is not
+ *   greater than `'9'`, `is_digit()` shall return true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_IS_DIGIT_01}
+ * - \llrid{LLR_FORMAT_IS_DIGIT_02}: If `c` is less than `'0'` or is greater
+ *   than `'9'`, `is_digit()` shall return false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_IS_DIGIT_01}
  *
  * @design
- * 1. Return `(c >= '0') && (c <= '9')`.
+ * 1. Return `(c >= '0') && (c <= '9')`. \llrref{LLR_FORMAT_IS_DIGIT_01},
+ *    \llrref{LLR_FORMAT_IS_DIGIT_02}
  *
  * @calls
  * None.
@@ -584,40 +818,116 @@ static bool is_digit(char c)
  * | `conv` | `format_conv_t` | The conversion being read |
  *
  * @hlr
+ * - \hlrid{HLR_FORMAT_JET_FORMAT_01}: `jet_format()` shall give the characters
+ *   of a format to an output function of the caller, one at a time, with each
+ *   conversion replaced by its argument, formatted with its flags, width,
+ *   precision and length.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_LIB_002}
+ *   - \srqref{SRQ_HV_LIB_001}
+ *   - \srqref{SRQ_JET_CONS_002}
  *
  * @llr
+ * - \llrid{LLR_FORMAT_JET_FORMAT_01}: For each character of `format` before its
+ *   `'\0'` that is not `'%%'` and is not part of a conversion, `jet_format()`
+ *   shall call `put()` once with an output made of `emit` and `data`, and the
+ *   character.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_02}: `jet_format()` shall set `zero_pad` of
+ *   the conversion that a `'%%'` starts to true if a `'0'` follows the `'%%'`,
+ *   and to false if it does not.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_03}: `jet_format()` shall set `width` of the
+ *   conversion to the decimal number of the digits (`is_digit()`) that follow,
+ *   and to 0 if no digit follows.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_04}: If a `'.'` follows, `jet_format()` shall
+ *   set `precision` of the conversion to the decimal number of the digits
+ *   (`is_digit()`) that follow the `'.'`, and to 0 if no digit follows it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_05}: If no `'.'` follows, `jet_format()` shall
+ *   set `precision` of the conversion to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_06}: For each `'l'` that follows, before a
+ *   character that is neither `'l'` nor `'z'`, `jet_format()` shall add 1 to
+ *   `longs` of the conversion, which is 0 at first.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_07}: For each `'z'` that follows, before a
+ *   character that is neither `'l'` nor `'z'`, `jet_format()` shall set `longs`
+ *   of the conversion to 1.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_08}: If the character that follows these is
+ *   not `'\0'`, `jet_format()` shall call `put_conversion()` once with the
+ *   output, that character, the conversion and `args`, and go on with the
+ *   character after it.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
+ * - \llrid{LLR_FORMAT_JET_FORMAT_09}: If the character that follows these is
+ *   `'\0'`, `jet_format()` shall return without calling `put_conversion()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_FORMAT_JET_FORMAT_01}
  *
  * @design
- * 1. Set `i` to `0U`.
- * 2. Set `out.emit` to `emit`.
- * 3. Set `out.data` to `data`.
+ * 1. Set `i` to `0U`. \llrref{LLR_FORMAT_JET_FORMAT_01},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_02}, \llrref{LLR_FORMAT_JET_FORMAT_03},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_04}, \llrref{LLR_FORMAT_JET_FORMAT_05},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_06}, \llrref{LLR_FORMAT_JET_FORMAT_07},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_08}, \llrref{LLR_FORMAT_JET_FORMAT_09}
+ * 2. Set `out.emit` to `emit`. \llrref{LLR_FORMAT_JET_FORMAT_01},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_08}
+ * 3. Set `out.data` to `data`. \llrref{LLR_FORMAT_JET_FORMAT_01},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_08}
  * 4. While `format[i]` is not equal to `'\0'`:
+ *    \llrref{LLR_FORMAT_JET_FORMAT_01}, \llrref{LLR_FORMAT_JET_FORMAT_02},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_03}, \llrref{LLR_FORMAT_JET_FORMAT_04},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_05}, \llrref{LLR_FORMAT_JET_FORMAT_06},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_07}, \llrref{LLR_FORMAT_JET_FORMAT_08},
+ *    \llrref{LLR_FORMAT_JET_FORMAT_09}
  *    1. If `format[i]` is not equal to `'%%'`:
+ *       \llrref{LLR_FORMAT_JET_FORMAT_01}
  *       1. Call `put()` with the arguments the address of `out` and
  *          `format[i]`.
  *       2. Increment `i`.
- *    2. Otherwise:
+ *    2. Otherwise: \llrref{LLR_FORMAT_JET_FORMAT_02},
+ *       \llrref{LLR_FORMAT_JET_FORMAT_03}, \llrref{LLR_FORMAT_JET_FORMAT_04},
+ *       \llrref{LLR_FORMAT_JET_FORMAT_05}, \llrref{LLR_FORMAT_JET_FORMAT_06},
+ *       \llrref{LLR_FORMAT_JET_FORMAT_07}, \llrref{LLR_FORMAT_JET_FORMAT_08},
+ *       \llrref{LLR_FORMAT_JET_FORMAT_09}
  *       1. Set `conv` to `{ false, 0U, 0U, 0U }`.
+ *          \llrref{LLR_FORMAT_JET_FORMAT_02},
+ *          \llrref{LLR_FORMAT_JET_FORMAT_03},
+ *          \llrref{LLR_FORMAT_JET_FORMAT_05}, \llrref{LLR_FORMAT_JET_FORMAT_06}
  *       2. Increment `i`.
- *       3. If `format[i]` is equal to `'0'`:
+ *       3. If `format[i]` is equal to `'0'`: \llrref{LLR_FORMAT_JET_FORMAT_02}
  *          1. Set `conv.zero_pad` to `true`.
  *          2. Increment `i`.
  *       4. While `is_digit(format[i])` is true:
+ *          \llrref{LLR_FORMAT_JET_FORMAT_03}
  *          1. Set `conv.width` to
  *             `(conv.width * 10U) + ((uint32_t) format[i] - (uint32_t) '0')`.
  *          2. Increment `i`.
- *       5. If `format[i]` is equal to `'.'`:
+ *       5. If `format[i]` is equal to `'.'`: \llrref{LLR_FORMAT_JET_FORMAT_04},
+ *          \llrref{LLR_FORMAT_JET_FORMAT_05}
  *          1. Increment `i`.
  *          2. While `is_digit(format[i])` is true:
  *             1. Set `conv.precision` to `(conv.precision * 10U) +
  *                ((uint32_t) format[i] - (uint32_t) '0')`.
  *             2. Increment `i`.
  *       6. While `format[i]` is equal to `'l'` or `format[i]` is equal to
- *          `'z'`:
+ *          `'z'`: \llrref{LLR_FORMAT_JET_FORMAT_06},
+ *          \llrref{LLR_FORMAT_JET_FORMAT_07}
  *          1. Set `conv.longs` to `1U` if `format[i]` is equal to `'z'`,
  *             otherwise `(conv.longs + 1U)`.
  *          2. Increment `i`.
  *       7. If `format[i]` is not equal to `'\0'`:
+ *          \llrref{LLR_FORMAT_JET_FORMAT_08}, \llrref{LLR_FORMAT_JET_FORMAT_09}
  *          1. Call `put_conversion()` with the arguments the address of `out`,
  *             `format[i]`, the address of `conv` and `args`.
  *          2. Increment `i`.

@@ -38,12 +38,9 @@
     direction, source (out) or destination (in).</para>
 
   <section xml:id="SRQ_JET_IPC_001" role="requirement">
-    <title>SRQ_JET_IPC_001</title>
+    <title><phrase role="srq">SRQ_JET_IPC_001</phrase></title>
     <para>JetOS shall let a partition communicate with other partitions
-      only through the ports that the configuration gives it, and shall
-      deliver the messages that a partition writes to a source port to
-      the destination port at the other end of its channel, whole and
-      unchanged.</para>
+    only through the ports that the configuration gives it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Channels are the only way for partitions to exchange data, so
@@ -53,16 +50,39 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNELS_INIT_ALL_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_016" role="requirement">
+    <title><phrase role="srq">SRQ_JET_IPC_016</phrase></title>
+    <para>JetOS shall deliver the messages that a partition writes to a
+    source port to the destination port at the other end of its channel,
+    whole and unchanged.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A message must arrive as it was sent.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNELS_INIT_ALL_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_002" role="requirement">
-    <title>SRQ_JET_IPC_002</title>
+    <title><phrase role="srq">SRQ_JET_IPC_002</phrase></title>
     <para>JetOS shall create a port at the request of its partition only
-      while the partition is not in <literal>NORMAL</literal> mode, and
-      only if the name is that of a port of the partition in the
-      configuration and the maximum message size, the direction and, for
-      a queuing port, the maximum number of messages of the request agree
-      with it; otherwise it shall refuse the request with an error.</para>
+    while the partition is not in <literal>NORMAL</literal> mode, and
+    only if the name is that of a port of the partition in the
+    configuration and the maximum message size, the direction and, for a
+    queuing port, the maximum number of messages of the request agree
+    with it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A port is what the configuration says, and the set of ports
@@ -72,10 +92,46 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01
+        HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01
+        HLR_PORT_FIND_PORT_QUEUING_01
+        HLR_PORT_POK_PORT_QUEUING_CREATE_01
+        HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_01
+        HLR_PORT_FIND_PORT_SAMPLING_01
+        HLR_PORT_POK_PORT_SAMPLING_CREATE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_017" role="requirement">
+    <title><phrase role="srq">SRQ_JET_IPC_017</phrase></title>
+    <para>JetOS shall refuse with an error a request of a partition to
+    create a port in <literal>NORMAL</literal> mode, with a name that is
+    not that of a port of the partition in the configuration, or with a
+    maximum message size, direction or maximum number of messages that
+    does not agree with the configuration.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The partition must know that it has no port to use.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PORT_FIND_PORT_QUEUING_01
+        HLR_PORT_POK_PORT_QUEUING_CREATE_01
+        HLR_PORT_POK_PORT_QUEUING_CREATE_PACKED_01
+        HLR_PORT_FIND_PORT_SAMPLING_01
+        HLR_PORT_POK_PORT_SAMPLING_CREATE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_003" role="requirement">
-    <title>SRQ_JET_IPC_003</title>
+    <title><phrase role="srq">SRQ_JET_IPC_003</phrase></title>
     <para>JetOS shall give a partition the identifier of a created port,
       found by its name, and the status of a port: for a sampling port
       its maximum message size, direction, refresh period and the
@@ -90,10 +146,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_R_N_MESSAGES_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_S_N_MESSAGES_01
+        HLR_PORT_POK_PORT_QUEUING_STATUS_01
+        HLR_PORT_POK_PORT_QUEUING_ID_01
+        HLR_PORT_POK_PORT_SAMPLING_ID_01
+        HLR_PORT_POK_PORT_SAMPLING_STATUS_01
+        HLR_THREAD_POK_THREAD_WQ_GET_NWAITS_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_004" role="requirement">
-    <title>SRQ_JET_IPC_004</title>
+    <title><phrase role="srq">SRQ_JET_IPC_004</phrase></title>
     <para>JetOS shall make the ports of a partition unusable when the
       partition restarts, so that the partition has to create them again.</para>
     <formalpara>
@@ -104,10 +170,20 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_04
+        HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CLEAR_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_SAMPLING_S_CLEAR_MESSAGE_01
+        HLR_PARTITION_ARINC_PARTITION_ARINC_START_02
+        HLR_PORT_POK_PORT_QUEUING_INIT_01
+        HLR_PORT_POK_PORT_SAMPLING_INIT_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_005" role="requirement">
-    <title>SRQ_JET_IPC_005</title>
+    <title><phrase role="srq">SRQ_JET_IPC_005</phrase></title>
     <para>JetOS shall not let a partition use a port of another
       partition.</para>
     <formalpara>
@@ -118,13 +194,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PORT_GET_PORT_QUEUING_01
+        HLR_PORT_GET_PORT_SAMPLING_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_006" role="requirement">
-    <title>SRQ_JET_IPC_006</title>
-    <para>JetOS shall keep in a sampling channel only the latest message,
-      and shall store a message of a sampling source port by replacing
-      the message that was there, with the time of writing.</para>
+    <title><phrase role="srq">SRQ_JET_IPC_006</phrase></title>
+    <para>JetOS shall keep in a sampling channel only the latest
+    message.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A sampling port is for data that is refreshed, where only the
@@ -134,15 +214,42 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_SAMPLING_INIT_01
+        HLR_CHANNEL_CHANNEL_SAMPLING_MESSAGE_AT_01
+        HLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_018" role="requirement">
+    <title><phrase role="srq">SRQ_JET_IPC_018</phrase></title>
+    <para>JetOS shall store a message of a sampling source port by
+    replacing the message that was there, with the time of
+    writing.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A sampling port is for data that is refreshed, where only the
+        newest value counts.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_SAMPLING_S_GET_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_SAMPLING_SEND_MESSAGE_01
+        HLR_PORT_POK_PORT_SAMPLING_WRITE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_007" role="requirement">
-    <title>SRQ_JET_IPC_007</title>
+    <title><phrase role="srq">SRQ_JET_IPC_007</phrase></title>
     <para>JetOS shall give the process that reads a sampling destination
-      port the latest message with its length, without removing it, and
-      whether it is valid, that is not older than the refresh period of
-      the port; and shall refuse a sampling port whose refresh period is
-      not finite and positive at its creation.</para>
+    port the latest message with its length, without removing it, and
+    whether it is valid, that is not older than the refresh period of
+    the port.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A reader must know whether the data is fresh enough to use.</para>
@@ -151,10 +258,35 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_GET_MESSAGE_01
+        HLR_PORT_POK_PORT_SAMPLING_READ_01
+        HLR_PORT_POK_PORT_SAMPLING_READ_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_019" role="requirement">
+    <title><phrase role="srq">SRQ_JET_IPC_019</phrase></title>
+    <para>JetOS shall refuse at its creation a sampling port whose
+    refresh period is not finite and positive.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>Without a refresh period the validity of a message cannot be
+      decided.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PORT_POK_PORT_SAMPLING_CREATE_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_008" role="requirement">
-    <title>SRQ_JET_IPC_008</title>
+    <title><phrase role="srq">SRQ_JET_IPC_008</phrase></title>
     <para>JetOS shall tell, on request, whether a sampling destination
       port has a message that has not been read yet.</para>
     <formalpara>
@@ -165,10 +297,15 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_SAMPLING_R_CHECK_NEW_MESSAGE_01
+        HLR_PORT_POK_PORT_SAMPLING_CHECK_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_009" role="requirement">
-    <title>SRQ_JET_IPC_009</title>
+    <title><phrase role="srq">SRQ_JET_IPC_009</phrase></title>
     <para>JetOS shall keep the messages of a queuing channel in the order
       in which they were sent, deliver each one at most once, and give
       the receiver the message that was sent first.</para>
@@ -181,15 +318,25 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_INIT_01
+        HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_ADD_01
+        HLR_CHANNEL_CHANNEL_QUEUING_CYCLIC_SUB_01
+        HLR_CHANNEL_CHANNEL_QUEUING_MESSAGE_AT_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01
+        HLR_PORT_PORT_QUEUING_RECEIVE_01
+        HLR_PORT_PORT_QUEUING_SEND_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_010" role="requirement">
-    <title>SRQ_JET_IPC_010</title>
+    <title><phrase role="srq">SRQ_JET_IPC_010</phrase></title>
     <para>JetOS shall let a process send a message to a queuing source
-      port at once if the queue has room and no process is waiting to
-      send before it; otherwise it shall make the process wait, up to its
-      time-out (none, for no waiting; or infinite), until there is room,
-      and report an error for a time-out.</para>
+    port at once if the queue has room and no process is waiting to send
+    before it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>These are the blocking semantics of the queuing ports of
@@ -198,16 +345,49 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_01
+        HLR_PORT_PORT_QUEUING_SEND_01
+        HLR_PORT_POK_PORT_QUEUING_SEND_01
+        HLR_THREAD_POK_THREAD_WQ_IS_EMPTY_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_020" role="requirement">
+    <title><phrase role="srq">SRQ_JET_IPC_020</phrase></title>
+    <para>JetOS shall make a process that sends a message to a queuing
+    source port whose queue has no room, or on which another process is
+    waiting to send, wait up to its time-out (none, for no waiting; or
+    infinite) until there is room, and report an error for a
+    time-out.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the blocking semantics of the queuing ports of
+        ARINC 653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_01
+        HLR_PORT_PORT_QUEUING_SEND_01
+        HLR_PORT_POK_PORT_QUEUING_SEND_02
+        HLR_THREAD_POK_THREAD_WQ_IS_EMPTY_01
+        HLR_THREAD_INTERNAL_THREAD_WAKE_UP_01
+        HLR_THREAD_INTERNAL_THREAD_WAKE_UP_02</para>
     </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_011" role="requirement">
-    <title>SRQ_JET_IPC_011</title>
+    <title><phrase role="srq">SRQ_JET_IPC_011</phrase></title>
     <para>JetOS shall let a process receive a message from a queuing
-      destination port at once if there is one and no process is waiting
-      to receive before it; otherwise it shall make the process wait, up
-      to its time-out, until a message arrives, and report an error for a
-      time-out.</para>
+    destination port at once if there is one and no process is waiting
+    to receive before it.</para>
     <formalpara>
       <title>Rationale</title>
       <para>These are the blocking semantics of the queuing ports of
@@ -217,10 +397,45 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01
+        HLR_PORT_PORT_QUEUING_RECEIVE_01
+        HLR_PORT_POK_PORT_QUEUING_RECEIVE_01
+        HLR_THREAD_POK_THREAD_WQ_IS_EMPTY_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_021" role="requirement">
+    <title><phrase role="srq">SRQ_JET_IPC_021</phrase></title>
+    <para>JetOS shall make a process that receives from a queuing
+    destination port that has no message, or on which another process is
+    waiting to receive, wait up to its time-out until a message arrives,
+    and report an error for a time-out.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>These are the blocking semantics of the queuing ports of
+        ARINC 653.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_01
+        HLR_PORT_PORT_QUEUING_RECEIVE_01
+        HLR_PORT_POK_PORT_QUEUING_RECEIVE_02
+        HLR_THREAD_POK_THREAD_WQ_IS_EMPTY_01
+        HLR_THREAD_INTERNAL_THREAD_WAKE_UP_01
+        HLR_THREAD_INTERNAL_THREAD_WAKE_UP_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_012" role="requirement">
-    <title>SRQ_JET_IPC_012</title>
+    <title><phrase role="srq">SRQ_JET_IPC_012</phrase></title>
     <para>JetOS shall wake the processes that wait on a queuing port in
       the order in which they began to wait or in the order of their
       priorities, as the discipline of the port that the partition set
@@ -233,10 +448,21 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_PORT_POK_PORT_QUEUING_CREATE_02
+        HLR_PORT_POK_PORT_QUEUING_RECEIVE_03
+        HLR_PORT_POK_PORT_QUEUING_SEND_03
+        HLR_THREAD_POK_THREAD_WQ_INIT_01
+        HLR_THREAD_POK_THREAD_WQ_ADD_01
+        HLR_THREAD_POK_THREAD_WQ_ADD_PRIO_01
+        HLR_THREAD_POK_THREAD_WQ_REMOVE_01
+        HLR_THREAD_POK_THREAD_WQ_WAKE_UP_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_013" role="requirement">
-    <title>SRQ_JET_IPC_013</title>
+    <title><phrase role="srq">SRQ_JET_IPC_013</phrase></title>
     <para>JetOS shall wake a process that waits on a port when the
       partition of the other end of the channel has made it possible,
       although that partition runs only in its own slots.</para>
@@ -248,14 +474,24 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_CHANNEL_QUEUING_SIDE_NOTIFY_01
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_R_GET_MESSAGE_02
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_02
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_S_GET_MESSAGE_02
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_03
+        HLR_PARTITION_POK_PARTITION_ADD_EVENT_01
+        HLR_SCHED_ARINC_PORT_QUEUING_FIRED_01
+        HLR_THREAD_POK_THREAD_WQ_WAKE_UP_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_014" role="requirement">
-    <title>SRQ_JET_IPC_014</title>
-    <para>JetOS shall, if a message of a queuing channel cannot be queued
-      because the receiving side is full, discard the new message when
-      the channel is set to do so, and shall then tell the receiver, when
-      it next receives, that messages have been lost.</para>
+    <title><phrase role="srq">SRQ_JET_IPC_014</phrase></title>
+    <para>JetOS shall, if a message of a queuing channel cannot be
+    queued because the receiving side is full, discard the new message
+    when the channel is set to do so.</para>
     <formalpara>
       <title>Rationale</title>
       <para>A receiver that is slower than the sender must know that it
@@ -265,10 +501,36 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_JET_IPC_022" role="requirement">
+    <title><phrase role="srq">SRQ_JET_IPC_022</phrase></title>
+    <para>JetOS shall tell the receiver of a queuing channel that
+    discarded messages, when it next receives, that messages have been
+    lost.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A receiver that is slower than the sender must know that it
+        lost data.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_R_CONSUME_MESSAGE_03
+        HLR_CHANNEL_POK_CHANNEL_QUEUING_S_PRODUCE_MESSAGE_02
+        HLR_PORT_PORT_QUEUING_RECEIVE_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_JET_IPC_015" role="requirement">
-    <title>SRQ_JET_IPC_015</title>
+    <title><phrase role="srq">SRQ_JET_IPC_015</phrase></title>
     <para>JetOS shall discard the messages that are in the queue of a
       queuing destination port when the partition clears it.</para>
     <formalpara>
@@ -278,6 +540,11 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_CHANNEL_POK_CHANNEL_QUEUING_SIDE_INIT_01
+        HLR_PORT_POK_PORT_QUEUING_CLEAR_01</para>
     </formalpara>
   </section>
 </chapter>

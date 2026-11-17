@@ -32,6 +32,14 @@
 # defaults are given. The header format is described in README.md
 # ("Function documentation"); Doxygen reads the headers as they are (no
 # input filter), which needs Doxygen 1.18 or later (its Markdown tables).
+#
+# Modified by Kirill Brazhnikov, 2026-11-16: the bulleted lists (the high and
+# low level requirements, the calls) are ragged right, so that long names
+# don't stick out of the margin; the commands \hlrid, \llrid, \srqref,
+# \hlrref and \llrref write a requirement identifier in bold code font,
+# in its color, as a link target (\hlrid, \llrid) or as a link to it
+# (\srqref to the SRQ books, \hlrref and \llrref within the document;
+# \llrref links a step of @design to the LLRs it implements).
 
 STRIP_FROM_PATH        = .
 TAB_SIZE               = 8
@@ -67,7 +75,22 @@ ALIASES                = "funcname=\par Name:^^" \
                          "llr=\par Low Level Requirements:^^" \
                          "design=\par Design:^^" \
                          "calls=\par Call Graph:^^" \
-                         "tablespace=\latexonly\jetostablespace\endlatexonly"
+                         "tablespace=\latexonly\jetostablespace\endlatexonly" \
+                         "hlrid{1}=\latexonly\hypertarget{\1}{}^^ \
+                             \textcolor{jetoshlr}{\bfseries^^ \
+                             \endlatexonly`\1`\latexonly\unskip}\endlatexonly" \
+                         "llrid{1}=\latexonly\hypertarget{\1}{}^^ \
+                             \textcolor{jetosllr}{\bfseries^^ \
+                             \endlatexonly`\1`\latexonly\unskip}\endlatexonly" \
+                         "srqref{1}=\latexonly\jetosreqlink^^ \
+                             {\jetossrqref}{\1}{jetossrq}^^ \
+                             {\endlatexonly`\1`\latexonly}\endlatexonly" \
+                         "hlrref{1}=\latexonly\jetosreqlink^^ \
+                             {\hyperlink}{\1}{jetoshlr}^^ \
+                             {\endlatexonly`\1`\latexonly}\endlatexonly" \
+                         "llrref{1}=\latexonly\jetosreqlink^^ \
+                             {\hyperlink}{\1}{jetosllr}^^ \
+                             {\endlatexonly`\1`\latexonly}\endlatexonly"
 
 # Only documented functions and types (and the files that hold them) are
 # shown; a member of a type without a comment is left out.
@@ -402,6 +425,30 @@ EXTRA_PACKAGES += "{enumitem}\SetEnumitemKey{jetos}{wide=0pt, \
     \setlist[DoxyEnumerate,10]{jetos,label=\jetospre{10}\arabic*.} \
     \setlist[DoxyEnumerate,11]{jetos,label=\jetospre{11}\arabic*.} \
     \setlist[DoxyEnumerate,12]{jetos,label=\jetospre{12}\arabic*.}"
+# The bulleted lists (the High and Low Level Requirements, the Calls) are
+# ragged right, so that a code span that doesn't fit on a line goes to the
+# next one instead of sticking out of the margin.
+EXTRA_PACKAGES += "{enumitem}\setlist[DoxyItemize]{before=\raggedright}"
+# The colors of the requirement identifiers (\hlrid, \llrid, \srqref,
+# \hlrref, \llrref): SRQ dark red, HLR dark green, LLR magenta.
+# \jetossrqref links an SRQ to its place in its book, JetOS_SRQs.pdf or
+# Hypervisor_SRQs.pdf, next to this document in docs/ (the books have a
+# named destination for each SRQ, its identifier).
+EXTRA_PACKAGES += "{xcolor}\definecolor{jetossrq}{RGB}{139,0,0} \
+    \definecolor{jetoshlr}{RGB}{0,100,0} \
+    \definecolor{jetosllr}{RGB}{200,0,120}"
+EXTRA_PACKAGES += "{xparse}\ExplSyntaxOn \
+    \NewDocumentCommand \jetossrqref { m m } { \
+      \str_if_in:nnTF {#1} { SRQ_HV_ } \
+        { \href { Hypervisor_SRQs.pdf \c_hash_str #1 } {#2} } \
+        { \href { JetOS_SRQs.pdf \c_hash_str #1 } {#2} } } \
+    \ExplSyntaxOff"
+# \jetosreqlink{link}{target}{color}{text}: the identifier `text`, bold in
+# `color`, as a link (\hyperlink or \jetossrqref) to `target`; it skips
+# the spaces around `text` (the line breaks of the aliases), so that a
+# comma after the link follows it directly.
+EXTRA_PACKAGES += "{xcolor}\newcommand{\jetosreqlink}[4]{#1{#2}{ \
+    \textcolor{#3}{\bfseries\ignorespaces #4\unskip}}}"
 # The chapters, arranged in LaTeX (Doxygen writes "Topic Index", "Topic
 # Documentation" with a section per group, and "File Documentation"; the
 # header files have no @file, so only the C files are in it):

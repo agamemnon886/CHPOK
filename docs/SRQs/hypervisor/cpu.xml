@@ -37,11 +37,10 @@
     do itself.</para>
 
   <section xml:id="SRQ_HV_CPU_001" role="requirement">
-    <title>SRQ_HV_CPU_001</title>
+    <title><phrase role="srq">SRQ_HV_CPU_001</phrase></title>
     <para>The hypervisor shall give each virtual CPU (vCPU) a physical
-      CPU of its own, in the order of the configuration, so that the VMs
-      share no CPU time, and shall need as many physical CPUs as the VMs
-      have vCPUs in all.</para>
+    CPU of its own, in the order of the configuration, so that the VMs
+    share no CPU time.</para>
     <formalpara>
       <title>Rationale</title>
       <para>Spatial and temporal isolation of the VMs.</para>
@@ -50,10 +49,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_THIS_MPIDR_01
+        HLR_MAIN_ARM64_HV_ARCH_CPU_ID_01
+        HLR_MAIN_ARM64_HV_THIS_CPU_01
+        HLR_CPUS_HV_ASSIGN_CPUS_01
+        HLR_LAPIC_LAPIC_ID_01
+        HLR_MAIN_X86_64_HV_ARCH_CPU_ID_01
+        HLR_MAIN_X86_64_HV_THIS_CPU_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_008" role="requirement">
+    <title><phrase role="srq">SRQ_HV_CPU_008</phrase></title>
+    <para>The hypervisor shall need as many physical CPUs as the VMs
+    have vCPUs in all.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>A vCPU without a CPU of its own would share the time of
+      another.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_MAIN_02
+        HLR_CPUS_HV_CPUS_NEEDED_01
+        HLR_MAIN_X86_64_HV_MAIN_03</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CPU_002" role="requirement">
-    <title>SRQ_HV_CPU_002</title>
+    <title><phrase role="srq">SRQ_HV_CPU_002</phrase></title>
     <para>The hypervisor shall start the physical CPUs that it needs
       besides the one that it was started on: on x86_64 by INIT and
       start-up interrupts, to the CPUs that the ACPI tables list; on
@@ -67,13 +97,41 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_HV_UDELAY_01
+        HLR_MAIN_ARM64_FIND_CPUS_01
+        HLR_MAIN_ARM64_HV_AP_MAIN_01
+        HLR_SMP_ARM64_WAIT_ONLINE_01
+        HLR_SMP_ARM64_HV_SMP_START_01
+        HLR_FDT_USE_PROPERTY_01
+        HLR_PSCI_PSCI_HOST_CPU_ON_01
+        HLR_ACPI_READ8_01
+        HLR_ACPI_READ16_01
+        HLR_ACPI_READ32_01
+        HLR_ACPI_READ64_01
+        HLR_ACPI_CHECKSUM_OK_01
+        HLR_ACPI_SIGNATURE_IS_01
+        HLR_ACPI_FIND_RSDP_IN_01
+        HLR_ACPI_FIND_RSDP_01
+        HLR_ACPI_FIND_MADT_01
+        HLR_ACPI_ACPI_FIND_CPUS_01
+        HLR_PIT_HV_UDELAY_01
+        HLR_LAPIC_LAPIC_SEND_IPI_01
+        HLR_LAPIC_LAPIC_SEND_INIT_01
+        HLR_LAPIC_LAPIC_SEND_SIPI_01
+        HLR_MAIN_X86_64_FIND_CPUS_01
+        HLR_MAIN_X86_64_HV_AP_MAIN_01
+        HLR_SMP_COPY_TRAMPOLINE_01
+        HLR_SMP_X86_64_WAIT_ONLINE_01
+        HLR_SMP_X86_64_HV_SMP_START_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CPU_003" role="requirement">
-    <title>SRQ_HV_CPU_003</title>
-    <para>The hypervisor shall run the guest of the first vCPU of each VM
-      on its CPU, and shall park the other vCPUs of the VM, halting their
-      CPUs, because JetOS uses one CPU.</para>
+    <title><phrase role="srq">SRQ_HV_CPU_003</phrase></title>
+    <para>The hypervisor shall run the guest of the first vCPU of each
+    VM on its CPU.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The CPUs are reserved for a JetOS that supports several.</para>
@@ -82,10 +140,36 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_AP_MAIN_01
+        HLR_CPUS_HV_CPU_MAIN_01
+        HLR_MAIN_X86_64_HV_AP_MAIN_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_009" role="requirement">
+    <title><phrase role="srq">SRQ_HV_CPU_009</phrase></title>
+    <para>The hypervisor shall park the other vCPUs of a VM, halting
+    their CPUs, because JetOS uses one CPU.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The CPUs are reserved for a JetOS that supports several.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_AP_MAIN_01
+        HLR_CPUS_HV_CPU_MAIN_01
+        HLR_MAIN_X86_64_HV_AP_MAIN_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CPU_004" role="requirement">
-    <title>SRQ_HV_CPU_004</title>
+    <title><phrase role="srq">SRQ_HV_CPU_004</phrase></title>
     <para>The hypervisor shall show the guest one CPU: on x86_64 by the
       CPUID instruction, which gives the values of the host without SVM,
       the local APIC, x2APIC, MONITOR and the topology, with one CPU,
@@ -101,19 +185,17 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VCPU_HV_ARCH_CPU_ENABLE_02
+        HLR_SVM_HANDLE_CPUID_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CPU_005" role="requirement">
-    <title>SRQ_HV_CPU_005</title>
-    <para>The hypervisor shall run a guest directly on the processor, and
-      shall take control only for what the guest cannot do itself: on
-      x86_64 the physical interrupts, port access, CPUID, the model
-      specific registers, halt, a triple fault, the nested page faults,
-      and the virtualization instructions, INVLPGA, MONITOR and MWAIT,
-      for which the guest gets an invalid opcode exception; on arm64 the
-      physical interrupts, the hypervisor and secure monitor calls, the
-      aborts of the stage 2 translation, the wait instructions (which go
-      on), system errors and exceptions from 32-bit code.</para>
+    <title><phrase role="srq">SRQ_HV_CPU_005</phrase></title>
+    <para>The hypervisor shall run a guest directly on the
+    processor.</para>
     <formalpara>
       <title>Rationale</title>
       <para>The guest runs at full speed, and the hypervisor stays in
@@ -123,10 +205,53 @@
       <title>Verification</title>
       <para>Analysis.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VCPU_HV_ARCH_CPU_ENABLE_01
+        HLR_VCPU_HV_ARCH_VCPU_RUN_01
+        HLR_SVM_SVM_PA_01
+        HLR_SVM_HV_ARCH_CPU_ENABLE_01
+        HLR_SVM_HV_ARCH_VCPU_RUN_01</para>
+    </formalpara>
+  </section>
+
+  <section xml:id="SRQ_HV_CPU_010" role="requirement">
+    <title><phrase role="srq">SRQ_HV_CPU_010</phrase></title>
+    <para>The hypervisor shall take control of a running guest only for
+    what the guest cannot do itself: on x86_64 the physical interrupts,
+    port access, CPUID, the model specific registers, halt, a triple
+    fault, the nested page faults, and the virtualization instructions,
+    INVLPGA, MONITOR and MWAIT, for which the guest gets an invalid
+    opcode exception; on arm64 the physical interrupts, the hypervisor
+    and secure monitor calls, the aborts of the stage 2 translation, the
+    wait instructions (which go on), system errors and exceptions from
+    32-bit code.</para>
+    <formalpara>
+      <title>Rationale</title>
+      <para>The guest runs at full speed, and the hypervisor stays in
+        control.</para>
+    </formalpara>
+    <formalpara>
+      <title>Verification</title>
+      <para>Analysis.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_VCPU_HV_ARCH_CPU_ENABLE_01
+        HLR_VCPU_HANDLE_SYNC_01
+        HLR_VCPU_HANDLE_EXIT_01
+        HLR_VCPU_HV_ARCH_VCPU_RUN_01
+        HLR_SVM_SVM_INIT_01
+        HLR_SVM_HV_ARCH_VCPU_INIT_02
+        HLR_SVM_SKIP_INSTRUCTION_01
+        HLR_SVM_INJECT_EXCEPTION_01
+        HLR_SVM_HANDLE_EXIT_01
+        HLR_SVM_HV_ARCH_VCPU_RUN_01</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CPU_006" role="requirement">
-    <title>SRQ_HV_CPU_006</title>
+    <title><phrase role="srq">SRQ_HV_CPU_006</phrase></title>
     <para>The hypervisor shall emulate the model specific registers of a
       guest on x86_64: the extended feature register (without SVM), the
       time stamp counter, the page attribute table, the system call
@@ -142,10 +267,18 @@
       <title>Verification</title>
       <para>Test.</para>
     </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_SVM_SVM_INIT_01
+        HLR_SVM_LOG_MSR_01
+        HLR_SVM_VMCB_MSR_01
+        HLR_SVM_HANDLE_MSR_01
+        HLR_SVM_HANDLE_MSR_02</para>
+    </formalpara>
   </section>
 
   <section xml:id="SRQ_HV_CPU_007" role="requirement">
-    <title>SRQ_HV_CPU_007</title>
+    <title><phrase role="srq">SRQ_HV_CPU_007</phrase></title>
     <para>The hypervisor shall halt the CPU of a stopped or parked vCPU,
       with its interrupts off.</para>
     <formalpara>
@@ -155,6 +288,15 @@
     <formalpara>
       <title>Verification</title>
       <para>Test.</para>
+    </formalpara>
+    <formalpara>
+      <title>Traceability</title>
+      <para>HLR_MAIN_ARM64_HV_HALT_FOREVER_01
+        HLR_VCPU_HV_ARCH_VCPU_RUN_03
+        HLR_GIC_GIC_CPU_OFF_01
+        HLR_LAPIC_LAPIC_TIMER_STOP_01
+        HLR_MAIN_X86_64_HV_HALT_FOREVER_01
+        HLR_SVM_HV_ARCH_VCPU_RUN_03</para>
     </formalpara>
   </section>
 </chapter>

@@ -33,6 +33,10 @@
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * hypervisor/arch/arm64/pci.c (the code of the board, its devices and the
  * virtual devices of the VMs is in hypervisor/bsps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs.
  */
 
 /**
@@ -71,12 +75,23 @@
  * | `address` | `uint64_t` | The register's physical address |
  *
  * @hlr
+ * - \hlrid{HLR_PCI_CONFIG_READ_01}: `config_read()` shall read a 32-bit
+ *   register of the PCI configuration space of a device of bus 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_006}
  *
  * @llr
+ * - \llrid{LLR_PCI_CONFIG_READ_01}: `config_read()` shall return the 32-bit
+ *   value at the address `ecam` plus `slot` shifted left by `SLOT_SHIFT` plus
+ *   `reg`, read once.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PCI_CONFIG_READ_01}
  *
  * @design
  * 1. Set `address` to `ecam + ((uint64_t) slot << SLOT_SHIFT) + reg`.
+ *    \llrref{LLR_PCI_CONFIG_READ_01}
  * 2. Return the value at `(const volatile uint32_t *) (uintptr_t) address`.
+ *    \llrref{LLR_PCI_CONFIG_READ_01}
  *
  * @calls
  * None.
@@ -117,12 +132,23 @@ static uint32_t config_read(uint64_t ecam, uint32_t slot, uint32_t reg)
  * | `address` | `uint64_t` | The register's physical address |
  *
  * @hlr
+ * - \hlrid{HLR_PCI_CONFIG_WRITE_01}: `config_write()` shall write a 32-bit
+ *   register of the PCI configuration space of a device of bus 0.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_006}
  *
  * @llr
+ * - \llrid{LLR_PCI_CONFIG_WRITE_01}: `config_write()` shall write the 32-bit
+ *   value `value` once at the address `ecam` plus `slot` shifted left by
+ *   `SLOT_SHIFT` plus `reg`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PCI_CONFIG_WRITE_01}
  *
  * @design
  * 1. Set `address` to `ecam + ((uint64_t) slot << SLOT_SHIFT) + reg`.
+ *    \llrref{LLR_PCI_CONFIG_WRITE_01}
  * 2. Set `*(volatile uint32_t *) (uintptr_t) address` to `value`.
+ *    \llrref{LLR_PCI_CONFIG_WRITE_01}
  *
  * @calls
  * None.
@@ -161,20 +187,51 @@ static void config_write(uint64_t ecam, uint32_t slot, uint32_t reg,
  * | `command` | `uint32_t` | The command register |
  *
  * @hlr
+ * - \hlrid{HLR_PCI_PCI_FIND_SERIAL_PORTS_01}: `pci_find_serial_ports()` shall
+ *   find the serial ports COM3 to COM16 as PCI 16550 devices of bus 0 in slot
+ *   `0x10` plus the port number minus 3, give each one I/O space and record it
+ *   as a port of the host.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_HV_CON_006}
  *
  * @llr
+ * - \llrid{LLR_PCI_PCI_FIND_SERIAL_PORTS_01}: If `ecam_base` is 0, or
+ *   `ecam_size` is less than `SLOTS` shifted left by `SLOT_SHIFT`,
+ *   `pci_find_serial_ports()` shall return without reading or writing a
+ *   register.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PCI_PCI_FIND_SERIAL_PORTS_01}
+ * - \llrid{LLR_PCI_PCI_FIND_SERIAL_PORTS_02}: If `ecam_base` is not 0 and
+ *   `ecam_size` is not less than `SLOTS` shifted left by `SLOT_SHIFT`,
+ *   `pci_find_serial_ports()` shall read with `config_read()`, for each port
+ *   from `FIRST_PORT` to `HV_NB_PORTS`, the register `PCI_ID` of the slot
+ *   `FIRST_SLOT` plus the port minus `FIRST_PORT`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PCI_PCI_FIND_SERIAL_PORTS_01}
+ * - \llrid{LLR_PCI_PCI_FIND_SERIAL_PORTS_03}: If and only if the ID read for a
+ *   port is `PCI_DEVICE_SERIAL` shifted left by 16 plus `PCI_VENDOR_REDHAT`,
+ *   `pci_find_serial_ports()` shall write to the slot with `config_write()` the
+ *   I/O address `IO_BASE` plus `IO_STEP` times the port minus `FIRST_PORT` in
+ *   `PCI_BAR0`, then the low 16 bits read from `PCI_COMMAND` with
+ *   `PCI_COMMAND_IO` set in `PCI_COMMAND`, and call `hv_uart_add()` once with
+ *   the port, `HV_HOST_PCI_IO` plus the I/O address and false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_PCI_PCI_FIND_SERIAL_PORTS_01}
  *
  * @design
  * 1. If `ecam_base` is equal to `0U` or `ecam_size` is less than
  *    `((uint64_t) SLOTS << SLOT_SHIFT)`:
+ *    \llrref{LLR_PCI_PCI_FIND_SERIAL_PORTS_01}
  *    1. Return.
  * 2. Set `port` to `FIRST_PORT`; then while `port` is less than or equal to
  *    `HV_NB_PORTS`, repeat (after each pass: increment `port`):
+ *    \llrref{LLR_PCI_PCI_FIND_SERIAL_PORTS_02}
  *    1. Set `slot` to `FIRST_SLOT + (port - FIRST_PORT)`.
  *    2. Call `config_read()` with the arguments `ecam_base`, `slot` and
  *       `PCI_ID`, and store the result in `id`.
  *    3. If `id` is equal to
  *       `(((uint32_t) PCI_DEVICE_SERIAL << 16) | PCI_VENDOR_REDHAT)`:
+ *       \llrref{LLR_PCI_PCI_FIND_SERIAL_PORTS_03}
  *       1. Set `io` to `IO_BASE + (IO_STEP * (port - FIRST_PORT))`.
  *       2. Call `config_read()` with the arguments `ecam_base`, `slot` and
  *          `PCI_COMMAND`, and store the result in `command`.

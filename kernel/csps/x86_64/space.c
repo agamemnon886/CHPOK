@@ -55,6 +55,18 @@
  *
  * Modified by Kirill Brazhnikov, 2026-11-15: moved from
  * kernel/arch/x86_64/space.c (the CPU support packages are in kernel/csps).
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-16: high and low level requirements of
+ * the functions, traced to the system requirements (docs/SRQs), and the steps
+ * of their design linked to the LLRs. A memory block at a bad virtual address
+ * stops the kernel (it was left unmapped), as on arm64 and as SRQ_JET_BOOT_005
+ * requires.
+ *
+ * Modified by Kirill Brazhnikov, 2026-11-17: low level requirements of one
+ * behaviour each; code that compiles to nothing (assertions, (void) x;,
+ * empty branches) is left out of the design; the high level requirements
+ * trace to the system requirements split into requirements of one "shall"
+ * each.
  */
 
 /**
@@ -123,11 +135,20 @@ static uint64_t kernel_cr3;
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_CPU_WRITE_CR3_01}: `cpu_write_cr3()` shall switch the
+ *   processor to a top-level page table.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_002}
  *
  * @llr
+ * - \llrid{LLR_SPACE_CPU_WRITE_CR3_01}: `cpu_write_cr3()` shall write `cr3` to
+ *   CR3.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_CPU_WRITE_CR3_01}
  *
  * @design
  * 1. Execute the assembly code `mov %0, %%%cr3`.
+ *    \llrref{LLR_SPACE_CPU_WRITE_CR3_01}
  *
  * @calls
  * None.
@@ -166,14 +187,27 @@ static void cpu_write_cr3(uint64_t cr3)
  * | `table` | `uint64_t *` | The table |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_TABLE_ALLOC_01}: `table_alloc()` shall give a page
+ *   table of zeros from the kernel heap.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_002}
+ *   - \srqref{SRQ_JET_MEM_010}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_TABLE_ALLOC_01}: `table_alloc()` shall call
+ *   `ja_mem_alloc_aligned()` once with `PAGE_SIZE` and `PAGE_SIZE`, set the
+ *   `PAGE_SIZE` bytes that it gives to 0 with `memset()`, and return their
+ *   address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_TABLE_ALLOC_01}
  *
  * @design
  * 1. Call `ja_mem_alloc_aligned()` with the arguments `PAGE_SIZE` and
  *    `PAGE_SIZE`, and store the result in `table`.
+ *    \llrref{LLR_SPACE_X86_64_TABLE_ALLOC_01}
  * 2. Call `memset()` with the arguments `table`, `0` and `PAGE_SIZE`.
- * 3. Return `table`.
+ *    \llrref{LLR_SPACE_X86_64_TABLE_ALLOC_01}
+ * 3. Return `table`. \llrref{LLR_SPACE_X86_64_TABLE_ALLOC_01}
  *
  * @calls
  * - `ja_mem_alloc_aligned()`
@@ -206,15 +240,30 @@ static uint64_t* table_alloc(void)
  * | `pml4` | `uint64_t *` | The top-level table |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_PML4_CREATE_01}: `pml4_create()` shall create a top-level
+ *   page table that maps the RAM for the kernel only, at the same addresses.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_002}
+ *   - \srqref{SRQ_JET_MEM_003}
  *
  * @llr
+ * - \llrid{LLR_SPACE_PML4_CREATE_01}: `pml4_create()` shall call
+ *   `table_alloc()` twice, set entry 0 of the first table to the address of the
+ *   second one with `PTE_TABLE_USER`, set entry 0 of the second table to the
+ *   address of `kernel_pd` with `PTE_TABLE_KERNEL`, and return the first table.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_PML4_CREATE_01}
  *
  * @design
  * 1. Call `table_alloc()`, and store the result in `pml4`.
+ *    \llrref{LLR_SPACE_PML4_CREATE_01}
  * 2. Call `table_alloc()`, and store the result in `pdpt`.
+ *    \llrref{LLR_SPACE_PML4_CREATE_01}
  * 3. Set `pml4[0]` to `(uint64_t)pdpt | PTE_TABLE_USER`.
+ *    \llrref{LLR_SPACE_PML4_CREATE_01}
  * 4. Set `pdpt[0]` to `(uint64_t)kernel_pd | PTE_TABLE_KERNEL`.
- * 5. Return `pml4`.
+ *    \llrref{LLR_SPACE_PML4_CREATE_01}
+ * 5. Return `pml4`. \llrref{LLR_SPACE_PML4_CREATE_01}
  *
  * @calls
  * - `table_alloc()`
@@ -251,18 +300,43 @@ static uint64_t* pml4_create(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_TABLE_NEXT_01}: `table_next()` shall give the
+ *   next-level page table of an entry of a user mapping, creating it if needed,
+ *   and stop the kernel if the entry belongs to the kernel's mapping.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_001}
+ *   - \srqref{SRQ_JET_MEM_003}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_TABLE_NEXT_01}: If the entry at `entry` is 0,
+ *   `table_next()` shall set it to the result of `table_alloc()` with
+ *   `PTE_TABLE_USER`, and return the address of that table.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_TABLE_NEXT_01}
+ * - \llrid{LLR_SPACE_X86_64_TABLE_NEXT_02}: If the entry at `entry` is not 0
+ *   and `PTE_US` is not set in it, `table_next()` shall call `pok_fatal()` with
+ *   `"User mapping overlaps with the kernel's one"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_TABLE_NEXT_01}
+ * - \llrid{LLR_SPACE_X86_64_TABLE_NEXT_03}: If the entry at `entry` is not 0
+ *   and `PTE_US` is set in it, `table_next()` shall return the address in the
+ *   entry (its bits `PTE_ADDR_MASK`), without calling `table_alloc()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_TABLE_NEXT_01}
  *
  * @design
  * 1. If the value at `entry` is equal to `0U`:
+ *    \llrref{LLR_SPACE_X86_64_TABLE_NEXT_01}
  *    1. Set `*entry` to `(uint64_t)table_alloc() | PTE_TABLE_USER`.
  * 2. Otherwise, if `(*entry & PTE_US)` is equal to `0U`:
+ *    \llrref{LLR_SPACE_X86_64_TABLE_NEXT_02},
+ *    \llrref{LLR_SPACE_X86_64_TABLE_NEXT_03}
  *    1. Call `pok_fatal()` with the argument
  *       `"User mapping overlaps with the kernel's one"`.
- * 3. Otherwise:
- *    1. Do nothing.
- * 4. Return `(uint64_t*)(*entry & PTE_ADDR_MASK)`.
+ *       \llrref{LLR_SPACE_X86_64_TABLE_NEXT_02}
+ * 3. Return `(uint64_t*)(*entry & PTE_ADDR_MASK)`.
+ *    \llrref{LLR_SPACE_X86_64_TABLE_NEXT_01},
+ *    \llrref{LLR_SPACE_X86_64_TABLE_NEXT_03}
  *
  * @calls
  * - `table_alloc()`
@@ -307,18 +381,47 @@ static uint64_t* table_next(uint64_t* entry)
  * | `pt` | `uint64_t *` | The page table |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_MAP_USER_PAGE_01}: `map_user_page()` shall map a
+ *   user page at a virtual address to a physical page, writable or not,
+ *   executable or not.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_001}
+ *   - \srqref{SRQ_JET_MEM_004}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_MAP_USER_PAGE_01}: `map_user_page()` shall call
+ *   `table_next()` with the address of the entry `TABLE_INDEX(va, PML4_SHIFT)`
+ *   of `pml4`, then with the entry `TABLE_INDEX(va, PDPT_SHIFT)` of the table
+ *   that it returns, then with the entry `TABLE_INDEX(va, PD_SHIFT)` of the
+ *   next table, and set the entry `TABLE_INDEX(va, PT_SHIFT)` of the last table
+ *   to `pa` with `PTE_P` and `PTE_US`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MAP_USER_PAGE_01}
+ * - \llrid{LLR_SPACE_X86_64_MAP_USER_PAGE_02}: `map_user_page()` shall set
+ *   `PTE_RW` in that entry if `writable` is true, and leave it clear if
+ *   `writable` is false.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MAP_USER_PAGE_01}
+ * - \llrid{LLR_SPACE_X86_64_MAP_USER_PAGE_03}: `map_user_page()` shall set
+ *   `PTE_NX` in that entry if `exec` is false, and leave it clear if `exec` is
+ *   true.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MAP_USER_PAGE_01}
  *
  * @design
  * 1. Call `table_next()` with the address of
  *    `pml4[TABLE_INDEX(va, PML4_SHIFT)]`, and store the result in `pdpt`.
+ *    \llrref{LLR_SPACE_X86_64_MAP_USER_PAGE_01}
  * 2. Call `table_next()` with the address of
  *    `pdpt[TABLE_INDEX(va, PDPT_SHIFT)]`, and store the result in `pd`.
+ *    \llrref{LLR_SPACE_X86_64_MAP_USER_PAGE_01}
  * 3. Call `table_next()` with the address of `pd[TABLE_INDEX(va, PD_SHIFT)]`,
- *    and store the result in `pt`.
+ *    and store the result in `pt`. \llrref{LLR_SPACE_X86_64_MAP_USER_PAGE_01}
  * 4. Set `pt[TABLE_INDEX(va, PT_SHIFT)]` to
  *    `pa | PTE_P | PTE_US | (writable ? PTE_RW : 0U) | (exec ? 0U : PTE_NX)`.
+ *    \llrref{LLR_SPACE_X86_64_MAP_USER_PAGE_01},
+ *    \llrref{LLR_SPACE_X86_64_MAP_USER_PAGE_02},
+ *    \llrref{LLR_SPACE_X86_64_MAP_USER_PAGE_03}
  *
  * @calls
  * - `table_next()`
@@ -341,7 +444,7 @@ static void map_user_page(uint64_t* pml4, uint64_t va, uint64_t pa,
  * @description
  * Allocates RAM for the memory blocks after the partitions and maps each block
  * into the spaces that have access to it (read-only or read-write); a block at
- * a bad virtual address is not mapped.
+ * a bad virtual address is fatal, as on arm64.
  *
  * @params
  * | Name | Type | Description |
@@ -371,41 +474,128 @@ static void map_user_page(uint64_t* pml4, uint64_t va, uint64_t pa,
  * | `virt` | `uint64_t` | Its virtual address |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01}: `memory_blocks_init()`
+ *   shall place each memory block in RAM after the partitions, cleared, and map
+ *   it at its virtual address into each space that may access it, read-only or
+ *   read-write, and not executable.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_004}
+ *   - \srqref{SRQ_JET_MEM_014}
+ * - \hlrid{HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02}: `memory_blocks_init()`
+ *   shall stop the kernel, with a message, for a memory block whose virtual
+ *   address is not page aligned or lies in the memory of the partitions, and if
+ *   the RAM cannot hold the memory blocks.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_005}
+ *   - \srqref{SRQ_JET_BOOT_008}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01}: If `virt_addr` of a memory
+ *   block (`jet_memory_blocks[i]`, for `i` less than `jet_memory_blocks_n`) is
+ *   not a multiple of `PAGE_SIZE`, or is less than `POK_PARTITION_MEMORY_BASE +
+ *   POK_PARTITION_MEMORY_MAX_SIZE`, `memory_blocks_init()` shall call
+ *   `printf()` with `"Memory block '%%s' at 0x%%lx: virtual address should be
+ *   page-aligned and not below 0x%%llx\n"`, the name of the block, its
+ *   `virt_addr` and that limit, and then `pok_fatal()` with `"Wrong memory
+ *   block configuration"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02}
+ * - \llrid{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02}: If the physical address of
+ *   a block (the end of the block before it, or `phys_first` for the first
+ *   block, rounded up to `PAGE_SIZE`) plus its size rounded up to `PAGE_SIZE`
+ *   is greater than `BOARD_RAM_SIZE`, `memory_blocks_init()` shall call
+ *   `pok_fatal()` with `"Not enough memory for memory blocks"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02}
+ * - \llrid{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03}: For each block, in their
+ *   order, `memory_blocks_init()` shall set the bytes of its rounded size at
+ *   its physical address to 0 with `memset()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01}
+ * - \llrid{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}: For each space `space_id`
+ *   from 1 to `ja_spaces_n` and below `MAX_PID` whose right of the block
+ *   (`pid_to_rights[space_id]`) is not `MB_CONFIG_NO_ACCESS`,
+ *   `memory_blocks_init()` shall call `map_user_page()`, for each page of the
+ *   block, with the top table of the space (`cr3` of `ja_spaces[space_id -
+ *   1]`), `virt_addr` plus the offset of the page, the physical address of the
+ *   block plus the offset, whether the right is `MB_CONFIG_READ_WRITE`, and
+ *   `FALSE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01}
+ * - \llrid{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_05}: For a space whose right of
+ *   the block is `MB_CONFIG_NO_ACCESS`, `memory_blocks_init()` shall not call
+ *   `map_user_page()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01}
  *
  * @design
  * 1. Set `phys_start` to `phys_first`.
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02},
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03},
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  * 2. Set `i` to `0`; then while `i` is less than `jet_memory_blocks_n`, repeat
  *    (after each pass: increment `i`):
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01},
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02},
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03},
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04},
+ *    \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_05}
  *    1. Set `mblock` to the address of `jet_memory_blocks[i]`.
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  *    2. Set `virt` to `mblock->virt_addr`.
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  *    3. Call `ALIGN_VAL()` with the arguments `mblock->size` and `PAGE_SIZE`,
  *       and store the result in `size`.
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  *    4. Call `ALIGN_VAL()` with the arguments `phys_start` and `PAGE_SIZE`, and
  *       store the result in `phys`.
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  *    5. If `(virt & (PAGE_SIZE - 1U))` is not equal to `0U` or `virt` is less
  *       than `(POK_PARTITION_MEMORY_BASE + POK_PARTITION_MEMORY_MAX_SIZE)`:
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_01}
  *       1. Call `printf()` with the arguments
- *          `"Memory block '%%s' at 0x%%lx is not mapped: virtual address "`
- *          `"should be page-aligned and not below 0x%%llx\n"`, `mblock->name`,
+ *          `"Memory block '%%s' at 0x%%lx: virtual address should be "`
+ *          `"page-aligned and not below 0x%%llx\n"`, `mblock->name`,
  *          `(unsigned long)virt` and
  *          `POK_PARTITION_MEMORY_BASE + POK_PARTITION_MEMORY_MAX_SIZE`.
- *       2. Go on with the next pass of the loop.
+ *       2. Call `pok_fatal()` with the argument
+ *          `"Wrong memory block configuration"`.
  *    6. If `(phys + size)` is greater than `BOARD_RAM_SIZE`:
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02}
  *       1. Call `pok_fatal()` with the argument
  *          `"Not enough memory for memory blocks"`.
  *    7. Call `memset()` with the arguments `(void*)phys`, `0` and `size`.
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03}
  *    8. Set `phys_start` to `phys + size`.
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_03},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  *    9. Set `space_id` to `1U`; then while `space_id` is less than or equal to
  *       `ja_spaces_n` and `space_id` is less than `MAX_PID`, repeat (after each
  *       pass: increment `space_id`):
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04},
+ *       \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_05}
  *       1. Set `rights` to `mblock->pid_to_rights[space_id]`.
  *       2. If `rights` is equal to `MB_CONFIG_NO_ACCESS`:
+ *          \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_05}
  *          1. Go on with the next pass of the loop.
  *       3. Set `pml4` to `(uint64_t*)ja_spaces[space_id - 1U].cr3`.
+ *          \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  *       4. Set `offset` to `0U`; then while `offset` is less than `size`,
  *          repeat (after each pass: add `PAGE_SIZE` to `offset`):
+ *          \llrref{LLR_SPACE_X86_64_MEMORY_BLOCKS_INIT_04}
  *          1. Call `map_user_page()` with the arguments `pml4`,
  *             `virt + offset`, `phys + offset`,
  *             `rights == MB_CONFIG_READ_WRITE` and `FALSE`.
@@ -432,13 +622,13 @@ static void memory_blocks_init(uintptr_t phys_first)
             || (virt
                 < (POK_PARTITION_MEMORY_BASE + POK_PARTITION_MEMORY_MAX_SIZE)))
         {
-            // As before on (32-bit) x86, access to such a block will fail.
+            // A wrong configuration stops the kernel (as on arm64).
             (void) printf(
-                "Memory block '%s' at 0x%lx is not mapped: virtual address "
-                "should be page-aligned and not below 0x%llx\n",
+                "Memory block '%s' at 0x%lx: virtual address should be "
+                "page-aligned and not below 0x%llx\n",
                 mblock->name, (unsigned long)virt,
                 POK_PARTITION_MEMORY_BASE + POK_PARTITION_MEMORY_MAX_SIZE);
-            continue;
+            pok_fatal("Wrong memory block configuration");
         }
 
         if ((phys + size) > BOARD_RAM_SIZE) {
@@ -482,26 +672,39 @@ static void memory_blocks_init(uintptr_t phys_first)
  * | Name | Type | Description |
  * |------|------|-------------|
  * | `ja_spaces` | `ja_x86_64_space_t[]` | The memory spaces of the partitions |
- * | `ja_spaces_n` | `uint32_t` | Their number |
  *
  * @locals
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01}: `ja_space_layout_get()`
+ *   shall give the kernel address, the user address and the size of the code
+ *   and data of a space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_001}
+ *   - \srqref{SRQ_JET_PART_002}
+ *   - \srqref{SRQ_JET_PART_012}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01}: `ja_space_layout_get()`
+ *   shall set, at `space_layout`, `kernel_addr` to `phys_base` of
+ *   `ja_spaces[space_id - 1]`, `user_addr` to `POK_PARTITION_MEMORY_BASE` and
+ *   `size` to `size_normal` of `ja_spaces[space_id - 1]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01}
  *
  * @design
- * 1. Check that `(space_id != 0U) && (space_id <= ja_spaces_n)` holds (assert:
- *    stop otherwise).
- * 2. Set `space_layout->kernel_addr` to
+ * 1. Set `space_layout->kernel_addr` to
  *    `(char*)ja_spaces[space_id - 1U].phys_base`.
- * 3. Set `space_layout->user_addr` to
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01}
+ * 2. Set `space_layout->user_addr` to
  *    `(char* JET_USER)POK_PARTITION_MEMORY_BASE`.
- * 4. Set `space_layout->size` to `ja_spaces[space_id - 1U].size_normal`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01}
+ * 3. Set `space_layout->size` to `ja_spaces[space_id - 1U].size_normal`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_LAYOUT_GET_01}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 void ja_space_layout_get(jet_space_id space_id,
     jet_space_layout_t* space_layout)
@@ -538,12 +741,23 @@ void ja_space_layout_get(jet_space_id space_id,
  * | `space` | `ja_x86_64_space_t *` | The space |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_SHARED_DATA_01}: `ja_space_shared_data()`
+ *   shall give the kernel address of the area that the kernel shares with a
+ *   space, at the start of its memory.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_009}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_SHARED_DATA_01}: `ja_space_shared_data()`
+ *   shall return `phys_base` of `ja_spaces[space_id - 1]` as a pointer.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_SHARED_DATA_01}
  *
  * @design
  * 1. Set `space` to the address of `ja_spaces[space_id - 1U]`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SHARED_DATA_01}
  * 2. Return `(jet_kernel_shared_t* JET_KUSER)space->phys_base`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SHARED_DATA_01}
  *
  * @calls
  * None.
@@ -579,13 +793,23 @@ jet_kernel_shared_t* JET_KUSER ja_space_shared_data(
  * | `space` | `ja_x86_64_space_t *` | The space |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_GET_HEAP_01}: `ja_space_get_heap()` shall
+ *   give the user address of the heap of a space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_001}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_GET_HEAP_01}: `ja_space_get_heap()` shall
+ *   return `POK_PARTITION_MEMORY_BASE` plus `heap_end` minus `size_heap` of
+ *   `ja_spaces[space_id - 1]`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_GET_HEAP_01}
  *
  * @design
  * 1. Set `space` to the address of `ja_spaces[space_id - 1U]`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_GET_HEAP_01}
  * 2. Return `(void JET_USER*)(POK_PARTITION_MEMORY_BASE + space->heap_end -`
- *    `space->size_heap)`.
+ *    `space->size_heap)`. \llrref{LLR_SPACE_X86_64_JA_SPACE_GET_HEAP_01}
  *
  * @calls
  * None.
@@ -617,26 +841,34 @@ static jet_space_id current_space_id = 0;
  * | `stack_user` | `jet_ustack_t` | [in] The user stack. |
  *
  * @globals
- * | Name | Type | Description |
- * |------|------|-------------|
- * | `ja_spaces_n` | `uint32_t` | The number of memory spaces |
+ * None.
  *
  * @locals
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_USER_SPACE_JUMP_01}: `ja_user_space_jump()`
+ *   shall enter user mode in a space at an entry point with a user stack, with
+ *   the kernel stack set for the next interrupt.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_012}
+ *   - \srqref{SRQ_JET_THR_013}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_USER_SPACE_JUMP_01}: `ja_user_space_jump()`
+ *   shall call `ja_tss_set_rsp0()` once with `stack_kernel`, and then
+ *   `ja_x86_64_user_jump()` with `stack_kernel`, `entry_user` and `stack_user`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_USER_SPACE_JUMP_01}
  *
  * @design
- * 1. Check that `(space_id != 0U) && (space_id <= ja_spaces_n)` holds (assert:
- *    stop otherwise).
- * 2. Call `ja_tss_set_rsp0()` with the argument `stack_kernel`.
- * 3. Call `ja_x86_64_user_jump()` with the arguments `stack_kernel`,
+ * 1. Call `ja_tss_set_rsp0()` with the argument `stack_kernel`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USER_SPACE_JUMP_01}
+ * 2. Call `ja_x86_64_user_jump()` with the arguments `stack_kernel`,
  *    `entry_user` and `stack_user`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USER_SPACE_JUMP_01}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `ja_tss_set_rsp0()`
  * - `ja_x86_64_user_jump()`
  */
@@ -683,63 +915,162 @@ void ja_user_space_jump(
  * | `space` | `ja_x86_64_space_t *` | The space |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_INIT_01}: `ja_space_init()` shall set up
+ *   the memory at boot: the kernel's mapping of the RAM, and for each partition
+ *   a space of its own (code and data, heap, stacks) in physical memory that no
+ *   other space has, then the memory blocks, and switch to the kernel's page
+ *   table.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_001}
+ *   - \srqref{SRQ_JET_MEM_002}
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_INIT_02}: `ja_space_init()` shall map the
+ *   memory of a space with user access, and only its code and data as
+ *   executable.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_003}
+ *   - \srqref{SRQ_JET_MEM_007}
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_INIT_03}: `ja_space_init()` shall place
+ *   the spaces from the start of the partitions' memory, and stop the kernel if
+ *   a space is too large or does not fit into the RAM.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_BOOT_005}
+ *   - \srqref{SRQ_JET_BOOT_008}
+ *   - \srqref{SRQ_JET_BSP_004}
+ *   - \srqref{SRQ_JET_BSP_006}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_01}: `ja_space_init()` shall set
+ *   `kernel_pd` to the result of `table_alloc()`, set its entry
+ *   `TABLE_INDEX(pa, PD_SHIFT)` to `pa | PTE_P | PTE_RW | PTE_PS | PTE_G` for
+ *   each `pa` from 0 below `BOARD_RAM_SIZE` in steps of `LARGE_PAGE_SIZE`, and
+ *   set `kernel_cr3` to the result of `pml4_create()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_01}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_02}: If `size_heap` of a space (each
+ *   of the first `ja_spaces_n` elements of `ja_spaces`, in their order) is
+ *   greater than 0, `ja_space_init()` shall set its `heap_end` to `size_normal`
+ *   rounded up to 16 (`ALIGN_VAL()`) plus `size_heap`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_03}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_03}: If `size_heap` of a space is 0,
+ *   `ja_space_init()` shall set its `heap_end` to `size_normal`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_03}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_04}: `ja_space_init()` shall set
+ *   `size_total` of a space to its `heap_end` rounded up to 16 plus
+ *   `size_stack`, rounded up to `PAGE_SIZE` (`ALIGN_VAL()`).
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_03}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_05}: If `phys_base` of a space is 0,
+ *   `ja_space_init()` shall set it to the next free physical address
+ *   (`POK_PARTITION_MEMORY_PHYS_START` at first) rounded up to `PAGE_SIZE`, and
+ *   take `phys_base` plus `size_total` as the next free physical address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_03}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_06}: If `phys_base` of a space is not
+ *   0, `ja_space_init()` shall leave it as it is, and take `phys_base` plus
+ *   `size_total` as the next free physical address if and only if it is greater
+ *   than the next free physical address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_03}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_07}: If `size_total` of a space is
+ *   greater than `POK_PARTITION_MEMORY_MAX_SIZE`, or its `phys_base` plus
+ *   `size_total` is greater than `BOARD_RAM_SIZE`, `ja_space_init()` shall call
+ *   `printf()` with `"Not enough memory for space %%u (0x%%zx bytes at
+ *   0x%%lx)\n"`, the index of the space plus 1, its `size_total` and its
+ *   `phys_base`, and then `pok_fatal()` with `"Not enough memory for
+ *   partitions"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_03}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_08}: `ja_space_init()` shall set
+ *   `cr3` of a space to the result of `pml4_create()` and call
+ *   `map_user_page()` with that table, `POK_PARTITION_MEMORY_BASE` plus the
+ *   offset, `phys_base` plus the offset, `TRUE` and whether the offset is less
+ *   than `size_normal`, for each offset from 0 below `size_total` in steps of
+ *   `PAGE_SIZE`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_02}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_INIT_09}: After the spaces,
+ *   `ja_space_init()` shall call `memory_blocks_init()` with the next free
+ *   physical address, and then `cpu_write_cr3()` with `kernel_cr3`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_INIT_01}
  *
  * @design
  * 1. Set `phys_start` to `POK_PARTITION_MEMORY_PHYS_START`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_05},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_06},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_09}
  * 2. Call `table_alloc()`, and store the result in `kernel_pd`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_01}
  * 3. Set `pa` to `0`; then while `pa` is less than `BOARD_RAM_SIZE`, repeat
  *    (after each pass: add `LARGE_PAGE_SIZE` to `pa`):
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_01}
  *    1. Set `kernel_pd[TABLE_INDEX(pa, PD_SHIFT)]` to
  *       `pa | PTE_P | PTE_RW | PTE_PS | PTE_G`.
  * 4. Set `kernel_cr3` to `(uint64_t)pml4_create()`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_01}
  * 5. Set `i` to `0U`; then while `i` is less than `ja_spaces_n`, repeat (after
- *    each pass: increment `i`):
+ *    each pass: increment `i`): \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_02},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_03},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_04},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_05},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_06},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_07},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_08}
  *    1. Set `space` to the address of `ja_spaces[i]`.
  *    2. Set `size_total` to `space->size_normal`.
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_03}
  *    3. If `space->size_heap` is greater than `0U`:
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_03}
  *       1. Set `size_total` to `ALIGN_VAL(size_total, 16) + space->size_heap`.
+ *          \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_02}
  *    4. Set `space->heap_end` to `size_total`.
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_02},
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_03}
  *    5. Set `size_total` to `ALIGN_VAL(size_total, 16) + space->size_stack`.
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_04}
  *    6. Call `ALIGN_VAL()` with the arguments `size_total` and `PAGE_SIZE`, and
  *       store the result in `space->size_total`.
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_04}
  *    7. If `space->phys_base` is equal to `0U`:
+ *       \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_05}
  *       1. Call `ALIGN_VAL()` with the arguments `phys_start` and `PAGE_SIZE`,
  *          and store the result in `space->phys_base`.
  *       2. Set `phys_start` to `space->phys_base + space->size_total`.
- *    8. Otherwise:
- *       1. Check that `space->phys_base >= POK_PARTITION_MEMORY_PHYS_START`
- *          holds (assert: stop otherwise).
- *       2. Check that `(space->phys_base & (PAGE_SIZE - 1U)) == 0U` holds
- *          (assert: stop otherwise).
- *       3. Set `phys_base_end` to `space->phys_base + space->size_total`.
- *       4. If `phys_start` is less than `phys_base_end`:
+ *    8. Otherwise: \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_06}
+ *       1. Set `phys_base_end` to `space->phys_base + space->size_total`.
+ *       2. If `phys_start` is less than `phys_base_end`:
  *          1. Set `phys_start` to `phys_base_end`.
  *    9. If `space->size_total` is greater than `POK_PARTITION_MEMORY_MAX_SIZE`
  *       or `(space->phys_base + space->size_total)` is greater than
- *       `BOARD_RAM_SIZE`:
+ *       `BOARD_RAM_SIZE`: \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_07}
  *       1. Call `printf()` with the arguments
  *          `"Not enough memory for space %%u (0x%%zx bytes at 0x%%lx)\n"`,
  *          `i + 1U`, `space->size_total` and `(unsigned long)space->phys_base`.
  *       2. Call `pok_fatal()` with the argument
  *          `"Not enough memory for partitions"`.
  *    10. Call `pml4_create()`, and store the result in `pml4`.
+ *        \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_08}
  *    11. Set `offset` to `0U`; then while `offset` is less than
  *        `space->size_total`, repeat (after each pass: add `PAGE_SIZE` to
- *        `offset`):
+ *        `offset`): \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_08}
  *        1. Call `map_user_page()` with the arguments `pml4`,
  *           `POK_PARTITION_MEMORY_BASE + offset`, `space->phys_base + offset`,
  *           `TRUE` and `offset < space->size_normal`.
  *    12. Set `space->cr3` to `(uint64_t)pml4`.
+ *        \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_08}
  * 6. Call `memory_blocks_init()` with the argument `phys_start`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_09}
  * 7. Call `cpu_write_cr3()` with the argument `kernel_cr3`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_INIT_09}
  *
  * @calls
  * - `table_alloc()`
  * - `pml4_create()`
  * - `ALIGN_VAL()`
- * - `pok_assertion_fail()`
  * - `printf()`
  * - `pok_fatal()`
  * - `map_user_page()`
@@ -843,16 +1174,25 @@ void ja_space_init(void)
  * | `space` | `ja_x86_64_space_t *` | The space |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_USTACK_INIT_01}: `ja_ustack_init()` shall free
+ *   all the user stacks of a space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_018}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_USTACK_INIT_01}: `ja_ustack_init()` shall set
+ *   `size_stack_used` of `ja_spaces[space_id - 1]` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_USTACK_INIT_01}
  *
  * @design
- * 1. Check that `space_id != 0U` holds (assert: stop otherwise).
- * 2. Set `space` to the address of `ja_spaces[space_id - 1U]`.
- * 3. Set `space->size_stack_used` to `0`.
+ * 1. Set `space` to the address of `ja_spaces[space_id - 1U]`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_INIT_01}
+ * 2. Set `space->size_stack_used` to `0`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_INIT_01}
  *
  * @calls
- * - `pok_assertion_fail()`
+ * None.
  */
 void ja_ustack_init (jet_space_id space_id)
 {
@@ -892,24 +1232,49 @@ void ja_ustack_init (jet_space_id space_id)
  * | `space` | `ja_x86_64_space_t *` | The space |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_USTACK_ALLOC_01}: `ja_ustack_alloc()` shall give
+ *   a user stack of a size from the stack area of a space, from its top down,
+ *   16-byte aligned, or none if there is no room.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_008}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_USTACK_ALLOC_01}: If `stack_size` is greater
+ *   than the free stack size of `ja_spaces[space_id - 1]` (`size_stack` minus
+ *   `size_stack_used`) rounded down to a multiple of 16, `ja_ustack_alloc()`
+ *   shall return 0 and leave `size_stack_used` as it is.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_USTACK_ALLOC_01}
+ * - \llrid{LLR_SPACE_X86_64_JA_USTACK_ALLOC_02}: If `stack_size` is not greater
+ *   than the free stack size of `ja_spaces[space_id - 1]` rounded down to a
+ *   multiple of 16, `ja_ustack_alloc()` shall return
+ *   `POK_PARTITION_MEMORY_BASE` plus `size_total` minus `size_stack_used` of
+ *   the space, and add `stack_size` rounded up to 16 (`ALIGN_VAL()`) to
+ *   `size_stack_used`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_USTACK_ALLOC_01}
  *
  * @design
- * 1. Check that `space_id != 0U` holds (assert: stop otherwise).
- * 2. Set `space` to the address of `ja_spaces[space_id - 1U]`.
- * 3. Set `size_stack_free` to `space->size_stack - space->size_stack_used`.
- * 4. If `stack_size` is greater than `(size_stack_free & ~(size_t)15U)`:
+ * 1. Set `space` to the address of `ja_spaces[space_id - 1U]`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_01},
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_02}
+ * 2. Set `size_stack_free` to `space->size_stack - space->size_stack_used`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_01},
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_02}
+ * 3. If `stack_size` is greater than `(size_stack_free & ~(size_t)15U)`:
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_01}
  *    1. Return `0`.
- * 5. Set `size_stack_new` to
+ * 4. Set `size_stack_new` to
  *    `space->size_stack_used + ALIGN_VAL(stack_size, 16)`.
- * 6. Set `result` to
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_02}
+ * 5. Set `result` to
  *    `POK_PARTITION_MEMORY_BASE + space->size_total - space->size_stack_used`.
- * 7. Set `space->size_stack_used` to `size_stack_new`.
- * 8. Return `result`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_02}
+ * 6. Set `space->size_stack_used` to `size_stack_new`.
+ *    \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_02}
+ * 7. Return `result`. \llrref{LLR_SPACE_X86_64_JA_USTACK_ALLOC_02}
  *
  * @calls
- * - `pok_assertion_fail()`
  * - `ALIGN_VAL()`
  */
 jet_ustack_t ja_ustack_alloc (jet_space_id space_id, size_t stack_size)
@@ -962,16 +1327,45 @@ jet_ustack_t ja_ustack_alloc (jet_space_id space_id, size_t stack_size)
  * | `cr3` | `uint64_t` | The space's top-level table |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_SWITCH_01}: `ja_space_switch()` shall
+ *   switch the processor to the page tables of a space, or of the kernel for
+ *   space 0, if it is not the current one.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_001}
+ *   - \srqref{SRQ_JET_SCHED_004}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_SWITCH_01}: If `space_id` is
+ *   `current_space_id`, `ja_space_switch()` shall return without calling
+ *   `cpu_write_cr3()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_SWITCH_01}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_SWITCH_02}: If `space_id` is not
+ *   `current_space_id` and is not 0, `ja_space_switch()` shall call
+ *   `cpu_write_cr3()` once with `cr3` of `ja_spaces[space_id - 1]` and set
+ *   `current_space_id` to `space_id`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_SWITCH_01}
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_SWITCH_03}: If `space_id` is not
+ *   `current_space_id` and is 0, `ja_space_switch()` shall call
+ *   `cpu_write_cr3()` once with `kernel_cr3` and set `current_space_id` to 0.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_SWITCH_01}
  *
  * @design
  * 1. If `space_id` is equal to `current_space_id`:
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SWITCH_01}
  *    1. Return.
  * 2. Set `cr3` to `ja_spaces[space_id - 1U].cr3` if `space_id` is not equal to
  *    `0U`, otherwise `kernel_cr3`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SWITCH_02},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SWITCH_03}
  * 3. Call `cpu_write_cr3()` with the argument `cr3`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SWITCH_02},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SWITCH_03}
  * 4. Set `current_space_id` to `space_id`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SWITCH_02},
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_SWITCH_03}
  *
  * @calls
  * - `cpu_write_cr3()`
@@ -1006,11 +1400,20 @@ void ja_space_switch (jet_space_id space_id)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_SPACE_GET_CURRENT_01}: `ja_space_get_current()`
+ *   shall give the current space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_001}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_SPACE_GET_CURRENT_01}: `ja_space_get_current()`
+ *   shall return `current_space_id`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_SPACE_GET_CURRENT_01}
  *
  * @design
  * 1. Return `current_space_id`.
+ *    \llrref{LLR_SPACE_X86_64_JA_SPACE_GET_CURRENT_01}
  *
  * @calls
  * None.
@@ -1038,14 +1441,28 @@ jet_space_id ja_space_get_current (void)
  * | `res` | `jet_fp_store_t *` | The FP store |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01}: `ja_alloc_fp_store()` shall
+ *   give a floating point store of zeros from the kernel heap, aligned for the
+ *   save instruction.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_013}
+ *   - \srqref{SRQ_JET_MEM_010}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01}: `ja_alloc_fp_store()` shall
+ *   call `ja_mem_alloc_aligned()` once with the size of `jet_fp_store_t` and
+ *   16, set the bytes that it gives to 0 with `memset()`, and return their
+ *   address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01}
  *
  * @design
  * 1. Call `ja_mem_alloc_aligned()` with the arguments `sizeof(*res)` and `16`,
  *    and store the result in `res`.
+ *    \llrref{LLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01}
  * 2. Call `memset()` with the arguments `res`, `0` and `sizeof(*res)`.
- * 3. Return `res`.
+ *    \llrref{LLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01}
+ * 3. Return `res`. \llrref{LLR_SPACE_X86_64_JA_ALLOC_FP_STORE_01}
  *
  * @calls
  * - `ja_mem_alloc_aligned()`
@@ -1078,11 +1495,20 @@ jet_fp_store_t* ja_alloc_fp_store(void)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_JA_FP_SAVE_01}: `ja_fp_save()` shall save the floating
+ *   point and SSE registers into a store.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_013}
+ *   - \srqref{SRQ_JET_THR_024}
  *
  * @llr
+ * - \llrid{LLR_SPACE_JA_FP_SAVE_01}: `ja_fp_save()` shall execute the
+ *   instruction `fxsave64` once with the store at `fp_store`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_JA_FP_SAVE_01}
  *
  * @design
- * 1. Execute the assembly code `fxsave64 %0`.
+ * 1. Execute the assembly code `fxsave64 %0`. \llrref{LLR_SPACE_JA_FP_SAVE_01}
  *
  * @calls
  * None.
@@ -1110,11 +1536,20 @@ void ja_fp_save(jet_fp_store_t* fp_store)
  * None.
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_JA_FP_RESTORE_01}: `ja_fp_restore()` shall load the
+ *   floating point and SSE registers from a store.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_023}
  *
  * @llr
+ * - \llrid{LLR_SPACE_JA_FP_RESTORE_01}: `ja_fp_restore()` shall execute the
+ *   instruction `fxrstor64` once with the store at `fp_store`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_JA_FP_RESTORE_01}
  *
  * @design
  * 1. Execute the assembly code `fxrstor64 %0`.
+ *    \llrref{LLR_SPACE_JA_FP_RESTORE_01}
  *
  * @calls
  * None.
@@ -1140,15 +1575,27 @@ void ja_fp_restore(jet_fp_store_t* fp_store)
  * | `fp_init_store` | `static jet_fp_store_t` | The initial FP state |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_JA_FP_INIT_01}: `ja_fp_init()` shall give the processor a
+ *   clean floating point state: the control words at their reset values and all
+ *   registers zero.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_THR_024}
  *
  * @llr
+ * - \llrid{LLR_SPACE_JA_FP_INIT_01}: `ja_fp_init()` shall set, in the static
+ *   store `fp_init_store`, `data[0]` to `0x7f`, `data[1]` to `0x03`, `data[24]`
+ *   to `0x80` and `data[25]` to `0x1f`, and then call `ja_fp_restore()` once
+ *   with its address.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_JA_FP_INIT_01}
  *
  * @design
- * 1. Set `fp_init_store.data[0]` to `0x7fU`.
- * 2. Set `fp_init_store.data[1]` to `0x03U`.
- * 3. Set `fp_init_store.data[24]` to `0x80U`.
- * 4. Set `fp_init_store.data[25]` to `0x1fU`.
+ * 1. Set `fp_init_store.data[0]` to `0x7fU`. \llrref{LLR_SPACE_JA_FP_INIT_01}
+ * 2. Set `fp_init_store.data[1]` to `0x03U`. \llrref{LLR_SPACE_JA_FP_INIT_01}
+ * 3. Set `fp_init_store.data[24]` to `0x80U`. \llrref{LLR_SPACE_JA_FP_INIT_01}
+ * 4. Set `fp_init_store.data[25]` to `0x1fU`. \llrref{LLR_SPACE_JA_FP_INIT_01}
  * 5. Call `ja_fp_restore()` with the address of `fp_init_store`.
+ *    \llrref{LLR_SPACE_JA_FP_INIT_01}
  *
  * @calls
  * - `ja_fp_restore()`
@@ -1193,19 +1640,44 @@ void ja_fp_init(void)
  * | `space` | `ja_x86_64_space_t *` | The current space |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01}: `pok_virt_to_phys()` shall
+ *   give the physical address of a user address of the current space, and stop
+ *   the kernel for an address outside the space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_011}
+ *   - \srqref{SRQ_JET_MEM_020}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01}: If `virt` is less than
+ *   `POK_PARTITION_MEMORY_BASE`, or is greater than `POK_PARTITION_MEMORY_BASE`
+ *   plus `size_total` of the current space (`ja_spaces[ja_space_get_current() -
+ *   1]`), `pok_virt_to_phys()` shall call `printf()` with `"pok_virt_to_phys:
+ *   wrong virtual address 0x%%lx\n"` and `virt`, and then `pok_fatal()` with
+ *   `"wrong pointer in pok_virt_to_phys\n"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01}
+ * - \llrid{LLR_SPACE_X86_64_POK_VIRT_TO_PHYS_02}: If `virt` is not less than
+ *   `POK_PARTITION_MEMORY_BASE` and is not greater than
+ *   `POK_PARTITION_MEMORY_BASE` plus `size_total` of the current space,
+ *   `pok_virt_to_phys()` shall return `virt` minus `POK_PARTITION_MEMORY_BASE`
+ *   plus `phys_base` of the current space, without calling `pok_fatal()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01}
  *
  * @design
  * 1. Set `space` to the address of `ja_spaces[ja_space_get_current() - 1U]`.
+ *    \llrref{LLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01},
+ *    \llrref{LLR_SPACE_X86_64_POK_VIRT_TO_PHYS_02}
  * 2. If `virt` is less than `POK_PARTITION_MEMORY_BASE` or `virt` is greater
  *    than `(POK_PARTITION_MEMORY_BASE + space->size_total)`:
+ *    \llrref{LLR_SPACE_X86_64_POK_VIRT_TO_PHYS_01}
  *    1. Call `printf()` with the arguments
  *       `"pok_virt_to_phys: wrong virtual address 0x%%lx\n"` and
  *       `(unsigned long)virt`.
  *    2. Call `pok_fatal()` with the argument
  *       `"wrong pointer in pok_virt_to_phys\n"`.
  * 3. Return `virt - POK_PARTITION_MEMORY_BASE + space->phys_base`.
+ *    \llrref{LLR_SPACE_X86_64_POK_VIRT_TO_PHYS_02}
  *
  * @calls
  * - `ja_space_get_current()`
@@ -1253,19 +1725,43 @@ uintptr_t pok_virt_to_phys(uintptr_t virt)
  * | `space` | `ja_x86_64_space_t *` | The current space |
  *
  * @hlr
+ * - \hlrid{HLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01}: `pok_phys_to_virt()` shall
+ *   give the user address of a physical address of the current space, and stop
+ *   the kernel for an address outside the space.
+ *   <br>Traces to:
+ *   - \srqref{SRQ_JET_MEM_011}
+ *   - \srqref{SRQ_JET_MEM_020}
  *
  * @llr
+ * - \llrid{LLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01}: If `phys` is less than
+ *   `phys_base` of the current space (`ja_spaces[ja_space_get_current() - 1]`),
+ *   or is not less than its `phys_base` plus `size_total`, `pok_phys_to_virt()`
+ *   shall call `printf()` with `"pok_phys_to_virt: wrong physical address
+ *   0x%%lx\n"` and `phys`, and then `pok_fatal()` with `"wrong pointer in
+ *   pok_phys_to_virt\n"`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01}
+ * - \llrid{LLR_SPACE_X86_64_POK_PHYS_TO_VIRT_02}: If `phys` is not less than
+ *   `phys_base` of the current space and is less than its `phys_base` plus
+ *   `size_total`, `pok_phys_to_virt()` shall return `phys` minus `phys_base`
+ *   plus `POK_PARTITION_MEMORY_BASE`, without calling `pok_fatal()`.
+ *   <br>Traces to:
+ *   - \hlrref{HLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01}
  *
  * @design
  * 1. Set `space` to the address of `ja_spaces[ja_space_get_current() - 1U]`.
+ *    \llrref{LLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01},
+ *    \llrref{LLR_SPACE_X86_64_POK_PHYS_TO_VIRT_02}
  * 2. If `phys` is less than `space->phys_base` or `phys` is greater than or
  *    equal to `(space->phys_base + space->size_total)`:
+ *    \llrref{LLR_SPACE_X86_64_POK_PHYS_TO_VIRT_01}
  *    1. Call `printf()` with the arguments
  *       `"pok_phys_to_virt: wrong physical address 0x%%lx\n"` and
  *       `(unsigned long)phys`.
  *    2. Call `pok_fatal()` with the argument
  *       `"wrong pointer in pok_phys_to_virt\n"`.
  * 3. Return `phys - space->phys_base + POK_PARTITION_MEMORY_BASE`.
+ *    \llrref{LLR_SPACE_X86_64_POK_PHYS_TO_VIRT_02}
  *
  * @calls
  * - `ja_space_get_current()`
